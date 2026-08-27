@@ -1,15 +1,17 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "ai.tea.desktop",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "Tea",
+  "publish": null,
   "directories": {
     "output": "release/${version}"
   },
   "files": [
     "dist",
-    "dist-electron"
+    "dist-electron",
+    "public"
   ],
   "mac": {
     "target": [

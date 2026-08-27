@@ -10,7 +10,16 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-electron
+release
+coverage
+*.tsbuildinfo
 *.local
+
+# Generated declaration files
+/auto-imports.d.ts
+/components.d.ts
+/src/auto-imports.d.ts
 
 # Editor directories and files
 .vscode/*

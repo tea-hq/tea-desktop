@@ -1,24 +1,28 @@
-// import { ipcRenderer, contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
+import {
+  DESKTOP_COMMANDS,
+  DESKTOP_EVENTS,
+  type DesktopCommand,
+  type DesktopEvent,
+  type TeaDesktopBridge,
+} from '../src/types/electronBridge'
 
-// --------- Expose some API to the Renderer process ---------
-// contextBridge.exposeInMainWorld('ipcRenderer', {
-//   on(...args: Parameters<typeof ipcRenderer.on>) {
-//     const [channel, listener] = args
-//     return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-//   },
-//   off(...args: Parameters<typeof ipcRenderer.off>) {
-//     const [channel, ...omit] = args
-//     return ipcRenderer.off(channel, ...omit)
-//   },
-//   send(...args: Parameters<typeof ipcRenderer.send>) {
-//     const [channel, ...omit] = args
-//     return ipcRenderer.send(channel, ...omit)
-//   },
-//   invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-//     const [channel, ...omit] = args
-//     return ipcRenderer.invoke(channel, ...omit)
-//   },
+const commandSet = new Set<string>(DESKTOP_COMMANDS)
+const eventSet = new Set<string>(DESKTOP_EVENTS)
 
-// You can expose other APTs you need here.
-// ...
-// })
+const bridge: TeaDesktopBridge = {
+  invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
+    if (!commandSet.has(command)) throw new Error(`Unsupported desktop command: ${command}`)
+    return ipcRenderer.invoke('tea:command', command, args) as Promise<T>
+  },
+
+  on<T>(event: DesktopEvent, listener: (payload: T) => void): () => void {
+    if (!eventSet.has(event)) throw new Error(`Unsupported desktop event: ${event}`)
+    const channel = `tea:event:${event}`
+    const wrapped = (_ipcEvent: Electron.IpcRendererEvent, payload: T) => listener(payload)
+    ipcRenderer.on(channel, wrapped)
+    return () => ipcRenderer.removeListener(channel, wrapped)
+  },
+}
+
+contextBridge.exposeInMainWorld('teaDesktop', bridge)

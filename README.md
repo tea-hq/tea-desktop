@@ -1,18 +1,110 @@
-# Vue 3 + TypeScript + Vite
+# Tea
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Tea is an Electron desktop application for working with built-in and external
+Agent runtimes through one conversation workspace.
 
-## Recommended IDE Setup
+The current migration phase moves the Tea Desktop product surface into this
+Electron repository. The next phase will add official ACP support behind the
+runtime boundary.
 
-- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+## Features
 
-## Type Support For `.vue` Imports in TS
+- Conversation workspace with streaming responses, history, snapshots,
+  cancellation, approvals, and recovery.
+- Yunxin channels with channel history, direct conversations, collaboration,
+  drafts, and message delivery.
+- Built-in Tea Agent, Claude Code CLI, and Codex app-server runtimes.
+- Agent Roles, managed workspace state, directory, settings, skills, plugins,
+  and credential management.
+- Context-isolated Electron preload with typed and allowlisted IPC.
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
+## Quick Start
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
+Requirements: Node.js 22 or newer and npm.
 
-1. Disable the built-in TypeScript Extension
-   1. Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-   2. Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
+```sh
+npm install
+npm run dev
+```
+
+The development server uses `127.0.0.1:1420`. To use another port for an
+isolated local run, pass a Vite port override directly:
+
+```sh
+npx vite --port 1421
+```
+
+## Commands
+
+```sh
+npm run type-check
+npm run test:run
+npm run lint
+npm run build:web
+npm run build
+```
+
+`npm run build` creates the platform package through Electron Builder. Build
+output in `dist`, `dist-electron`, and `release` is generated and ignored by
+Git.
+
+## Architecture
+
+Electron main owns operating-system access, local persistence, credentials,
+channel services, runtime processes, and recovery. The preload exposes only
+typed commands and allowlisted events. The renderer contains feature stores,
+reducers, use cases, and Vue components; it never imports Electron APIs,
+Node process handles, filesystem APIs, or credentials.
+
+The runtime boundary is renderer-neutral:
+
+```text
+Vue components
+  -> feature store / use case
+  -> typed ConversationClient
+  -> context-isolated preload IPC
+  -> Electron main service
+  -> ConversationRuntime registry
+     -> built-in Tea runtime
+     -> external Claude/Codex runtime
+     -> official ACP runtime (phase two)
+```
+
+## ACP Roadmap
+
+ACP is intentionally not part of the first migration phase. In phase two,
+external agents will connect through the official ACP TypeScript SDK in
+Electron main and the standard ACP protocol. ACP types, protocol framing, and
+vendor event parsing stay out of the renderer. The existing runtime port and
+renderer DTOs remain the integration boundary so adding ACP does not require a
+second UI state machine or a private bridge protocol.
+
+## Project Structure
+
+- `electron/` — Electron main, preload, persistence, channel, runtime, plugin,
+  credential, and workspace services.
+- `src/app/` — application composition and root lifecycle.
+- `src/features/<feature>/` — feature stores, use cases, reducers, components,
+  contracts, and tests.
+- `src/infrastructure/` — renderer-side typed adapters for Electron services.
+- `src/shared/ui/` — reusable Tea UI primitives.
+- `src/types/` — cross-feature contracts and IPC DTOs.
+- `docs/` — architecture decisions and implementation plans.
+- `tests/` — cross-feature and acceptance-oriented tests.
+
+## Security Boundaries
+
+- Renderer-to-main calls use a fixed command and event allowlist.
+- Secrets are stored and resolved by Electron main; they are not accepted from
+  renderer action payloads, command arguments, logs, or catalog records.
+- Child processes use explicit executable paths and typed arguments, never
+  shell interpolation.
+- Plugin processes use the versioned framed protocol implemented by the main
+  process; invalid identities, actions, versions, and responses fail clearly.
+- Fixtures must be synthetic. Do not commit user or Agent transcripts.
+
+## Contributing
+
+Read [`AGENTS.md`](./AGENTS.md) before making changes. Keep ownership in the
+correct layer, update typed contracts before wiring UI, add tests at the owning
+boundary, and run the relevant checks before handoff.

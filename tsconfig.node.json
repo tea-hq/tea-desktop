@@ -1,11 +1,29 @@
 {
+  "extends": "@tsconfig/node22/tsconfig.json",
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "electron/**/*.ts",
+    "src/env.d.ts",
+    "src/infrastructure/electronBridge.ts",
+    "src/infrastructure/channels/YunxinWebChannelTransport.ts",
+    "src/infrastructure/channels/yunxinMapper.ts",
+    "src/infrastructure/channels/accountScope.ts",
+    "src/infrastructure/channels/electronManagedImCredentials.ts",
+    "src/types/channelCollaboration.ts",
+    "src/types/electronBridge.ts",
+    "src/features/*/contracts.ts"
+  ],
   "compilerOptions": {
     "composite": true,
-    "skipLibCheck": true,
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "strict": true
-  },
-  "include": ["vite.config.ts"]
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
+    "ignoreDeprecations": "6.0"
+  }
 }
