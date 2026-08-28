@@ -1,580 +1,561 @@
 ---
 version: alpha
-name: Ollama-design-analysis
-description: |
-  An almost defiantly minimal documentation-first system that treats the home page like a Markdown README — paper-white canvas, 36px center-aligned heading, a single black pill CTA, an inline terminal install snippet, and a hand-drawn llama mascot as the only ornamental element. No gradient, no hero photography, no marketing pyrotechnics. The chrome is a tiny utility palette of pure black, pure white, and three neutral grays; every interactive element is fully rounded into a pill (`{rounded.full}`); typography is SF Pro Rounded for headings paired with system sans for body and ui-monospace for code. Pricing tiers, FAQs, and "your data stays yours" guarantees all sit on the same flat canvas inside thin-border cards — the system is the documentation, and the documentation is the system.
+name: Cal.com-design-analysis
+description: A clean, calendar-software-first interface anchored on white canvas with black primary CTAs and custom Cal Sans display typography. The system reads as friendly modern SaaS — generous whitespace, soft-rounded cards (~12px), product UI fragments shown directly inside cards, and a dark navy footer that visually closes long-scroll pages. Brand voltage comes from the Cal Sans display headline (a custom geometric face) and from product UI artifacts shown in-card rather than from accent colors.
 
 colors:
-  primary: '#000000'
-  on-primary: '#ffffff'
-  ink: '#000000'
-  ink-deep: '#090909'
-  charcoal: '#525252'
-  body: '#737373'
-  mute: '#a3a3a3'
+  primary: '#111111'
+  primary-active: '#242424'
+  primary-disabled: '#e5e7eb'
+  ink: '#111111'
+  body: '#374151'
+  muted: '#6b7280'
+  muted-soft: '#898989'
+  hairline: '#e5e7eb'
+  hairline-soft: '#f3f4f6'
   canvas: '#ffffff'
-  surface-soft: '#fafafa'
-  surface-card: '#ffffff'
-  hairline: '#e5e5e5'
-  hairline-strong: '#d4d4d4'
+  surface-soft: '#f8f9fa'
+  surface-card: '#f5f5f5'
+  surface-strong: '#e5e7eb'
+  surface-dark: '#101010'
+  surface-dark-elevated: '#1a1a1a'
+  on-primary: '#ffffff'
   on-dark: '#ffffff'
-  on-dark-mute: 'rgba(255,255,255,0.7)'
-  surface-dark: '#171717'
-  focus-ring: 'rgba(59,130,246,0.5)'
-  link: '#000000'
-  link-mute: '#737373'
-  terminal-red: '#ff5f56'
-  terminal-yellow: '#ffbd2e'
-  terminal-green: '#27c93f'
+  on-dark-soft: '#a1a1aa'
+  brand-accent: '#3b82f6'
+  success: '#10b981'
+  warning: '#f59e0b'
+  error: '#ef4444'
+  badge-orange: '#fb923c'
+  badge-pink: '#ec4899'
+  badge-violet: '#8b5cf6'
+  badge-emerald: '#34d399'
 
 typography:
   display-xl:
-    fontFamily: SF Pro Rounded
-    fontSize: 36px
-    fontWeight: 500
-    lineHeight: 1.11
-    letterSpacing: 0
-  display-lg:
-    fontFamily: SF Pro Rounded
-    fontSize: 30px
-    fontWeight: 500
-    lineHeight: 1.2
-    letterSpacing: 0
-  heading-lg:
-    fontFamily: SF Pro Rounded
-    fontSize: 24px
+    fontFamily: 'Cal Sans, Inter, sans-serif'
+    fontSize: 64px
     fontWeight: 600
-    lineHeight: 1.33
-    letterSpacing: 0
-  heading-md:
-    fontFamily: ui-sans-serif
-    fontSize: 20px
-    fontWeight: 500
+    lineHeight: 1.05
+    letterSpacing: -2px
+  display-lg:
+    fontFamily: 'Cal Sans, Inter, sans-serif'
+    fontSize: 48px
+    fontWeight: 600
+    lineHeight: 1.1
+    letterSpacing: -1.5px
+  display-md:
+    fontFamily: 'Cal Sans, Inter, sans-serif'
+    fontSize: 36px
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: -1px
+  display-sm:
+    fontFamily: 'Cal Sans, Inter, sans-serif'
+    fontSize: 28px
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: -0.5px
+  title-lg:
+    fontFamily: 'Inter, sans-serif'
+    fontSize: 22px
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: -0.3px
+  title-md:
+    fontFamily: 'Inter, sans-serif'
+    fontSize: 18px
+    fontWeight: 600
     lineHeight: 1.4
     letterSpacing: 0
-  heading-sm:
-    fontFamily: ui-sans-serif
-    fontSize: 18px
-    fontWeight: 500
-    lineHeight: 1.56
+  title-sm:
+    fontFamily: 'Inter, sans-serif'
+    fontSize: 16px
+    fontWeight: 600
+    lineHeight: 1.4
     letterSpacing: 0
   body-md:
-    fontFamily: ui-sans-serif
+    fontFamily: 'Inter, sans-serif'
     fontSize: 16px
     fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: 0
-  body-strong:
-    fontFamily: ui-sans-serif
-    fontSize: 16px
-    fontWeight: 500
     lineHeight: 1.5
     letterSpacing: 0
   body-sm:
-    fontFamily: ui-sans-serif
+    fontFamily: 'Inter, sans-serif'
     fontSize: 14px
-    fontWeight: 400
-    lineHeight: 1.43
-    letterSpacing: 0
-  body-sm-strong:
-    fontFamily: ui-sans-serif
-    fontSize: 14px
-    fontWeight: 500
-    lineHeight: 1.43
-    letterSpacing: 0
-  caption-sm:
-    fontFamily: ui-sans-serif
-    fontSize: 12px
-    fontWeight: 400
-    lineHeight: 1.33
-    letterSpacing: 0
-  code-md:
-    fontFamily: ui-monospace
-    fontSize: 16px
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: 0
-  code-sm:
-    fontFamily: ui-monospace
+  caption:
+    fontFamily: 'Inter, sans-serif'
+    fontSize: 13px
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: 0
+  code:
+    fontFamily: 'JetBrains Mono, ui-monospace, monospace'
     fontSize: 14px
     fontWeight: 400
-    lineHeight: 1.43
+    lineHeight: 1.5
     letterSpacing: 0
-  button-md:
-    fontFamily: ui-sans-serif
+  button:
+    fontFamily: 'Inter, sans-serif'
+    fontSize: 14px
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: 0
+  nav-link:
+    fontFamily: 'Inter, sans-serif'
     fontSize: 14px
     fontWeight: 500
-    lineHeight: 1
+    lineHeight: 1.4
     letterSpacing: 0
 
 rounded:
-  none: 0px
+  xs: 4px
   sm: 6px
   md: 8px
   lg: 12px
+  xl: 16px
+  pill: 9999px
   full: 9999px
 
 spacing:
-  xxs: 2px
-  xs: 4px
-  sm: 8px
-  md: 12px
-  lg: 16px
-  xl: 24px
-  xxl: 32px
-  section: 88px
+  xxs: 4px
+  xs: 8px
+  sm: 12px
+  md: 16px
+  lg: 24px
+  xl: 32px
+  xxl: 48px
+  section: 96px
 
 components:
   button-primary:
     backgroundColor: '{colors.primary}'
     textColor: '{colors.on-primary}'
-    typography: '{typography.button-md}'
-    rounded: '{rounded.full}'
-    padding: 8px 20px
-    height: 36px
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
+    padding: 12px 20px
+    height: 40px
   button-primary-active:
-    backgroundColor: '{colors.ink-deep}'
+    backgroundColor: '{colors.primary-active}'
     textColor: '{colors.on-primary}'
-    typography: '{typography.button-md}'
-    rounded: '{rounded.full}'
+    rounded: '{rounded.md}'
+  button-primary-disabled:
+    backgroundColor: '{colors.primary-disabled}'
+    textColor: '{colors.muted}'
+    rounded: '{rounded.md}'
   button-secondary:
     backgroundColor: '{colors.canvas}'
     textColor: '{colors.ink}'
-    typography: '{typography.button-md}'
-    rounded: '{rounded.full}'
-    padding: 8px 20px
-    height: 36px
-  button-pill-on-dark:
-    backgroundColor: '{colors.canvas}'
-    textColor: '{colors.ink}'
-    typography: '{typography.button-md}'
-    rounded: '{rounded.full}'
-    padding: 8px 20px
-  button-disabled:
-    backgroundColor: '{colors.surface-soft}'
-    textColor: '{colors.mute}'
-    rounded: '{rounded.full}'
-  search-pill:
-    backgroundColor: '{colors.surface-soft}'
-    textColor: '{colors.ink}'
-    typography: '{typography.body-sm}'
-    rounded: '{rounded.full}'
-    padding: 8px 16px
-    height: 36px
-  search-pill-focused:
+    typography: '{typography.button}'
+    rounded: '{rounded.md}'
+    padding: 12px 20px
+    height: 40px
+  button-icon-circular:
     backgroundColor: '{colors.canvas}'
     textColor: '{colors.ink}'
     rounded: '{rounded.full}'
+    size: 36px
+  button-text-link:
+    backgroundColor: transparent
+    textColor: '{colors.ink}'
+    typography: '{typography.button}'
+  text-link:
+    backgroundColor: transparent
+    textColor: '{colors.ink}'
+    typography: '{typography.body-md}'
+  top-nav:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.nav-link}'
+    height: 64px
+  nav-pill-group:
+    backgroundColor: '{colors.surface-soft}'
+    textColor: '{colors.ink}'
+    typography: '{typography.nav-link}'
+    rounded: '{rounded.pill}'
+    padding: 6px
+  hero-band:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.display-xl}'
+    padding: 96px
+  hero-app-mockup-card:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.xl}'
+  feature-card:
+    backgroundColor: '{colors.surface-card}'
+    textColor: '{colors.ink}'
+    typography: '{typography.title-md}'
+    rounded: '{rounded.lg}'
+    padding: 32px
+  feature-icon-card:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.title-sm}'
+    rounded: '{rounded.lg}'
+    padding: 24px
+  product-mockup-card:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.lg}'
+    padding: 24px
+  testimonial-card:
+    backgroundColor: '{colors.surface-card}'
+    textColor: '{colors.ink}'
+    typography: '{typography.body-md}'
+    rounded: '{rounded.lg}'
+    padding: 24px
+  pricing-tier-card:
+    backgroundColor: '{colors.canvas}'
+    textColor: '{colors.ink}'
+    typography: '{typography.title-lg}'
+    rounded: '{rounded.lg}'
+    padding: 32px
+  pricing-tier-card-featured:
+    backgroundColor: '{colors.surface-dark}'
+    textColor: '{colors.on-dark}'
+    typography: '{typography.title-lg}'
+    rounded: '{rounded.lg}'
+    padding: 32px
   text-input:
     backgroundColor: '{colors.canvas}'
     textColor: '{colors.ink}'
     typography: '{typography.body-md}'
-    rounded: '{rounded.full}'
-    padding: 8px 16px
+    rounded: '{rounded.md}'
+    padding: 10px 14px
     height: 40px
   text-input-focused:
     backgroundColor: '{colors.canvas}'
     textColor: '{colors.ink}'
-    rounded: '{rounded.full}'
-  install-snippet:
-    backgroundColor: '{colors.surface-soft}'
-    textColor: '{colors.ink}'
-    typography: '{typography.code-md}'
-    rounded: '{rounded.full}'
-    padding: 12px 20px
-    height: 48px
-  command-tag:
-    backgroundColor: '{colors.surface-soft}'
-    textColor: '{colors.ink}'
-    typography: '{typography.code-sm}'
-    rounded: '{rounded.full}'
-    padding: 6px 12px
-  terminal-card:
+    rounded: '{rounded.md}'
+  category-tab:
+    backgroundColor: transparent
+    textColor: '{colors.muted}'
+    typography: '{typography.nav-link}'
+    padding: 8px 14px
+    rounded: '{rounded.md}'
+  category-tab-active:
     backgroundColor: '{colors.canvas}'
     textColor: '{colors.ink}'
-    typography: '{typography.code-sm}'
-    rounded: '{rounded.lg}'
-    padding: 16px
-  terminal-traffic-lights:
-    rounded: '{rounded.full}'
-    size: 12px
-  pricing-card:
-    backgroundColor: '{colors.canvas}'
+    typography: '{typography.nav-link}'
+    rounded: '{rounded.md}'
+  avatar-circle:
+    backgroundColor: '{colors.surface-card}'
     textColor: '{colors.ink}'
-    typography: '{typography.body-md}'
+    rounded: '{rounded.full}'
+    size: 36px
+  badge-pill:
+    backgroundColor: '{colors.surface-card}'
+    textColor: '{colors.ink}'
+    typography: '{typography.caption}'
+    rounded: '{rounded.pill}'
+    padding: 4px 12px
+  rating-stars:
+    backgroundColor: transparent
+    textColor: '{colors.badge-orange}'
+    typography: '{typography.caption}'
+  cta-band-light:
+    backgroundColor: '{colors.surface-card}'
+    textColor: '{colors.ink}'
+    typography: '{typography.display-sm}'
     rounded: '{rounded.lg}'
-    padding: 32px
-  pricing-card-dark:
+    padding: 48px
+  footer:
     backgroundColor: '{colors.surface-dark}'
-    textColor: '{colors.on-dark}'
-    typography: '{typography.body-md}'
-    rounded: '{rounded.lg}'
-    padding: 32px
-  feature-bullet:
-    textColor: '{colors.charcoal}'
+    textColor: '{colors.on-dark-soft}'
     typography: '{typography.body-sm}'
-  faq-row:
-    backgroundColor: '{colors.canvas}'
-    textColor: '{colors.ink}'
-    typography: '{typography.body-md}'
-    rounded: '{rounded.none}'
-    padding: 16px 0px
-  link-inline:
-    textColor: '{colors.ink}'
-    typography: '{typography.body-md}'
-  link-mute:
-    textColor: '{colors.body}'
-    typography: '{typography.body-sm}'
-  primary-nav:
-    backgroundColor: '{colors.canvas}'
-    textColor: '{colors.ink}'
-    typography: '{typography.body-sm-strong}'
-    rounded: '{rounded.none}'
-    height: 56px
-  footer-section:
-    backgroundColor: '{colors.canvas}'
-    textColor: '{colors.body}'
-    typography: '{typography.caption-sm}'
-    rounded: '{rounded.none}'
-    padding: 32px 24px
-  cta-strip-dark:
-    backgroundColor: '{colors.surface-dark}'
-    textColor: '{colors.on-dark}'
-    typography: '{typography.heading-lg}'
-    rounded: '{rounded.lg}'
-    padding: 24px 32px
+    padding: 64px
 ---
 
 ## Overview
 
-Ollama's site is the most aggressively under-designed marketing surface in the AI tooling space, and that is the entire point. The home page reads like a Markdown README rendered with care: a 36px center-aligned heading sits above an inline `curl` install snippet inside a soft-gray pill, a single black "Download" CTA, and a hand-drawn llama mascot as the only ornament. Everything else — automate-your-work block, "Start local. Scale cloud." pricing pair, "Your data stays yours" guarantee strip, FAQ wall on `/pricing` — sits on the same paper-white canvas (`{colors.canvas}`) with quiet `{colors.body}` neutrals carrying the prose. The system is the documentation, and the documentation is the system.
+Cal.com's marketing surface is a clean, friendly modern-SaaS interface — white canvas (`{colors.canvas}` — #ffffff) with black primary CTAs (`{colors.primary}` — #111111), custom **Cal Sans** display typography, and `{colors.surface-card}` (#f5f5f5) light-gray cards holding product UI fragments. The system reads as confidently engineered without trying to impress — every band has clear hierarchy, generous whitespace, and a single primary action.
 
-The design philosophy is geometric: every interactive element collapses to `{rounded.full}` (9999px) — buttons, search pills, install-snippet pills, text inputs, and the terminal-traffic-light dots. There are no decorative drop shadows, no gradients, no hero illustrations beyond the llama. Cards (the rare ones, on `/pricing`) use a soft `{rounded.lg}` (12px) and a 1px hairline. The single inverted moment in the entire system is the dark "Max" pricing tier — `{colors.surface-dark}` with white text — which acts as the only attention-grabbing surface in an otherwise studiously flat layout.
+Type voice splits cleanly into two roles: **Cal Sans** (the brand's custom geometric display face — used for h1, h2, h3, and hero headlines) and **Inter** (used for everything else — body, buttons, nav, captions). Cal Sans uses weight 600 with negative letter-spacing (-0.5px to -2px depending on size) — it feels modern, slightly condensed, distinctly Cal.com.
 
-Typography pairs SF Pro Rounded (display headings, weight 500–600) with the operating system's default sans (`ui-sans-serif`) for body and `ui-monospace` for code. The roundness of the heading face is the only "personality" the chrome carries — it gently echoes the `{rounded.full}` button geometry without being decorative about it.
+Component voltage comes from **product UI fragments shown directly inside cards** — calendar widgets, scheduling forms, automation diagrams, integration tiles. Cal.com doesn't paint marketing illustrations of the product; it shows the actual product chrome at small scale embedded in the marketing flow.
+
+The footer flips to `{colors.surface-dark}` (#101010) — a deep near-black that visually closes every long-scroll page. The footer is the only dark surface in the system; everything above stays white-with-light-gray-cards.
 
 **Key Characteristics:**
 
-- Paper-white `{colors.canvas}` end-to-end with no surface alternation — the whole page is one continuous sheet
-- Center-aligned hero with `{typography.display-xl}` SF Pro Rounded headline, no eyebrow, no subhead beyond a small "Power OpenClaw with Ollama" line under the llama
-- Pill geometry everywhere: every button and pill input is `{rounded.full}`; cards use `{rounded.lg}`; nothing is sharp-cornered except section dividers
-- Single-color CTA system: pure black `{colors.primary}` pills carry every action; "Get Pro" / "Get Max" inside pricing cards are the only variations
-- Inline `curl` install snippet rendered as a pill with `{typography.code-md}` — the most signature element, sitting directly under the hero headline
-- Terminal-mockup card with macOS traffic-light dots and inline `ollama launch openclaw` example — the home page's only "product preview"
-- Inverted dark `{component.pricing-card-dark}` for the highest-tier "Max" plan, breaking the flat-white rhythm exactly once per page
+- White canvas with black primary CTA (`{colors.primary}` — #111111). Buttons are `{rounded.md}` (8px) with confident weight-600 labels. Standard friendly-SaaS button.
+- Custom `Cal Sans` display typeface for headlines (substituted with Inter weight 600 here). Negative letter-spacing on display sizes — geometric, precise, slightly condensed.
+- Light-gray card surfaces (`{colors.surface-card}` — #f5f5f5) for feature cards, testimonials, and pricing tiers (non-featured). The featured pricing tier flips to `{colors.surface-dark}` (the only dark card on light pages).
+- Product UI fragments embedded directly in cards — Cal.com shows real schedule pickers, calendar widgets, integration grids inside its marketing cards. Brand voltage from real product chrome at small scale.
+- Nav-pill-group (`{component.nav-pill-group}`) — a small pill-radius wrapper around grouped nav segments (e.g., the sub-nav switcher between product views). The pill wrapper is one of the system's signature interactive components.
+- Avatars are circular (`{rounded.full}`), 36px diameter, used in testimonial rows and team-listing surfaces.
+- Footer is dark navy (`{colors.surface-dark}` — #101010) with light text (`{colors.on-dark-soft}` — #a1a1aa). The dark footer closes every page even though the body above is white.
+- Spacing rhythm is `{spacing.section}` (96px) between major bands — tight enough to feel modern-SaaS but generous enough to breathe.
+- Border radius is hierarchical: `{rounded.md}` (8px) for buttons + inputs, `{rounded.lg}` (12px) for content cards, `{rounded.xl}` (16px) for the hero app-mockup container, `{rounded.pill}` for nav-pill-group + badges, `{rounded.full}` for avatars + icon buttons.
 
 ## Colors
 
-> **Source pages:** `/` (home) and `/pricing`. The chrome palette is identical across both — only content changes.
-
 ### Brand & Accent
 
-- **Pure Black** (`{colors.primary}` — `#000000`): the brand. Every primary CTA, every black pill, every link in the nav, and every solid icon. There is no other "brand color."
-- **Ink Deep** (`{colors.ink-deep}` — `#090909`): pressed-state black for the primary pill — a single notch below pure.
+- **Primary** (`{colors.primary}` — #111111): The dominant action color. All primary CTAs, h1/h2 display type. Press state shifts to `{colors.primary-active}` (#242424).
+- **Brand Accent** (`{colors.brand-accent}` — #3b82f6): Used sparely on inline links and on a small badge / "Customer story" highlight. Cal.com is a near-monochrome brand — the blue appears rarely.
+- **Badge Pastels** — A small pastel set for category badges and avatar fills: `{colors.badge-orange}` (#fb923c), `{colors.badge-pink}` (#ec4899), `{colors.badge-violet}` (#8b5cf6), `{colors.badge-emerald}` (#34d399). These appear on tag pills and small accent moments inside product UI fragments — never on hero CTAs.
 
 ### Surface
 
-- **Canvas** (`{colors.canvas}` — `#ffffff`): the page itself. Nearly every surface in the system.
-- **Soft Surface** (`{colors.surface-soft}` — `#fafafa`): install-snippet pill background, search pill, secondary chip backgrounds, alternating row fill where one is needed.
-- **Surface Dark** (`{colors.surface-dark}` — `#171717`): the dark "Max" pricing card and dark CTA strips. The single inverted surface in the system.
-- **Hairline** (`{colors.hairline}` — `#e5e5e5`): 1px card border, divider line above footer, divider between FAQ rows.
-- **Hairline Strong** (`{colors.hairline-strong}` — `#d4d4d4`): rare slightly stronger divider where extra separation is needed (e.g., between unrelated FAQ groups).
+- **Canvas** (`{colors.canvas}` — #ffffff): The default page floor.
+- **Surface Soft** (`{colors.surface-soft}` — #f8f9fa): Nav-pill-group background, very-soft section dividers.
+- **Surface Card** (`{colors.surface-card}` — #f5f5f5): Feature cards, testimonial cards, badge pills, default avatar fills.
+- **Surface Strong** (`{colors.surface-strong}` — #e5e7eb): Hairline border alternative; disabled button background.
+- **Surface Dark** (`{colors.surface-dark}` — #101010): The footer background — the only dark surface on every page. Also used for the featured pricing tier card.
+- **Surface Dark Elevated** (`{colors.surface-dark-elevated}` — #1a1a1a): Used for nested cards inside the dark footer or featured pricing card.
+- **Hairline** (`{colors.hairline}` — #e5e7eb): The 1px border tone on light surfaces. Used on input borders, table dividers, content card outlines (sometimes).
+- **Hairline Soft** (`{colors.hairline-soft}` — #f3f4f6): A barely-visible divider used between sections that share the white canvas.
 
 ### Text
 
-- **Ink** (`{colors.ink}` — `#000000`): all headlines, primary nav links, button text on light surfaces, prices on pricing cards.
-- **Charcoal** (`{colors.charcoal}` — `#525252`): list-item text and disabled-state secondary copy.
-- **Body** (`{colors.body}` — `#737373`): default body color for paragraph copy, FAQ answers, footer link text — the system's most-used text color after pure black.
-- **Mute** (`{colors.mute}` — `#a3a3a3`): caption text, command-line "comment" gray inside terminal mockups, lowest-emphasis utility text.
-- **On Dark** (`{colors.on-dark}` — `#ffffff`): primary text on `{colors.surface-dark}`.
-- **On Dark Mute** (`{colors.on-dark-mute}` — `rgba(255,255,255,0.7)`): secondary copy inside the dark "Max" pricing card.
+- **Ink** (`{colors.ink}` — #111111): All headlines and primary text.
+- **Body** (`{colors.body}` — #374151): Default running-text color.
+- **Muted** (`{colors.muted}` — #6b7280): Secondary text — sub-headings, breadcrumbs, footer body.
+- **Muted Soft** (`{colors.muted-soft}` — #898989): Tertiary text — captions, fine-print, copyright lines.
+- **On Primary / On Dark** (`{colors.on-primary}` / `{colors.on-dark}` — #ffffff): Text on primary buttons and dark footer.
+- **On Dark Soft** (`{colors.on-dark-soft}` — #a1a1aa): Footer body text — slightly muted white for the link rows.
 
 ### Semantic
 
-The system has effectively no error/success/warning palette in its public marketing surfaces — there are no validation states, no destructive flows, no banners. The only "semantic" colors are the macOS terminal traffic lights inside the terminal mockup:
-
-- **Terminal Red** (`{colors.terminal-red}` — `#ff5f56`): close-window dot.
-- **Terminal Yellow** (`{colors.terminal-yellow}` — `#ffbd2e`): minimize dot.
-- **Terminal Green** (`{colors.terminal-green}` — `#27c93f`): zoom dot.
-
-These appear only inside `{component.terminal-card}` and have no other use.
-
-### Focus
-
-- **Focus Ring** (`{colors.focus-ring}` — `rgba(59,130,246,0.5)`): translucent blue browser-default focus ring around interactive elements. The only blue in the system.
+- **Success** (`{colors.success}` — #10b981): Confirmation states, success badges in product UI.
+- **Warning** (`{colors.warning}` — #f59e0b): Warning callouts.
+- **Error** (`{colors.error}` — #ef4444): Validation errors.
 
 ## Typography
 
 ### Font Family
 
-- **SF Pro Rounded** (display headings) — Apple's rounded geometric sans, used at weights 500 and 600 for headlines from `{typography.display-xl}` (36px) down to `{typography.heading-lg}` (24px). Falls back to `system-ui` → `-apple-system`.
-- **ui-sans-serif** (body, links, buttons, captions) — the operating system's default sans-serif. Carries every non-display text role at 12–20px. Falls back through `system-ui` and platform emoji families.
-- **ui-monospace** (code, install snippet, command tags) — the OS default monospace. Used inside the terminal mockup, the inline `curl` install pill, and any inline `<code>` formatting. Falls back to SFMono-Regular → Menlo → Monaco → Consolas.
+The system runs **Cal Sans** for display + brand wordmark and **Inter** for everything else. Cal Sans is Cal.com's custom geometric display typeface — slightly condensed, weight 600, negative letter-spacing. Inter handles body, buttons, navigation, captions, and tabular code blocks. The fallback stack walks `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` for both families.
 
-The pairing of SF Pro Rounded display + system sans body + system mono code is intentionally "stock Apple" — the design decision is to not have a typography decision. Branded display faces would compete with the system's documentation feel.
+The split is functional:
+
+- Cal Sans (display, 600 weight, -0.5 to -2px tracking) — h1, h2, h3
+- Inter (body + UI, 400-600 weight, 0 letter-spacing) — paragraphs, labels, buttons, nav
 
 ### Hierarchy
 
-| Token                         | Size | Weight | Line Height | Letter Spacing | Use                                                                                |
-| ----------------------------- | ---- | ------ | ----------- | -------------- | ---------------------------------------------------------------------------------- |
-| `{typography.display-xl}`     | 36px | 500    | 1.11        | 0              | Hero headline ("The easiest way to build with open models")                        |
-| `{typography.display-lg}`     | 30px | 500    | 1.2         | 0              | Major section headlines ("Pricing", "Frequently asked questions")                  |
-| `{typography.heading-lg}`     | 24px | 600    | 1.33        | 0              | Section subheading inside body ("Automate your work", "Start local. Scale cloud.") |
-| `{typography.heading-md}`     | 20px | 500    | 1.4         | 0              | Pricing tier name ("Free", "Pro", "Max"), card title                               |
-| `{typography.heading-sm}`     | 18px | 500    | 1.56        | 0              | FAQ question label, in-card subtitle                                               |
-| `{typography.body-md}`        | 16px | 400    | 1.5         | 0              | Default body, FAQ answers, paragraph copy                                          |
-| `{typography.body-strong}`    | 16px | 500    | 1.5         | 0              | Inline emphasis, primary-nav link                                                  |
-| `{typography.body-sm}`        | 14px | 400    | 1.43        | 0              | Feature bullet ("Access larger models on data-center-grade hardware"), footer link |
-| `{typography.body-sm-strong}` | 14px | 500    | 1.43        | 0              | Button label, pricing-card eyebrow ("Solve harder tasks, faster")                  |
-| `{typography.caption-sm}`     | 12px | 400    | 1.33        | 0              | Footer copyright row, smallest meta text                                           |
-| `{typography.code-md}`        | 16px | 400    | 1.5         | 0              | Install-snippet `curl` line, in-terminal command                                   |
-| `{typography.code-sm}`        | 14px | 400    | 1.43        | 0              | Terminal output line, inline `<code>` chips                                        |
-| `{typography.button-md}`      | 14px | 500    | 1           | 0              | Every button label across the system                                               |
+| Token                     | Size | Weight | Line Height | Letter Spacing | Use                                                                 |
+| ------------------------- | ---- | ------ | ----------- | -------------- | ------------------------------------------------------------------- |
+| `{typography.display-xl}` | 64px | 600    | 1.05        | -2px           | Homepage h1 ("The better way to schedule your meetings") — Cal Sans |
+| `{typography.display-lg}` | 48px | 600    | 1.1         | -1.5px         | Section heads ("Your all-purpose scheduling app") — Cal Sans        |
+| `{typography.display-md}` | 36px | 600    | 1.15        | -1px           | Sub-section heads, card titles — Cal Sans                           |
+| `{typography.display-sm}` | 28px | 600    | 1.2         | -0.5px         | CTA-band heads, pricing tier prices — Cal Sans                      |
+| `{typography.title-lg}`   | 22px | 600    | 1.3         | -0.3px         | Pricing plan names — Inter                                          |
+| `{typography.title-md}`   | 18px | 600    | 1.4         | 0              | Feature card titles, intro paragraphs                               |
+| `{typography.title-sm}`   | 16px | 600    | 1.4         | 0              | Small card titles, list labels                                      |
+| `{typography.body-md}`    | 16px | 400    | 1.5         | 0              | Default running-text                                                |
+| `{typography.body-sm}`    | 14px | 400    | 1.5         | 0              | Footer body, fine-print                                             |
+| `{typography.caption}`    | 13px | 500    | 1.4         | 0              | Badge labels, captions                                              |
+| `{typography.code}`       | 14px | 400    | 1.5         | 0              | Code snippets, API examples — JetBrains Mono                        |
+| `{typography.button}`     | 14px | 600    | 1.0         | 0              | Standard button labels                                              |
+| `{typography.nav-link}`   | 14px | 500    | 1.4         | 0              | Top-nav menu items                                                  |
 
 ### Principles
 
-The typography is built for legibility at small sizes on a flat-white canvas. SF Pro Rounded's softened terminals on the heading face do almost all of the brand expression; everything below 20px collapses into the operating system's default sans, which renders identically to the way docs.ollama.com and the Ollama CLI's own help text would appear in a terminal. There is almost no letter-spacing variation, no display-only weights, no italic, and the heading-to-body ratio compresses tightly (36 → 30 → 24 → 20 → 16) so the page reads as a single readable column rather than a marketing pyramid.
+Cal Sans is the brand voice — every display headline uses it. Inter handles the supporting type. The boundary is strict: never put body copy in Cal Sans, never put a display headline in Inter. Cal Sans without negative letter-spacing reads as off-brand — the -0.5 to -2px tracking is part of the voice.
+
+Display weight stays at 600 across all sizes — never 700, never 500. The middle weight is what makes Cal Sans feel modern and confident without becoming bombastic.
 
 ### Note on Font Substitutes
 
-SF Pro Rounded is Apple-licensed and ships only on macOS/iOS. On other systems it falls back to `system-ui` (Segoe UI / Roboto / DejaVu Sans depending on platform) — Ollama explicitly accepts that the heading face will look slightly different on Windows/Linux. The closest open-source substitute is **Nunito** (rounded geometric sans, weights 500/600). For the body face, **Inter** is a near-perfect match for `system-ui` rendered metrics. For code, **JetBrains Mono** or **Fira Code** are the canonical open-source substitutes for `ui-monospace`.
+If Cal Sans is unavailable, **Inter** at weight 600 with -0.04em letter-spacing is a usable approximation. The geometric character of Cal Sans differs from Inter's humanist forms, but the substitution preserves the weight + tracking signature. **Manrope** at weight 700 is another close alternative.
 
 ## Layout
 
 ### Spacing System
 
-- **Base unit:** 8px (with finer 2/4/6px steps available for tight inline gaps)
-- **Tokens (front matter):** `{spacing.xxs}` (2px) · `{spacing.xs}` (4px) · `{spacing.sm}` (8px) · `{spacing.md}` (12px) · `{spacing.lg}` (16px) · `{spacing.xl}` (24px) · `{spacing.xxl}` (32px) · `{spacing.section}` (88px)
-- **Universal section rhythm:** every page uses `{spacing.section}` (88px) as the vertical gap between major content blocks (hero → automate → start local/scale cloud → your data stays yours → get-started footer call). This is the single largest spacing token in the system and it is used liberally.
-- **Card internal padding:** pricing cards sit at `{spacing.xxl}` (32px) all around; FAQ rows use `{spacing.lg}` (16px) vertical with no horizontal padding.
+- **Base unit:** 4px.
+- **Tokens:** `{spacing.xxs}` 4px · `{spacing.xs}` 8px · `{spacing.sm}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 32px · `{spacing.xxl}` 48px · `{spacing.section}` 96px.
+- **Section padding:** `{spacing.section}` (96px) — the universal vertical rhythm between editorial bands.
+- **Card internal padding:** `{spacing.xl}` (32px) for feature cards and pricing tier cards; `{spacing.lg}` (24px) for testimonial and product-mockup cards.
+- **Gutters:** `{spacing.lg}` (24px) between cards in 3-up grids; `{spacing.md}` (16px) inside footer columns.
 
 ### Grid & Container
 
-- **Max width:** ~720px content column on the home page (the whole page is laid out as a single narrow reading column with optional 2-column splits inside specific sections).
-- **Pricing grid:** 3-up cards at desktop with a max content width of ~960px; collapses to 1-up below 768px.
-- **Automate-your-work split:** desktop 50/50 left-text/right-terminal-mockup; mobile stacks vertical with the terminal below the text.
-- **FAQ:** single-column stacked rows, full-width within the 720px content column.
-- **Footer:** single-row of small body-sm links, center-aligned at desktop, wrapping to two rows on narrow screens.
+- **Max content width:** ~1200px centered on marketing pages.
+- **Editorial body:** Single 12-column grid; hero band often uses 7/5 split (h1 left, app mockup card right).
+- **Feature card grids:** 3-up at desktop, 2-up at tablet, 1-up at mobile.
+- **Pricing grid:** 4-up at desktop, 2-up at tablet, 1-up at mobile.
+- **Footer:** 4-column link list at desktop, wrapping to 2-up at tablet, 1-up at mobile.
 
 ### Whitespace Philosophy
 
-Whitespace is the entire layout. Sections are separated by 88px of plain white air, never by decorative dividers, never by colored bands. Inside a section, content sits in a tight reading column with no decorative columns, callout boxes, or lifted cards. The site treats the page as a long-form Markdown document, and the air between sections is the equivalent of a blank line in Markdown source.
+Cal.com uses generous but not excessive whitespace — section padding sits at 96px (modern-SaaS standard), and card internal padding stays at 32px. The rhythm is calibrated for fast scanning: every band has a single h1 + h2 + supporting cards, never densely packed lists. The result reads as confident-not-shouting.
 
 ## Elevation & Depth
 
-| Level               | Treatment                     | Use                                                                                                      |
-| ------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 0 — Flat            | No border, no shadow          | Hero, automate-your-work, your-data-stays-yours, footer — the dominant treatment across the page         |
-| 1 — Hairline border | 1px solid `{colors.hairline}` | Pricing cards, FAQ row dividers, terminal mockup card                                                    |
-| 2 — Inverted dark   | `{colors.surface-dark}` fill  | Dark "Max" pricing card and dark CTA strip — the system's only "elevated" surfaces use color, not shadow |
+| Level              | Treatment                                            | Use                                                                                                                        |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Flat               | No shadow, no border                                 | Body sections, top nav, hero bands                                                                                         |
+| Soft hairline      | 1px `{colors.hairline}` border                       | Inputs, table dividers, occasionally on cards                                                                              |
+| Card surface       | `{colors.surface-card}` background — no shadow       | Feature cards, testimonials                                                                                                |
+| Subtle drop shadow | Faint shadow at low alpha                            | Pricing tier cards, hover-elevated states (the system uses `0 1px 2px rgba(0,0,0,0.05)` and `0 4px 12px rgba(0,0,0,0.08)`) |
+| Featured tier      | `{colors.surface-dark}` background, no shadow needed | The featured pricing tier inverts to dark surface — color contrast does the elevation work                                 |
 
-The system has no drop-shadow elevation at all. Nothing lifts, nothing floats, nothing layers. The only depth cue beyond hairline borders is the single dark surface used on the highest-tier pricing card to draw attention to it.
+The elevation philosophy is **soft and modern** — small drop shadows on elevated cards, color-block contrast for emphasis. No heavy shadows, no neumorphism, no glassmorphism.
 
 ### Decorative Depth
 
-The site has effectively zero decorative depth in the traditional sense. The "depth" comes entirely from two recurring devices:
-
-- **The hand-drawn llama mascot** — appearing once at the top of the hero, once at the top of each pricing card, and once next to the lock icon in the "Your data stays yours" section. It is the only illustration in the system.
-- **A single line-drawn lock icon** — used in the data-privacy section. Stroke-only, no fill, drawn in `{colors.ink}`.
+- Calendar widgets and product UI fragments embedded inside marketing cards carry their own internal shadows from the product UI itself — these are not system tokens, they're product chrome shown as content.
+- Avatar circles in testimonial sections sometimes carry pastel fill colors (`{colors.badge-orange}`, `{colors.badge-pink}`, etc.) — adds a small chromatic flourish without breaking the monochrome brand voice.
 
 ## Shapes
 
 ### Border Radius Scale
 
-| Token            | Value  | Use                                                                                   |
-| ---------------- | ------ | ------------------------------------------------------------------------------------- |
-| `{rounded.none}` | 0px    | Nav, footer, FAQ row dividers — flat structural lines                                 |
-| `{rounded.sm}`   | 6px    | Inline code chips, command tags                                                       |
-| `{rounded.md}`   | 8px    | Rare medium-radius surfaces (e.g., dropdown panels)                                   |
-| `{rounded.lg}`   | 12px   | Pricing cards, terminal mockup card                                                   |
-| `{rounded.full}` | 9999px | Every button, every pill input, install-snippet pill, search pill, traffic-light dots |
-
-The dominant shape vocabulary is just two values: pills (`{rounded.full}`) for everything interactive and 12px (`{rounded.lg}`) for the few cards in the system. There are no medium-radius "soft cards" — surfaces are either pills or rectangles with corners large enough to read as deliberately soft.
+| Token            | Value        | Use                                                                       |
+| ---------------- | ------------ | ------------------------------------------------------------------------- |
+| `{rounded.xs}`   | 4px          | Almost no use — reserved for badge accents                                |
+| `{rounded.sm}`   | 6px          | Small inline buttons, dropdown items                                      |
+| `{rounded.md}`   | 8px          | Standard CTA buttons, text inputs, category tabs                          |
+| `{rounded.lg}`   | 12px         | Content cards (feature cards, testimonial cards, pricing tier cards)      |
+| `{rounded.xl}`   | 16px         | Hero app-mockup card (a slightly larger radius for the marquee component) |
+| `{rounded.pill}` | 9999px       | Nav-pill-group, badge pills                                               |
+| `{rounded.full}` | 9999px / 50% | Avatars, icon buttons                                                     |
 
 ### Photography Geometry
 
-There is no photography. The only image-like elements are:
-
-- **The llama mascot** — a hand-drawn line illustration, ~80–120px on the hero, ~32–48px when it appears as a pricing-card eyebrow icon.
-- **The lock icon** — single stroke line drawing in the privacy section.
-- **macOS traffic-light dots** — three filled circles at 12px (`{rounded.full}`) inside the terminal mockup card.
+Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI fragments inside marketing cards retain their native chrome (which often has its own internal radii — e.g., calendar grid cells, button rows). Hero illustration zones use 16:9 or 4:3 ratios with `{rounded.xl}` corners.
 
 ## Components
 
-> **No hover states documented** per system policy. Each spec covers Default and Active/Pressed only.
+### Top Navigation
+
+**`top-nav`** — White nav bar pinned to the top of every page. 64px tall, `{colors.canvas}` background. Carries the Cal.com wordmark + logo at left (the lowercase "Cal.com" with the brand circle), primary horizontal menu (Product, Solutions, Resources, Pricing, Enterprise) center, right-side cluster with "Sign in" text-link, "Sign up free" `{component.button-primary}`, and a sometimes-visible language selector. Menu items in `{typography.nav-link}` (Inter 14px / 500).
+
+**`nav-pill-group`** — A small pill-radius wrapper around 2-3 sub-nav segments (e.g., the product-mode switcher between "Personal" / "Teams" / "Enterprise"). Background `{colors.surface-soft}` with internal padding 6px, rounded `{rounded.pill}`. Active segment renders as a white-canvas pill with a subtle drop shadow inside the wrapper. The pill-in-pill treatment is one of Cal.com's signature interactive components.
 
 ### Buttons
 
-**`button-primary`** — the universal Ollama CTA
+**`button-primary`** — The signature primary CTA. Background `{colors.primary}` (#111111), text `{colors.on-primary}`, type `{typography.button}` (Inter 14px / 600), padding 12px × 20px, height 40px, rounded `{rounded.md}` (8px). Active state `button-primary-active` shifts to `{colors.primary-active}` (#242424).
 
-- Background `{colors.primary}`, text `{colors.on-primary}`, type `{typography.button-md}`, padding `8px 20px`, height `36px`, rounded `{rounded.full}`.
-- Used for "Download" (top nav), "Sign in" (top nav, paired with Download), "Create account", "Get Pro", "Get Max" — every primary action in the system.
-- Pressed state lives in `button-primary-active` — background drops to `{colors.ink-deep}`.
+**`button-secondary`** — White button with hairline outline. Background `{colors.canvas}`, text `{colors.ink}`, 1px hairline border, same padding + height + radius as primary.
 
-**`button-secondary`** — outline alternative on light canvas
+**`button-icon-circular`** — 36 × 36px circular icon button. Background `{colors.canvas}`, hairline border, ink-color icon. Used for share, "view more", carousel arrows.
 
-- Background `{colors.canvas}`, text `{colors.ink}`, 1px solid `{colors.hairline-strong}`, type `{typography.button-md}`, padding `8px 20px`, height `36px`, rounded `{rounded.full}`.
-- Used as a secondary affordance — e.g., the "Sign in" pill in the top nav when paired with the black "Download" pill, "See more apps →" arrow link in compact form.
+**`button-text-link`** — Inline text button, no background. Used for "Sign in" in the top nav and inline CTA links inside cards.
 
-**`button-pill-on-dark`** — white pill on dark surface
-
-- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.button-md}`, rounded `{rounded.full}`.
-- Sits inside the dark "Max" pricing card as the "Get Max" CTA — inverts the standard primary so the dark card itself becomes the visual anchor and the white pill reads as the CTA.
-
-**`button-disabled`**
-
-- Background `{colors.surface-soft}`, text `{colors.mute}`, rounded `{rounded.full}` — flat soft gray.
-
-### Inputs & Forms
-
-**`search-pill`** + **`search-pill-focused`**
-
-- Default: background `{colors.surface-soft}`, text `{colors.ink}`, type `{typography.body-sm}`, padding `8px 16px`, height `36px`, rounded `{rounded.full}`. Anchored in the center of the primary nav with a small magnifier icon prefix and "Search models" placeholder.
-- Focused: background flips to `{colors.canvas}` and the browser-default `{colors.focus-ring}` translucent blue ring appears.
-
-**`text-input`** + **`text-input-focused`**
-
-- Default: background `{colors.canvas}`, 1px solid `{colors.hairline}`, type `{typography.body-md}`, padding `8px 16px`, height `40px`, rounded `{rounded.full}`.
-- Focused: 1px ink border + browser-default focus ring.
-
-**`install-snippet`** — the signature install pill
-
-- Background `{colors.surface-soft}`, text `{colors.ink}` rendered in `{typography.code-md}`, padding `12px 20px`, height `48px`, rounded `{rounded.full}`.
-- Contains the literal `curl -fsSL https://ollama.com/install.sh | sh` install command with a small copy-icon at the right edge. Sits directly below the hero headline as the page's most prominent "CTA."
-
-**`command-tag`** — small inline command chip
-
-- Background `{colors.surface-soft}`, text `{colors.ink}` in `{typography.code-sm}`, padding `6px 12px`, rounded `{rounded.full}`.
-- Used inside the "Automate your work" section for the `ollama launch openclaw` example chip and similar inline-command demos.
+**`text-link`** — Inline body links in `{colors.ink}` (the brand keeps inline links monochrome). Underlined on hover (not documented per the no-hover policy, but mentioned for context).
 
 ### Cards & Containers
 
-**`terminal-card`** — the home page's only "product preview"
+**`hero-band`** — White-canvas hero with a 7-5 grid: h1 + sub-headline + button row on the left, `{component.hero-app-mockup-card}` on the right. Vertical padding `{spacing.section}` (96px).
 
-- Container: background `{colors.canvas}`, 1px solid `{colors.hairline}`, padding `{spacing.lg}` (16px), rounded `{rounded.lg}`.
-- Header: three `{component.terminal-traffic-lights}` dots (red/yellow/green at 12px) anchored to the top-left of the card.
-- Body: terminal output rendered in `{typography.code-sm}` with comments in `{colors.mute}` and active commands in `{colors.ink}`.
+**`hero-app-mockup-card`** — A larger product-UI mockup card showing the actual Cal.com booking widget with calendar grid, time slots, and a primary "Confirm" button inside. Background `{colors.canvas}`, 1px hairline border, rounded `{rounded.xl}` (16px), subtle drop shadow. Used as the hero's right-side artifact.
 
-**`terminal-traffic-lights`**
+**`feature-card`** — Used in 3-up feature grids ("With us, appointment scheduling is easy"). Background `{colors.surface-card}` (#f5f5f5), rounded `{rounded.lg}` (12px), internal padding `{spacing.xl}` (32px). Carries a small icon at top, an `{typography.title-md}` headline, and a body description in `{typography.body-md}`.
 
-- Three 12px filled circles at `{rounded.full}`: `{colors.terminal-red}`, `{colors.terminal-yellow}`, `{colors.terminal-green}`. Sits as a row of three with `{spacing.xs}` gaps between dots inside the terminal card header.
+**`feature-icon-card`** — A simpler card variant used in 4-up feature grids on lower-density bands. Background `{colors.canvas}` with hairline border, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). Carries a small icon, `{typography.title-sm}` title, short description.
 
-**`pricing-card`** — Free / Pro tiers
+**`product-mockup-card`** — A card showing actual Cal.com product UI fragments (workflow editor, calendar grid, integration grid, automation flow). Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). The product UI inside has its own internal chrome — these cards display the product, they don't decorate around it.
 
-- Container: background `{colors.canvas}`, 1px solid `{colors.hairline}`, padding `{spacing.xxl}` (32px), rounded `{rounded.lg}`.
-- Layout: small llama mascot icon (~32px) at top, tier name in `{typography.heading-md}`, one-line tier description, large price in `{typography.display-lg}` (`$0` / `$20`), single `{component.button-primary}` CTA, divider, `{typography.body-sm-strong}` "Everything in Free, plus:" header, list of `{component.feature-bullet}` rows.
+**`testimonial-card`** — Used in customer-quote grids. Background `{colors.surface-card}`, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). Top row carries a `{component.avatar-circle}` + name + role; below sits the testimonial quote in `{typography.body-md}`.
 
-**`pricing-card-dark`** — Max tier (inverted)
+**`pricing-tier-card`** — Standard tier card. Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xl}` (32px). Carries the plan name in `{typography.title-lg}`, price in `{typography.display-sm}`, feature checklist in `{typography.body-md}`, and a `{component.button-primary}` at the bottom.
 
-- Identical layout to `pricing-card` but with `{colors.surface-dark}` background, `{colors.on-dark}` text, `{colors.on-dark-mute}` secondary text, and `{component.button-pill-on-dark}` CTA. The inversion is the system's single "look here" cue.
+**`pricing-tier-card-featured`** — The featured tier (typically "Teams"). Background flips to `{colors.surface-dark}` (#101010), text inverts to `{colors.on-dark}`. The dark surface IS the featured-tier signal — no accent border, no badge, no scale shift.
 
-**`feature-bullet`** — pricing card list item
+### Inputs & Forms
 
-- Inline `✓` checkmark at `{colors.ink}` followed by `{typography.body-sm}` text in `{colors.charcoal}`. No background, no border, just stacked rows with `{spacing.sm}` between them.
+**`text-input`** — Standard text input. Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body-md}`, rounded `{rounded.md}` (8px), padding 10px × 14px, height 40px. 1px hairline border in `{colors.hairline}`.
 
-**`faq-row`** — `/pricing` FAQ entry
+**`text-input-focused`** — Focus state. Border thickens or shifts to `{colors.ink}` for emphasis.
 
-- Container: background `{colors.canvas}`, padding `16px 0`, 1px bottom border `{colors.hairline}`.
-- Question: `{typography.heading-sm}` (18px / 500) in `{colors.ink}`.
-- Answer: `{typography.body-md}` (16px / 400) in `{colors.body}`, sitting directly below the question with `{spacing.xs}` gap. Always expanded — no accordion collapse.
+### Tags / Badges
 
-**`cta-strip-dark`** — rare dark CTA band
+**`badge-pill`** — Small pill label used for category tags ("Product", "Article", "New") and pastel-fill avatar substitutes. Background `{colors.surface-card}` or one of the badge pastels (`{colors.badge-orange}`, `{colors.badge-pink}`, etc.), text `{colors.ink}`, type `{typography.caption}` (13px / 500), rounded `{rounded.pill}`, padding 4px × 12px.
 
-- Background `{colors.surface-dark}`, text `{colors.on-dark}` in `{typography.heading-lg}`, padding `24px 32px`, rounded `{rounded.lg}`. Used sparingly between sections.
+**`avatar-circle`** — 36px diameter, rounded `{rounded.full}`. Either holds a photo or a pastel fill with initials in `{typography.caption}`.
 
-### Inline
+**`rating-stars`** — Inline star rating in `{colors.badge-orange}` (#fb923c). Used near testimonial avatars to display a 5-star satisfaction score.
 
-**`link-inline`** — body-prose anchor link
+### Tab / Filter
 
-- `{colors.ink}` text with underline. Default decoration is `text-decoration: underline`.
+**`category-tab`** + **`category-tab-active`** — Used inside the nav-pill-group. Inactive: transparent background, `{colors.muted}` text. Active: `{colors.canvas}` background, `{colors.ink}` text, subtle drop shadow inside the pill-group wrapper. Padding 8px × 14px, rounded `{rounded.md}`.
 
-**`link-mute`** — secondary anchor in long-form prose
+### CTA / Footer
 
-- `{colors.body}` text with underline appearing on default — used in FAQ answers ("see [hello@ollama.com](mailto:)") and footer.
+**`cta-band-light`** — A pre-footer "Smarter, simpler scheduling" CTA card. Background `{colors.surface-card}`, rounded `{rounded.lg}`, padding `{spacing.xxl}` (48px). Carries an h2 in `{typography.display-sm}`, a sub-line, and a `{component.button-primary}` centered.
 
-### Navigation
-
-**`primary-nav`**
-
-- Background `{colors.canvas}`, text `{colors.ink}`, height 56px, type `{typography.body-sm-strong}`, rounded `{rounded.none}`.
-- Layout (desktop): llama icon (left) followed by "Models · Docs · Pricing" text links, centered `{component.search-pill}`, and a right cluster of "Sign in" + black `{component.button-primary}` "Download".
-
-**Top Nav (Mobile)**
-
-- Llama icon at left, hamburger drawer trigger at right. Search pill expands to full-width when triggered. The drawer lists "Models · Docs · Pricing · Sign in · Download" stacked vertically with `{spacing.lg}` row gaps.
-
-### Footer
-
-**`footer-section`**
-
-- Background `{colors.canvas}`, 1px top border `{colors.hairline}`, padding `32px 24px`, type `{typography.caption-sm}` `{colors.body}`.
-- Single horizontal row of small links: "Download · Blog · Docs · GitHub · Discord · X · Contact · Privacy · Terms" + a "© 2026 Ollama" copyright at the right edge. Wraps to two rows on narrow screens.
+**`footer`** — Dark navy footer that closes every page. Background `{colors.surface-dark}` (#101010), text `{colors.on-dark-soft}`. 4-column link list at desktop covering Product / Solutions / Company / Resources. Vertical padding 64px. The Cal.com wordmark sits at the top-left in `{colors.on-dark}`. The footer is the only dark surface on every page — the deliberate inversion visually closes the page.
 
 ## Do's and Don'ts
 
 ### Do
 
-- Treat the page like a Markdown document: single reading column, plenty of `{spacing.section}` air between sections, no decorative dividers.
-- Use `{component.button-primary}` (black pill) for every primary action. There is no green, no blue, no brand-tinted CTA.
-- Default to `{rounded.full}` for any interactive element. Cards get `{rounded.lg}` (12px) and that is the only exception.
-- Use `{typography.display-xl}` SF Pro Rounded for the hero headline and `{typography.body-md}` system sans for everything else. Avoid intermediate display sizes.
-- Reserve `{component.pricing-card-dark}` (the inverted dark surface) for exactly one "look here" moment per page — never use it twice.
-- Render install commands and CLI examples inside `{component.install-snippet}` or `{component.terminal-card}` with `{typography.code-md}` / `{typography.code-sm}`. Code is a first-class component.
-- Keep the llama mascot the only illustration in the system. It is the brand.
+- Reserve `{colors.primary}` (#111111) for primary CTAs and h1/h2 type. Cal.com's button is near-black, not blue.
+- Use Cal Sans for every display headline. Pair with Inter body. Never blur the boundary.
+- Apply negative letter-spacing on display sizes (-0.5 to -2px). Cal Sans without it reads as off-brand.
+- Use `{component.feature-card}` (light gray) and `{component.product-mockup-card}` (white with chrome) deliberately — the gray cards signal "abstract feature claim", white cards signal "look at the actual product".
+- Embed real product UI fragments inside marketing cards. Don't paint marketing illustrations of the product when you can show the product itself.
+- Keep avatar circles at 36px, perfect circles, sometimes with pastel fills. Avatars are the only place where badge pastels appear.
+- Use `{component.nav-pill-group}` for grouped sub-nav segments. The pill-in-pill treatment is signature.
+- End every page with the dark footer. The light-to-dark transition is part of the editorial rhythm.
 
 ### Don't
 
-- Don't introduce gradients, drop shadows, or atmospheric backgrounds. The canvas is pure `{colors.canvas}`.
-- Don't add brand colors. The system is `{colors.primary}` (black) on `{colors.canvas}` (white) with `{colors.body}` (gray) text. That is it.
-- Don't soften pills or sharpen cards — pills stay `{rounded.full}`, cards stay `{rounded.lg}`. Don't introduce `{rounded.md}` for buttons or `{rounded.full}` for cards.
-- Don't lift cards with shadows. Use a 1px `{colors.hairline}` border or invert to `{colors.surface-dark}` — those are the only two card treatments.
-- Don't replace `ui-sans-serif` with a branded display body face. The system relies on `system-ui` rendering to feel native.
-- Don't fill long-form pages with marketing chrome. FAQ answers stay in `{colors.body}` body-md prose with no decorative containers.
+- Don't use accent colors (`{colors.brand-accent}`, badge pastels) on primary CTAs. The system is monochrome at the action layer.
+- Don't bold display weight beyond 600. Cal Sans at 700 reads as bombastic.
+- Don't use rounded radius beyond `{rounded.xl}` (16px) on cards. Larger radii read as consumer-app, not professional booking software.
+- Don't put dark surface cards anywhere except the footer and the featured pricing tier. The dark surface is a deliberate, scarce signal.
+- Don't repeat the same surface mode in two consecutive bands. Cal.com's pacing alternates white → light-gray → white → product-mockup-card → white → dark-footer.
+- Don't add hover state styling beyond what the system already encodes — primary darkens on press; nothing else changes.
 
 ## Responsive Behavior
 
 ### Breakpoints
 
-| Name          | Width   | Key Changes                                                                                                         |
-| ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| desktop-large | 1280px+ | Default desktop — 720px content column, 3-up pricing grid                                                           |
-| desktop       | 1024px  | Same layout; nav remains horizontal                                                                                 |
-| tablet        | 850px   | Pricing collapses from 3-up to 2-up + 1; nav search pill compresses                                                 |
-| tablet-narrow | 768px   | Pricing collapses to 1-up stacked; primary nav becomes hamburger                                                    |
-| mobile        | 640px   | Hero headline drops from `{typography.display-xl}` (36px) to ~28px; install-snippet wraps; section padding tightens |
+| Name    | Width       | Key Changes                                                                                                                    |
+| ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Mobile  | < 768px     | Hamburger nav; hero h1 64→32px; hero-app-mockup-card stacks below content; feature grids 1-up; pricing 1-up; footer 4 cols → 1 |
+| Tablet  | 768–1024px  | Top nav stays horizontal but tightens; nav-pill-group wraps; feature cards 2-up; pricing 2-up                                  |
+| Desktop | 1024–1440px | Full top-nav with all menu items; 3-up feature cards; 4-up pricing tiers                                                       |
+| Wide    | > 1440px    | Same as desktop with more outer breathing room; max content width caps at 1200px                                               |
 
 ### Touch Targets
 
-All interactive elements meet WCAG AA at the 36–40px height range. `{component.button-primary}` and `{component.button-secondary}` sit at 36px height with 20px horizontal padding, giving an effective tappable area of ~36×80px which exceeds the 44×44px AAA threshold via the inline padding. `{component.text-input}` sits at 40px. `{component.search-pill}` sits at 36px height with 16px padding. Footer links use `{typography.caption-sm}` (12px) but receive ~12px line-height + ~8px vertical padding for a tappable row of ~32–36px.
+- `{component.button-primary}` at minimum 40 × 40px.
+- `{component.button-icon-circular}` at exactly 36 × 36 — slightly under WCAG's 44 × 44 but the centered icon and full-circle silhouette compensate.
+- `{component.text-input}` height is 40px.
+- `{component.category-tab}` rendered inside nav-pill-group has 8 × 14 padding; effective tap area meets 44px+ with the surrounding pill.
 
 ### Collapsing Strategy
 
-- **Primary nav:** desktop horizontal → tablet-narrow hamburger drawer at 768px. The black "Download" CTA stays visible at all widths; it never collapses into the menu.
-- **Search pill:** desktop fixed width ~360px → tablet compressed to ~240px → mobile collapses to icon-only with a full-width overlay on tap.
-- **Pricing grid:** 3-up → 2+1 → 1-up stacked at 850, 768, and below. The dark "Max" card stays in its inverted treatment at every breakpoint.
-- **Automate-your-work split:** desktop 50/50 → tablet stacks vertical with text above terminal mockup.
-- **Hero headline:** `{typography.display-xl}` (36px) at desktop, scaling to ~28px at mobile with line-height holding at ~1.15.
-- **Section spacing:** `{spacing.section}` (88px) desktop → 64px tablet → 48px mobile.
-- **Install-snippet pill:** wraps `curl` text to a second line on narrow screens rather than truncating; the copy-icon stays anchored to the right edge.
+- Top nav collapses to hamburger at < 768px; menu opens as a full-screen sheet.
+- Hero band's 7-5 grid collapses to single-column on mobile — h1 + sub-head + buttons first, then the app-mockup card below.
+- Feature grids reduce columns rather than scaling cards down.
+- Pricing tier cards collapse 4 → 2 → 1; featured-tier dark surface stays visually distinct at every breakpoint.
+- Nav-pill-group wraps to multi-row on tablet if the segments don't fit horizontally.
+- Avatar + testimonial card layouts stay grid-aligned at every breakpoint.
 
 ### Image Behavior
 
-The only image asset is the llama mascot (raster PNG at multiple resolutions: 16/32/48/64/180/192/512px). It is rendered at fixed pixel sizes on the hero and pricing cards rather than scaling responsively — the brand asset is treated like a logo, not a hero image.
+- Product UI fragments inside cards retain native aspect ratios; the cards themselves resize.
+- Avatar photos crop to circles at every breakpoint.
+- Hero app-mockup card scales proportionally on mobile — the calendar grid stays legible.
 
 ## Iteration Guide
 
-1. Focus on ONE component at a time. Pull its YAML entry from the front matter and verify every property resolves.
-2. Reference component names and tokens directly (`{colors.primary}`, `{component.button-primary-active}`, `{rounded.full}`) — do not paraphrase.
-3. Run `npx @google/design.md lint DESIGN.md` after edits — `broken-ref`, `contrast-ratio`, and `orphaned-tokens` warnings flag issues automatically.
-4. Add new variants as separate component entries (`-active`, `-disabled`, `-focused`) — do not bury them inside prose.
-5. Default body to `{typography.body-md}`; reach for `{typography.body-sm}` for footer/utility text; reserve `{typography.display-xl}` strictly for the page-top headline.
-6. Keep `{colors.primary}` scarce per viewport — there should be at most one black pill per fold (counting nav, hero CTA, and pricing-card CTA together). The design's restraint is the design.
-7. When introducing a new component, ask whether it can be expressed with the existing pill + flat-card + terminal-mockup vocabulary before adding new tokens. The system's strength is that it almost never needs new ones.
+1. Focus on ONE component at a time. Reference its YAML key directly (`{component.feature-card}`, `{component.pricing-tier-card-featured}`).
+2. Variants of an existing component (`-active`, `-disabled`, `-focused`) live as separate entries in `components:`.
+3. Use `{token.refs}` everywhere — never inline hex.
+4. Never document hover. Default and Active/Pressed states only.
+5. Display headlines stay Cal Sans 600 with negative letter-spacing. Body stays Inter 400. The trinity does not blur.
+6. The dark footer is the only dark surface on most pages. Don't add other dark cards casually.
+7. When in doubt about emphasis: bigger Cal Sans before bolder Cal Sans.
 
 ## Known Gaps
 
-- **Mobile screenshots not captured** — responsive behavior synthesizes Ollama's known mobile pattern (hamburger drawer, 1-up pricing stack, install-snippet wrap) from desktop evidence and the extracted breakpoint stack.
-- **Hover states not documented** by system policy.
-- **Form field styling** beyond search and install-snippet is not present in the captured surfaces — there is no visible long-form form on the home or pricing pages.
-- **Authenticated chrome** (account dropdown, billing settings, model dashboard) not in the captured pages.
-- **Models / Docs pages** not in the captured set — those surfaces likely add a sidebar and a docs typography tier that this document does not describe.
+- The dembrandt frequency analyzer captured `Buttons: 0 variants` — Cal.com renders most CTAs as styled `<a>` link elements rather than `<button>` tags, which dembrandt's button selector doesn't capture. Button styles are documented from screenshot ground-truth + standard Cal Sans / Inter baselines.
+- Cal Sans is licensed to Cal.com and not available as a public web font; substitutes are documented in the typography section.
+- The badge pastel set (orange / pink / violet / emerald) is documented from observed avatar fill colors; exact hex values may shift seasonally.
+- Animation and transition timings (calendar slot picker, schedule confirmation, integration grid hover-reveal) are not in scope.
+- Form validation states beyond `{component.text-input-focused}` are not extracted — error / success states would need a sign-up or booking flow to confirm.
+- The actual booking widget surface (cal.com/{username}) is the product, not a marketing surface; its spec is out of scope.
+- Avatar photos in testimonial sections sometimes carry pastel circular fills with initials instead of photographs; both treatments coexist on the same page.

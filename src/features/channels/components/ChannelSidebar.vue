@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TeaButton, TeaIconButton, TeaInput } from '@/shared/ui'
+import { TeaButton, TeaInput } from '@/shared/ui'
 
 import type { Channel, ChannelRef, ChannelStatus } from '../contracts'
 import ChannelAvatar from './ChannelAvatar.vue'
@@ -14,7 +14,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [channelRef: ChannelRef]
-  disconnect: []
 }>()
 const { t } = useI18n()
 const query = ref('')
@@ -32,29 +31,22 @@ function formatTime(value: number): string {
 </script>
 
 <template>
-  <aside class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line bg-canvas sm:flex">
-    <div class="px-4 pb-1.5 pt-3">
-      <div class="flex h-7 items-center justify-between">
-        <div class="flex min-w-0 items-center gap-2">
-          <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
-          <span
-            class="size-1.5 shrink-0 rounded-full"
-            :class="
-              status.phase === 'connected'
-                ? 'bg-success'
-                : status.phase === 'failed' || status.phase === 'kickedOffline'
-                  ? 'bg-danger'
-                  : 'bg-muted'
-            "
-            :title="t(`channels.connection.${status.phase}`)"
-          />
-        </div>
-        <TeaIconButton
-          v-if="status.phase === 'connected'"
-          size="small"
-          :label="t('channels.connection.disconnect')"
-          icon="i-mdi-logout"
-          @click="emit('disconnect')"
+  <aside
+    class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-panel sm:flex"
+  >
+    <div class="px-2 pb-1.5 pt-3">
+      <div class="flex h-7 items-center gap-2">
+        <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
+        <span
+          class="size-1.5 shrink-0 rounded-full"
+          :class="
+            status.phase === 'connected'
+              ? 'bg-success'
+              : status.phase === 'failed' || status.phase === 'kickedOffline'
+                ? 'bg-danger'
+                : 'bg-muted'
+          "
+          :title="t(`channels.connection.${status.phase}`)"
         />
       </div>
       <TeaInput
@@ -67,20 +59,17 @@ function formatTime(value: number): string {
       />
     </div>
 
-    <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2 pb-2">
-      <div class="flex items-center justify-between px-2 pb-1 pt-2.5">
-        <p class="text-xs font-medium text-subtle">
-          {{ t('channels.recent') }}
-        </p>
-        <span class="text-xs tabular-nums text-disabled">{{ filteredChannels.length }}</span>
-      </div>
+    <div
+      class="channel-list-scroll-area flex-1 overflow-y-auto border-t border-line-soft bg-canvas px-2 pb-2 pt-3"
+    >
       <TeaButton
         v-for="(channel, index) in filteredChannels"
         :key="channel.ref"
         appearance="ghost"
         size="small"
-        class="channel-row group mb-px grid min-h-12 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center justify-start gap-2 px-2 py-1.5 text-left"
-        :class="channel.ref === activeRef ? 'bg-panel' : 'hover:bg-hover'"
+        class="channel-row group mb-1 min-h-12 w-full animate-fade-slide items-center gap-2 overflow-hidden px-3.5 py-1.5 text-left"
+        :class="channel.ref === activeRef ? 'channel-row--active' : 'hover:bg-hover'"
+        :aria-pressed="channel.ref === activeRef"
         :style="{ animationDelay: `${index * 35}ms` }"
         @click="emit('select', channel.ref)"
       >
@@ -89,29 +78,27 @@ function formatTime(value: number): string {
           :name="channel.name"
           :avatar-url="channel.avatarUrl"
         />
-        <span class="min-w-0 flex-1">
-          <span class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2">
-            <span
-              class="truncate text-sm leading-5 text-fg"
-              :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
-              >{{ channel.name }}</span
-            >
-            <span class="text-xs tabular-nums text-subtle">{{
-              formatTime(channel.updatedAt)
-            }}</span>
-          </span>
-          <span class="mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-            <span
-              class="truncate text-xs leading-4"
-              :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
-              >{{ channel.lastMessagePreview || channel.description }}</span
-            >
-            <span
-              v-if="channel.unreadCount"
-              class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-canvas"
-            >
-              {{ channel.unreadCount > 99 ? '99+' : channel.unreadCount }}
-            </span>
+        <span class="min-w-0">
+          <span
+            class="block truncate text-sm leading-5 text-fg"
+            :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
+            >{{ channel.name }}</span
+          >
+          <span
+            class="mt-0.5 block truncate text-xs leading-4"
+            :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
+            >{{ channel.lastMessagePreview || channel.description }}</span
+          >
+        </span>
+        <span class="grid h-full min-w-0 content-center justify-items-end gap-1">
+          <span class="whitespace-nowrap text-xs tabular-nums text-subtle">{{
+            formatTime(channel.updatedAt)
+          }}</span>
+          <span
+            v-if="channel.unreadCount"
+            class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-canvas"
+          >
+            {{ channel.unreadCount > 99 ? '99+' : channel.unreadCount }}
           </span>
         </span>
       </TeaButton>
@@ -130,7 +117,15 @@ function formatTime(value: number): string {
 }
 
 .channel-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 3.75rem;
   border-radius: var(--tea-radius-inline);
+  padding-inline: 0.875rem;
+}
+
+.channel-row--active {
+  background: var(--tea-muted);
+  color: var(--tea-fg);
 }
 
 .channel-list-scroll-area::-webkit-scrollbar {

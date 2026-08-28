@@ -23,7 +23,6 @@ const {
   createCollaborationConversation,
   expandCollaboration,
   forwardToAgent,
-  disconnectChannel,
   refreshManagedWorkspace,
   openDraftEditor,
   selectCollaborationModel,
@@ -38,7 +37,6 @@ const {
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
     @select="channels.selectChannel($event)"
-    @disconnect="disconnectChannel"
   />
   <ChannelTimeline
     v-if="channels.activeChannel"

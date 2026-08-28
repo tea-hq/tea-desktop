@@ -29,6 +29,7 @@
   --color-subtle: var(--tea-subtle);
   --color-disabled: var(--tea-disabled);
   --color-line: var(--tea-line);
+  --color-line-soft: var(--tea-line-soft);
   --color-line-strong: var(--tea-line-strong);
   --color-accent: var(--tea-accent);
   --color-accent-hover: var(--tea-accent-hover);
@@ -70,6 +71,7 @@
   --tea-subtle: #6b7280;
   --tea-disabled: #898989;
   --tea-line: #e5e7eb;
+  --tea-line-soft: #f3f4f6;
   --tea-line-strong: #e5e7eb;
   --tea-accent: #111111;
   --tea-accent-hover: #242424;

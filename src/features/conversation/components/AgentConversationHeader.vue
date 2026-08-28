@@ -38,8 +38,8 @@ const emit = defineEmits<{ back: []; expand: [] }>()
 
 <style scoped>
 .agent-header {
-  border-bottom: 1px solid var(--tea-line);
-  background: var(--tea-canvas);
+  border-bottom: 1px solid var(--tea-line-soft);
+  background: var(--tea-panel);
   color: var(--tea-fg);
 }
 .agent-header p,

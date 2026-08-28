@@ -32,7 +32,7 @@ onMounted(() => {
     />
     <main class="flex min-w-0 flex-1 flex-col">
       <header
-        class="flex h-12 shrink-0 items-center justify-between border-b border-line bg-canvas px-8"
+        class="flex h-12 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-8"
       >
         <div class="flex items-center gap-2 text-sm text-subtle">
           <span class="i-mdi-tune-variant size-4" aria-hidden="true" />{{

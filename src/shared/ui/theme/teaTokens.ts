@@ -70,6 +70,7 @@ export const teaDesignTokens = {
     surfaceDark: '#101010',
     surfaceDarkElevated: '#1a1a1a',
     line: '#e5e7eb',
+    lineSoft: '#f3f4f6',
     lineStrong: '#e5e7eb',
     focus: 'rgb(59 130 246 / 50%)',
     onPrimary: '#ffffff',

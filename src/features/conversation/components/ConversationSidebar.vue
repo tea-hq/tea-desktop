@@ -51,8 +51,8 @@ function handleScroll(event: Event): void {
 </script>
 
 <template>
-  <aside class="hidden h-full w-[288px] flex-col border-r border-line bg-canvas sm:flex">
-    <div class="p-3">
+  <aside class="hidden h-full w-[288px] flex-col border-r border-line-soft bg-panel sm:flex">
+    <div class="bg-panel p-3">
       <TeaButton appearance="primary" class="w-full" @click="emit('new')">
         <span class="i-mdi-plus size-4" aria-hidden="true" />
         {{ t('sidebar.newConversation') }}
@@ -72,7 +72,10 @@ function handleScroll(event: Event): void {
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto px-2 pb-3" @scroll.passive="handleScroll">
+    <div
+      class="flex-1 overflow-y-auto border-t border-line-soft bg-canvas px-3 pb-3 pt-3"
+      @scroll.passive="handleScroll"
+    >
       <div
         v-if="loading"
         class="flex items-center justify-center gap-2 px-3 py-6 text-sm text-subtle"
@@ -97,7 +100,7 @@ function handleScroll(event: Event): void {
         v-for="(conv, i) in conversations"
         :key="conv.conversationId"
         appearance="ghost"
-        class="conversation-row group mb-px flex h-10 w-full animate-fade-slide items-center justify-start gap-2 px-2 text-left"
+        class="conversation-row group mx-auto mb-1 flex h-10 w-full max-w-[264px] animate-fade-slide items-center justify-start gap-2 px-2 text-left"
         :class="conv.conversationId === activeId ? 'bg-panel' : 'hover:bg-hover'"
         :style="{ animationDelay: `${i * 30}ms` }"
         :aria-label="conversationTitle(conv)"

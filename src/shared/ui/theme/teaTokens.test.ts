@@ -41,6 +41,7 @@ describe('Tea design tokens', () => {
       accent: '#111111',
       canvas: '#ffffff',
       panel: '#f8f9fa',
+      lineSoft: '#f3f4f6',
       focus: 'rgb(59 130 246 / 50%)',
     })
     expect(teaDesignTokens.elevation).toEqual({ overlay: 'none' })

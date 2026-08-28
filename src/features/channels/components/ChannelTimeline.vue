@@ -115,7 +115,7 @@ watch(
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-14 shrink-0 items-center justify-between border-b border-line px-4 sm:px-5"
+      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
     >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -178,9 +178,9 @@ watch(
           </TeaButton>
         </div>
         <div class="mb-2 flex items-center gap-3 px-5">
-          <span class="h-px flex-1 bg-panel" />
+          <span class="h-px flex-1 bg-line-soft" />
           <span class="text-xs text-subtle">{{ t('channels.today') }}</span>
-          <span class="h-px flex-1 bg-panel" />
+          <span class="h-px flex-1 bg-line-soft" />
         </div>
         <ChannelMessageItem
           v-for="(message, index) in messages"
@@ -197,7 +197,7 @@ watch(
       </div>
     </div>
 
-    <div class="shrink-0 border-t border-line bg-canvas px-3 py-2.5 sm:px-4">
+    <div class="shrink-0 border-t border-line-soft bg-panel px-3 py-2.5 sm:px-4">
       <div class="mx-auto flex w-full max-w-4xl items-end gap-2">
         <TeaIconButton size="small" :label="t('channels.composer.add')" icon="i-mdi-plus" />
         <TeaTextarea

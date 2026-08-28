@@ -189,8 +189,8 @@ defineExpose({ focus })
 
 <style scoped>
 .agent-composer {
-  border-top: 1px solid var(--tea-line);
-  background: var(--tea-canvas);
+  border-top: 1px solid var(--tea-line-soft);
+  background: var(--tea-panel);
 }
 .composer-shell {
   border: 1px solid var(--tea-line);

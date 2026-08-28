@@ -9,7 +9,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-5">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-line-soft bg-panel px-3 py-5">
     <div class="px-2">
       <p class="text-xs font-medium text-subtle">
         {{ t('management.eyebrow') }}
@@ -27,8 +27,8 @@ const { t } = useI18n()
         class="management-nav-row group flex w-full items-start justify-start gap-2.5 px-2.5 py-2 text-left"
         :class="
           activeSection === section.id
-            ? 'bg-panel text-fg'
-            : 'text-dim hover:bg-hover hover:text-fg'
+            ? 'bg-canvas text-fg'
+            : 'text-dim hover:bg-canvas hover:text-fg'
         "
         :aria-current="activeSection === section.id ? 'page' : undefined"
         @click="emit('select', section.id)"

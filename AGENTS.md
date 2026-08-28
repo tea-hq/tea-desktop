@@ -131,13 +131,12 @@ npm run format:check
 npm run lint
 node scripts/check-ui-boundaries.mjs
 npm run build:web
-CSC_IDENTITY_AUTO_DISCOVERY=false npm run build
 ```
 
-AI-agent packaging checks must not sign or notarize artifacts. Disable signing
-identity discovery as shown above, do not provide signing or notarization
-credentials, and do not invoke `codesign` or `notarytool`. Sign or notarize only
-when the user explicitly requests a release operation.
+Do not run local `npm run build` or Electron packaging for validation unless the
+user explicitly requests it. For requested packaging checks, set
+`CSC_IDENTITY_AUTO_DISCOVERY=false`; never provide signing credentials or invoke
+`codesign`/`notarytool` unless the user requests a release operation.
 
 ## Internationalization
 

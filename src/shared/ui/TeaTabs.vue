@@ -40,7 +40,7 @@ function handleKeydown(event: KeyboardEvent, value: string): void {
 
 <template>
   <div>
-    <div class="flex gap-1 border-b border-line" role="tablist" :aria-label="label">
+    <div class="flex gap-1 border-b border-line-soft" role="tablist" :aria-label="label">
       <button
         v-for="tab in tabs"
         :id="`${tabId}-${tab.value}`"
