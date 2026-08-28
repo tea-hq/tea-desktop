@@ -1,0 +1,31 @@
+import { createCatalogCommandHandlers, type CatalogCommandServices } from './catalogCommands'
+import { createChannelCommandHandlers, type ChannelCommandServices } from './channelCommands'
+import { createCommandRouter, type DesktopCommandRouter } from './commandRouter'
+import {
+  createConversationCommandHandlers,
+  type ConversationCommandServices,
+} from './conversationCommands'
+import {
+  createWorkspaceCommandHandlers,
+  type WorkspaceCommandOptions,
+  type WorkspaceCommandServices,
+} from './workspaceCommands'
+
+export interface DesktopCommandServices
+  extends
+    WorkspaceCommandServices,
+    ConversationCommandServices,
+    CatalogCommandServices,
+    ChannelCommandServices {}
+
+export function createDesktopCommandRouter(
+  services: DesktopCommandServices,
+  options: WorkspaceCommandOptions = {},
+): DesktopCommandRouter {
+  return createCommandRouter([
+    createWorkspaceCommandHandlers(services, options),
+    createConversationCommandHandlers(services),
+    createCatalogCommandHandlers(services),
+    createChannelCommandHandlers(services),
+  ])
+}
