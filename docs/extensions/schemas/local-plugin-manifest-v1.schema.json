@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tea.dev/schemas/local-plugin-manifest-v1.schema.json",
+  "title": "Tea Local Plugin Manifest V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "id",
+    "version",
+    "displayName",
+    "entrypoints",
+    "credentials",
+    "actions"
+  ],
+  "properties": {
+    "protocolVersion": { "const": "1.0.0" },
+    "id": { "$ref": "#/$defs/reverseDomainId" },
+    "version": { "$ref": "#/$defs/semver" },
+    "displayName": { "$ref": "#/$defs/displayName" },
+    "description": { "$ref": "#/$defs/description" },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName"],
+      "properties": {
+        "id": { "$ref": "#/$defs/reverseDomainId" },
+        "displayName": { "$ref": "#/$defs/displayName" }
+      }
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "macosArm64": { "$ref": "#/$defs/entrypoint" },
+        "macosX64": { "$ref": "#/$defs/entrypoint" },
+        "windowsX64": { "$ref": "#/$defs/entrypoint" },
+        "linuxX64": { "$ref": "#/$defs/entrypoint" }
+      }
+    },
+    "credentials": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "secret", "required"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+          },
+          "label": { "$ref": "#/$defs/displayName" },
+          "secret": { "type": "boolean" },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "description", "effect", "inputSchema", "outputSchema"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 96,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+          },
+          "version": { "$ref": "#/$defs/semver" },
+          "description": { "$ref": "#/$defs/description" },
+          "effect": { "enum": ["read", "write"] },
+          "inputSchema": { "$ref": "#/$defs/actionSchema" },
+          "outputSchema": { "$ref": "#/$defs/actionSchema" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "reverseDomainId": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
+    },
+    "semver": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 64,
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "entrypoint": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 512,
+      "pattern": "^bin/[^/]+/[^/]+$"
+    },
+    "actionSchema": {
+      "type": "object",
+      "maxProperties": 256,
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "object" }
+      }
+    }
+  }
+}

@@ -46,6 +46,6 @@ export class ElectronCenterAuthClient implements CenterAuthClient {
 
   async onStateChanged(listener: (state: CenterAuthState) => void): Promise<() => void> {
     if (!hasElectronBridge()) return () => undefined
-    return listen<CenterAuthState>('center-auth-state-changed', (event) => listener(event.payload))
+    return listen('center-auth-state-changed', (event) => listener(event.payload))
   }
 }

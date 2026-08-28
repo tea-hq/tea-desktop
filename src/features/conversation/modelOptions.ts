@@ -6,11 +6,10 @@ const DEFAULT_OPTION: ModelOption = {
 }
 
 export function runtimeModelOptions(runtime: RuntimeDescriptor | null): ModelOption[] {
-  if (runtime?.id !== 'external.claude') return [{ ...DEFAULT_OPTION }]
-  return [
-    { value: 'default', labelKey: 'composer.model.default' },
-    { value: 'sonnet', labelKey: 'composer.model.sonnet' },
-    { value: 'opus', labelKey: 'composer.model.opus' },
-    { value: 'haiku', labelKey: 'composer.model.haiku' },
-  ]
+  if (!runtime?.models?.length) return [{ ...DEFAULT_OPTION }]
+  return runtime.models.map((model) => ({
+    value: model.value,
+    label: model.displayName,
+    source: model.source,
+  }))
 }

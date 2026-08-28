@@ -1,4 +1,9 @@
-import type { DesktopCommand, DesktopEvent, TeaDesktopBridge } from '@/types/electronBridge'
+import type {
+  DesktopCommand,
+  DesktopEvent,
+  DesktopEventPayloadMap,
+  TeaDesktopBridge,
+} from '@/types/electronBridge'
 
 export type UnlistenFn = () => void
 
@@ -10,11 +15,11 @@ export function invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
   return getBridge().invoke<T>(command, args)
 }
 
-export function listen<T>(
-  event: DesktopEvent,
-  listener: (payload: { payload: T }) => void,
+export function listen<Event extends DesktopEvent>(
+  event: Event,
+  listener: (payload: { payload: DesktopEventPayloadMap[Event] }) => void,
 ): Promise<UnlistenFn> {
-  return Promise.resolve(getBridge().on<T>(event, (payload) => listener({ payload })))
+  return Promise.resolve(getBridge().on(event, (payload) => listener({ payload })))
 }
 
 function getBridge(): TeaDesktopBridge {

@@ -27,7 +27,6 @@ export const DESKTOP_COMMANDS = [
   'load_conversation_history',
   'create_conversation',
   'send_message',
-  'configure_conversation_host_tools',
   'append_conversation_sources',
   'create_channel_draft',
   'update_channel_draft',
@@ -68,7 +67,61 @@ export const DESKTOP_EVENTS = [
 
 export type DesktopEvent = (typeof DESKTOP_EVENTS)[number]
 
+export interface DesktopEventPayloadMap {
+  'center-auth-state-changed': CenterAuthState
+  'managed-workspace-state-changed': ManagedWorkspaceState
+  'channel-event': ChannelEvent
+  'conversation:event': ConversationEvent
+  'conversation:host-tool-call': HostToolCall
+  'conversation:updated': ConversationSummary
+}
+
+export interface DesktopCommandError {
+  code: string
+  retryable: boolean
+  message?: string
+}
+
+export type DesktopCommandResult<T> =
+  { ok: true; value: T } | { ok: false; error: DesktopCommandError }
+
 export interface TeaDesktopBridge {
   invoke<T = unknown>(command: DesktopCommand, args?: unknown): Promise<T>
-  on<T = unknown>(event: DesktopEvent, listener: (payload: T) => void): () => void
+  on<Event extends DesktopEvent>(
+    event: Event,
+    listener: (payload: DesktopEventPayloadMap[Event]) => void,
+  ): () => void
 }
+
+export function unwrapDesktopCommandResult<T>(value: unknown): T {
+  if (!isRecord(value) || typeof value.ok !== 'boolean') throw transportFailure()
+  if (value.ok === true && 'value' in value) return value.value as T
+  if (value.ok === false && isDesktopCommandError(value.error)) throw value.error
+  throw transportFailure()
+}
+
+function isDesktopCommandError(value: unknown): value is DesktopCommandError {
+  return (
+    isRecord(value) &&
+    typeof value.code === 'string' &&
+    /^[A-Za-z0-9._:-]{1,128}$/.test(value.code) &&
+    typeof value.retryable === 'boolean' &&
+    (value.message === undefined || typeof value.message === 'string')
+  )
+}
+
+function transportFailure(): DesktopCommandError {
+  return { code: 'transportFailure', retryable: true }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+import type { CenterAuthState } from '../features/auth/contracts'
+import type { ChannelEvent } from '../features/channels/contracts'
+import type {
+  ConversationEvent,
+  ConversationSummary,
+  HostToolCall,
+} from '../features/conversation/contracts'
+import type { ManagedWorkspaceState } from '../features/managed-runtime/contracts'

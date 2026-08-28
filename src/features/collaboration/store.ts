@@ -575,6 +575,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       const created = await client.createConversation(runtimeId, {
         idempotencyKey: key,
         channelBinding: { ...binding },
+        hostTools: requireBridge().creationHostTools(),
       })
       if (
         generation !== lifecycleGeneration ||

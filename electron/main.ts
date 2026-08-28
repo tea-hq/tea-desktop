@@ -2,11 +2,14 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import type { DesktopCommandRouter } from './ipc/commandRouter'
+import { settleDesktopCommand } from './ipc/commandResult'
 import { createDesktopCommandRouter, type DesktopCommandServices } from './ipc/desktopCommandRouter'
+import { DesktopEventPublisher } from './ipc/events'
+import { channelHistoryToolDefinition } from '../src/features/conversation/hostToolCatalog'
+import { createElectronConversationHost, type ElectronConversationHost } from './conversation/host'
 import { ElectronCatalogService } from './services/catalog'
 import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
-import { ElectronConversationService } from './services/conversation'
 import { ElectronCredentialService } from './services/credentials'
 import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
 import { ElectronPluginProcessService } from './services/plugins'
@@ -24,7 +27,9 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let win: BrowserWindow | null = null
 let services: DesktopCommandServices | null = null
+let conversationHost: ElectronConversationHost | null = null
 let quitting = false
+const events = new DesktopEventPublisher(() => win?.webContents ?? null)
 
 function createWindow(): void {
   win = new BrowserWindow({
@@ -47,24 +52,30 @@ function createWindow(): void {
 }
 
 function registerIpc(route: DesktopCommandRouter): void {
-  ipcMain.handle('tea:command', (_event, command: unknown, args: unknown) => route(command, args))
+  ipcMain.handle('tea:command', (_event, command: unknown, args: unknown) =>
+    settleDesktopCommand(() => route(command, args)),
+  )
 }
 
-app.whenReady().then(() => {
+async function bootstrap(): Promise<void> {
   const settings = new ElectronSettingsService(path.join(app.getPath('userData'), 'settings.json'))
   const centerAuth = new ElectronCenterAuthService(
     path.join(app.getPath('userData'), 'center-auth.json'),
-    (state) => win?.webContents.send('tea:event:center-auth-state-changed', state),
+    (state) => events.publish('center-auth-state-changed', state),
   )
-  const conversation = new ElectronConversationService(
-    path.join(app.getPath('userData'), 'conversation-state.json'),
-    process.cwd(),
-    (event) => win?.webContents.send('tea:event:conversation:event', event),
-    (summary) => win?.webContents.send('tea:event:conversation:updated', summary),
-    (call) => win?.webContents.send('tea:event:conversation:host-tool-call', call),
-  )
+  conversationHost = await createElectronConversationHost({
+    catalogPath: path.join(app.getPath('userData'), 'conversation-catalog.sqlite3'),
+    workspaceId: 'desktop-workspace',
+    workspacePath: process.cwd(),
+    hostTools: [channelHistoryToolDefinition],
+    events: {
+      conversationEvent: (event) => events.publish('conversation:event', event),
+      conversationUpdated: (summary) => events.publish('conversation:updated', summary),
+      hostToolCall: (call) => events.publish('conversation:host-tool-call', call),
+    },
+  })
   const managedWorkspace = new ElectronManagedWorkspaceService(centerAuth, (state) =>
-    win?.webContents.send('tea:event:managed-workspace-state-changed', state),
+    events.publish('managed-workspace-state-changed', state),
   )
   const catalog = new ElectronCatalogService(
     path.join(app.getPath('userData'), 'catalog.json'),
@@ -76,12 +87,12 @@ app.whenReady().then(() => {
   const pluginProcesses = new ElectronPluginProcessService(catalog, credentials)
   const channel = new ElectronChannelService(
     async () => managedWorkspace.getImCredentials(),
-    (event) => win?.webContents.send('tea:event:channel-event', event),
+    (event) => events.publish('channel-event', event),
   )
 
   services = {
     settings,
-    conversation,
+    conversation: conversationHost.commands,
     centerAuth,
     managedWorkspace,
     catalog,
@@ -95,12 +106,13 @@ app.whenReady().then(() => {
     }),
   )
 
-  void Promise.all([centerAuth.initialize(), conversation.initialize(), catalog.initialize()]).then(
-    async () => {
-      await managedWorkspace.refresh().catch(() => undefined)
-      createWindow()
-    },
-  )
+  await Promise.all([centerAuth.initialize(), catalog.initialize(), conversationHost.initialize()])
+  await managedWorkspace.refresh().catch(() => undefined)
+  createWindow()
+}
+
+app.whenReady().then(() => {
+  void bootstrap().catch(() => app.quit())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -117,7 +129,7 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   quitting = true
   void Promise.all([
-    services?.conversation.shutdown(),
+    conversationHost?.shutdown(),
     services?.pluginProcesses.shutdown(),
     services?.channel.dispose(),
   ]).finally(() => app.quit())

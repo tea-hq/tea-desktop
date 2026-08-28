@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ConversationEvent } from '@/features/conversation/contracts'
-const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }))
-vi.mock('../electronBridge', () => ({ invoke: invokeMock, listen: vi.fn() }))
+const { invokeMock, listenMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  listenMock: vi.fn(),
+}))
+vi.mock('../electronBridge', () => ({ invoke: invokeMock, listen: listenMock }))
 
 import { FakeConversationClient, ElectronConversationClient } from './electronConversationClient'
 
@@ -24,6 +27,13 @@ describe('ElectronConversationClient collaboration mapping', () => {
       capturedAt: 2,
       state: 'active' as const,
     }
+    const hostTool = {
+      name: 'load_channel_messages',
+      version: '1.0.0',
+      description: 'Main-owned definition mirror',
+      inputSchema: { type: 'object' as const },
+      outputSchema: { type: 'object' as const },
+    }
 
     await client.loadConversationHistory({
       conversationId: 'conversation-1',
@@ -33,6 +43,7 @@ describe('ElectronConversationClient collaboration mapping', () => {
     await client.createConversation('external.codex', {
       idempotencyKey: 'create-1',
       channelBinding,
+      hostTools: [hostTool],
     })
     await client.sendMessage('conversation-1', 'Summarize', {
       model: 'default',
@@ -48,7 +59,12 @@ describe('ElectronConversationClient collaboration mapping', () => {
       ],
       [
         'create_conversation',
-        { runtimeId: 'external.codex', idempotencyKey: 'create-1', channelBinding, hostTools: [] },
+        {
+          runtimeId: 'external.codex',
+          idempotencyKey: 'create-1',
+          channelBinding,
+          hostTools: [{ name: hostTool.name, version: hostTool.version }],
+        },
       ],
       [
         'send_message',
@@ -62,6 +78,43 @@ describe('ElectronConversationClient collaboration mapping', () => {
       ],
       ['complete_draft_delivery', { deliveryId: 'delivery-1', sentMessageRef: source.messageRef }],
     ])
+  })
+
+  it('filters conversation events and disposes the exact bridge subscription', async () => {
+    const dispose = vi.fn()
+    let receive: ((event: { payload: ConversationEvent }) => void) | undefined
+    listenMock.mockImplementationOnce(async (_event, listener) => {
+      receive = listener
+      return dispose
+    })
+    const client = new ElectronConversationClient()
+    const events: ConversationEvent[] = []
+    const unsubscribe = await client.subscribeToEvents('conversation-1', (event) =>
+      events.push(event),
+    )
+
+    receive?.({
+      payload: { conversationId: 'conversation-2', sequence: 1, event: { type: 'runStarted' } },
+    })
+    receive?.({
+      payload: { conversationId: 'conversation-1', sequence: 2, event: { type: 'runFinished' } },
+    })
+    unsubscribe()
+
+    expect(events).toEqual([
+      { conversationId: 'conversation-1', sequence: 2, event: { type: 'runFinished' } },
+    ])
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('preserves typed command failures for the feature store', async () => {
+    invokeMock.mockRejectedValueOnce({ code: 'runtimeUnavailable', retryable: true })
+    const client = new ElectronConversationClient()
+
+    await expect(client.listRuntimes()).rejects.toMatchObject({
+      code: 'runtimeUnavailable',
+      retryable: true,
+    })
   })
 })
 

@@ -88,7 +88,6 @@ class FakeClient {
   async renameConversation(_conversationId: string, _title: string): Promise<void> {}
   async archiveConversation(_conversationId: string): Promise<void> {}
   async deleteConversation(_conversationId: string): Promise<void> {}
-  async configureHostTools(): Promise<void> {}
   async appendConversationSources(
     _conversationId: string,
     _turnIndex: number,

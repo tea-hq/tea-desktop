@@ -2,7 +2,7 @@ import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HostToolCall } from '../../src/features/conversation/contracts'
 import { ElectronConversationService } from './conversation'
@@ -10,6 +10,10 @@ import { ElectronConversationService } from './conversation'
 describe('ElectronConversationService', () => {
   const previousCodexExecutable = process.env['TEA_CODEX_EXECUTABLE']
   const previousCodexLog = process.env['CODEX_TEST_LOG']
+
+  beforeEach(() => {
+    process.env['TEA_CLAUDE_EXECUTABLE'] = process.execPath
+  })
 
   afterEach(() => {
     vi.unstubAllGlobals()

@@ -30,6 +30,17 @@ export function readInteger(value: unknown, name: string): number {
   return value as number
 }
 
+export function readArray(value: unknown, name: string): unknown[] {
+  if (!Array.isArray(value)) {
+    throw {
+      code: 'invalidRequest',
+      retryable: false,
+      message: `${name} must be an array`,
+    }
+  }
+  return value
+}
+
 export function readPermissionMode(value: unknown): PermissionMode {
   if (value === 'default' || value === 'readOnly' || value === 'fullAccess') return value
   throw {

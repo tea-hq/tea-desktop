@@ -3,7 +3,6 @@ import type { DesktopCommand } from '@/types/electronBridge'
 
 import type {
   ChannelCapability,
-  ChannelEvent,
   ChannelEventListener,
   ChannelPage,
   ChannelRef,
@@ -132,7 +131,7 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   private ensureListening(): void {
     if (this.unlisten) return
-    this.unlisten = listen<ChannelEvent>('channel-event', (event) => {
+    this.unlisten = listen('channel-event', (event) => {
       if (this.disposed) return
       if (event.payload.type === 'status.changed') this.currentStatus = event.payload.status
       for (const listener of [...this.listeners]) listener(structuredClone(event.payload))

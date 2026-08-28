@@ -11,6 +11,7 @@ declare namespace NodeJS {
      * │ │
      * │ ├─┬ dist-electron
      * │ │ ├── main.js
+     * │ │ ├── mcp-process.js
      * │ │ └── preload.js
      * │
      * ```

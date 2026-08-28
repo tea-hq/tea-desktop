@@ -1,4 +1,4 @@
-# ADR-0001: Use a domain command handler registry
+# ADR-0023: Use a domain command handler registry
 
 ## Status
 

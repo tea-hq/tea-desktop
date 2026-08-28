@@ -288,7 +288,6 @@ export interface ConversationClient {
     runtimeId: string,
     options: CreateConversationOptions,
   ): Promise<CreateConversationResponse>
-  configureHostTools(conversationId: string, hostTools: HostToolDefinition[]): Promise<void>
   appendConversationSources(
     conversationId: string,
     turnIndex: number,

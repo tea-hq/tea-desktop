@@ -8,13 +8,14 @@ import { sameMessage } from '@/features/channels/projection'
 import type {
   ConversationJson,
   HostToolCall,
-  HostToolDefinition,
   HostToolFailureCode,
   HostToolResult,
 } from '@/features/conversation/contracts'
+import {
+  CHANNEL_HISTORY_TOOL_NAME,
+  channelHistoryToolDefinition,
+} from '@/features/conversation/hostToolCatalog'
 import type { ChannelSourceInput } from '@/types/channelCollaboration'
-
-export const CHANNEL_HISTORY_TOOL_NAME = 'load_channel_messages'
 
 const MAX_CALLS = 6
 const MAX_MESSAGES_PER_CALL = 10
@@ -22,41 +23,7 @@ const MAX_UNIQUE_REFS = 40
 const MAX_RETURNED_CHARS = 32_000
 const MAX_MESSAGE_CHARS = 4_000
 
-export const channelHistoryToolDefinition: HostToolDefinition = {
-  name: CHANNEL_HISTORY_TOOL_NAME,
-  version: '1.0.0',
-  description:
-    'Loads a bounded page of messages from the bound Channel when the available sources are insufficient. Omit the cursor with direction before to load the latest messages.',
-  inputSchema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      direction: { type: 'string', enum: ['before', 'after'] },
-      cursor: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          messageClientId: { type: 'string', maxLength: 512 },
-          messageServerId: { type: 'string', maxLength: 512 },
-        },
-        required: ['messageClientId'],
-      },
-      limit: { type: 'integer', minimum: 1, maximum: MAX_MESSAGES_PER_CALL },
-    },
-    required: ['direction'],
-  },
-  outputSchema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      direction: { type: 'string' },
-      messages: { type: 'array' },
-      hasMore: { type: 'boolean' },
-      nextCursor: { type: ['object', 'null'] },
-    },
-    required: ['direction', 'messages', 'hasMore', 'nextCursor'],
-  },
-}
+export { CHANNEL_HISTORY_TOOL_NAME, channelHistoryToolDefinition }
 
 export interface ChannelHistoryToolOutcome {
   result: HostToolResult

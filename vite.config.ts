@@ -39,12 +39,22 @@ export default defineConfig({
     Components({ dts: 'components.d.ts' }),
     electron({
       main: {
-        entry: 'electron/main.ts',
+        entry: {
+          main: 'electron/main.ts',
+          'mcp-process': 'electron/conversation/acp/mcpProcess.ts',
+        },
         vite: {
           build: {
             rollupOptions: {
               // ws is CommonJS and must be loaded by Node from the main process.
-              external: ['ws'],
+              external: [
+                'ws',
+                '@agentclientprotocol/sdk',
+                '@agentclientprotocol/sdk/experimental/v2',
+                '@agentclientprotocol/claude-agent-acp',
+                '@agentclientprotocol/codex-acp',
+                '@modelcontextprotocol/sdk',
+              ],
             },
           },
         },

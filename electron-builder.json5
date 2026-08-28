@@ -9,6 +9,16 @@
     output: 'release/${version}',
   },
   files: ['dist', 'dist-electron', 'public'],
+  asarUnpack: [
+    'dist-electron/mcp-process.js',
+    'dist-electron/mcpAttachmentProtocol-*.js',
+    'node_modules/@agentclientprotocol/claude-agent-acp/**/*',
+    'node_modules/@agentclientprotocol/codex-acp/**/*',
+    'node_modules/@anthropic-ai/claude-agent-sdk/**/*',
+    'node_modules/@anthropic-ai/claude-agent-sdk-*/**/*',
+    'node_modules/@openai/codex/**/*',
+    'node_modules/@openai/codex-*/**/*',
+  ],
   mac: {
     target: ['dmg'],
     artifactName: '${productName}-Mac-${version}-Installer.${ext}',

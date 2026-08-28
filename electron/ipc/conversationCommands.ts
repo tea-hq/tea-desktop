@@ -1,4 +1,15 @@
-import type { ElectronConversationService } from '../services/conversation'
+import type {
+  HostToolResult,
+  ListConversationsRequest,
+  LoadConversationHistoryRequest,
+} from '../../src/features/conversation/contracts'
+import type {
+  ChannelBinding,
+  ChannelSourceInput,
+  MessageRef,
+} from '../../src/types/channelCollaboration'
+import type { ConversationCommandService } from '../conversation/commandService'
+import type { RuntimeHostToolReference } from '../conversation/service'
 import {
   defineCommandHandlers,
   type DesktopCommandHandlerGroup,
@@ -6,6 +17,7 @@ import {
 } from './commandRouter'
 import {
   readApprovalDecision,
+  readArray,
   readInteger,
   readPermissionMode,
   readRecord,
@@ -13,7 +25,7 @@ import {
 } from './commandValidation'
 
 export interface ConversationCommandServices {
-  conversation: ElectronConversationService
+  conversation: ConversationCommandService
 }
 
 export function createConversationCommandHandlers(
@@ -23,28 +35,35 @@ export function createConversationCommandHandlers(
 
   return defineCommandHandlers('conversation', {
     list_conversation_runtimes: () => conversation.listRuntimes(),
-    list_conversations: (args) => conversation.listConversations(readRecord(args.request) as never),
+    list_conversations: (args) =>
+      conversation.listConversations(
+        readRecord(args.request) as unknown as ListConversationsRequest,
+      ),
     get_conversation: (args) =>
       conversation.getConversation(readString(args.conversationId, 'conversationId')),
     load_conversation_history: (args) =>
-      conversation.loadHistory(readRecord(args.request) as never),
+      conversation.loadConversationHistory(
+        readRecord(args.request) as unknown as LoadConversationHistoryRequest,
+      ),
     create_conversation: (args) =>
-      conversation.createConversation(
-        readString(args.runtimeId, 'runtimeId'),
-        readString(args.idempotencyKey, 'idempotencyKey'),
-        args.channelBinding as never,
-        Array.isArray(args.hostTools) ? (args.hostTools as never) : [],
-      ),
-    configure_conversation_host_tools: (args) =>
-      conversation.configureHostTools(
-        readString(args.conversationId, 'conversationId'),
-        Array.isArray(args.hostTools) ? (args.hostTools as never) : [],
-      ),
+      conversation.createConversation({
+        runtimeId: readString(args.runtimeId, 'runtimeId'),
+        idempotencyKey: readString(args.idempotencyKey, 'idempotencyKey'),
+        channelBinding:
+          args.channelBinding === undefined
+            ? undefined
+            : (readRecord(args.channelBinding) as unknown as ChannelBinding),
+        hostTools: readArray(args.hostTools, 'hostTools').map((value) =>
+          readHostToolReference(value),
+        ),
+      }),
     append_conversation_sources: (args) =>
-      conversation.appendSources(
+      conversation.appendConversationSources(
         readString(args.conversationId, 'conversationId'),
         readInteger(args.turnIndex, 'turnIndex'),
-        Array.isArray(args.sources) ? (args.sources as never) : [],
+        readArray(args.sources, 'sources').map(
+          (value) => readRecord(value) as unknown as ChannelSourceInput,
+        ),
       ),
     create_channel_draft: (args) =>
       conversation.createDraft(
@@ -66,7 +85,7 @@ export function createConversationCommandHandlers(
       conversation.updateDelivery(
         readString(args.deliveryId, 'deliveryId'),
         'sent',
-        args.sentMessageRef as never,
+        readRecord(args.sentMessageRef) as unknown as MessageRef,
       ),
     fail_draft_delivery: (args) =>
       conversation.updateDelivery(
@@ -76,14 +95,20 @@ export function createConversationCommandHandlers(
         readString(args.failureCode, 'failureCode'),
       ),
     send_message: (args) =>
-      conversation.send(
+      conversation.sendMessage(
         readString(args.conversationId, 'conversationId'),
         readString(args.text, 'text'),
         {
           model: args.model === null ? 'default' : readString(args.model, 'model'),
           permissionMode: readPermissionMode(args.permissionMode),
+          ...(args.sources === undefined
+            ? {}
+            : {
+                sources: readArray(args.sources, 'sources').map(
+                  (value) => readRecord(value) as unknown as ChannelSourceInput,
+                ),
+              }),
         },
-        Array.isArray(args.sources) ? (args.sources as never) : [],
       ),
     cancel_conversation: (args) =>
       conversation.cancel(readString(args.conversationId, 'conversationId')),
@@ -93,7 +118,8 @@ export function createConversationCommandHandlers(
         readString(args.approvalId, 'approvalId'),
         readApprovalDecision(args.decision),
       ),
-    resolve_host_tool_call: (args) => conversation.resolveHostToolCall(args.result as never),
+    resolve_host_tool_call: (args) =>
+      conversation.resolveHostToolCall(readRecord(args.result) as unknown as HostToolResult),
     rename_conversation: (args) =>
       conversation.rename(
         readString(args.conversationId, 'conversationId'),
@@ -104,4 +130,19 @@ export function createConversationCommandHandlers(
     delete_conversation: (args) =>
       conversation.remove(readString(args.conversationId, 'conversationId')),
   } satisfies Partial<DesktopCommandHandlers>)
+}
+
+function readHostToolReference(value: unknown): RuntimeHostToolReference {
+  const record = readRecord(value)
+  if (
+    Object.keys(record).length !== 2 ||
+    !Object.hasOwn(record, 'name') ||
+    !Object.hasOwn(record, 'version')
+  ) {
+    throw { code: 'invalidRequest', retryable: false }
+  }
+  return {
+    name: readString(record.name, 'hostTools.name'),
+    version: readString(record.version, 'hostTools.version'),
+  }
 }

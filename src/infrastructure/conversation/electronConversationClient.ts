@@ -27,7 +27,7 @@ import type {
   Draft,
   MessageRef,
 } from '@/types/channelCollaboration'
-import type { DesktopEvent } from '@/types/electronBridge'
+import type { DesktopEvent, DesktopEventPayloadMap } from '@/types/electronBridge'
 
 export class ElectronConversationClient implements ConversationClient {
   async listRuntimes(): Promise<RuntimeDescriptor[]> {
@@ -56,12 +56,8 @@ export class ElectronConversationClient implements ConversationClient {
       runtimeId,
       idempotencyKey: options.idempotencyKey,
       channelBinding: options?.channelBinding,
-      hostTools: options?.hostTools ?? [],
+      hostTools: (options?.hostTools ?? []).map(({ name, version }) => ({ name, version })),
     })
-  }
-
-  async configureHostTools(conversationId: string, hostTools: HostToolDefinition[]): Promise<void> {
-    await invoke('configure_conversation_host_tools', { conversationId, hostTools })
   }
 
   async appendConversationSources(
@@ -156,7 +152,7 @@ export class ElectronConversationClient implements ConversationClient {
     conversationId: string,
     handler: (event: ConversationEvent) => void,
   ): Promise<() => void> {
-    const unlisten = await listen<ConversationEvent>('conversation:event', (event) => {
+    const unlisten = await listen('conversation:event', (event) => {
       if (event.payload.conversationId === conversationId) {
         handler(event.payload)
       }
@@ -168,7 +164,7 @@ export class ElectronConversationClient implements ConversationClient {
     conversationId: string,
     handler: (call: HostToolCall) => void,
   ): Promise<() => void> {
-    const unlisten = await listen<HostToolCall>('conversation:host-tool-call', (event) => {
+    const unlisten = await listen('conversation:host-tool-call', (event) => {
       if (event.payload.conversationId === conversationId) handler(event.payload)
     })
     return unlisten
@@ -179,10 +175,13 @@ export class ElectronConversationClient implements ConversationClient {
   }
 }
 
-function subscribe<T>(eventName: DesktopEvent, handler: (payload: T) => void): () => void {
+function subscribe<Event extends DesktopEvent>(
+  eventName: Event,
+  handler: (payload: DesktopEventPayloadMap[Event]) => void,
+): () => void {
   let unlisten: UnlistenFn | null = null
   let cancelled = false
-  listen<T>(eventName, (event) => {
+  listen(eventName, (event) => {
     if (!cancelled) handler(event.payload)
   })
     .then((fn) => {
@@ -288,11 +287,6 @@ export class FakeConversationClient implements ConversationClient {
     this._creationKeys.set(options.idempotencyKey, handle.conversationId)
     this.emitSummary(summary)
     return { handle, summary: structuredClone(summary) }
-  }
-
-  async configureHostTools(conversationId: string, hostTools: HostToolDefinition[]): Promise<void> {
-    this.requireSummary(conversationId)
-    this._hostTools.set(conversationId, structuredClone(hostTools))
   }
 
   async appendConversationSources(

@@ -12,12 +12,9 @@ const claude: RuntimeDescriptor = {
 }
 
 describe('runtimeModelOptions', () => {
-  it('exposes the supported Claude Code model choices', () => {
+  it('does not infer model choices from the runtime id', () => {
     expect(runtimeModelOptions(claude)).toEqual([
-      { value: 'default', labelKey: 'composer.model.default' },
-      { value: 'sonnet', labelKey: 'composer.model.sonnet' },
-      { value: 'opus', labelKey: 'composer.model.opus' },
-      { value: 'haiku', labelKey: 'composer.model.haiku' },
+      { value: 'default', labelKey: 'composer.model.configured' },
     ])
   })
 
@@ -29,5 +26,21 @@ describe('runtimeModelOptions', () => {
         displayName: 'Codex',
       }),
     ).toEqual([{ value: 'default', labelKey: 'composer.model.configured' }])
+  })
+
+  it('projects only models advertised by the runtime descriptor', () => {
+    expect(
+      runtimeModelOptions({
+        ...claude,
+        models: [
+          {
+            value: 'claude-sonnet-5',
+            providerId: 'anthropic',
+            displayName: 'Sonnet 5',
+            source: 'runtime',
+          },
+        ],
+      }),
+    ).toEqual([{ value: 'claude-sonnet-5', label: 'Sonnet 5', source: 'runtime' }])
   })
 })

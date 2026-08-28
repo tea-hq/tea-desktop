@@ -4,7 +4,7 @@ import {
   type JsonValue,
   type Message,
 } from '@/features/channels/contracts'
-import type { ConversationClient } from '@/features/conversation/contracts'
+import type { ConversationClient, HostToolDefinition } from '@/features/conversation/contracts'
 import type { ChannelSource, Delivery, Draft, MessageRef } from '@/types/channelCollaboration'
 import {
   channelHistoryToolDefinition,
@@ -24,13 +24,9 @@ export class ConversationCollaborationClient {
     knownRefs: MessageRef[],
     onSources: (sources: ChannelSource[]) => void,
   ): Promise<() => void> {
-    if (!this.hasCapability('message.history')) {
-      await this.conversations.configureHostTools(conversationId, [])
-      return () => undefined
-    }
+    if (!this.hasCapability('message.history')) return () => undefined
     const scope = new ChannelHistoryToolScope(this.transport, channelRef, knownRefs)
     const handled = new Set<string>()
-    await this.conversations.configureHostTools(conversationId, [channelHistoryToolDefinition])
     return this.conversations.subscribeToHostToolCalls(conversationId, (call) => {
       if (handled.has(call.callId)) return
       handled.add(call.callId)
@@ -56,6 +52,12 @@ export class ConversationCollaborationClient {
           .catch(() => undefined)
       })
     })
+  }
+
+  creationHostTools(): HostToolDefinition[] {
+    return this.hasCapability('message.history')
+      ? [structuredClone(channelHistoryToolDefinition)]
+      : []
   }
 
   async deliverDraft(draft: Draft, runtimeName: string): Promise<Delivery> {

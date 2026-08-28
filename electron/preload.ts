@@ -4,22 +4,31 @@ import {
   DESKTOP_EVENTS,
   type DesktopCommand,
   type DesktopEvent,
+  type DesktopEventPayloadMap,
   type TeaDesktopBridge,
+  unwrapDesktopCommandResult,
 } from '../src/types/electronBridge'
 
 const commandSet = new Set<string>(DESKTOP_COMMANDS)
 const eventSet = new Set<string>(DESKTOP_EVENTS)
 
 const bridge: TeaDesktopBridge = {
-  invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
+  async invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
     if (!commandSet.has(command)) throw new Error(`Unsupported desktop command: ${command}`)
-    return ipcRenderer.invoke('tea:command', command, args) as Promise<T>
+    const result: unknown = await ipcRenderer.invoke('tea:command', command, args)
+    return unwrapDesktopCommandResult<T>(result)
   },
 
-  on<T>(event: DesktopEvent, listener: (payload: T) => void): () => void {
+  on<Event extends DesktopEvent>(
+    event: Event,
+    listener: (payload: DesktopEventPayloadMap[Event]) => void,
+  ): () => void {
     if (!eventSet.has(event)) throw new Error(`Unsupported desktop event: ${event}`)
     const channel = `tea:event:${event}`
-    const wrapped = (_ipcEvent: Electron.IpcRendererEvent, payload: T) => listener(payload)
+    const wrapped = (
+      _ipcEvent: Electron.IpcRendererEvent,
+      payload: DesktopEventPayloadMap[Event],
+    ) => listener(payload)
     ipcRenderer.on(channel, wrapped)
     return () => ipcRenderer.removeListener(channel, wrapped)
   },

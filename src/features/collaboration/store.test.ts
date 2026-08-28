@@ -108,6 +108,9 @@ describe('useCollaborationStore', () => {
     await store.sendMessage('Start only now')
 
     expect(create).toHaveBeenCalledTimes(1)
+    expect(create.mock.calls[0]?.[1].hostTools).toMatchObject([
+      { name: 'load_channel_messages', version: '1.0.0' },
+    ])
     expect(client.sends).toHaveLength(1)
     expect(client.sends[0]?.text).toBe('Start only now')
     expect(store.conversationId).toBeTruthy()
