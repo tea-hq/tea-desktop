@@ -9,9 +9,9 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div v-if="sources.length" class="tea-bg-canvas px-3 pb-2 pt-2">
+  <div v-if="sources.length" class="bg-canvas px-3 pb-2 pt-2">
     <div class="mb-1.5 flex items-center justify-between">
-      <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">
+      <p class="text-xs font-semibold uppercase text-subtle">
         {{ t('channels.collaboration.sources', { count: sources.length }) }}
       </p>
     </div>

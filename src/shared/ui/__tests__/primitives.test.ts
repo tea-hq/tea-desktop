@@ -4,7 +4,6 @@ import { mount, type MountingOptions } from '@vue/test-utils'
 import type { Component } from 'vue'
 import { describe, expect, it } from 'vitest'
 
-import { installTeaUi } from '../theme/installTeaUi'
 import TeaButton from '../TeaButton.vue'
 import TeaDialog from '../TeaDialog.vue'
 import TeaDrawer from '../TeaDrawer.vue'
@@ -15,15 +14,10 @@ import TeaMenu from '../TeaMenu.vue'
 import TeaSelect from '../TeaSelect.vue'
 import TeaTabs from '../TeaTabs.vue'
 
-const teaUiPlugin = { install: installTeaUi }
-
 function mountTea(component: Component, options: MountingOptions<never> = {}) {
   return mount(component, {
     ...options,
-    global: {
-      ...options.global,
-      plugins: [teaUiPlugin, ...(options.global?.plugins ?? [])],
-    },
+    global: options.global,
   })
 }
 
@@ -67,7 +61,7 @@ describe('Tea primitives', () => {
       },
     })
 
-    wrapper.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'codex')
+    await wrapper.get('select').setValue('codex')
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
   })
@@ -77,18 +71,23 @@ describe('Tea primitives', () => {
       props: { label: 'Actions', items: [{ value: 'edit', label: 'Edit' }] },
     })
 
-    await wrapper.get('[data-pc-section="itemcontent"]').trigger('click')
+    await wrapper.get('[role="menuitem"]').trigger('click')
     expect(wrapper.emitted('select')).toEqual([['edit']])
   })
 
   it('maps overlay dismissal to one close intent', async () => {
     const dialog = mountTea(TeaDialog, { props: { open: true, title: 'Edit draft' } })
-    dialog.getComponent({ name: 'Dialog' }).vm.$emit('update:visible', false)
+    const dialogClose = document.body.querySelector('[role="dialog"] button')
+    expect(dialogClose).not.toBeNull()
+    dialogClose!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await dialog.vm.$nextTick()
     expect(dialog.emitted('close')).toHaveLength(1)
+    dialog.unmount()
 
     const drawer = mountTea(TeaDrawer, { props: { open: true, title: 'Agent' } })
-    drawer.getComponent({ name: 'Drawer' }).vm.$emit('update:visible', false)
+    const drawerClose = document.body.querySelector('[role="dialog"] button')
+    expect(drawerClose).not.toBeNull()
+    drawerClose!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await drawer.vm.$nextTick()
     expect(drawer.emitted('close')).toHaveLength(1)
   })
@@ -107,7 +106,10 @@ describe('Tea primitives', () => {
     })
 
     expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Conversation views')
-    wrapper.getComponent({ name: 'Tabs' }).vm.$emit('update:value', 'all')
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === 'All')!
+      .trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('update:modelValue')).toEqual([['all']])
   })

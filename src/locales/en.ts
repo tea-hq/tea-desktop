@@ -5,6 +5,9 @@ export default {
     newConversationDescription:
       'An external Agent is selected by default. Choose an agent, model, or permission mode below.',
   },
+  common: {
+    close: 'Close',
+  },
   auth: {
     enterprise: {
       eyebrow: 'Enterprise access',

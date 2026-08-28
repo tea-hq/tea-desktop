@@ -7,22 +7,22 @@ const { t } = useI18n()
 </script>
 <template>
   <div class="space-y-2">
-    <div v-if="items.length === 0" class="rounded-lg bg-gray-50 px-3 py-4 text-xs text-gray-400">
+    <div v-if="items.length === 0" class="rounded-control bg-surface px-3 py-4 text-xs text-subtle">
       {{ t('management.agentRoles.capability.empty') }}
     </div>
     <div
       v-for="(item, index) in items"
       :key="`${item.kind}-${item.id}-${index}`"
-      class="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2.5"
+      class="flex items-center gap-3 rounded-control bg-surface px-3 py-2.5"
     >
       <span
         class="size-2 rounded-full"
-        :class="item.available === false ? 'bg-red-400' : 'bg-gray-300'"
+        :class="item.available === false ? 'bg-danger' : 'bg-disabled'"
         aria-hidden="true"
       />
       <span class="min-w-0 flex-1"
-        ><span class="block truncate text-xs font-medium text-gray-700">{{ item.id }}</span
-        ><span class="mt-0.5 block text-[11px] text-gray-400"
+        ><span class="block truncate text-xs font-medium text-fg">{{ item.id }}</span
+        ><span class="mt-0.5 block text-[11px] text-subtle"
           >{{ item.kind }}<span v-if="item.version"> · v{{ item.version }}</span
           ><span v-if="item.available === false">
             · {{ t('management.agentRoles.capability.unavailable') }}</span
@@ -31,7 +31,7 @@ const { t } = useI18n()
       >
       <button
         type="button"
-        class="inline-flex size-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+        class="inline-flex size-7 items-center justify-center rounded-control text-dim hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
         :title="t('management.agentRoles.capability.remove')"
         @click="emit('remove', index)"
       >

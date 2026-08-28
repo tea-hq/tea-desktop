@@ -148,17 +148,21 @@ file names, and diagnostics unchanged unless a localized label exists.
 
 ## UI Rules
 
-Tea uses Vue 3, PrimeVue 4 Styled Mode, Tailwind layout, and MDI icons. Product
-code imports PrimeVue through `src/shared/ui/` primitives. Do not add another
-component library or headless layer. Theme/design tokens belong to shared UI;
-Tailwind handles layout, sizing, positioning, overflow, and responsiveness,
-not component appearance or state.
+Tea uses Vue 3, Tailwind CSS, and MDI icons. Shared UI primitives use semantic
+HTML and own keyboard/focus behavior for reusable controls and overlays. Do not
+add a component library or headless layer. Visual tokens belong to shared UI;
+Tailwind utilities provide layout, appearance, sizing, positioning, overflow,
+and responsive structure. Feature code must use semantic tokens instead of raw
+palette colors, arbitrary radii, or one-off shadows.
 
-Keep structural regions nearly square; reserve shadows for overlays. Avoid
-gradients, decorative blobs, glassmorphism, nested cards, and card-heavy views.
-Icon-only actions need accessible names and, when unclear, tooltips. Verify
-loading, empty, stale, error, approval, streaming, focus, disabled, and reduced
-motion states. English and Chinese text must wrap without overlap.
+Keep the OpenSession visual discipline: use the shared surface hierarchy and
+Tailwind hover washes, keep sections and repeated rows borderless unless a
+hairline is the actual divider, and scale corners consistently (structural 8px,
+controls 12px, overlays 16px). Reserve elevation for overlays. Avoid gradients,
+decorative blobs, glassmorphism, nested cards, and card-heavy views. Icon-only
+actions need accessible names and, when unclear, tooltips. Verify loading,
+empty, stale, error, approval, streaming, focus, disabled, reduced-motion, and
+390px narrow states. English and Chinese text must wrap without overlap.
 
 ## Commits
 

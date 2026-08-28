@@ -183,18 +183,18 @@ defineExpose({ focus })
 
 <style scoped>
 .agent-composer {
-  border-top: 1px solid var(--p-content-border-color);
-  background: var(--p-surface-50);
+  border-top: 1px solid var(--tea-line);
+  background: var(--tea-surface);
 }
 .attachment-chip {
   max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-radius: var(--p-border-radius-sm);
-  background: var(--p-surface-100);
+  border-radius: var(--tea-radius-structural);
+  background: var(--tea-panel);
   padding: 0.25rem 0.5rem;
-  color: var(--p-text-muted-color);
+  color: var(--tea-dim);
   font-size: 0.75rem;
 }
 .composer-toolbar :deep(.p-select) {

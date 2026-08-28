@@ -24,16 +24,16 @@ watch(
 </script>
 
 <template>
-  <section class="tea-bg-muted px-3 py-3">
+  <section class="bg-panel px-3 py-3">
     <div class="mb-2 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <span class="i-mdi-file-document-edit-outline size-4 tea-fg-muted" aria-hidden="true" />
-        <p class="tea-text-caption tea-weight-strong tea-fg">
+        <span class="i-mdi-file-document-edit-outline size-4 text-dim" aria-hidden="true" />
+        <p class="text-sm font-semibold text-fg">
           {{ t('channels.collaboration.draftTitle') }}
         </p>
-        <span class="tea-text-micro tea-fg-subtle">v{{ draft.currentVersion }}</span>
+        <span class="text-xs text-subtle">v{{ draft.currentVersion }}</span>
       </div>
-      <span v-if="delivery" class="tea-text-micro tea-weight-medium tea-fg-muted">{{
+      <span v-if="delivery" class="text-xs font-medium text-dim">{{
         t(`channels.collaboration.delivery.${delivery.status}`)
       }}</span>
     </div>

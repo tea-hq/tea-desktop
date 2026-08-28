@@ -21,12 +21,12 @@ const isResolving = computed(() => props.request.status === 'resolving')
 </script>
 
 <template>
-  <section class="relative mt-3 w-full pl-5 pt-2 tea-fg" :aria-label="t('approval.title')">
-    <span class="absolute inset-y-2 left-0 w-0.5 tea-bg-warning" aria-hidden="true" />
+  <section class="relative mt-3 w-full pl-5 pt-2 text-fg" :aria-label="t('approval.title')">
+    <span class="absolute inset-y-2 left-0 w-0.5 bg-warning" aria-hidden="true" />
 
     <div class="flex items-start gap-3">
       <svg
-        class="mt-0.5 h-4 w-4 shrink-0 tea-fg-muted"
+        class="mt-0.5 h-4 w-4 shrink-0 text-dim"
         viewBox="0 0 20 20"
         fill="none"
         stroke="currentColor"
@@ -41,18 +41,18 @@ const isResolving = computed(() => props.request.status === 'resolving')
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h3 class="tea-text-body tea-weight-strong tea-fg">{{ t('approval.title') }}</h3>
+          <h3 class="text-base font-semibold text-fg">{{ t('approval.title') }}</h3>
         </div>
-        <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">{{ t('approval.description') }}</p>
+        <p class="mt-1 text-sm leading-5 text-dim">{{ t('approval.description') }}</p>
 
         <div v-if="request.resources.length" class="mt-2.5 space-y-1">
-          <p class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">
+          <p class="text-xs font-medium uppercase text-subtle">
             {{ t('approval.resources') }}
           </p>
           <code
             v-for="resource in request.resources"
             :key="resource"
-            class="block overflow-x-auto tea-bg-muted px-2 py-1.5 tea-text-caption leading-4 tea-fg-muted"
+            class="block overflow-x-auto bg-panel px-2 py-1.5 text-sm leading-4 text-dim"
             >{{ resource }}</code
           >
         </div>
@@ -61,21 +61,21 @@ const isResolving = computed(() => props.request.status === 'resolving')
           v-if="request.capabilities.length"
           class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1"
         >
-          <span class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">{{
+          <span class="text-xs font-medium uppercase text-subtle">{{
             t('approval.capabilities')
           }}</span>
           <code
             v-for="capability in request.capabilities"
             :key="capability"
-            class="tea-text-caption tea-fg-muted"
+            class="text-sm text-dim"
             >{{ capability }}</code
           >
         </div>
 
         <p
           v-if="request.status !== 'pending'"
-          class="mt-2 tea-text-caption"
-          :class="request.status === 'failed' ? 'tea-fg-danger' : 'tea-fg-muted'"
+          class="mt-2 text-sm"
+          :class="request.status === 'failed' ? 'text-danger' : 'text-dim'"
           aria-live="polite"
         >
           {{ request.error || t(`approval.status.${request.status}`) }}
@@ -85,7 +85,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('allowOnce')"
             type="button"
-            class="h-8 tea-radius-small tea-bg-inverse px-3 tea-text-caption tea-weight-medium tea-fg-inverse transition-colors tea-hover-bg-inverse disabled:cursor-not-allowed tea-disabled-bg"
+            class="h-8 rounded-structural bg-inverse px-3 text-sm font-medium text-canvas transition-colors hover:bg-accent-pressed disabled:cursor-not-allowed disabled:bg-muted"
             :disabled="!canDecide"
             @click="emit('decide', 'allowOnce')"
           >
@@ -94,7 +94,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('allowSession')"
             type="button"
-            class="h-8 tea-radius-small tea-bg-canvas px-3 tea-text-caption tea-weight-medium tea-fg transition-colors tea-hover-bg-strong disabled:cursor-not-allowed tea-disabled-fg"
+            class="h-8 rounded-structural bg-canvas px-3 text-sm font-medium text-fg transition-colors hover:bg-pressed disabled:cursor-not-allowed disabled:text-subtle"
             :disabled="!canDecide"
             @click="emit('decide', 'allowSession')"
           >
@@ -103,7 +103,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('deny')"
             type="button"
-            class="h-8 tea-radius-small px-2.5 tea-text-caption tea-fg-muted transition-colors tea-hover-bg-strong tea-hover-fg disabled:cursor-not-allowed tea-disabled-fg"
+            class="h-8 rounded-structural px-2.5 text-sm text-dim transition-colors hover:bg-pressed hover:text-fg disabled:cursor-not-allowed disabled:text-subtle"
             :disabled="!canDecide"
             @click="emit('decide', 'deny')"
           >
@@ -112,7 +112,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('cancel')"
             type="button"
-            class="h-8 tea-radius-small px-2.5 tea-text-caption tea-fg-danger transition-colors tea-hover-bg-danger disabled:cursor-not-allowed tea-disabled-fg"
+            class="h-8 rounded-structural px-2.5 text-sm text-danger transition-colors hover:bg-danger-subtle disabled:cursor-not-allowed disabled:text-subtle"
             :disabled="!canDecide"
             @click="emit('decide', 'cancel')"
           >
@@ -120,7 +120,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           </TeaButton>
           <span
             v-if="isResolving"
-            class="ml-1 h-3 w-3 animate-spin tea-radius-pill border tea-border tea-border-inverse"
+            class="ml-1 h-3 w-3 animate-spin rounded-full border border-line border-inverse"
           />
         </div>
       </div>

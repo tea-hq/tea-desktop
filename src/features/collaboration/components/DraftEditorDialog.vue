@@ -17,6 +17,7 @@ const { t } = useI18n()
   <TeaDialog
     :open="open"
     :title="t('channels.collaboration.draftTitle')"
+    :close-label="t('common.close')"
     width="large"
     @close="emit('close')"
   >

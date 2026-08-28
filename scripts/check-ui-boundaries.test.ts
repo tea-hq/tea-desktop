@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { inspectUiSource } from './check-ui-boundaries.mjs'
 
 describe('UI boundary checker', () => {
-  it('rejects direct PrimeVue and theme imports outside shared UI', () => {
+  it('rejects removed PrimeVue and theme imports', () => {
     const violations = inspectUiSource(
       'src/features/example/Example.vue',
       `
@@ -37,22 +37,22 @@ describe('UI boundary checker', () => {
     ).toEqual(['button', 'select', 'input', 'textarea'])
   })
 
-  it('rejects visual Tailwind tokens from static and bound classes', () => {
+  it('rejects raw visual Tailwind tokens while allowing semantic tokens', () => {
     const violations = inspectUiSource(
       'src/features/example/Example.vue',
       `
       <template>
-        <div class="flex h-8 bg-white rounded-lg text-sm" :class="active ? 'shadow-md font-medium' : 'overflow-hidden'" />
+        <div class="flex h-8 bg-white rounded-lg text-sm" :class="active ? 'shadow-md font-medium' : 'bg-panel text-fg'" />
       </template>
     `,
     )
 
     expect(
       violations.filter((value) => value.kind === 'visual-class').map((value) => value.value),
-    ).toEqual(['bg-white', 'rounded-lg', 'text-sm', 'shadow-md', 'font-medium'])
+    ).toEqual(['bg-white', 'rounded-lg', 'shadow-md'])
   })
 
-  it('permits PrimeVue imports inside shared UI', () => {
+  it('rejects PrimeVue imports inside shared UI too', () => {
     expect(
       inspectUiSource(
         'src/shared/ui/TeaButton.vue',
@@ -61,6 +61,6 @@ describe('UI boundary checker', () => {
       <template><Button /></template>
     `,
       ),
-    ).toEqual([])
+    ).toEqual([{ kind: 'library-import', value: 'primevue/button', line: 2 }])
   })
 })

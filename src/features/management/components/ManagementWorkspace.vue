@@ -25,20 +25,20 @@ onMounted(() => {
 })
 </script>
 <template>
-  <div class="flex min-h-0 flex-1 tea-bg-canvas">
+  <div class="flex min-h-0 flex-1 bg-canvas">
     <ManagementNavigation
       :active-section="management.activeSection"
       @select="management.selectSection"
     />
     <main class="flex min-w-0 flex-1 flex-col">
-      <header class="flex h-12 shrink-0 items-center justify-between tea-bg-canvas px-8">
-        <div class="flex items-center gap-2 tea-text-caption tea-fg-subtle">
+      <header class="flex h-12 shrink-0 items-center justify-between bg-canvas px-8">
+        <div class="flex items-center gap-2 text-sm text-subtle">
           <span class="i-mdi-tune-variant size-4" aria-hidden="true" />{{
             t('management.workspaceLabel')
-          }}<span class="tea-fg-disabled">/</span><span class="tea-fg">{{ sectionTitle }}</span>
+          }}<span class="text-disabled">/</span><span class="text-fg">{{ sectionTitle }}</span>
         </div>
         <TeaButton
-          class="inline-flex size-8 items-center justify-center tea-radius-control tea-fg-subtle tea-hover-bg tea-hover-fg"
+          class="inline-flex size-8 items-center justify-center rounded-control text-subtle hover:bg-hover hover:text-fg"
           :title="t('management.close')"
           @click="$emit('close')"
           ><span class="i-mdi-close size-4" aria-hidden="true"

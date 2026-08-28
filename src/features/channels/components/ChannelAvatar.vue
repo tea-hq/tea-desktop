@@ -16,10 +16,10 @@ const tone = computed(() => channelAvatarTone(props.channelRef))
 const showImage = computed(() => Boolean(props.avatarUrl) && !imageFailed.value)
 
 const toneClasses = {
-  'tone-0': 'tea-bg-hover tea-fg',
-  'tone-1': 'tea-bg-muted tea-fg-muted',
-  'tone-2': 'tea-bg-disabled tea-fg',
-  'tone-3': 'tea-bg-hover tea-fg',
+  'tone-0': 'bg-hover text-fg',
+  'tone-1': 'bg-panel text-dim',
+  'tone-2': 'bg-muted text-fg',
+  'tone-3': 'bg-hover text-fg',
 } as const
 
 watch(
@@ -32,8 +32,8 @@ watch(
 
 <template>
   <span
-    class="flex size-8 shrink-0 items-center justify-center overflow-hidden tea-radius-pill tea-text-caption tea-weight-strong"
-    :class="showImage ? 'tea-bg-hover' : toneClasses[tone]"
+    class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold"
+    :class="showImage ? 'bg-hover' : toneClasses[tone]"
     aria-hidden="true"
   >
     <img

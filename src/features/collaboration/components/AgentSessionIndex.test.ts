@@ -4,7 +4,6 @@ import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
-import { installTeaUi } from '@/shared/ui/theme/installTeaUi'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
 import en from '@/locales/en'
 import AgentSessionIndex from './AgentSessionIndex.vue'
@@ -37,10 +36,7 @@ function mountIndex(overrides: Record<string, unknown> = {}) {
       ...overrides,
     },
     global: {
-      plugins: [
-        { install: installTeaUi },
-        createI18n({ legacy: false, locale: 'en', messages: { en } }),
-      ],
+      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
     },
   })
 }

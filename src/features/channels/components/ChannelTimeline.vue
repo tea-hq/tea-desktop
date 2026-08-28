@@ -113,21 +113,21 @@ watch(
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-1 flex-col tea-bg-canvas">
-    <header class="flex h-14 shrink-0 items-center justify-between px-5">
+  <section class="flex min-w-0 flex-1 flex-col bg-canvas">
+    <header class="flex h-16 shrink-0 items-center justify-between border-b border-line px-6">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span
             v-if="channel.kind === 'group'"
-            class="i-mdi-pound size-4 tea-fg-subtle"
+            class="i-mdi-pound size-4 text-subtle"
             aria-hidden="true"
           />
-          <h2 class="truncate tea-text-body tea-weight-strong tea-fg">{{ channel.name }}</h2>
-          <span v-if="channel.memberCount" class="tea-text-caption tea-fg-subtle">
+          <h2 class="truncate text-base font-semibold text-fg">{{ channel.name }}</h2>
+          <span v-if="channel.memberCount" class="text-sm text-subtle">
             {{ t('channels.members', { count: channel.memberCount }) }}
           </span>
         </div>
-        <p class="mt-0.5 truncate tea-text-caption tea-fg-subtle">{{ channel.description }}</p>
+        <p class="mt-0.5 truncate text-sm text-subtle">{{ channel.description }}</p>
       </div>
       <div class="flex items-center gap-1">
         <TeaIconButton size="small" :label="t('channels.searchInChannel')" icon="i-mdi-magnify" />
@@ -140,7 +140,7 @@ watch(
           size="small"
           :label="panelOpen ? t('layout.hideRightSidebar') : t('layout.showRightSidebar')"
           icon="i-mdi-dock-right"
-          :class="panelOpen ? 'tea-bg-muted tea-fg' : 'tea-fg-subtle'"
+          :class="panelOpen ? 'bg-panel text-fg' : 'text-subtle'"
           :aria-pressed="panelOpen"
           @click="emit('togglePanel')"
         />
@@ -150,7 +150,7 @@ watch(
     <div ref="container" class="channel-scroll-area flex-1 overflow-y-auto py-3">
       <div
         v-if="loading && messages.length === 0"
-        class="flex h-full items-center justify-center tea-fg-subtle"
+        class="flex h-full items-center justify-center text-subtle"
       >
         <span class="i-mdi-loading size-5 animate-spin" aria-hidden="true" />
       </div>
@@ -158,11 +158,11 @@ watch(
         v-else-if="messages.length === 0"
         class="flex h-full flex-col items-center justify-center px-8 text-center"
       >
-        <span class="i-mdi-message-outline size-7 tea-fg-disabled" aria-hidden="true" />
-        <p class="mt-3 tea-text-body tea-weight-medium tea-fg-subtle">
+        <span class="i-mdi-message-outline size-7 text-disabled" aria-hidden="true" />
+        <p class="mt-3 text-base font-medium text-subtle">
           {{ t('channels.empty.title') }}
         </p>
-        <p class="mt-1 tea-text-caption tea-fg-disabled">{{ t('channels.empty.description') }}</p>
+        <p class="mt-1 text-sm text-disabled">{{ t('channels.empty.description') }}</p>
       </div>
       <div v-else class="mx-auto w-full max-w-5xl">
         <div v-if="hasMore" class="flex justify-center pb-3">
@@ -176,9 +176,9 @@ watch(
           </TeaButton>
         </div>
         <div class="mb-4 flex items-center gap-3 px-6">
-          <span class="h-px flex-1 tea-bg-muted" />
-          <span class="tea-text-micro tea-fg-subtle">{{ t('channels.today') }}</span>
-          <span class="h-px flex-1 tea-bg-muted" />
+          <span class="h-px flex-1 bg-panel" />
+          <span class="text-xs text-subtle">{{ t('channels.today') }}</span>
+          <span class="h-px flex-1 bg-panel" />
         </div>
         <ChannelMessageItem
           v-for="(message, index) in messages"
@@ -195,8 +195,8 @@ watch(
       </div>
     </div>
 
-    <div class="shrink-0 tea-bg-muted px-4 pb-3 pt-2.5">
-      <div class="flex items-end gap-2">
+    <div class="shrink-0 border-t border-line bg-surface px-4 pb-4 pt-3">
+      <div class="mx-auto flex w-full max-w-5xl items-end gap-2">
         <TeaIconButton size="small" :label="t('channels.composer.add')" icon="i-mdi-plus" />
         <TeaTextarea
           v-model="draft"

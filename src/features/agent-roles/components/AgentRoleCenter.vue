@@ -34,26 +34,22 @@ async function save(draft: AgentRoleDraft) {
   <section class="relative flex min-w-0 flex-1 flex-col overflow-hidden">
     <header class="flex items-start justify-between px-8 py-7">
       <div>
-        <p class="tea-text-caption tea-weight-medium tea-fg-subtle">
+        <p class="text-sm font-medium text-subtle">
           {{ t('management.agentRoles.kicker') }}
         </p>
-        <h2 class="mt-1 tea-text-heading tea-weight-strong tea-tracking-label tea-fg">
+        <h2 class="mt-1 text-2xl font-semibold tracking-normal text-fg">
           {{ t('management.agentRoles.title') }}
         </h2>
-        <p class="mt-2 max-w-xl tea-text-body tea-fg-muted">
+        <p class="mt-2 max-w-xl text-base text-dim">
           {{ t('management.agentRoles.description') }}
         </p>
-        <p
-          v-if="store.error && !editorOpen"
-          class="mt-3 tea-text-caption tea-fg-danger"
-          role="alert"
-        >
+        <p v-if="store.error && !editorOpen" class="mt-3 text-sm text-danger" role="alert">
           {{ t(store.error) }}
         </p>
       </div>
       <TeaButton
         type="button"
-        class="inline-flex items-center gap-2 tea-radius-control tea-bg-inverse px-3 py-2 tea-text-caption tea-weight-medium tea-fg-inverse tea-hover-bg-inverse"
+        class="inline-flex items-center gap-2 rounded-control bg-inverse px-3 py-2 text-sm font-medium text-canvas hover:bg-accent-pressed"
         @click="openCreate"
         ><span class="i-mdi-plus size-4" aria-hidden="true" />{{
           t('management.agentRoles.create')
@@ -63,23 +59,20 @@ async function save(draft: AgentRoleDraft) {
     <div class="min-h-0 flex-1 overflow-auto px-8 pb-8">
       <div
         v-if="store.loading"
-        class="flex min-h-48 items-center justify-center tea-text-body tea-fg-subtle"
+        class="flex min-h-48 items-center justify-center text-base text-subtle"
       >
         {{ t('management.loading') }}
       </div>
       <div
         v-else-if="sortedRoles.length === 0"
-        class="flex min-h-64 items-center justify-center tea-bg-subtle text-center"
+        class="flex min-h-64 items-center justify-center bg-surface text-center"
       >
         <div>
-          <span
-            class="i-mdi-account-cog-outline mx-auto size-9 tea-fg-disabled"
-            aria-hidden="true"
-          />
-          <p class="mt-3 tea-text-body tea-weight-medium tea-fg-muted">
+          <span class="i-mdi-account-cog-outline mx-auto size-9 text-disabled" aria-hidden="true" />
+          <p class="mt-3 text-base font-medium text-dim">
             {{ t('management.agentRoles.emptyTitle') }}
           </p>
-          <p class="mt-1 max-w-sm tea-text-caption leading-5 tea-fg-subtle">
+          <p class="mt-1 max-w-sm text-sm leading-5 text-subtle">
             {{ t('management.agentRoles.emptyDescription') }}
           </p>
         </div>
@@ -88,34 +81,30 @@ async function save(draft: AgentRoleDraft) {
         <article
           v-for="(role, index) in sortedRoles"
           :key="role.id"
-          class="animate-fade-slide group tea-bg-subtle p-4 transition-colors tea-hover-bg"
+          class="animate-fade-slide group bg-surface p-4 transition-colors hover:bg-hover"
           :style="{ animationDelay: `${index * 40}ms` }"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-              <h3 class="truncate tea-text-body tea-weight-strong tea-fg">{{ role.name }}</h3>
-              <p class="mt-1 line-clamp-2 tea-text-caption leading-5 tea-fg-subtle">
+              <h3 class="truncate text-base font-semibold text-fg">{{ role.name }}</h3>
+              <p class="mt-1 line-clamp-2 text-sm leading-5 text-subtle">
                 {{ role.description || t('management.agentRoles.noDescription') }}
               </p>
             </div>
-            <span class="shrink-0 tea-mono tea-text-caption tea-fg-subtle"
-              >rev {{ role.revision }}</span
-            >
+            <span class="shrink-0 font-mono text-sm text-subtle">rev {{ role.revision }}</span>
           </div>
-          <div class="mt-4 flex items-center gap-2 tea-text-caption tea-fg-subtle">
-            <span class="tea-radius-small tea-bg-canvas px-2 py-1">{{
+          <div class="mt-4 flex items-center gap-2 text-sm text-subtle">
+            <span class="rounded-structural bg-canvas px-2 py-1">{{
               role.visibility ?? 'private'
             }}</span
-            ><span class="tea-radius-small tea-bg-canvas px-2 py-1">{{
-              role.status ?? 'draft'
-            }}</span
+            ><span class="rounded-structural bg-canvas px-2 py-1">{{ role.status ?? 'draft' }}</span
             ><span
               v-if="role.capabilities?.some((cap) => cap.available === false)"
-              class="tea-fg-danger"
+              class="text-danger"
               >{{ t('management.agentRoles.unavailable') }}</span
             ><TeaButton
               type="button"
-              class="ml-auto inline-flex size-7 items-center justify-center tea-radius-small tea-fg-subtle opacity-0 transition-opacity tea-hover-bg tea-hover-fg group-hover:opacity-100"
+              class="ml-auto inline-flex size-7 items-center justify-center rounded-structural text-subtle opacity-0 transition-opacity hover:bg-hover hover:text-fg group-hover:opacity-100"
               :title="t('management.agentRoles.edit')"
               @click="openEdit(role)"
               ><span class="i-mdi-pencil-outline size-4" aria-hidden="true"
@@ -132,7 +121,7 @@ async function save(draft: AgentRoleDraft) {
       @close="editorOpen = false"
       ><div
         v-if="store.error"
-        class="mb-5 tea-radius-control tea-bg-danger-subtle px-3 py-2 tea-text-caption leading-5 tea-fg-danger"
+        class="mb-5 rounded-control bg-danger-subtle px-3 py-2 text-sm leading-5 text-danger"
         role="alert"
       >
         {{ t(store.error) }}

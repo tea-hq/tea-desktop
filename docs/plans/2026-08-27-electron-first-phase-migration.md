@@ -15,8 +15,8 @@ only through a context-isolated preload API. Phase one preserves the external
 runtime boundary and channel/management behavior; phase two adds the official
 ACP Client and Agent connections behind the same runtime port.
 
-**Tech Stack:** Electron, Electron Builder, Vue 3, TypeScript, Pinia, PrimeVue,
-Tailwind CSS, Vue I18n, Yunxin Web SDK, Vitest, and Playwright.
+**Tech Stack:** Electron, Electron Builder, Vue 3, TypeScript, Pinia, Tailwind
+CSS, Vue I18n, Yunxin Web SDK, Vitest, and Playwright.
 
 ---
 

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Button from 'primevue/button'
-
 withDefaults(
   defineProps<{
     appearance?: 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -22,50 +20,33 @@ withDefaults(
 </script>
 
 <template>
-  <Button
+  <button
     :type="type"
     :disabled="disabled || loading"
-    :severity="
-      appearance === 'danger'
-        ? 'danger'
-        : appearance === 'secondary' || appearance === 'ghost'
-          ? 'secondary'
-          : undefined
-    "
-    :variant="appearance === 'ghost' ? 'text' : undefined"
-    :size="size === 'small' ? 'small' : undefined"
-    :fluid="fluid"
     :aria-busy="loading || undefined"
-    :class="['tea-button', `tea-button--${size}`]"
+    :class="[
+      'tea-button inline-flex items-center justify-center gap-2 border border-transparent px-3 font-medium leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
+      size === 'small'
+        ? 'min-h-8 rounded-structural text-xs'
+        : size === 'primary'
+          ? 'min-h-10 rounded-control'
+          : 'min-h-9 rounded-control',
+      fluid && 'w-full',
+      appearance === 'primary' &&
+        'bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed focus-visible:outline-accent',
+      appearance === 'secondary' &&
+        'bg-panel text-fg hover:bg-hover active:bg-pressed focus-visible:outline-accent',
+      appearance === 'danger' &&
+        'bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger',
+      appearance === 'ghost' &&
+        'bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed focus-visible:outline-accent',
+    ]"
   >
-    <span v-if="loading" class="i-mdi-loading tea-button__spinner" aria-hidden="true" />
+    <span
+      v-if="loading"
+      class="i-mdi-loading size-4 animate-spin motion-reduce:animate-none"
+      aria-hidden="true"
+    />
     <slot />
-  </Button>
+  </button>
 </template>
-
-<style scoped>
-.tea-button {
-  min-height: var(--tea-control-height, 2.25rem);
-}
-.tea-button--small {
-  min-height: var(--tea-control-height-small, 2rem);
-}
-.tea-button--primary {
-  min-height: var(--tea-control-height-primary, 2.5rem);
-}
-.tea-button__spinner {
-  width: 1rem;
-  height: 1rem;
-  animation: tea-spin 800ms linear infinite;
-}
-@keyframes tea-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tea-button__spinner {
-    animation-duration: 1600ms;
-  }
-}
-</style>

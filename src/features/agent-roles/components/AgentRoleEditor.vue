@@ -85,7 +85,7 @@ function submit() {
 <template>
   <form class="space-y-8" @submit.prevent="submit">
     <section>
-      <h3 class="tea-text-caption tea-weight-strong uppercase tea-tracking-label tea-fg-subtle">
+      <h3 class="text-sm font-semibold uppercase tracking-normal text-subtle">
         {{ t('management.agentRoles.editor.basics') }}
       </h3>
       <div class="mt-4 space-y-4">
@@ -111,7 +111,7 @@ function submit() {
       </div>
     </section>
     <section>
-      <h3 class="tea-text-caption tea-weight-strong uppercase tea-tracking-label tea-fg-subtle">
+      <h3 class="text-sm font-semibold uppercase tracking-normal text-subtle">
         {{ t('management.agentRoles.editor.prompts') }}
       </h3>
       <div class="mt-4 space-y-4">
@@ -132,10 +132,10 @@ function submit() {
     </section>
     <section>
       <div class="flex items-center justify-between">
-        <h3 class="tea-text-caption tea-weight-strong uppercase tea-tracking-label tea-fg-subtle">
+        <h3 class="text-sm font-semibold uppercase tracking-normal text-subtle">
           {{ t('management.agentRoles.editor.capabilities') }}
         </h3>
-        <span class="tea-text-caption tea-fg-subtle">{{
+        <span class="text-sm text-subtle">{{
           t('management.agentRoles.editor.capabilitiesHint')
         }}</span>
       </div>
@@ -144,17 +144,17 @@ function submit() {
         <div class="mt-3 flex gap-2">
           <TeaButton
             type="button"
-            class="tea-radius-control tea-bg-muted px-3 py-2 tea-text-caption tea-fg-muted tea-hover-bg-strong"
+            class="rounded-control bg-panel px-3 py-2 text-sm text-dim hover:bg-pressed"
             @click="addPlaceholder('skill')"
             >+ Skill</TeaButton
           ><TeaButton
             type="button"
-            class="tea-radius-control tea-bg-muted px-3 py-2 tea-text-caption tea-fg-muted tea-hover-bg-strong"
+            class="rounded-control bg-panel px-3 py-2 text-sm text-dim hover:bg-pressed"
             @click="addPlaceholder('mcp')"
             >+ MCP</TeaButton
           ><TeaButton
             type="button"
-            class="tea-radius-control tea-bg-muted px-3 py-2 tea-text-caption tea-fg-muted tea-hover-bg-strong"
+            class="rounded-control bg-panel px-3 py-2 text-sm text-dim hover:bg-pressed"
             @click="addPlaceholder('tool')"
             >+ Tool</TeaButton
           >
@@ -162,7 +162,7 @@ function submit() {
       </div>
     </section>
     <section>
-      <h3 class="tea-text-caption tea-weight-strong uppercase tea-tracking-label tea-fg-subtle">
+      <h3 class="text-sm font-semibold uppercase tracking-normal text-subtle">
         {{ t('management.agentRoles.editor.visibility') }}
       </h3>
       <div class="mt-4 space-y-4">
@@ -171,7 +171,7 @@ function submit() {
           :options="visibilityOptions"
           @update:model-value="setVisibility"
         />
-        <p v-if="form.visibility === 'restricted'" class="tea-text-caption tea-fg-muted">
+        <p v-if="form.visibility === 'restricted'" class="text-sm text-dim">
           {{ t('management.agentRoles.visibility.restrictedHint') }}
         </p>
         <SegmentedChoice
@@ -184,13 +184,13 @@ function submit() {
     <div class="flex justify-end gap-2 pt-2">
       <TeaButton
         type="button"
-        class="tea-radius-control px-3 py-2 tea-text-caption tea-weight-medium tea-fg-muted tea-hover-bg"
+        class="rounded-control px-3 py-2 text-sm font-medium text-dim hover:bg-hover"
         :disabled="props.saving"
         @click="emit('cancel')"
         >{{ t('management.agentRoles.cancel') }}</TeaButton
       ><TeaButton
         type="submit"
-        class="tea-radius-control tea-bg-inverse px-4 py-2 tea-text-caption tea-weight-medium tea-fg-inverse tea-hover-bg-inverse disabled:cursor-not-allowed tea-disabled-bg"
+        class="rounded-control bg-inverse px-4 py-2 text-sm font-medium text-canvas hover:bg-accent-pressed disabled:cursor-not-allowed disabled:bg-muted"
         :disabled="props.saving"
         :aria-busy="props.saving"
         >{{ props.saving ? t('management.saving') : t('management.agentRoles.save') }}</TeaButton

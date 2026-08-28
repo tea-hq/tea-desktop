@@ -78,7 +78,7 @@ async function loadOlder(): Promise<void> {
 
 <style scoped>
 .agent-thread {
-  background: var(--p-surface-0);
+  background: var(--tea-canvas);
   scrollbar-width: thin;
 }
 </style>

@@ -9,25 +9,25 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col tea-bg-subtle px-3 py-5">
+  <aside class="flex w-60 shrink-0 flex-col bg-surface px-3 py-5">
     <div class="px-2">
-      <p class="tea-text-micro tea-weight-strong uppercase tea-tracking-label tea-fg-subtle">
+      <p class="text-xs font-semibold uppercase tracking-normal text-subtle">
         {{ t('management.eyebrow') }}
       </p>
-      <h1 class="mt-2 tea-text-title tea-weight-strong tea-tracking-label tea-fg">
+      <h1 class="mt-2 text-xl font-semibold tracking-normal text-fg">
         {{ t('management.title') }}
       </h1>
-      <p class="mt-2 tea-text-caption leading-5 tea-fg-muted">{{ t('management.description') }}</p>
+      <p class="mt-2 text-sm leading-5 text-dim">{{ t('management.description') }}</p>
     </div>
     <nav class="mt-7 space-y-1" :aria-label="t('management.navigationLabel')">
       <TeaButton
         v-for="section in MANAGEMENT_SECTIONS"
         :key="section.id"
-        class="group flex w-full items-start gap-3 tea-radius-control px-3 py-2.5 text-left transition-colors tea-focus-ring tea-focus-ring tea-focus-ring"
+        class="group flex w-full items-start gap-3 rounded-control px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         :class="
           activeSection === section.id
-            ? 'tea-bg-canvas tea-fg tea-elevation-low'
-            : 'tea-fg-muted tea-hover-bg tea-hover-fg'
+            ? 'bg-canvas text-fg '
+            : 'text-dim hover:bg-hover hover:text-fg'
         "
         :aria-current="activeSection === section.id ? 'page' : undefined"
         @click="emit('select', section.id)"
@@ -36,19 +36,19 @@ const { t } = useI18n()
           :class="[
             section.icon,
             'mt-0.5 size-4 shrink-0',
-            activeSection === section.id ? 'tea-fg' : 'tea-fg-subtle tea-group-hover-fg',
+            activeSection === section.id ? 'text-fg' : 'text-subtle group-hover:text-dim',
           ]"
           aria-hidden="true"
         />
         <span class="min-w-0">
-          <span class="block tea-text-body tea-weight-medium">{{ t(section.labelKey) }}</span>
-          <span class="mt-0.5 block tea-text-caption leading-4 tea-fg-subtle">{{
+          <span class="block text-base font-medium">{{ t(section.labelKey) }}</span>
+          <span class="mt-0.5 block text-sm leading-4 text-subtle">{{
             t(section.descriptionKey)
           }}</span>
         </span>
       </TeaButton>
     </nav>
-    <div class="mt-auto px-2 pt-8 tea-text-caption leading-4 tea-fg-subtle">
+    <div class="mt-auto px-2 pt-8 text-sm leading-4 text-subtle">
       {{ t('management.localOnly') }}
     </div>
   </aside>

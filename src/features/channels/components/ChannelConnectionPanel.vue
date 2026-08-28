@@ -21,7 +21,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <main class="flex min-w-0 flex-1 flex-col tea-bg-canvas">
+  <main class="flex min-w-0 flex-1 flex-col bg-canvas">
     <div
       v-if="
         pending ||
@@ -30,7 +30,7 @@ const { t } = useI18n()
         status.phase === 'synchronizing' ||
         status.phase === 'reconnecting'
       "
-      class="flex flex-1 items-center justify-center gap-2 tea-text-body tea-fg-subtle"
+      class="flex flex-1 items-center justify-center gap-2 text-base text-subtle"
     >
       <span class="i-mdi-loading size-5 animate-spin" aria-hidden="true" />
       {{
@@ -45,18 +45,16 @@ const { t } = useI18n()
       v-else-if="status.phase === 'connected'"
       class="flex flex-1 flex-col items-center justify-center px-8 text-center"
     >
-      <span class="i-mdi-message-outline size-7 tea-fg-disabled" aria-hidden="true" />
-      <p class="mt-3 tea-text-body tea-weight-medium tea-fg-muted">
+      <span class="i-mdi-message-outline size-7 text-disabled" aria-hidden="true" />
+      <p class="mt-3 text-base font-medium text-dim">
         {{ t('channels.connection.noChannels') }}
       </p>
     </div>
     <div v-else class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-8">
-      <div
-        class="flex size-10 items-center justify-center tea-radius-control tea-bg-muted tea-fg-muted"
-      >
+      <div class="flex size-10 items-center justify-center rounded-control bg-panel text-dim">
         <span class="i-mdi-message-lock-outline size-5" aria-hidden="true" />
       </div>
-      <h2 class="mt-4 tea-text-title tea-weight-strong tea-fg">
+      <h2 class="mt-4 text-xl font-semibold text-fg">
         {{
           t(
             imStatus === 'disabled'
@@ -65,7 +63,7 @@ const { t } = useI18n()
           )
         }}
       </h2>
-      <p class="mt-1 tea-text-caption leading-5 tea-fg-subtle">
+      <p class="mt-1 text-sm leading-5 text-subtle">
         {{
           t(
             imStatus === 'disabled'
@@ -74,7 +72,7 @@ const { t } = useI18n()
           )
         }}
       </p>
-      <p v-if="errorCode" class="mt-4 tea-text-caption tea-fg-danger">
+      <p v-if="errorCode" class="mt-4 text-sm text-danger">
         {{ t('channels.connection.failed', { code: errorCode }) }}
       </p>
       <TeaButton

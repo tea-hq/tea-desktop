@@ -31,14 +31,14 @@ function showWaitingIndicator(): boolean {
 </script>
 
 <template>
-  <article class="w-full tea-bg-subtle animate-fade-slide" :data-turn-id="turn.id">
+  <article class="w-full bg-surface animate-fade-slide" :data-turn-id="turn.id">
     <div class="flex justify-end px-5 pt-5">
-      <div class="max-w-[82%] tea-bg-hover px-3.5 py-2.5 tea-text-body leading-5 tea-fg">
+      <div class="max-w-[82%] bg-hover px-3.5 py-2.5 text-base leading-5 text-fg">
         <div v-if="turn.user.attachments.length" class="mb-2 flex flex-wrap justify-end gap-1.5">
           <span
             v-for="attachment in turn.user.attachments"
             :key="attachment"
-            class="tea-radius-small tea-bg-canvas px-2 py-1 tea-text-caption tea-fg-muted"
+            class="rounded-structural bg-canvas px-2 py-1 text-sm text-dim"
           >
             {{ attachment }}
           </span>
@@ -66,7 +66,7 @@ function showWaitingIndicator(): boolean {
           <MarkdownContent :source="block.text" :streaming="block.streaming" />
           <TeaButton
             v-if="collaboration && !draftExists && turn.status === 'completed' && !block.streaming"
-            class="mt-2 inline-flex items-center gap-1.5 tea-radius-control px-2 py-1 tea-text-caption tea-weight-medium tea-fg-muted opacity-0 transition-opacity tea-hover-bg-strong tea-hover-fg group-hover/response:opacity-100 focus:opacity-100"
+            class="mt-2 inline-flex items-center gap-1.5 rounded-control px-2 py-1 text-sm font-medium text-dim opacity-0 transition-opacity hover:bg-pressed hover:text-fg group-hover/response:opacity-100 focus:opacity-100"
             @click="
               emit('createDraft', {
                 turnIndex: turnIndex ?? 0,
@@ -91,13 +91,13 @@ function showWaitingIndicator(): boolean {
       </template>
 
       <span v-if="showWaitingIndicator()" class="inline-flex gap-1.5 py-1" aria-hidden="true">
-        <span class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse" />
+        <span class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse" />
         <span
-          class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse"
+          class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse"
           style="animation-delay: 150ms"
         />
         <span
-          class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse"
+          class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse"
           style="animation-delay: 300ms"
         />
       </span>

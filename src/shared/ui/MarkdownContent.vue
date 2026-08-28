@@ -87,9 +87,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .markdown-content {
   min-width: 0;
-  color: #1f2937;
-  font-size: 13px;
-  line-height: 1.7;
+  color: var(--text-fg);
+  font-size: 15px;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
 
@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
 .markdown-content :deep(h2),
 .markdown-content :deep(h3),
 .markdown-content :deep(h4) {
-  color: #111827;
+  color: var(--text-fg);
   font-weight: 600;
 }
 
@@ -156,28 +156,28 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content :deep(a) {
-  color: #111827;
+  color: var(--text-fg);
   font-weight: 500;
   text-decoration: underline;
-  text-decoration-color: #9ca3af;
+  text-decoration-color: var(--tea-subtle);
   text-underline-offset: 3px;
 }
 
 .markdown-content :deep(a:hover) {
-  text-decoration-color: #111827;
+  text-decoration-color: var(--text-fg);
 }
 
 .markdown-content :deep(blockquote) {
   margin: 10px 0;
   padding-left: 12px;
-  border-left: 2px solid #d1d5db;
-  color: #6b7280;
+  border-left: 2px solid var(--tea-line);
+  color: var(--tea-dim);
 }
 
 .markdown-content :deep(code) {
   padding: 1px 4px;
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--tea-panel);
+  color: var(--text-fg);
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -187,8 +187,8 @@ onBeforeUnmount(() => {
   margin: 10px 0 12px;
   padding: 12px 14px;
   overflow: auto;
-  background: #ffffff;
-  color: #374151;
+  background: var(--tea-canvas);
+  color: var(--text-fg);
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.65;
@@ -215,20 +215,20 @@ onBeforeUnmount(() => {
 .markdown-content :deep(th),
 .markdown-content :deep(td) {
   padding: 7px 12px 7px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--tea-panel);
   text-align: left;
   vertical-align: top;
 }
 
 .markdown-content :deep(th) {
-  color: #374151;
+  color: var(--text-fg);
   font-weight: 600;
 }
 
 .markdown-content :deep(hr) {
   margin: 16px 0;
   border: 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--tea-panel);
 }
 
 .markdown-content :deep(img) {
@@ -266,38 +266,38 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content--inverse {
-  color: #f9fafb;
+  color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(h1),
 .markdown-content--inverse :deep(h2),
 .markdown-content--inverse :deep(h3),
 .markdown-content--inverse :deep(h4) {
-  color: #ffffff;
+  color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(a) {
-  color: #ffffff;
-  text-decoration-color: #9ca3af;
+  color: var(--tea-canvas);
+  text-decoration-color: var(--tea-subtle);
 }
 
 .markdown-content--inverse :deep(a:hover) {
-  text-decoration-color: #ffffff;
+  text-decoration-color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(blockquote) {
-  border-left-color: #6b7280;
-  color: #d1d5db;
+  border-left-color: var(--tea-dim);
+  color: var(--tea-line);
 }
 
 .markdown-content--inverse :deep(code) {
-  background: #374151;
-  color: #f9fafb;
+  background: var(--tea-inverse);
+  color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(pre) {
-  background: #1f2937;
-  color: #f9fafb;
+  background: var(--tea-inverse);
+  color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(pre code) {
@@ -306,15 +306,15 @@ onBeforeUnmount(() => {
 
 .markdown-content--inverse :deep(th),
 .markdown-content--inverse :deep(td) {
-  border-bottom-color: #4b5563;
+  border-bottom-color: var(--tea-dim);
 }
 
 .markdown-content--inverse :deep(th) {
-  color: #f3f4f6;
+  color: var(--tea-canvas);
 }
 
 .markdown-content--inverse :deep(hr) {
-  border-top-color: #4b5563;
+  border-top-color: var(--tea-dim);
 }
 
 .markdown-content--streaming::after {
@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
   width: 4px;
   height: 14px;
   margin-left: 2px;
-  background: #9ca3af;
+  background: var(--tea-subtle);
   border-radius: 1px;
   vertical-align: -2px;
   animation: markdown-cursor 1s ease-in-out infinite;

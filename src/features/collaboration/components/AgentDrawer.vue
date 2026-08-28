@@ -55,7 +55,12 @@ const emit = defineEmits<{
 const { t } = useI18n()
 </script>
 <template>
-  <TeaDrawer :open="open" :title="t('channels.collaboration.title')" @close="emit('close')">
+  <TeaDrawer
+    :open="open"
+    :title="t('channels.collaboration.title')"
+    :close-label="t('common.close')"
+    @close="emit('close')"
+  >
     <AgentSessionIndex
       v-if="state.phase === 'index'"
       :conversations="conversations"

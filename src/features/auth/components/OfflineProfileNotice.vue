@@ -15,7 +15,7 @@ const timestamp = computed(() =>
 
 <template>
   <div
-    class="absolute inset-x-0 top-0 z-40 flex h-9 items-center justify-center gap-2 tea-bg-inverse px-4 tea-text-caption tea-fg-inverse"
+    class="absolute inset-x-0 top-0 z-40 flex h-9 items-center justify-center gap-2 bg-inverse px-4 text-sm text-canvas"
     role="status"
   >
     <span class="i-mdi-cloud-off-outline size-4" aria-hidden="true" />

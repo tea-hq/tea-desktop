@@ -238,7 +238,7 @@ function deliverDraft(): void {
 </script>
 
 <template>
-  <div class="flex h-screen min-w-0 overflow-hidden tea-bg-canvas tea-fg" data-testid="e2e-app">
+  <div class="flex h-screen min-w-0 overflow-hidden bg-canvas text-fg" data-testid="e2e-app">
     <WorkspaceRail
       :active-mode="activeMode"
       :pending-tasks="1"

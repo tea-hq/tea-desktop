@@ -34,15 +34,15 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col overflow-y-auto tea-bg-canvas">
+  <section class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
     <div class="mx-auto w-full max-w-[760px] px-8 pb-16 pt-10">
       <div class="flex items-start justify-between gap-6">
         <div>
-          <p class="tea-text-heading tea-weight-strong tea-fg">{{ t('settings.title') }}</p>
-          <p class="mt-1.5 tea-text-body leading-5 tea-fg-muted">{{ t('settings.description') }}</p>
+          <p class="text-2xl font-semibold text-fg">{{ t('settings.title') }}</p>
+          <p class="mt-1.5 text-base leading-5 text-dim">{{ t('settings.description') }}</p>
         </div>
         <TeaButton
-          class="inline-flex size-8 shrink-0 items-center justify-center tea-radius-control tea-fg-subtle transition-colors tea-hover-bg tea-hover-fg tea-focus-ring tea-focus-ring tea-focus-ring"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           :title="t('settings.close')"
           :aria-label="t('settings.close')"
           @click="emit('close')"
@@ -51,33 +51,29 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
         </TeaButton>
       </div>
 
-      <div
-        v-if="error"
-        class="mt-6 tea-bg-danger-subtle px-4 py-3 tea-text-body tea-fg-danger"
-        role="status"
-      >
+      <div v-if="error" class="mt-6 bg-danger-subtle px-4 py-3 text-base text-danger" role="status">
         {{ t(error) }}
       </div>
 
       <section class="mt-10 py-2">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
-            <h2 class="tea-text-body tea-weight-strong tea-fg">
+            <h2 class="text-base font-semibold text-fg">
               {{ t('settings.language.title') }}
             </h2>
-            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">
+            <p class="mt-1 text-sm leading-5 text-dim">
               {{ t('settings.language.description') }}
             </p>
           </div>
-          <div class="grid grid-cols-3 gap-1 tea-radius-control tea-bg-muted p-1" role="group">
+          <div class="grid grid-cols-3 gap-1 rounded-control bg-panel p-1" role="group">
             <TeaButton
               v-for="option in localeOptions"
               :key="option.value"
-              class="min-w-0 tea-radius-small px-2 py-2 tea-text-caption tea-weight-medium transition-colors tea-focus-ring tea-focus-ring tea-focus-ring"
+              class="min-w-0 rounded-structural px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               :class="
                 localePreference === option.value
-                  ? 'tea-bg-canvas tea-fg'
-                  : 'tea-fg-muted tea-hover-bg-strong'
+                  ? 'bg-canvas text-fg'
+                  : 'text-dim hover:bg-pressed'
               "
               :aria-pressed="localePreference === option.value"
               @click="emit('updateLocale', option.value)"
@@ -88,13 +84,13 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
         </div>
       </section>
 
-      <section class="mt-8 tea-bg-subtle px-5 py-5">
+      <section class="mt-8 bg-surface px-5 py-5">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
-            <h2 class="tea-text-body tea-weight-strong tea-fg">
+            <h2 class="text-base font-semibold text-fg">
               {{ t('settings.defaultAgent.title') }}
             </h2>
-            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">
+            <p class="mt-1 text-sm leading-5 text-dim">
               {{ t('settings.defaultAgent.description') }}
             </p>
           </div>
@@ -110,7 +106,7 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
 
       <p
         v-if="saving"
-        class="mt-4 flex items-center justify-end gap-2 tea-text-caption tea-fg-subtle"
+        class="mt-4 flex items-center justify-end gap-2 text-sm text-subtle"
         role="status"
       >
         <span class="i-mdi-loading size-3.5 animate-spin" aria-hidden="true" />

@@ -23,10 +23,10 @@ const emit = defineEmits<{ back: []; expand: [] }>()
       @click="emit('back')"
     />
     <div class="min-w-0 flex-1">
-      <h2 class="truncate tea-text-body tea-weight-strong">{{ title }}</h2>
-      <p v-if="subtitle" class="truncate tea-text-caption">{{ subtitle }}</p>
+      <h2 class="truncate text-base font-semibold">{{ title }}</h2>
+      <p v-if="subtitle" class="truncate text-sm">{{ subtitle }}</p>
     </div>
-    <span v-if="runtimeLabel" class="truncate tea-text-caption">{{ runtimeLabel }}</span>
+    <span v-if="runtimeLabel" class="truncate text-sm">{{ runtimeLabel }}</span>
     <TeaIconButton
       v-if="expandLabel"
       :label="expandLabel"
@@ -38,12 +38,12 @@ const emit = defineEmits<{ back: []; expand: [] }>()
 
 <style scoped>
 .agent-header {
-  border-bottom: 1px solid var(--p-content-border-color);
-  background: var(--p-content-background);
-  color: var(--p-text-color);
+  border-bottom: 1px solid var(--tea-line);
+  background: var(--tea-canvas);
+  color: var(--text-fg);
 }
 .agent-header p,
 .agent-header span {
-  color: var(--p-text-muted-color);
+  color: var(--tea-dim);
 }
 </style>

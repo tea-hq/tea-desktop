@@ -46,14 +46,16 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
 </script>
 
 <template>
-  <nav class="flex h-full w-14 shrink-0 flex-col items-center tea-bg-inverse py-3 tea-fg-subtle">
+  <nav
+    class="hidden h-full w-16 shrink-0 flex-col items-center border-r border-line bg-surface py-3 text-dim sm:flex"
+  >
     <TeaIconButton
       data-testid="workspace-profile"
       class="mb-5 overflow-hidden"
       :class="
         activeMode === 'profile'
-          ? 'tea-selected-ring tea-selected-ring tea-selected-ring tea-selected-ring'
-          : 'hover:opacity-80'
+          ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
+          : 'hover:bg-hover'
       "
       :label="t('workspace.profile')"
       :aria-pressed="activeMode === 'profile'"
@@ -69,7 +71,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       />
       <span
         v-else
-        class="flex size-full items-center justify-center tea-bg-inverse tea-text-micro tea-weight-strong tea-fg-inverse"
+        class="flex size-full items-center justify-center rounded-full bg-panel text-xs font-semibold text-fg"
       >
         {{ initials }}
       </span>
@@ -80,11 +82,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
         v-for="entry in entries"
         :key="entry.mode"
         class="relative"
-        :class="
-          activeMode === entry.mode
-            ? 'tea-bg-canvas tea-fg'
-            : 'tea-hover-bg-inverse tea-hover-fg-inverse'
-        "
+        :class="activeMode === entry.mode ? 'bg-hover text-fg' : 'hover:bg-hover hover:text-fg'"
         :label="t(entry.key)"
         :aria-pressed="activeMode === entry.mode"
         @click="emit('select', entry.mode)"
@@ -92,7 +90,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
         <span :class="[entry.icon, 'size-5']" aria-hidden="true" />
         <span
           v-if="entry.mode === 'agent' && pendingTasks > 0"
-          class="absolute right-1 top-1 size-1.5 tea-radius-pill tea-bg-warning"
+          class="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-warning"
           aria-hidden="true"
         />
       </TeaIconButton>
@@ -112,11 +110,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
     </TeaIconButton>
 
     <TeaIconButton
-      :class="
-        activeMode === 'settings'
-          ? 'tea-bg-canvas tea-fg'
-          : 'tea-hover-bg-inverse tea-hover-fg-inverse'
-      "
+      :class="activeMode === 'settings' ? 'bg-hover text-fg' : 'hover:bg-hover hover:text-fg'"
       :label="t('workspace.settings')"
       :aria-pressed="activeMode === 'settings'"
       @click="emit('select', 'settings')"

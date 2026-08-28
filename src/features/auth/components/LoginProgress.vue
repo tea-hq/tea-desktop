@@ -7,11 +7,8 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div
-    class="flex h-12 items-center gap-3 tea-bg-subtle px-4 tea-text-body tea-fg-muted"
-    role="status"
-  >
-    <span class="i-mdi-loading size-4 shrink-0 animate-spin tea-fg-subtle" aria-hidden="true" />
+  <div class="flex h-12 items-center gap-3 bg-surface px-4 text-base text-dim" role="status">
+    <span class="i-mdi-loading size-4 shrink-0 animate-spin text-subtle" aria-hidden="true" />
     <span>{{ t(`auth.progress.${phase}`) }}</span>
   </div>
 </template>

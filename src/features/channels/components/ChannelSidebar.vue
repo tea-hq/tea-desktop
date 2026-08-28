@@ -32,19 +32,19 @@ function formatTime(value: number): string {
 </script>
 
 <template>
-  <aside class="hidden h-full w-[264px] shrink-0 flex-col tea-bg-subtle sm:flex">
+  <aside class="hidden h-full w-[320px] shrink-0 flex-col border-r border-line bg-canvas sm:flex">
     <div class="px-4 pb-2 pt-3.5">
       <div class="flex h-8 items-center justify-between">
         <div class="flex min-w-0 items-center gap-2">
-          <h1 class="truncate tea-text-lead tea-weight-strong tea-fg">{{ t('channels.title') }}</h1>
+          <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
           <span
-            class="size-1.5 shrink-0 tea-radius-pill"
+            class="size-1.5 shrink-0 rounded-full"
             :class="
               status.phase === 'connected'
-                ? 'tea-bg-success'
+                ? 'bg-success'
                 : status.phase === 'failed' || status.phase === 'kickedOffline'
-                  ? 'tea-bg-danger'
-                  : 'tea-bg-disabled'
+                  ? 'bg-danger'
+                  : 'bg-muted'
             "
             :title="t(`channels.connection.${status.phase}`)"
           />
@@ -69,20 +69,18 @@ function formatTime(value: number): string {
 
     <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2.5 pb-3">
       <div class="flex items-center justify-between px-2 pb-1.5 pt-3">
-        <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">
+        <p class="text-xs font-semibold uppercase text-subtle">
           {{ t('channels.recent') }}
         </p>
-        <span class="tea-text-micro tabular-nums tea-fg-disabled">{{
-          filteredChannels.length
-        }}</span>
+        <span class="text-xs tabular-nums text-disabled">{{ filteredChannels.length }}</span>
       </div>
       <TeaButton
         v-for="(channel, index) in filteredChannels"
         :key="channel.ref"
         appearance="ghost"
         size="small"
-        class="group mb-0.5 grid min-h-14 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5 tea-radius-control px-2.5 py-2 text-left transition-colors tea-focus-ring tea-focus-ring tea-focus-ring"
-        :class="channel.ref === activeRef ? 'tea-bg-canvas' : 'tea-hover-bg'"
+        class="group mb-0.5 grid min-h-14 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        :class="channel.ref === activeRef ? 'bg-hover' : 'hover:bg-hover'"
         :style="{ animationDelay: `${index * 35}ms` }"
         @click="emit('select', channel.ref)"
       >
@@ -94,23 +92,23 @@ function formatTime(value: number): string {
         <span class="min-w-0 flex-1">
           <span class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2">
             <span
-              class="truncate tea-text-body tea-fg"
-              :class="channel.unreadCount ? 'tea-weight-strong' : 'tea-weight-medium'"
+              class="truncate text-base text-fg"
+              :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
               >{{ channel.name }}</span
             >
-            <span class="tea-text-micro tabular-nums tea-fg-subtle">{{
+            <span class="text-xs tabular-nums text-subtle">{{
               formatTime(channel.updatedAt)
             }}</span>
           </span>
           <span class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
             <span
-              class="truncate tea-text-caption"
-              :class="channel.unreadCount ? 'tea-fg-muted' : 'tea-fg-subtle'"
+              class="truncate text-sm"
+              :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
               >{{ channel.lastMessagePreview || channel.description }}</span
             >
             <span
               v-if="channel.unreadCount"
-              class="flex h-4 min-w-4 items-center justify-center tea-radius-pill tea-bg-inverse px-1 tea-text-micro tea-weight-strong tabular-nums tea-fg-inverse"
+              class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-canvas"
             >
               {{ channel.unreadCount > 99 ? '99+' : channel.unreadCount }}
             </span>
@@ -118,10 +116,7 @@ function formatTime(value: number): string {
         </span>
       </TeaButton>
 
-      <p
-        v-if="filteredChannels.length === 0"
-        class="px-3 py-8 text-center tea-text-caption tea-fg-subtle"
-      >
+      <p v-if="filteredChannels.length === 0" class="px-3 py-8 text-center text-sm text-subtle">
         {{ t('channels.noResults') }}
       </p>
     </div>

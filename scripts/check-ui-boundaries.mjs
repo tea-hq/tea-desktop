@@ -6,8 +6,12 @@ import tsParser from '@typescript-eslint/parser'
 
 const projectRoot = path.resolve(import.meta.dirname, '..')
 const productRoots = ['src/app', 'src/features', 'src/App.vue']
-const visualClass =
-  /^(?:bg|border|decoration|divide|font|from|outline|ring|rounded|shadow|text|to|tracking|via)-(?!clip$|ellipsis$|left$|right$|center$|justify$|wrap$|nowrap$)/
+const rawPalette =
+  /^(?:bg|border|decoration|divide|from|outline|ring|text|to|via)-(?:black|white|gray|slate|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)(?:-|\/|$)/
+const arbitraryVisual =
+  /^(?:bg|border|decoration|divide|from|outline|ring|rounded|shadow|text|to|tracking|via)-\[/
+const arbitraryRadius = /^rounded-(?:sm|md|lg|xl|2xl)$/
+const nonSemanticShadow = /^shadow-(?!overlay$)/
 
 export function inspectUiSource(filename, source) {
   const relativeName = filename.split(path.sep).join('/')
@@ -19,18 +23,16 @@ export function inspectUiSource(filename, source) {
   })
   const violations = []
 
-  if (!sharedUi) {
-    for (const statement of parsed.ast.body ?? []) {
-      if (statement.type !== 'ImportDeclaration') continue
-      const value = statement.source.value
-      if (
-        typeof value === 'string' &&
-        (value.startsWith('primevue/') ||
-          value === '@primeuix/themes' ||
-          value.startsWith('@primeuix/themes/'))
-      ) {
-        violations.push(violation('library-import', value, statement.loc?.start.line))
-      }
+  for (const statement of parsed.ast.body ?? []) {
+    if (statement.type !== 'ImportDeclaration') continue
+    const value = statement.source.value
+    if (
+      typeof value === 'string' &&
+      (value.startsWith('primevue/') ||
+        value === '@primeuix/themes' ||
+        value.startsWith('@primeuix/themes/'))
+    ) {
+      violations.push(violation('library-import', value, statement.loc?.start.line))
     }
   }
 
@@ -80,7 +82,12 @@ function inputType(element) {
 function inspectClassValue(value, line, violations) {
   for (const token of value.split(/\s+/).filter(Boolean)) {
     const normalized = token.replace(/^(?:[a-z-]+:)+/, '')
-    if (visualClass.test(normalized)) {
+    if (
+      rawPalette.test(normalized) ||
+      arbitraryVisual.test(normalized) ||
+      arbitraryRadius.test(normalized) ||
+      nonSemanticShadow.test(normalized)
+    ) {
       violations.push(violation('visual-class', token, line))
     }
   }

@@ -55,10 +55,8 @@ function toggleMenu(): void {
       :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
     >
       <div
-        class="flex size-8 shrink-0 items-center justify-center tea-radius-control tea-text-caption tea-weight-strong"
-        :class="
-          message.sentByCurrentUser ? 'tea-bg-inverse tea-fg-inverse' : 'tea-bg-muted tea-fg-muted'
-        "
+        class="flex size-8 shrink-0 items-center justify-center rounded-control text-sm font-semibold"
+        :class="message.sentByCurrentUser ? 'bg-hover text-fg' : 'bg-muted text-dim'"
       >
         {{ initials(message.sender.name) }}
       </div>
@@ -71,10 +69,10 @@ function toggleMenu(): void {
           class="flex items-baseline gap-2"
           :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
         >
-          <span class="max-w-52 truncate tea-text-caption tea-weight-strong tea-fg">{{
+          <span class="max-w-52 truncate text-sm font-semibold text-fg">{{
             message.sender.name
           }}</span>
-          <span class="shrink-0 tea-text-micro tabular-nums tea-fg-subtle">{{
+          <span class="shrink-0 text-xs tabular-nums text-subtle">{{
             formatTime(message.sentAt)
           }}</span>
         </div>
@@ -85,24 +83,20 @@ function toggleMenu(): void {
         >
           <div
             v-if="message.state === 'active'"
-            class="min-w-0 tea-radius-overlay px-3 py-2"
-            :class="message.sentByCurrentUser ? 'tea-bg-inverse' : 'tea-bg-muted'"
+            class="min-w-0 rounded-overlay px-3 py-2"
+            :class="message.sentByCurrentUser ? 'bg-hover' : 'bg-muted'"
           >
-            <MarkdownContent
-              :source="message.text"
-              compact
-              :tone="message.sentByCurrentUser ? 'inverse' : 'default'"
-            />
+            <MarkdownContent :source="message.text" compact tone="default" />
           </div>
           <p
             v-else
-            class="min-w-0 tea-radius-overlay tea-bg-muted px-3 py-2 tea-text-body italic leading-5 tea-fg-subtle"
+            class="min-w-0 rounded-overlay bg-panel px-3 py-2 text-base italic leading-5 text-subtle"
           >
             {{ t('channels.message.revoked') }}
           </p>
 
           <div
-            class="relative z-20 flex shrink-0 tea-radius-control tea-bg-canvas p-0.5 opacity-0 tea-elevation-low tea-selected-ring tea-selected-ring transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            class="relative z-20 flex shrink-0 rounded-control bg-canvas p-0.5 opacity-0 ring-2 ring-accent ring-offset-2 ring-offset-surface ring-2 ring-accent ring-offset-2 ring-offset-surface transition-opacity group-hover:opacity-100 focus-within:opacity-100"
           >
             <span ref="menuAnchor">
               <TeaIconButton
@@ -136,12 +130,8 @@ function toggleMenu(): void {
             :key="reaction.type"
             appearance="ghost"
             size="small"
-            class="inline-flex h-6 items-center gap-1 tea-radius-control px-1.5 tea-text-caption transition-colors"
-            :class="
-              reaction.active
-                ? 'tea-bg-hover tea-fg'
-                : 'tea-bg-muted tea-fg-muted tea-hover-bg-strong'
-            "
+            class="inline-flex h-6 items-center gap-1 rounded-control px-1.5 text-sm transition-colors"
+            :class="reaction.active ? 'bg-hover text-fg' : 'bg-panel text-dim hover:bg-pressed'"
           >
             <span>#{{ reaction.type }}</span>
             <span>{{ reaction.count }}</span>

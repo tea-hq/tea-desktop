@@ -25,14 +25,14 @@ function runtime(id: string): string {
     >
       <span class="i-mdi-message-processing-outline mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <span class="min-w-0 flex-1"
-        ><strong class="block truncate tea-text-body">{{
+        ><strong class="block truncate text-base">{{
           conversation.title || t('sidebar.untitled')
         }}</strong
-        ><span class="mt-0.5 block truncate tea-text-caption">{{
+        ><span class="mt-0.5 block truncate text-sm">{{
           conversation.lastMessagePreview || t('channels.collaboration.noPreview')
         }}</span></span
       >
-      <span class="max-w-24 truncate tea-text-caption">{{ runtime(conversation.runtimeId) }}</span>
+      <span class="max-w-24 truncate text-sm">{{ runtime(conversation.runtimeId) }}</span>
     </TeaButton>
     <TeaButton
       v-if="hasMore"
@@ -46,15 +46,15 @@ function runtime(id: string): string {
 </template>
 <style scoped>
 .session-row {
-  border-bottom: 1px solid var(--p-content-border-color);
-  color: var(--p-text-color);
+  border-bottom: 1px solid var(--tea-line);
+  color: var(--text-fg);
 }
 .session-row:hover,
 .session-row:focus-visible {
-  background: var(--p-content-hover-background);
+  background: var(--tea-hover);
   outline: none;
 }
 .session-row span {
-  color: var(--p-text-muted-color);
+  color: var(--tea-dim);
 }
 </style>

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Button from 'primevue/button'
-
 withDefaults(
   defineProps<{
     label: string
@@ -21,28 +19,22 @@ withDefaults(
 </script>
 
 <template>
-  <Button
-    v-tooltip="tooltip || label"
+  <button
     type="button"
-    icon-only
     :aria-label="label"
+    :title="tooltip || label"
     :disabled="disabled"
-    :severity="appearance === 'danger' ? 'danger' : 'secondary'"
-    :variant="appearance === 'ghost' ? 'text' : undefined"
-    :size="size === 'small' ? 'small' : undefined"
-    :class="['tea-icon-button', `tea-icon-button--${size}`]"
+    :class="[
+      'tea-icon-button inline-flex shrink-0 items-center justify-center border border-transparent transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
+      size === 'small' ? 'size-8 rounded-structural' : 'size-9 rounded-control',
+      appearance === 'secondary' &&
+        'bg-panel text-fg hover:bg-hover active:bg-pressed focus-visible:outline-accent',
+      appearance === 'danger' &&
+        'bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger',
+      appearance === 'ghost' &&
+        'bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed focus-visible:outline-accent',
+    ]"
   >
     <slot><span :class="icon" aria-hidden="true" /></slot>
-  </Button>
+  </button>
 </template>
-
-<style scoped>
-.tea-icon-button {
-  width: var(--tea-control-height, 2.25rem);
-  height: var(--tea-control-height, 2.25rem);
-}
-.tea-icon-button--small {
-  width: var(--tea-control-height-small, 2rem);
-  height: var(--tea-control-height-small, 2rem);
-}
-</style>

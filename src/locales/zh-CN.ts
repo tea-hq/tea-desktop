@@ -4,6 +4,9 @@ export default {
     newConversationTitle: '今天想做点什么？',
     newConversationDescription: '默认使用外部 Agent，也可以在下方切换 Agent、模型和权限模式。',
   },
+  common: {
+    close: '关闭',
+  },
   auth: {
     enterprise: {
       eyebrow: '企业访问',

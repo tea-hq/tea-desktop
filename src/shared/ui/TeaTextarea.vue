@@ -21,7 +21,6 @@ const emit = defineEmits<{
 </script>
 <template>
   <textarea
-    :class="{ compact: size === 'compact' }"
     :value="modelValue"
     :aria-label="label"
     :aria-invalid="invalid || undefined"
@@ -29,38 +28,16 @@ const emit = defineEmits<{
     :placeholder="placeholder"
     :disabled="disabled"
     :readonly="readonly"
+    :class="[
+      'w-full min-h-16 max-h-56 resize-y border border-line bg-canvas px-3 py-2.5 leading-[1.45] text-fg outline-none transition-colors placeholder:text-dim focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-disabled read-only:bg-surface read-only:text-dim motion-reduce:transition-none',
+      size === 'compact'
+        ? 'min-h-9 max-h-28 resize-none rounded-control py-1.5 text-sm'
+        : 'rounded-control text-sm',
+      invalid ? 'border-danger focus:border-danger focus:ring-danger/20' : '',
+    ]"
     @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
     @keydown="emit('keydown', $event)"
     @compositionstart="emit('compositionstart')"
     @compositionend="emit('compositionend')"
   />
 </template>
-<style scoped>
-textarea {
-  width: 100%;
-  min-height: 4rem;
-  max-height: 14rem;
-  resize: vertical;
-  border: 1px solid var(--p-form-field-border-color);
-  border-radius: var(--p-form-field-border-radius);
-  background: var(--p-form-field-background);
-  color: var(--p-form-field-color);
-  padding: 0.625rem 0.75rem;
-  outline: none;
-  line-height: 1.45;
-}
-textarea:focus {
-  border-color: var(--p-form-field-focus-border-color);
-  box-shadow: 0 0 0 2px var(--p-focus-ring-shadow);
-}
-textarea:read-only {
-  background: var(--p-surface-50);
-  color: var(--p-text-muted-color);
-}
-textarea.compact {
-  min-height: var(--tea-control-height, 2.25rem);
-  max-height: 7rem;
-  resize: none;
-  padding-block: 0.45rem;
-}
-</style>

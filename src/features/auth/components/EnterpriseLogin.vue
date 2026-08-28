@@ -15,31 +15,31 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <main class="flex min-h-screen flex-col tea-bg-canvas tea-fg">
+  <main class="flex min-h-screen flex-col bg-canvas text-fg">
     <header class="flex h-16 shrink-0 items-center px-6 sm:px-10">
       <div class="flex items-center gap-3">
         <span
-          class="flex size-8 items-center justify-center tea-radius-control tea-bg-inverse tea-font-ui tea-text-body tea-weight-strong tea-fg-inverse"
+          class="flex size-8 items-center justify-center rounded-control bg-inverse font-sans text-base font-semibold text-canvas"
           >T</span
         >
-        <span class="tea-font-ui tea-text-title tea-weight-strong">{{ t('app.name') }}</span>
+        <span class="font-sans text-xl font-semibold">{{ t('app.name') }}</span>
       </div>
     </header>
 
     <section class="flex flex-1 items-center justify-center px-6 pb-20 pt-8">
       <form class="w-full max-w-[460px]" @submit.prevent="emit('submit')">
-        <p class="tea-text-caption tea-weight-strong uppercase tea-fg-subtle">
+        <p class="text-sm font-semibold uppercase text-subtle">
           {{ t('auth.enterprise.eyebrow') }}
         </p>
-        <h1 class="mt-3 tea-font-ui tea-text-display tea-weight-strong leading-tight tea-fg">
+        <h1 class="mt-3 font-sans text-4xl font-semibold leading-tight text-fg">
           {{ t('auth.enterprise.title') }}
         </h1>
-        <p class="mt-4 max-w-md tea-text-body leading-6 tea-fg-muted">
+        <p class="mt-4 max-w-md text-base leading-6 text-dim">
           {{ t('auth.enterprise.description') }}
         </p>
 
         <label class="mt-10 block">
-          <span class="tea-text-body tea-weight-strong tea-fg">{{
+          <span class="text-base font-semibold text-fg">{{
             t('auth.enterprise.domainLabel')
           }}</span>
           <span class="mt-2 block">
@@ -57,7 +57,7 @@ const { t } = useI18n()
 
         <p
           v-if="errorCode"
-          class="mt-3 tea-bg-danger-subtle px-4 py-3 tea-text-body tea-fg-danger"
+          class="mt-3 bg-danger-subtle px-4 py-3 text-base text-danger"
           role="alert"
         >
           {{ t(`auth.errors.${errorCode}`) }}
@@ -67,7 +67,7 @@ const { t } = useI18n()
         <div class="mt-6 flex gap-3">
           <TeaButton
             v-if="pending"
-            class="inline-flex h-11 flex-1 items-center justify-center gap-2 tea-radius-control tea-bg-muted px-5 tea-text-body tea-weight-strong tea-fg transition-colors tea-hover-bg-strong tea-focus-ring tea-focus-ring tea-focus-ring"
+            class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-panel px-5 text-base font-semibold text-fg transition-colors hover:bg-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             type="button"
             @click="emit('cancel')"
           >
@@ -76,7 +76,7 @@ const { t } = useI18n()
           </TeaButton>
           <TeaButton
             v-else
-            class="inline-flex h-11 flex-1 items-center justify-center gap-2 tea-radius-control tea-bg-inverse px-5 tea-text-body tea-weight-strong tea-fg-inverse transition-colors tea-hover-bg-inverse tea-focus-ring tea-focus-ring tea-focus-ring disabled:cursor-not-allowed tea-disabled-bg"
+            class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-inverse px-5 text-base font-semibold text-canvas transition-colors hover:bg-accent-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:bg-muted"
             type="submit"
             :disabled="!domain.trim()"
           >

@@ -51,25 +51,21 @@ function handleScroll(event: Event): void {
 </script>
 
 <template>
-  <aside class="flex flex-col w-[260px] tea-bg-subtle h-full">
+  <aside class="hidden h-full w-[320px] flex-col border-r border-line bg-canvas sm:flex">
     <div class="p-3">
       <TeaButton
-        class="flex w-full items-center justify-center gap-2 tea-radius-control tea-bg-inverse px-4 py-2.5 tea-text-body tea-weight-medium tea-fg-inverse transition-colors duration-150 tea-hover-bg-inverse tea-focus-ring tea-focus-ring tea-focus-ring"
+        class="flex w-full items-center justify-center gap-2 rounded-control bg-fg px-4 py-2.5 text-sm font-medium text-canvas transition-colors duration-150 hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         @click="emit('new')"
       >
         <span class="i-mdi-plus size-4" aria-hidden="true" />
         {{ t('sidebar.newConversation') }}
       </TeaButton>
-      <div class="mt-2 grid grid-cols-3 gap-1 tea-radius-control tea-bg-muted p-1">
+      <div class="mt-2 grid grid-cols-3 gap-1 rounded-control bg-muted p-1">
         <TeaButton
           v-for="kind in ['all', 'local', 'channel'] as const"
           :key="kind"
-          class="tea-radius-small px-1.5 py-1 tea-text-micro tea-weight-medium transition-colors"
-          :class="
-            filter.kind === kind
-              ? 'tea-bg-canvas tea-fg tea-elevation-low'
-              : 'tea-fg-subtle tea-hover-fg'
-          "
+          class="rounded-structural px-1.5 py-1 text-xs font-medium transition-colors"
+          :class="filter.kind === kind ? 'bg-raised text-fg' : 'text-subtle hover:text-fg'"
           @click="emit('filter', { kind })"
         >
           {{ t(`sidebar.filters.${kind}`) }}
@@ -80,32 +76,29 @@ function handleScroll(event: Event): void {
     <div class="flex-1 overflow-y-auto px-2 pb-3" @scroll.passive="handleScroll">
       <div
         v-if="loading"
-        class="flex items-center justify-center gap-2 px-3 py-8 tea-text-caption tea-fg-subtle"
+        class="flex items-center justify-center gap-2 px-3 py-8 text-sm text-subtle"
       >
         <span class="i-mdi-loading size-4 animate-spin" aria-hidden="true" />
         {{ t('sidebar.loading') }}
       </div>
       <div v-else-if="error" class="px-3 py-6 text-center">
-        <p class="tea-text-caption leading-5 tea-fg-danger">{{ errorText(error) }}</p>
+        <p class="text-sm leading-5 text-danger">{{ errorText(error) }}</p>
         <TeaButton
-          class="mt-3 inline-flex items-center gap-1.5 tea-radius-control px-2.5 py-1.5 tea-text-caption tea-weight-medium tea-fg tea-hover-bg-strong tea-focus-ring tea-focus-ring tea-focus-ring"
+          class="mt-3 inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-fg hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           @click="emit('retry')"
         >
           <span class="i-mdi-refresh size-3.5" aria-hidden="true" />
           {{ t('sidebar.retry') }}
         </TeaButton>
       </div>
-      <p
-        v-else-if="conversations.length === 0"
-        class="px-3 py-8 text-center tea-text-caption tea-fg-subtle"
-      >
+      <p v-else-if="conversations.length === 0" class="px-3 py-8 text-center text-sm text-subtle">
         {{ t('sidebar.empty') }}
       </p>
       <TeaButton
         v-for="(conv, i) in conversations"
         :key="conv.conversationId"
-        class="group mb-1 flex h-10 w-full animate-fade-slide items-center gap-2.5 tea-radius-control px-2.5 text-left transition-colors duration-150 tea-focus-ring tea-focus-ring tea-focus-ring"
-        :class="conv.conversationId === activeId ? 'tea-bg-hover' : 'tea-hover-bg'"
+        class="group mb-1 flex h-11 w-full animate-fade-slide items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        :class="conv.conversationId === activeId ? 'bg-hover' : 'hover:bg-hover'"
         :style="{ animationDelay: `${i * 30}ms` }"
         :aria-label="conversationTitle(conv)"
         :title="conversationTitle(conv)"
@@ -113,22 +106,22 @@ function handleScroll(event: Event): void {
       >
         <RuntimeIcon
           class="transition-colors duration-150"
-          :class="conv.conversationId === activeId ? 'tea-fg' : 'tea-fg-subtle tea-group-hover-fg'"
+          :class="conv.conversationId === activeId ? 'text-fg' : 'text-subtle group-hover:text-dim'"
           :runtime-id="conv.runtimeId"
           :label="runtimeName(conv.runtimeId)"
         />
-        <span class="min-w-0 flex-1 truncate tea-text-body tea-weight-medium leading-5 tea-fg">
+        <span class="min-w-0 flex-1 truncate text-sm font-medium leading-5 text-fg">
           {{ conversationTitle(conv) }}
         </span>
         <span
           v-if="conv.channelBinding"
-          class="i-mdi-pound size-3 shrink-0 tea-fg-subtle"
+          class="i-mdi-pound size-3 shrink-0 text-subtle"
           aria-hidden="true"
         />
       </TeaButton>
       <div
         v-if="loadingMore"
-        class="flex items-center justify-center gap-2 py-4 tea-text-caption tea-fg-subtle"
+        class="flex items-center justify-center gap-2 py-4 text-sm text-subtle"
       >
         <span class="i-mdi-loading size-4 animate-spin" aria-hidden="true" />
         {{ t('sidebar.loadingMore') }}

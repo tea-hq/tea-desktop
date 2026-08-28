@@ -14,7 +14,7 @@ describe('font loading', () => {
     expect(mainCss).toContain("'Segoe UI Variable'")
     expect(mainCss).toContain("'PingFang SC'")
     expect(mainCss).toMatch(/html\s*\{[^}]*font-size:\s*16px/s)
-    expect(mainCss).toMatch(/body\s*\{[^}]*font-size:\s*0\.875rem/s)
+    expect(mainCss).toMatch(/body\s*\{[^}]*font-size:\s*0\.9375rem/s)
     expect(mainCss).toContain("'JetBrains Mono Variable'")
   })
 })

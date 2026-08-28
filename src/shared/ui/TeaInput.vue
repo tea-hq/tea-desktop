@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import InputText from 'primevue/inputtext'
-
 withDefaults(
   defineProps<{
     modelValue: string
@@ -26,16 +24,19 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <InputText
-    :model-value="modelValue"
+  <input
+    :value="modelValue"
     :aria-label="label"
+    :aria-invalid="invalid || undefined"
     :type="type"
     :placeholder="placeholder"
     :disabled="disabled"
-    :invalid="invalid"
-    :size="size === 'small' ? 'small' : undefined"
     :autocomplete="autocomplete"
-    fluid
-    @update:model-value="emit('update:modelValue', $event ?? '')"
+    :class="[
+      'w-full border border-line bg-canvas px-2.5 text-fg outline-none transition-colors placeholder:text-dim focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-disabled motion-reduce:transition-none',
+      size === 'small' ? 'min-h-8 rounded-structural text-xs' : 'min-h-9 rounded-control text-sm',
+      invalid ? 'border-danger focus:border-danger focus:ring-danger/20' : '',
+    ]"
+    @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
   />
 </template>

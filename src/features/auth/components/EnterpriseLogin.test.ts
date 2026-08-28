@@ -5,14 +5,13 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import { installTeaUi } from '@/shared/ui/theme/installTeaUi'
 import EnterpriseLogin from './EnterpriseLogin.vue'
 
 function mountLogin(phase: 'signedOut' | 'browserPending' | 'recoveryRequired', pending: boolean) {
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   return mount(EnterpriseLogin, {
     props: { domain: 'example.test', phase, pending, errorCode: null },
-    global: { plugins: [{ install: installTeaUi }, i18n] },
+    global: { plugins: [i18n] },
   })
 }
 

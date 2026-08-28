@@ -34,21 +34,6 @@ module.exports = [
       'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'comma-dangle': ['error', 'only-multiline'],
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['primevue/*'],
-              message: 'Import Tea primitives from @/shared/ui.',
-            },
-            {
-              group: ['@primeuix/themes', '@primeuix/themes/*'],
-              message: 'Theme ownership belongs in src/shared/ui.',
-            },
-          ],
-        },
-      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {

@@ -55,7 +55,7 @@ const {
     v-else-if="activeMode === 'management'"
     @close="selectWorkspace(previousMode)"
   />
-  <main v-else class="flex min-w-0 flex-1 flex-col tea-bg-canvas">
+  <main v-else class="flex min-w-0 flex-1 flex-col bg-canvas">
     <SettingsPage
       :locale-preference="settings.settings.locale"
       :default-runtime-id="settings.defaultRuntimeId"
