@@ -47,14 +47,14 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
 
 <template>
   <nav
-    class="hidden h-full w-16 shrink-0 flex-col items-center border-r border-line bg-surface py-3 text-dim sm:flex"
+    class="hidden h-full w-16 shrink-0 flex-col items-center border-r border-line bg-canvas py-3 text-dim sm:flex"
   >
     <TeaIconButton
       data-testid="workspace-profile"
       class="mb-5 overflow-hidden"
       :class="
         activeMode === 'profile'
-          ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
+          ? 'ring-2 ring-fg ring-offset-2 ring-offset-canvas'
           : 'hover:bg-hover'
       "
       :label="t('workspace.profile')"
@@ -82,7 +82,11 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
         v-for="entry in entries"
         :key="entry.mode"
         class="relative"
-        :class="activeMode === entry.mode ? 'bg-hover text-fg' : 'hover:bg-hover hover:text-fg'"
+        :class="
+          activeMode === entry.mode
+            ? 'bg-panel text-fg before:absolute before:-left-3 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
+            : 'hover:bg-hover hover:text-fg'
+        "
         :label="t(entry.key)"
         :aria-pressed="activeMode === entry.mode"
         @click="emit('select', entry.mode)"
@@ -110,7 +114,12 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
     </TeaIconButton>
 
     <TeaIconButton
-      :class="activeMode === 'settings' ? 'bg-hover text-fg' : 'hover:bg-hover hover:text-fg'"
+      class="relative"
+      :class="
+        activeMode === 'settings'
+          ? 'bg-panel text-fg before:absolute before:-left-3 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
+          : 'hover:bg-hover hover:text-fg'
+      "
       :label="t('workspace.settings')"
       :aria-pressed="activeMode === 'settings'"
       @click="emit('select', 'settings')"

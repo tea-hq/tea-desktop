@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TeaButton, TeaSelect } from '@/shared/ui'
+import { TeaButton, TeaIconButton, TeaSelect } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
@@ -35,27 +35,24 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
 
 <template>
   <section class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-canvas">
-    <div class="mx-auto w-full max-w-[760px] px-8 pb-16 pt-10">
+    <div class="mx-auto w-full max-w-3xl px-5 pb-16 pt-10 sm:px-8">
       <div class="flex items-start justify-between gap-6">
         <div>
-          <p class="text-2xl font-semibold text-fg">{{ t('settings.title') }}</p>
+          <h1 class="text-2xl font-semibold text-fg">{{ t('settings.title') }}</h1>
           <p class="mt-1.5 text-base leading-5 text-dim">{{ t('settings.description') }}</p>
         </div>
-        <TeaButton
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          :title="t('settings.close')"
-          :aria-label="t('settings.close')"
-          @click="emit('close')"
-        >
-          <span class="i-mdi-close size-4.5" aria-hidden="true" />
-        </TeaButton>
+        <TeaIconButton :label="t('settings.close')" icon="i-mdi-close" @click="emit('close')" />
       </div>
 
-      <div v-if="error" class="mt-6 bg-danger-subtle px-4 py-3 text-base text-danger" role="status">
+      <div
+        v-if="error"
+        class="mt-6 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger"
+        role="status"
+      >
         {{ t(error) }}
       </div>
 
-      <section class="mt-10 py-2">
+      <section class="mt-12">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
             <h2 class="text-base font-semibold text-fg">
@@ -69,10 +66,11 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
             <TeaButton
               v-for="option in localeOptions"
               :key="option.value"
-              class="min-w-0 rounded-structural px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              appearance="ghost"
+              class="min-w-0 px-2"
               :class="
                 localePreference === option.value
-                  ? 'bg-canvas text-fg'
+                  ? 'bg-inverse text-canvas'
                   : 'text-dim hover:bg-pressed'
               "
               :aria-pressed="localePreference === option.value"
@@ -84,7 +82,7 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
         </div>
       </section>
 
-      <section class="mt-8 bg-surface px-5 py-5">
+      <section class="mt-12">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
             <h2 class="text-base font-semibold text-fg">

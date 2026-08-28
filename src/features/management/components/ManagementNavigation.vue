@@ -9,9 +9,9 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col bg-surface px-3 py-5">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-5">
     <div class="px-2">
-      <p class="text-xs font-semibold uppercase tracking-normal text-subtle">
+      <p class="text-xs font-medium text-subtle">
         {{ t('management.eyebrow') }}
       </p>
       <h1 class="mt-2 text-xl font-semibold tracking-normal text-fg">
@@ -23,10 +23,11 @@ const { t } = useI18n()
       <TeaButton
         v-for="section in MANAGEMENT_SECTIONS"
         :key="section.id"
-        class="group flex w-full items-start gap-3 rounded-control px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        appearance="ghost"
+        class="group flex w-full items-start justify-start gap-3 px-3 py-2.5 text-left"
         :class="
           activeSection === section.id
-            ? 'bg-canvas text-fg '
+            ? 'bg-panel text-fg'
             : 'text-dim hover:bg-hover hover:text-fg'
         "
         :aria-current="activeSection === section.id ? 'page' : undefined"
@@ -41,7 +42,7 @@ const { t } = useI18n()
           aria-hidden="true"
         />
         <span class="min-w-0">
-          <span class="block text-base font-medium">{{ t(section.labelKey) }}</span>
+          <span class="block text-sm font-medium">{{ t(section.labelKey) }}</span>
           <span class="mt-0.5 block text-sm leading-4 text-subtle">{{
             t(section.descriptionKey)
           }}</span>

@@ -6,7 +6,7 @@ defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 <template>
-  <div class="inline-flex rounded-control bg-muted p-1" role="radiogroup">
+  <div class="inline-flex rounded-control bg-panel p-1" role="radiogroup">
     <button
       v-for="option in options"
       :key="option.value"
@@ -14,8 +14,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
       role="radio"
       :aria-checked="modelValue === option.value"
       :disabled="option.disabled"
-      class="rounded-structural px-3 py-1.5 text-xs font-medium text-dim transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
-      :class="modelValue === option.value ? 'bg-raised text-fg shadow-sm' : ''"
+      class="rounded-control px-3 py-1.5 text-sm font-medium text-dim transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
+      :class="modelValue === option.value ? 'bg-inverse text-canvas' : ''"
       @click="emit('update:modelValue', option.value)"
     >
       {{ option.label }}

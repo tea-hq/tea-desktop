@@ -27,7 +27,10 @@ const statusDot = computed(() => {
 </script>
 
 <template>
-  <section class="w-full bg-canvas px-3 py-2.5 text-sm text-dim" :data-tool-call-id="tool.id">
+  <section
+    class="w-full rounded-card border border-line bg-canvas px-3.5 py-3 text-sm text-dim"
+    :data-tool-call-id="tool.id"
+  >
     <div class="flex min-h-5 min-w-0 items-center gap-2">
       <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="statusDot" aria-hidden="true" />
       <code class="shrink-0 font-mono text-sm font-medium text-fg">{{ tool.name }}</code>
@@ -38,32 +41,24 @@ const statusDot = computed(() => {
       <TeaButton
         v-if="hasArguments"
         type="button"
-        class="ml-auto flex h-6 shrink-0 items-center gap-1 px-1 text-sm text-subtle transition-colors hover:bg-hover hover:text-fg"
+        appearance="ghost"
+        size="small"
+        class="ml-auto shrink-0"
         :aria-expanded="detailsOpen"
         @click="detailsOpen = !detailsOpen"
       >
         {{ t('tools.details') }}
-        <svg
-          class="h-3 w-3 transition-transform"
+        <span
+          class="i-mdi-chevron-down size-4 transition-transform"
           :class="detailsOpen ? 'rotate-180' : ''"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
           aria-hidden="true"
-        >
-          <path
-            d="m4.5 6 3.5 3.5L11.5 6"
-            stroke-width="1.4"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        />
       </TeaButton>
     </div>
 
     <pre
       v-if="hasArguments && detailsOpen"
-      class="mt-2 max-h-48 w-full overflow-auto bg-surface px-2.5 py-2 font-mono text-sm leading-5 text-dim"
+      class="mt-2 max-h-48 w-full overflow-auto rounded-menu bg-panel px-3 py-2.5 font-mono text-sm leading-5 text-dim"
       >{{ JSON.stringify(tool.arguments, null, 2) }}</pre>
 
     <ApprovalPrompt

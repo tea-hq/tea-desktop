@@ -146,7 +146,7 @@ defineExpose({ toggle, show, hide })
     role="menu"
     :aria-label="label"
     :class="[
-      'z-50 min-w-52 overflow-y-auto rounded-overlay bg-raised p-1.5 text-fg shadow-overlay',
+      'z-50 min-w-52 overflow-y-auto rounded-menu border border-line bg-raised p-1 text-fg',
       popup ? 'fixed' : 'relative',
     ]"
     :style="popup ? { top: `${position.top}px`, left: `${position.left}px` } : undefined"
@@ -163,7 +163,7 @@ defineExpose({ toggle, show, hide })
         role="menuitem"
         :disabled="item.disabled"
         :tabindex="activeIndex === index ? 0 : -1"
-        class="flex min-h-9 w-full items-center gap-2 rounded-control px-2.5 text-left text-sm text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+        class="flex min-h-9 w-full items-center gap-2 rounded-menu px-2.5 text-left text-sm text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
         @click="select(item)"
       >
         <span v-if="item.icon" :class="[item.icon, 'size-4 shrink-0']" aria-hidden="true" />

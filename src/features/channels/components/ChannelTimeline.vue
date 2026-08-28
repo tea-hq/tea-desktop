@@ -114,7 +114,9 @@ watch(
 
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
-    <header class="flex h-16 shrink-0 items-center justify-between border-b border-line px-6">
+    <header
+      class="flex h-16 shrink-0 items-center justify-between border-b border-line px-4 sm:px-6"
+    >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span
@@ -164,7 +166,7 @@ watch(
         </p>
         <p class="mt-1 text-sm text-disabled">{{ t('channels.empty.description') }}</p>
       </div>
-      <div v-else class="mx-auto w-full max-w-5xl">
+      <div v-else class="mx-auto w-full max-w-4xl">
         <div v-if="hasMore" class="flex justify-center pb-3">
           <TeaButton
             appearance="ghost"
@@ -195,8 +197,8 @@ watch(
       </div>
     </div>
 
-    <div class="shrink-0 border-t border-line bg-surface px-4 pb-4 pt-3">
-      <div class="mx-auto flex w-full max-w-5xl items-end gap-2">
+    <div class="shrink-0 border-t border-line bg-canvas px-3 py-3 sm:px-4 sm:pb-4">
+      <div class="mx-auto flex w-full max-w-4xl items-end gap-2">
         <TeaIconButton size="small" :label="t('channels.composer.add')" icon="i-mdi-plus" />
         <TeaTextarea
           v-model="draft"
@@ -212,6 +214,7 @@ watch(
           size="small"
           :label="t('channels.composer.send')"
           icon="i-mdi-arrow-up"
+          appearance="primary"
           :disabled="!draft.trim() || sending"
           @click="submitMessage"
         />

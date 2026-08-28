@@ -36,7 +36,7 @@ async function loadOlder(): Promise<void> {
 </script>
 
 <template>
-  <div ref="container" class="agent-thread min-h-0 flex-1 overflow-y-auto px-4 py-4">
+  <div ref="container" class="agent-thread min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
     <div v-if="hasOlder" class="flex justify-center pb-3">
       <TeaButton size="small" appearance="ghost" :loading="loadingOlder" @click="loadOlder">{{
         t('channels.history.loadMore')
@@ -60,7 +60,7 @@ async function loadOlder(): Promise<void> {
       :title="t('messages.empty')"
       icon="i-mdi-message-outline"
     />
-    <div v-else class="mx-auto flex w-full max-w-3xl flex-col gap-3">
+    <div v-else class="mx-auto flex w-full max-w-3xl flex-col gap-7">
       <ConversationTurnView
         v-for="(turn, turnIndex) in turns"
         :key="turn.id"

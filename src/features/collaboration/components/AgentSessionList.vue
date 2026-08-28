@@ -20,7 +20,7 @@ function runtime(id: string): string {
       v-for="conversation in conversations"
       :key="conversation.conversationId"
       appearance="ghost"
-      class="session-row flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left"
+      class="session-row mx-2 flex w-auto min-w-0 items-start justify-start gap-3 px-3 py-3 text-left"
       @click="emit('select', conversation.conversationId)"
     >
       <span class="i-mdi-message-processing-outline mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -46,8 +46,7 @@ function runtime(id: string): string {
 </template>
 <style scoped>
 .session-row {
-  border-bottom: 1px solid var(--tea-line);
-  color: var(--text-fg);
+  color: var(--tea-fg);
 }
 .session-row:hover,
 .session-row:focus-visible {

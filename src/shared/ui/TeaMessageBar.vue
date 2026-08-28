@@ -14,7 +14,7 @@ const emit = defineEmits<{ close: [] }>()
   <div
     :role="tone === 'error' || tone === 'warning' ? 'alert' : 'status'"
     :class="[
-      'flex items-start gap-2 rounded-control px-3 py-2 text-sm leading-5',
+      'flex items-start gap-2 rounded-card px-3 py-2 text-sm leading-5',
       tone === 'info' && 'bg-accent/10 text-accent',
       tone === 'success' && 'bg-success-subtle text-success',
       tone === 'warning' && 'bg-warning-subtle text-warning',

@@ -29,10 +29,8 @@ const emit = defineEmits<{
     :disabled="disabled"
     :readonly="readonly"
     :class="[
-      'w-full min-h-16 max-h-56 resize-y border border-line bg-canvas px-3 py-2.5 leading-[1.45] text-fg outline-none transition-colors placeholder:text-dim focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-disabled read-only:bg-surface read-only:text-dim motion-reduce:transition-none',
-      size === 'compact'
-        ? 'min-h-9 max-h-28 resize-none rounded-control py-1.5 text-sm'
-        : 'rounded-control text-sm',
+      'w-full min-h-16 max-h-56 resize-y rounded-card border border-line bg-canvas px-4 py-3 leading-[1.45] text-fg outline-none transition-colors placeholder:text-subtle focus:border-fg focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:bg-panel disabled:text-disabled read-only:bg-panel read-only:text-dim motion-reduce:transition-none',
+      size === 'compact' ? 'min-h-10 max-h-28 resize-none py-2 text-sm' : 'text-base',
       invalid ? 'border-danger focus:border-danger focus:ring-danger/20' : '',
     ]"
     @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"

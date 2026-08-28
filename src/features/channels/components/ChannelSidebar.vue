@@ -69,7 +69,7 @@ function formatTime(value: number): string {
 
     <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2.5 pb-3">
       <div class="flex items-center justify-between px-2 pb-1.5 pt-3">
-        <p class="text-xs font-semibold uppercase text-subtle">
+        <p class="text-xs font-medium text-subtle">
           {{ t('channels.recent') }}
         </p>
         <span class="text-xs tabular-nums text-disabled">{{ filteredChannels.length }}</span>
@@ -79,8 +79,8 @@ function formatTime(value: number): string {
         :key="channel.ref"
         appearance="ghost"
         size="small"
-        class="group mb-0.5 grid min-h-14 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        :class="channel.ref === activeRef ? 'bg-hover' : 'hover:bg-hover'"
+        class="group mb-0.5 grid min-h-14 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center justify-start gap-2.5 px-2.5 py-2 text-left"
+        :class="channel.ref === activeRef ? 'bg-panel' : 'hover:bg-hover'"
         :style="{ animationDelay: `${index * 35}ms` }"
         @click="emit('select', channel.ref)"
       >

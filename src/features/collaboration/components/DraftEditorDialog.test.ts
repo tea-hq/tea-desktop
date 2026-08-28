@@ -27,6 +27,7 @@ function mountDialog() {
       stubs: {
         TeaDialog: defineComponent({
           name: 'TeaDialog',
+          props: { dismissable: { type: Boolean, default: false } },
           emits: ['close'],
           template: '<div><slot /></div>',
         }),
@@ -43,7 +44,9 @@ function mountDialog() {
 describe('DraftEditorDialog', () => {
   it('maps close, save, and delivery to explicit intents', async () => {
     const wrapper = mountDialog()
-    wrapper.getComponent({ name: 'TeaDialog' }).vm.$emit('close')
+    const dialog = wrapper.getComponent({ name: 'TeaDialog' })
+    expect(dialog.props('dismissable')).toBe(true)
+    dialog.vm.$emit('close')
     wrapper.getComponent({ name: 'DraftEditor' }).vm.$emit('save', 'Updated draft')
     wrapper.getComponent({ name: 'DraftEditor' }).vm.$emit('deliver')
     await wrapper.vm.$nextTick()

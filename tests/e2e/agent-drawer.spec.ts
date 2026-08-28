@@ -13,7 +13,7 @@ test('moves from empty history to preparing and creates on first send', async ({
   })
   await expect(composer).toBeFocused()
   await composer.fill('Create the implementation plan')
-  await page.locator('.p-drawer').getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Send message' }).click()
 
   await expect(page.getByText('Create the implementation plan')).toBeVisible()
   await expect(page.getByText('New Agent session')).toBeVisible()

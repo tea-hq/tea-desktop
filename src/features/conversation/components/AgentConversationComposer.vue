@@ -103,80 +103,86 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <footer class="agent-composer shrink-0 p-3">
-    <ChannelSourceTray
-      v-if="profile.showSources"
-      :sources="sources ?? []"
-      @remove="emit('removeSource', $event)"
-    />
-    <div v-if="attachments.length" class="mb-2 flex gap-1 overflow-x-auto">
-      <span v-for="item in attachments" :key="item.id" class="attachment-chip">{{
-        item.name
-      }}</span>
-    </div>
-    <TeaTextarea
-      data-agent-composer
-      :model-value="text"
-      :label="t('composer.placeholder')"
-      :rows="profile.compact ? 2 : 3"
-      :disabled="disabled"
-      :placeholder="t('composer.placeholder')"
-      @update:model-value="emit('update:text', $event)"
-      @keydown="keydown"
-      @compositionstart="composing = true"
-      @compositionend="composing = false"
-    />
-    <div class="composer-toolbar mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
-      <input ref="fileInput" type="file" multiple class="hidden" @change="files" />
-      <TeaIconButton
-        :label="t('composer.addFiles')"
-        icon="i-mdi-paperclip"
-        @click="fileInput?.click()"
+  <footer class="agent-composer shrink-0 px-3 py-3 sm:px-5 sm:py-4">
+    <div class="mx-auto w-full max-w-3xl">
+      <ChannelSourceTray
+        v-if="profile.showSources"
+        :sources="sources ?? []"
+        @remove="emit('removeSource', $event)"
       />
-      <TeaSelect
-        :model-value="runtimeId"
-        :options="runtimeOptions"
-        :label="t('composer.selectAgent')"
-        size="small"
-        @update:model-value="$event && emit('selectRuntime', String($event))"
-      />
-      <TeaSelect
-        :model-value="model"
-        :options="models"
-        :label="t('composer.selectModel')"
-        size="small"
-        @update:model-value="$event && emit('selectModel', String($event))"
-      />
-      <TeaSelect
-        :model-value="permissionMode"
-        :options="permissions"
-        :label="t('composer.selectPermission')"
-        size="small"
-        @update:model-value="$event && emit('selectPermission', $event as PermissionMode)"
-      />
-      <TeaSelect
-        v-if="roleOptions.length > 1"
-        :model-value="roleId ?? ''"
-        :options="roleOptions"
-        :label="t('composer.selectRole')"
-        size="small"
-        @update:model-value="emit('selectRole', $event ? String($event) : null)"
-      />
-      <span class="flex-1" />
-      <TeaIconButton
-        v-if="streaming"
-        :label="t('composer.stop')"
-        icon="i-mdi-stop"
-        appearance="danger"
-        @click="emit('stop')"
-      />
-      <TeaIconButton
-        v-else
-        :label="t('composer.send')"
-        icon="i-mdi-arrow-up"
-        :disabled="disabled || !text.trim()"
-        @click="submit"
-      />
+      <div v-if="attachments.length" class="mb-2 flex gap-1 overflow-x-auto">
+        <span v-for="item in attachments" :key="item.id" class="attachment-chip">{{
+          item.name
+        }}</span>
+      </div>
+      <div class="composer-shell" :class="profile.compact ? 'composer-shell--compact' : ''">
+        <TeaTextarea
+          data-agent-composer
+          :model-value="text"
+          :label="t('composer.placeholder')"
+          :rows="profile.compact ? 2 : 3"
+          :disabled="disabled"
+          :placeholder="t('composer.placeholder')"
+          @update:model-value="emit('update:text', $event)"
+          @keydown="keydown"
+          @compositionstart="composing = true"
+          @compositionend="composing = false"
+        />
+        <div class="composer-toolbar mt-2 flex min-w-0 items-end gap-1.5">
+          <input ref="fileInput" type="file" multiple class="hidden" @change="files" />
+          <TeaIconButton
+            :label="t('composer.addFiles')"
+            icon="i-mdi-paperclip"
+            @click="fileInput?.click()"
+          />
+          <div class="composer-options grid min-w-0 flex-1 grid-cols-2 gap-1.5 sm:grid-cols-4">
+            <TeaSelect
+              :model-value="runtimeId"
+              :options="runtimeOptions"
+              :label="t('composer.selectAgent')"
+              size="small"
+              @update:model-value="$event && emit('selectRuntime', String($event))"
+            />
+            <TeaSelect
+              :model-value="model"
+              :options="models"
+              :label="t('composer.selectModel')"
+              size="small"
+              @update:model-value="$event && emit('selectModel', String($event))"
+            />
+            <TeaSelect
+              :model-value="permissionMode"
+              :options="permissions"
+              :label="t('composer.selectPermission')"
+              size="small"
+              @update:model-value="$event && emit('selectPermission', $event as PermissionMode)"
+            />
+            <TeaSelect
+              v-if="roleOptions.length > 1"
+              :model-value="roleId ?? ''"
+              :options="roleOptions"
+              :label="t('composer.selectRole')"
+              size="small"
+              @update:model-value="emit('selectRole', $event ? String($event) : null)"
+            />
+          </div>
+          <TeaIconButton
+            v-if="streaming"
+            :label="t('composer.stop')"
+            icon="i-mdi-stop"
+            appearance="danger"
+            @click="emit('stop')"
+          />
+          <TeaIconButton
+            v-else
+            :label="t('composer.send')"
+            icon="i-mdi-arrow-up"
+            appearance="primary"
+            :disabled="disabled || !text.trim()"
+            @click="submit"
+          />
+        </div>
+      </div>
     </div>
   </footer>
 </template>
@@ -184,21 +190,45 @@ defineExpose({ focus })
 <style scoped>
 .agent-composer {
   border-top: 1px solid var(--tea-line);
-  background: var(--tea-surface);
+  background: var(--tea-canvas);
+}
+.composer-shell {
+  border: 1px solid var(--tea-line);
+  border-radius: var(--tea-radius-card);
+  background: var(--tea-canvas);
+  padding: 0.75rem;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.composer-shell:focus-within {
+  border-color: var(--tea-fg);
+  box-shadow: 0 0 0 2px var(--tea-focus);
+}
+.composer-shell :deep(textarea) {
+  min-height: 4.5rem;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.composer-shell--compact :deep(textarea) {
+  min-height: 3rem;
 }
 .attachment-chip {
   max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-radius: var(--tea-radius-structural);
+  border-radius: var(--tea-radius-control);
   background: var(--tea-panel);
   padding: 0.25rem 0.5rem;
   color: var(--tea-dim);
   font-size: 0.75rem;
 }
-.composer-toolbar :deep(.p-select) {
+.composer-options :deep(select) {
   min-width: 0;
-  flex: 1 1 7rem;
 }
 </style>

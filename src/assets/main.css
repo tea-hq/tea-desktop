@@ -7,9 +7,13 @@
 
 @theme {
   --font-sans:
-    'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
-    'Noto Sans CJK SC', 'Noto Sans SC', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'Cascadia Code', Menlo, monospace;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC',
+    system-ui, sans-serif;
+  --font-display:
+    'SF Pro Rounded', ui-rounded, -apple-system, BlinkMacSystemFont, 'PingFang SC', system-ui,
+    sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'SFMono-Regular', Menlo, Monaco, monospace;
 }
 
 @theme inline {
@@ -25,9 +29,11 @@
   --color-subtle: var(--tea-subtle);
   --color-disabled: var(--tea-disabled);
   --color-line: var(--tea-line);
+  --color-line-strong: var(--tea-line-strong);
   --color-accent: var(--tea-accent);
   --color-accent-hover: var(--tea-accent-hover);
   --color-accent-pressed: var(--tea-accent-pressed);
+  --color-focus: var(--tea-focus);
   --color-inverse: var(--tea-inverse);
   --color-danger: var(--tea-danger);
   --color-danger-subtle: var(--tea-danger-subtle);
@@ -35,7 +41,10 @@
   --color-success-subtle: var(--tea-success-subtle);
   --color-warning: var(--tea-warning);
   --color-warning-subtle: var(--tea-warning-subtle);
-  --radius-structural: var(--tea-radius-structural);
+  --radius-menu: var(--tea-radius-menu);
+  --radius-inline: var(--tea-radius-inline);
+  --radius-card: var(--tea-radius-card);
+  --radius-structural: var(--tea-radius-control);
   --radius-control: var(--tea-radius-control);
   --radius-overlay: var(--tea-radius-overlay);
   --shadow-overlay: var(--tea-shadow-overlay);
@@ -44,33 +53,37 @@
 :root {
   color-scheme: light;
   --tea-canvas: #ffffff;
-  --tea-surface: #fbfbfb;
-  --tea-panel: #f6f6f6;
+  --tea-surface: #ffffff;
+  --tea-panel: #fafafa;
   --tea-raised: #ffffff;
-  --tea-muted: #f0f0f0;
-  --tea-hover: rgb(0 0 0 / 6%);
-  --tea-pressed: rgb(0 0 0 / 10%);
-  --tea-fg: #2c2c2c;
-  --tea-dim: #6f6f6f;
-  --tea-subtle: #909090;
-  --tea-disabled: #b8b8b8;
-  --tea-line: #e4e4e4;
-  --tea-accent: #4f9d35;
-  --tea-accent-hover: #43882d;
-  --tea-accent-pressed: #367126;
-  --tea-inverse: #2c2c2c;
+  --tea-muted: #f5f5f5;
+  --tea-hover: rgb(0 0 0 / 4%);
+  --tea-pressed: rgb(0 0 0 / 8%);
+  --tea-fg: #000000;
+  --tea-dim: #737373;
+  --tea-subtle: #a3a3a3;
+  --tea-disabled: #a3a3a3;
+  --tea-line: #e5e5e5;
+  --tea-line-strong: #d4d4d4;
+  --tea-accent: #000000;
+  --tea-accent-hover: #171717;
+  --tea-accent-pressed: #090909;
+  --tea-focus: rgb(59 130 246 / 50%);
+  --tea-inverse: #171717;
   --tea-danger: #c43d46;
   --tea-danger-subtle: #fdf2f2;
-  --tea-success: #4f9d35;
-  --tea-success-subtle: #f1f8ef;
+  --tea-success: #377a32;
+  --tea-success-subtle: #f3f8f2;
   --tea-warning: #a26a16;
   --tea-warning-subtle: #fff8eb;
-  --tea-radius-structural: 8px;
-  --tea-radius-control: 12px;
-  --tea-radius-overlay: 16px;
-  --tea-shadow-overlay: 0 8px 24px rgb(0 0 0 / 10%);
-  --tea-control-height-small: 2rem;
-  --tea-control-height: 2.25rem;
+  --tea-radius-menu: 8px;
+  --tea-radius-inline: 6px;
+  --tea-radius-card: 12px;
+  --tea-radius-control: 9999px;
+  --tea-radius-overlay: 12px;
+  --tea-shadow-overlay: none;
+  --tea-control-height-small: 2.25rem;
+  --tea-control-height: 2.5rem;
   --tea-control-height-primary: 2.5rem;
 }
 
@@ -88,8 +101,26 @@ html {
 
 body {
   @apply m-0 p-0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.5;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  letter-spacing: 0;
+}
+
+::selection {
+  color: var(--tea-canvas);
+  background: var(--tea-fg);
 }
 
 #app {

@@ -52,20 +52,19 @@ function handleScroll(event: Event): void {
 
 <template>
   <aside class="hidden h-full w-[320px] flex-col border-r border-line bg-canvas sm:flex">
-    <div class="p-3">
-      <TeaButton
-        class="flex w-full items-center justify-center gap-2 rounded-control bg-fg px-4 py-2.5 text-sm font-medium text-canvas transition-colors duration-150 hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        @click="emit('new')"
-      >
+    <div class="p-3.5">
+      <TeaButton appearance="primary" class="w-full" @click="emit('new')">
         <span class="i-mdi-plus size-4" aria-hidden="true" />
         {{ t('sidebar.newConversation') }}
       </TeaButton>
-      <div class="mt-2 grid grid-cols-3 gap-1 rounded-control bg-muted p-1">
+      <div class="mt-2 grid grid-cols-3 gap-1 rounded-control bg-panel p-1">
         <TeaButton
           v-for="kind in ['all', 'local', 'channel'] as const"
           :key="kind"
-          class="rounded-structural px-1.5 py-1 text-xs font-medium transition-colors"
-          :class="filter.kind === kind ? 'bg-raised text-fg' : 'text-subtle hover:text-fg'"
+          appearance="ghost"
+          size="small"
+          class="min-w-0 px-1.5"
+          :class="filter.kind === kind ? 'bg-canvas text-fg' : 'text-subtle hover:text-fg'"
           @click="emit('filter', { kind })"
         >
           {{ t(`sidebar.filters.${kind}`) }}
@@ -97,8 +96,9 @@ function handleScroll(event: Event): void {
       <TeaButton
         v-for="(conv, i) in conversations"
         :key="conv.conversationId"
-        class="group mb-1 flex h-11 w-full animate-fade-slide items-center gap-2.5 rounded-control px-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        :class="conv.conversationId === activeId ? 'bg-hover' : 'hover:bg-hover'"
+        appearance="ghost"
+        class="group mb-0.5 flex h-11 w-full animate-fade-slide items-center justify-start gap-2.5 px-2.5 text-left"
+        :class="conv.conversationId === activeId ? 'bg-panel' : 'hover:bg-hover'"
         :style="{ animationDelay: `${i * 30}ms` }"
         :aria-label="conversationTitle(conv)"
         :title="conversationTitle(conv)"

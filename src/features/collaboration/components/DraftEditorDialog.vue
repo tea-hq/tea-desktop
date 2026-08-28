@@ -18,6 +18,7 @@ const { t } = useI18n()
     :open="open"
     :title="t('channels.collaboration.draftTitle')"
     :close-label="t('common.close')"
+    dismissable
     width="large"
     @close="emit('close')"
   >

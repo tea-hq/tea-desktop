@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport v-if="open" to="body">
     <div class="fixed inset-0 z-50 flex items-center justify-center p-6" @click="dismissOnBackdrop">
-      <div class="absolute inset-0 bg-inverse/20" aria-hidden="true" />
+      <div class="absolute inset-0 bg-inverse/30" aria-hidden="true" />
       <section
         ref="panel"
         :aria-labelledby="titleId"
@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
         aria-modal="true"
         tabindex="-1"
         :class="[
-          'relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-overlay bg-raised text-fg shadow-overlay outline-none',
+          'relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-overlay border border-line bg-raised text-fg outline-none',
           width === 'small' ? 'max-w-md' : width === 'large' ? 'max-w-4xl' : 'max-w-xl',
         ]"
         @click.stop
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
           <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ title }}</h2>
           <button
             type="button"
-            class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent motion-reduce:transition-none"
+            class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus motion-reduce:transition-none"
             :aria-label="closeLabel"
             :title="closeLabel"
             @click="emit('close')"
@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5"><slot /></div>
         <footer
           v-if="$slots.footer"
-          class="flex shrink-0 justify-end gap-2 border-t border-line bg-surface px-5 py-4"
+          class="flex shrink-0 justify-end gap-2 border-t border-line bg-canvas px-5 py-4"
         >
           <slot name="footer" />
         </footer>

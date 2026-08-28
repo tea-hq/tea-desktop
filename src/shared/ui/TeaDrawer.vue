@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport v-if="open" to="body">
     <div class="fixed inset-0 z-40" @click="dismissOnBackdrop">
-      <div class="absolute inset-0 bg-inverse/20" aria-hidden="true" />
+      <div class="absolute inset-0 bg-inverse/30" aria-hidden="true" />
       <aside
         ref="panel"
         :aria-labelledby="titleId"
@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
         aria-modal="true"
         tabindex="-1"
         :class="[
-          'absolute inset-y-0 right-0 flex w-full max-w-[92vw] flex-col bg-raised text-fg shadow-overlay outline-none',
+          'absolute inset-y-0 right-0 flex w-full max-w-[92vw] flex-col border-l border-line bg-raised text-fg outline-none',
           width === 'wide' ? 'max-w-2xl' : 'max-w-lg',
         ]"
         @click.stop
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
           <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ title }}</h2>
           <button
             type="button"
-            class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent motion-reduce:transition-none"
+            class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus motion-reduce:transition-none"
             :aria-label="closeLabel"
             :title="closeLabel"
             @click="emit('close')"
@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
         <div class="min-h-0 flex-1 overflow-y-auto"><slot /></div>
         <footer
           v-if="$slots.footer"
-          class="flex shrink-0 justify-end gap-2 border-t border-line bg-surface px-5 py-4"
+          class="flex shrink-0 justify-end gap-2 border-t border-line bg-canvas px-5 py-4"
         >
           <slot name="footer" />
         </footer>

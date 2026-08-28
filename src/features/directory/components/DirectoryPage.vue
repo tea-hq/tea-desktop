@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TeaButton, TeaInput } from '@/shared/ui'
+import { TeaButton, TeaIconButton, TeaInput } from '@/shared/ui'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { DirectoryPhase, DirectoryUser } from '../contracts'
@@ -28,16 +28,16 @@ function messageSelectedUser(): void {
 
 <template>
   <main class="flex h-full min-w-0 flex-1 flex-col bg-canvas">
-    <header class="flex items-center justify-between px-8 pb-5 pt-8">
+    <header class="flex items-center justify-between px-5 pb-5 pt-8 sm:px-8">
       <div>
-        <p class="text-sm font-semibold uppercase tracking-normal text-subtle">
+        <p class="text-sm font-medium text-subtle">
           {{ t('directory.eyebrow') }}
         </p>
-        <h1 class="mt-1 font-sans text-4xl text-fg">{{ t('directory.title') }}</h1>
+        <h1 class="mt-1 text-4xl font-medium text-fg">{{ t('directory.title') }}</h1>
       </div>
       <span class="text-base text-dim">{{ users.length }} {{ t('directory.people') }}</span>
     </header>
-    <div class="flex gap-2 px-8 pb-5">
+    <div class="flex gap-2 px-5 pb-5 sm:px-8">
       <TeaInput
         :model-value="query"
         class="w-full max-w-md"
@@ -45,22 +45,20 @@ function messageSelectedUser(): void {
         :label="t('directory.search')"
         :placeholder="t('directory.search')"
         @update:model-value="emit('update:query', $event)"
-      /><TeaButton
-        :aria-label="t('directory.refresh')"
+      /><TeaIconButton
+        :label="t('directory.refresh')"
+        icon="i-mdi-refresh"
+        appearance="secondary"
         :disabled="phase === 'loading'"
         @click="emit('refresh')"
-        ><span
-          class="size-5"
-          :class="phase === 'loading' ? 'i-mdi-loading animate-spin' : 'i-mdi-refresh'"
-          aria-hidden="true"
-      /></TeaButton>
+      />
     </div>
     <div v-if="phase === 'loading'" class="px-8 py-10 text-base text-dim">
       {{ t('directory.loading') }}
     </div>
     <div
       v-else-if="phase === 'error' || phase === 'unavailable'"
-      class="mx-8 rounded-control bg-danger-subtle px-4 py-3 text-base text-danger"
+      class="mx-5 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger sm:mx-8"
     >
       <span>{{ t(errorKey ?? 'directory.errors.loadFailed') }}</span
       ><TeaButton class="ml-3 font-semibold underline" @click="emit('retry')">{{
@@ -69,7 +67,7 @@ function messageSelectedUser(): void {
     </div>
     <div
       v-else-if="phase === 'stale'"
-      class="mx-8 mb-4 rounded-control bg-warning-subtle px-4 py-3 text-base text-warning"
+      class="mx-5 mb-4 rounded-card bg-warning-subtle px-4 py-3 text-base text-warning sm:mx-8"
     >
       {{ t('directory.stale') }}
       <TeaButton class="ml-3 font-semibold underline" @click="emit('retry')">{{
@@ -78,7 +76,7 @@ function messageSelectedUser(): void {
     </div>
     <div
       v-if="actionError"
-      class="mx-8 mb-4 rounded-control bg-danger-subtle px-4 py-3 text-base text-danger"
+      class="mx-5 mb-4 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger sm:mx-8"
     >
       {{ t(actionError) }}
     </div>
@@ -92,7 +90,8 @@ function messageSelectedUser(): void {
         class="flex min-w-0 items-center gap-3 bg-canvas px-8 py-4"
       >
         <TeaButton
-          class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-control bg-hover text-base font-semibold text-dim focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          appearance="ghost"
+          class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-panel p-0 text-base font-semibold text-dim"
           :aria-label="t('directory.viewProfile', { name: user.center.displayName })"
           @click="selectedUser = user"
           ><img
@@ -102,7 +101,10 @@ function messageSelectedUser(): void {
             class="size-full object-cover"
             referrerpolicy="no-referrer"
           /><span v-else>{{ user.center.displayName.slice(0, 2).toUpperCase() }}</span></TeaButton
-        ><TeaButton class="min-w-0 flex-1 text-left" @click="selectedUser = user"
+        ><TeaButton
+          appearance="ghost"
+          class="min-w-0 flex-1 justify-start px-0 text-left"
+          @click="selectedUser = user"
           ><p class="truncate text-base font-semibold text-fg">
             {{ user.center.displayName }}
           </p>
@@ -114,13 +116,13 @@ function messageSelectedUser(): void {
     </ul>
     <div
       v-if="selectedUser"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-panel p-6"
+      class="fixed inset-0 z-20 flex items-center justify-center bg-inverse/30 p-6"
       @click.self="selectedUser = null"
     >
-      <section class="w-full max-w-sm rounded-overlay bg-canvas p-6 shadow-overlay">
+      <section class="w-full max-w-sm rounded-overlay border border-line bg-canvas p-6">
         <div class="flex items-center gap-3">
           <div
-            class="flex size-14 items-center justify-center overflow-hidden rounded-control bg-hover text-xl font-semibold text-dim"
+            class="flex size-14 items-center justify-center overflow-hidden rounded-full bg-panel text-xl font-semibold text-dim"
           >
             <img
               v-if="selectedUser.oidc.avatarUrl"
@@ -148,20 +150,17 @@ function messageSelectedUser(): void {
           </div>
         </dl>
         <div class="mt-6 flex justify-end gap-2">
-          <TeaButton
-            class="flex size-9 items-center justify-center rounded-control text-dim hover:bg-hover"
-            :title="t('directory.close')"
-            :aria-label="t('directory.close')"
+          <TeaIconButton
+            :label="t('directory.close')"
+            icon="i-mdi-close"
             @click="selectedUser = null"
-            ><span class="i-mdi-close size-5" aria-hidden="true" /></TeaButton
-          ><TeaButton
-            class="flex size-9 items-center justify-center rounded-control bg-inverse text-canvas disabled:cursor-not-allowed disabled:opacity-40"
-            :title="t('directory.sendMessage')"
-            :aria-label="t('directory.sendMessage')"
+          /><TeaIconButton
+            :label="t('directory.sendMessage')"
+            icon="i-mdi-message-text-outline"
+            appearance="primary"
             :disabled="selectedUser.im?.status !== 'ready' || !selectedUser.im?.account"
             @click="messageSelectedUser"
-            ><span class="i-mdi-message-text-outline size-5" aria-hidden="true"
-          /></TeaButton>
+          />
         </div>
       </section>
     </div>

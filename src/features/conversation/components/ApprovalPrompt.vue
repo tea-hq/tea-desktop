@@ -25,19 +25,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
     <span class="absolute inset-y-2 left-0 w-0.5 bg-warning" aria-hidden="true" />
 
     <div class="flex items-start gap-3">
-      <svg
-        class="mt-0.5 h-4 w-4 shrink-0 text-dim"
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          d="M10 2.8 16 5v4.6c0 3.5-2.4 6.2-6 7.6-3.6-1.4-6-4.1-6-7.6V5l6-2.2Z"
-          stroke-width="1.4"
-        />
-        <path d="M10 6.5v4.2m0 2.6v.1" stroke-width="1.5" stroke-linecap="round" />
-      </svg>
+      <span class="i-mdi-shield-alert-outline mt-0.5 size-4 shrink-0 text-dim" aria-hidden="true" />
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -52,7 +40,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <code
             v-for="resource in request.resources"
             :key="resource"
-            class="block overflow-x-auto bg-panel px-2 py-1.5 text-sm leading-4 text-dim"
+            class="block w-fit max-w-full overflow-x-auto rounded-control bg-panel px-3 py-1.5 text-sm leading-4 text-dim"
             >{{ resource }}</code
           >
         </div>
@@ -85,7 +73,8 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('allowOnce')"
             type="button"
-            class="h-8 rounded-structural bg-inverse px-3 text-sm font-medium text-canvas transition-colors hover:bg-accent-pressed disabled:cursor-not-allowed disabled:bg-muted"
+            appearance="primary"
+            size="small"
             :disabled="!canDecide"
             @click="emit('decide', 'allowOnce')"
           >
@@ -94,7 +83,8 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('allowSession')"
             type="button"
-            class="h-8 rounded-structural bg-canvas px-3 text-sm font-medium text-fg transition-colors hover:bg-pressed disabled:cursor-not-allowed disabled:text-subtle"
+            appearance="secondary"
+            size="small"
             :disabled="!canDecide"
             @click="emit('decide', 'allowSession')"
           >
@@ -103,7 +93,8 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('deny')"
             type="button"
-            class="h-8 rounded-structural px-2.5 text-sm text-dim transition-colors hover:bg-pressed hover:text-fg disabled:cursor-not-allowed disabled:text-subtle"
+            appearance="ghost"
+            size="small"
             :disabled="!canDecide"
             @click="emit('decide', 'deny')"
           >
@@ -112,7 +103,9 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <TeaButton
             v-if="request.decisions.includes('cancel')"
             type="button"
-            class="h-8 rounded-structural px-2.5 text-sm text-danger transition-colors hover:bg-danger-subtle disabled:cursor-not-allowed disabled:text-subtle"
+            appearance="ghost"
+            size="small"
+            class="text-danger hover:bg-danger-subtle hover:text-danger"
             :disabled="!canDecide"
             @click="emit('decide', 'cancel')"
           >

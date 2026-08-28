@@ -37,7 +37,7 @@ const visible = computed(() => {
 </script>
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div class="flex items-center gap-2 p-3">
+    <div class="flex items-center gap-2 px-4 py-3">
       <TeaInput
         v-if="mode === 'all'"
         :model-value="query"
@@ -45,7 +45,7 @@ const visible = computed(() => {
         type="search"
         :placeholder="t('channels.collaboration.searchSessions')"
         @update:model-value="emit('updateQuery', $event)"
-      /><TeaButton appearance="primary" size="small" @click="emit('create')"
+      /><TeaButton appearance="primary" size="small" class="shrink-0" @click="emit('create')"
         ><span class="i-mdi-plus size-4" />{{ t('channels.collaboration.newSession') }}</TeaButton
       >
     </div>

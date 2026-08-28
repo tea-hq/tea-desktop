@@ -33,8 +33,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
     :disabled="disabled"
     :autocomplete="autocomplete"
     :class="[
-      'w-full border border-line bg-canvas px-2.5 text-fg outline-none transition-colors placeholder:text-dim focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-disabled motion-reduce:transition-none',
-      size === 'small' ? 'min-h-8 rounded-structural text-xs' : 'min-h-9 rounded-control text-sm',
+      'w-full rounded-control border border-line bg-canvas px-4 text-fg outline-none transition-colors placeholder:text-subtle focus:border-fg focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:bg-panel disabled:text-disabled motion-reduce:transition-none',
+      size === 'small' ? 'min-h-9 text-sm' : 'min-h-10 text-base',
       invalid ? 'border-danger focus:border-danger focus:ring-danger/20' : '',
     ]"
     @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"

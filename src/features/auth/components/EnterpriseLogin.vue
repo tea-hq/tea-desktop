@@ -19,10 +19,10 @@ const { t } = useI18n()
     <header class="flex h-16 shrink-0 items-center px-6 sm:px-10">
       <div class="flex items-center gap-3">
         <span
-          class="flex size-8 items-center justify-center rounded-control bg-inverse font-sans text-base font-semibold text-canvas"
+          class="flex size-8 items-center justify-center rounded-full bg-inverse font-display text-base font-semibold text-canvas"
           >T</span
         >
-        <span class="font-sans text-xl font-semibold">{{ t('app.name') }}</span>
+        <span class="font-display text-xl font-semibold">{{ t('app.name') }}</span>
       </div>
     </header>
 
@@ -31,7 +31,7 @@ const { t } = useI18n()
         <p class="text-sm font-semibold uppercase text-subtle">
           {{ t('auth.enterprise.eyebrow') }}
         </p>
-        <h1 class="mt-3 font-sans text-4xl font-semibold leading-tight text-fg">
+        <h1 class="mt-3 text-4xl font-medium leading-tight text-fg">
           {{ t('auth.enterprise.title') }}
         </h1>
         <p class="mt-4 max-w-md text-base leading-6 text-dim">
@@ -67,7 +67,9 @@ const { t } = useI18n()
         <div class="mt-6 flex gap-3">
           <TeaButton
             v-if="pending"
-            class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-panel px-5 text-base font-semibold text-fg transition-colors hover:bg-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            appearance="secondary"
+            size="primary"
+            class="flex-1"
             type="button"
             @click="emit('cancel')"
           >
@@ -76,7 +78,9 @@ const { t } = useI18n()
           </TeaButton>
           <TeaButton
             v-else
-            class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-inverse px-5 text-base font-semibold text-canvas transition-colors hover:bg-accent-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:bg-muted"
+            appearance="primary"
+            size="primary"
+            class="flex-1"
             type="submit"
             :disabled="!domain.trim()"
           >

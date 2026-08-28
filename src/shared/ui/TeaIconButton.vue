@@ -4,7 +4,7 @@ withDefaults(
     label: string
     icon?: string
     tooltip?: string
-    appearance?: 'secondary' | 'danger' | 'ghost'
+    appearance?: 'primary' | 'secondary' | 'danger' | 'ghost'
     size?: 'small' | 'default'
     disabled?: boolean
   }>(),
@@ -25,14 +25,16 @@ withDefaults(
     :title="tooltip || label"
     :disabled="disabled"
     :class="[
-      'tea-icon-button inline-flex shrink-0 items-center justify-center border border-transparent transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
-      size === 'small' ? 'size-8 rounded-structural' : 'size-9 rounded-control',
+      'tea-icon-button inline-flex shrink-0 items-center justify-center rounded-control border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none',
+      size === 'small' ? 'size-8' : 'size-9',
+      appearance === 'primary' &&
+        'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed',
       appearance === 'secondary' &&
-        'bg-panel text-fg hover:bg-hover active:bg-pressed focus-visible:outline-accent',
+        'border-line-strong bg-canvas text-fg hover:bg-panel active:bg-muted',
       appearance === 'danger' &&
         'bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger',
       appearance === 'ghost' &&
-        'bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed focus-visible:outline-accent',
+        'border-transparent bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed',
     ]"
   >
     <slot><span :class="icon" aria-hidden="true" /></slot>

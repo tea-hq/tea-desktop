@@ -25,21 +25,17 @@ withDefaults(
     :disabled="disabled || loading"
     :aria-busy="loading || undefined"
     :class="[
-      'tea-button inline-flex items-center justify-center gap-2 border border-transparent px-3 font-medium leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none',
-      size === 'small'
-        ? 'min-h-8 rounded-structural text-xs'
-        : size === 'primary'
-          ? 'min-h-10 rounded-control'
-          : 'min-h-9 rounded-control',
+      'tea-button inline-flex items-center justify-center gap-2 rounded-control border px-5 text-sm font-medium leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed motion-reduce:transition-none',
+      size === 'small' ? 'min-h-8 px-3' : size === 'primary' ? 'min-h-10' : 'min-h-9',
       fluid && 'w-full',
       appearance === 'primary' &&
-        'bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed focus-visible:outline-accent',
+        'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'secondary' &&
-        'bg-panel text-fg hover:bg-hover active:bg-pressed focus-visible:outline-accent',
+        'border-line-strong bg-canvas text-fg hover:bg-panel active:bg-muted disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'danger' &&
-        'bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger',
+        'border-danger bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'ghost' &&
-        'bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed focus-visible:outline-accent',
+        'border-transparent bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed disabled:text-disabled disabled:opacity-60',
     ]"
   >
     <span

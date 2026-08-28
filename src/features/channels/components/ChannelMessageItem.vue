@@ -55,7 +55,7 @@ function toggleMenu(): void {
       :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
     >
       <div
-        class="flex size-8 shrink-0 items-center justify-center rounded-control text-sm font-semibold"
+        class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
         :class="message.sentByCurrentUser ? 'bg-hover text-fg' : 'bg-muted text-dim'"
       >
         {{ initials(message.sender.name) }}
@@ -83,20 +83,20 @@ function toggleMenu(): void {
         >
           <div
             v-if="message.state === 'active'"
-            class="min-w-0 rounded-overlay px-3 py-2"
-            :class="message.sentByCurrentUser ? 'bg-hover' : 'bg-muted'"
+            class="min-w-0 rounded-card px-3.5 py-2.5"
+            :class="message.sentByCurrentUser ? 'bg-panel' : 'bg-canvas'"
           >
             <MarkdownContent :source="message.text" compact tone="default" />
           </div>
           <p
             v-else
-            class="min-w-0 rounded-overlay bg-panel px-3 py-2 text-base italic leading-5 text-subtle"
+            class="min-w-0 rounded-card bg-panel px-3.5 py-2.5 text-base italic leading-5 text-subtle"
           >
             {{ t('channels.message.revoked') }}
           </p>
 
           <div
-            class="relative z-20 flex shrink-0 rounded-control bg-canvas p-0.5 opacity-0 ring-2 ring-accent ring-offset-2 ring-offset-surface ring-2 ring-accent ring-offset-2 ring-offset-surface transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            class="relative z-20 flex shrink-0 rounded-control bg-canvas p-0.5 opacity-0 ring-2 ring-focus ring-offset-2 ring-offset-canvas transition-opacity group-hover:opacity-100 focus-within:opacity-100"
           >
             <span ref="menuAnchor">
               <TeaIconButton

@@ -31,14 +31,16 @@ function showWaitingIndicator(): boolean {
 </script>
 
 <template>
-  <article class="w-full bg-surface animate-fade-slide" :data-turn-id="turn.id">
-    <div class="flex justify-end px-5 pt-5">
-      <div class="max-w-[82%] bg-hover px-3.5 py-2.5 text-base leading-5 text-fg">
+  <article class="w-full bg-canvas animate-fade-slide" :data-turn-id="turn.id">
+    <div class="flex justify-end">
+      <div
+        class="max-w-[88%] rounded-control bg-panel px-4 py-2.5 text-base leading-6 text-fg sm:max-w-[82%]"
+      >
         <div v-if="turn.user.attachments.length" class="mb-2 flex flex-wrap justify-end gap-1.5">
           <span
             v-for="attachment in turn.user.attachments"
             :key="attachment"
-            class="rounded-structural bg-canvas px-2 py-1 text-sm text-dim"
+            class="rounded-control bg-canvas px-2.5 py-1 text-sm text-dim"
           >
             {{ attachment }}
           </span>
@@ -47,7 +49,7 @@ function showWaitingIndicator(): boolean {
       </div>
     </div>
 
-    <div v-if="sources?.length" class="flex gap-2 overflow-x-auto px-5 pt-3">
+    <div v-if="sources?.length" class="flex gap-2 overflow-x-auto pt-3">
       <ChannelSourceCard
         v-for="source in sources"
         :key="source.sourceId"
@@ -56,7 +58,7 @@ function showWaitingIndicator(): boolean {
       />
     </div>
 
-    <div class="space-y-3 px-5 pb-5 pt-4">
+    <div class="space-y-3 pt-5">
       <template v-for="block in turn.blocks" :key="block.id">
         <div
           v-if="block.kind === 'assistantText'"
@@ -66,7 +68,9 @@ function showWaitingIndicator(): boolean {
           <MarkdownContent :source="block.text" :streaming="block.streaming" />
           <TeaButton
             v-if="collaboration && !draftExists && turn.status === 'completed' && !block.streaming"
-            class="mt-2 inline-flex items-center gap-1.5 rounded-control px-2 py-1 text-sm font-medium text-dim opacity-0 transition-opacity hover:bg-pressed hover:text-fg group-hover/response:opacity-100 focus:opacity-100"
+            appearance="ghost"
+            size="small"
+            class="mt-2 opacity-0 transition-opacity group-hover/response:opacity-100 focus:opacity-100"
             @click="
               emit('createDraft', {
                 turnIndex: turnIndex ?? 0,

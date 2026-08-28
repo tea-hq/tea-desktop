@@ -87,8 +87,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .markdown-content {
   min-width: 0;
-  color: var(--text-fg);
-  font-size: 15px;
+  color: var(--tea-fg);
+  font-size: 1rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
 .markdown-content :deep(h2),
 .markdown-content :deep(h3),
 .markdown-content :deep(h4) {
-  color: var(--text-fg);
+  color: var(--tea-fg);
   font-weight: 600;
 }
 
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content :deep(a) {
-  color: var(--text-fg);
+  color: var(--tea-fg);
   font-weight: 500;
   text-decoration: underline;
   text-decoration-color: var(--tea-subtle);
@@ -164,7 +164,7 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content :deep(a:hover) {
-  text-decoration-color: var(--text-fg);
+  text-decoration-color: var(--tea-fg);
 }
 
 .markdown-content :deep(blockquote) {
@@ -176,8 +176,9 @@ onBeforeUnmount(() => {
 
 .markdown-content :deep(code) {
   padding: 1px 4px;
+  border-radius: var(--tea-radius-inline);
   background: var(--tea-panel);
-  color: var(--text-fg);
+  color: var(--tea-fg);
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -187,8 +188,10 @@ onBeforeUnmount(() => {
   margin: 10px 0 12px;
   padding: 12px 14px;
   overflow: auto;
+  border: 1px solid var(--tea-line);
+  border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
-  color: var(--text-fg);
+  color: var(--tea-fg);
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.65;
@@ -221,7 +224,7 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content :deep(th) {
-  color: var(--text-fg);
+  color: var(--tea-fg);
   font-weight: 600;
 }
 
