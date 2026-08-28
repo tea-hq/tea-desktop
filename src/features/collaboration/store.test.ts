@@ -19,14 +19,6 @@ const runtime: RuntimeDescriptor = {
   status: 'ready',
 }
 
-const unconfiguredTea: RuntimeDescriptor = {
-	id: 'builtin.tea',
-	kind: 'builtInTea',
-	displayName: 'Tea Agent',
-	capabilities: ['prompt', 'events', 'snapshot', 'hostTools'],
-	status: 'unconfigured',
-}
-
 class RecordingConversationClient extends FakeConversationClient {
   sends: Array<{ conversationId: string; text: string; options: SendMessageOptions }> = []
 
@@ -95,25 +87,6 @@ describe('useCollaborationStore', () => {
     expect(store.chooserOpen).toBe(true)
     expect(client.sends).toEqual([])
   })
-
-	it('keeps unconfigured Tea selectable without creating a conversation', async () => {
-		const transport = new MockChannelTransport()
-		await transport.connect()
-		const client = new RecordingConversationClient()
-		client.setRuntimes([runtime, unconfiguredTea])
-		const create = vi.spyOn(client, 'createConversation')
-		const store = useCollaborationStore()
-		store.configure(client, transport)
-		await store.loadRuntimes()
-		await store.bindChannel('product-collab')
-
-		store.selectRuntime('builtin.tea')
-
-		expect(store.runtimes.map(value => value.id)).toEqual(['external.codex', 'builtin.tea'])
-		expect(store.selectedRuntimeId).toBe('builtin.tea')
-		expect(store.conversationId).toBeNull()
-		expect(create).not.toHaveBeenCalled()
-	})
 
 	it('creates the selected runtime conversation only when the first prompt is sent', async () => {
 		const { store, client } = await setup()

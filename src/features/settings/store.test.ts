@@ -56,7 +56,7 @@ describe('useSettingsStore', () => {
     expect(store.agentDrawerOpen).toBe(false)
     await store.toggleAgentDrawer()
     expect(store.agentDrawerOpen).toBe(true)
-    expect(client.saved.conversationDefaults.runtimeId).toBe('builtin.tea')
+    expect(client.saved.conversationDefaults.runtimeId).toBe('external.claude')
   })
 
   it('persists language and default runtime preferences', async () => {

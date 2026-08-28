@@ -9,7 +9,7 @@ import type { RuntimeDescriptor } from '@/features/conversation/contracts'
 import en from '@/locales/en'
 import AgentSessionIndex from './AgentSessionIndex.vue'
 
-const runtime: RuntimeDescriptor = { id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea', capabilities: ['prompt'], status: 'ready' }
+const runtime: RuntimeDescriptor = { id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code', capabilities: ['prompt'], status: 'ready' }
 const conversations = Array.from({ length: 10 }, (_, index) => ({
   conversationId: `conversation-${index}`,
   runtimeId: runtime.id,
@@ -40,8 +40,8 @@ describe('AgentSessionIndex', () => {
   it('shows a Runtime-specific first action when history is empty', async () => {
     const wrapper = mountIndex({ conversations: [] })
 
-    expect(wrapper.text()).toContain('New session with Tea')
-    await wrapper.findAll('button').find(button => button.text().includes('New session with Tea'))!.trigger('click')
+    expect(wrapper.text()).toContain('New session with Claude Code')
+    await wrapper.findAll('button').find(button => button.text().includes('New session with Claude Code'))!.trigger('click')
     expect(wrapper.emitted('create')).toHaveLength(1)
   })
 

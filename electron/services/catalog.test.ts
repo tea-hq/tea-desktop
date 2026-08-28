@@ -17,7 +17,7 @@ describe("ElectronCatalogService", () => {
       revision: 0,
       name: "Writer",
       description: "",
-      runtimeId: "builtin.tea",
+      runtimeId: "external.claude",
       prompt: "Write clearly",
       dependencies: [{
         kind: "pluginAction",

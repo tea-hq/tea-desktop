@@ -20,9 +20,9 @@ import type { ChannelSourceInput, MessageRef } from '@/types/channelCollaboratio
 import { mergeHistoryTurns, useConversationStore } from './store'
 
 const runtime: RuntimeDescriptor = {
-  id: 'builtin.tea',
-  kind: 'builtInTea',
-  displayName: 'Tea Agent',
+  id: 'external.claude',
+  kind: 'externalCli',
+  displayName: 'Claude Code',
   capabilities: ['prompt', 'cancel', 'events', 'snapshot', 'history'],
   status: 'ready',
 }
@@ -150,7 +150,7 @@ class FakeClient {
 function summaryFor(conversationId: string, updatedAt: number): ConversationSummary {
   return {
     conversationId,
-    runtimeId: 'builtin.tea',
+    runtimeId: 'external.claude',
     workspaceId: 'desktop-workspace',
     createdAt: updatedAt,
     updatedAt,
@@ -296,7 +296,7 @@ describe('useConversationStore', () => {
     const fake = new FakeClient()
     fake.setRuntimes([
       runtime,
-      { ...runtime, id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code' },
+      { ...runtime, id: 'external.codex', displayName: 'Codex' },
     ])
     fake.pages = [{ items: [summaryFor('saved', 1)], nextCursor: null, hasMore: false }]
     const store = useConversationStore()
@@ -305,15 +305,15 @@ describe('useConversationStore', () => {
     await store.initializeConversationList()
     await store.selectConversation('saved')
 
-    store.selectRuntime('external.claude')
+    store.selectRuntime('external.codex')
 
     expect(store.conversationId).toBe('saved')
-    expect(store.activeRuntimeId).toBe('builtin.tea')
+    expect(store.activeRuntimeId).toBe('external.claude')
     expect(store.canSelectRuntime).toBe(false)
 
     store.startNewConversation()
-    store.selectRuntime('external.claude')
-    expect(store.activeRuntimeId).toBe('external.claude')
+    store.selectRuntime('external.codex')
+    expect(store.activeRuntimeId).toBe('external.codex')
     expect(store.canSelectRuntime).toBe(true)
   })
 
@@ -347,73 +347,38 @@ describe('useConversationStore', () => {
     fake.setRuntimes([
       {
         ...runtime,
-        id: 'external.claude',
-        kind: 'externalCli',
-        displayName: 'Claude Code',
+        id: 'external.codex',
+        displayName: 'Codex',
       },
       runtime,
     ])
     const store = useConversationStore()
     store.configure(fake)
-    store.setDefaultRuntimeId('external.claude')
+    store.setDefaultRuntimeId('external.codex')
     await store.loadRuntimes()
-    expect(store.activeRuntimeId).toBe('external.claude')
+    expect(store.activeRuntimeId).toBe('external.codex')
 
-    store.selectRuntime('builtin.tea')
-    store.setDefaultRuntimeId('external.claude')
-    expect(store.activeRuntimeId).toBe('builtin.tea')
-    store.startNewConversation()
+    store.selectRuntime('external.claude')
+    store.setDefaultRuntimeId('external.codex')
     expect(store.activeRuntimeId).toBe('external.claude')
+    store.startNewConversation()
+    expect(store.activeRuntimeId).toBe('external.codex')
   })
 
   it('falls back to a ready runtime without changing the saved default', async () => {
     const fake = new FakeClient()
     fake.setRuntimes([
-      { ...runtime, id: 'external.claude', kind: 'externalCli', status: 'unavailable' },
+      { ...runtime, id: 'external.codex', status: 'unavailable' },
       runtime,
     ])
     const store = useConversationStore()
     store.configure(fake)
-    store.setDefaultRuntimeId('external.claude')
+    store.setDefaultRuntimeId('external.codex')
 
     await store.loadRuntimes()
 
-    expect(store.activeRuntimeId).toBe('builtin.tea')
-    expect(store.defaultRuntimeId).toBe('external.claude')
-  })
-
-  it('keeps an explicit Tea model when the provider catalog refreshes', async () => {
-    const centerModel = {
-      value: 'center.workshop:gpt-center',
-      providerId: 'center.workshop',
-      displayName: 'GPT Center',
-      source: 'center' as const,
-    }
-    const fake = new FakeClient()
-    fake.setRuntimes([{ ...runtime, models: [centerModel] }])
-    const store = useConversationStore()
-    store.configure(fake)
-    await store.loadRuntimes()
-    store.selectedModel = centerModel.value
-
-    fake.setRuntimes([{
-      ...runtime,
-      models: [{
-        value: 'local.openai:gpt-local',
-        providerId: 'local.openai',
-        displayName: 'GPT Local',
-        source: 'local',
-      }],
-    }])
-    store.setManagedModelOptions([])
-    await store.loadRuntimes()
-
-    expect(store.selectedModel).toBe(centerModel.value)
-    expect(store.modelOptions.at(-1)).toEqual({
-      value: centerModel.value,
-      label: centerModel.value,
-      unavailable: true,
-    })
+    expect(store.activeRuntimeId).toBe('external.claude')
+    expect(store.defaultRuntimeId).toBe('external.codex')
   })
 
   it('creates a conversation and sends a message', async () => {
@@ -422,7 +387,7 @@ describe('useConversationStore', () => {
     const store = useConversationStore()
     store.configure(fake)
     await store.loadRuntimes()
-    store.selectRuntime('builtin.tea')
+    store.selectRuntime('external.claude')
     await store.createConversation()
     expect(store.conversationId).not.toBeNull()
     expect(store.canSelectRuntime).toBe(false)
@@ -458,7 +423,7 @@ describe('useConversationStore', () => {
     const store = useConversationStore()
     store.configure(fake)
     await store.loadRuntimes()
-    store.selectRuntime('builtin.tea')
+    store.selectRuntime('external.claude')
     await store.createConversation()
     await store.sendMessage('Hi')
     const convId = store.conversationId!
@@ -493,7 +458,7 @@ describe('useConversationStore', () => {
     const store = useConversationStore()
     store.configure(fake)
     await store.loadRuntimes()
-    store.selectRuntime('builtin.tea')
+    store.selectRuntime('external.claude')
     await store.createConversation()
     await store.sendMessage('test')
     const convId = store.conversationId!
@@ -600,7 +565,7 @@ describe('useConversationStore', () => {
     const store = useConversationStore()
     store.configure(fake)
     await store.loadRuntimes()
-    store.selectRuntime('builtin.tea')
+    store.selectRuntime('external.claude')
     await store.createConversation()
     await store.sendMessage('test')
     await store.cancelConversation()

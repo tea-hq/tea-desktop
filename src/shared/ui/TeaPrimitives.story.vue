@@ -8,9 +8,9 @@ import TeaMessageBar from './TeaMessageBar.vue'
 import TeaSelect from './TeaSelect.vue'
 
 const name = ref('')
-const runtime = ref<string | null>('builtin.tea')
+const runtime = ref<string | null>('external.claude')
 const runtimes = [
-  { value: 'builtin.tea', label: 'Tea' },
+  { value: 'external.claude', label: 'Claude Code' },
   { value: 'external.codex', label: 'Codex CLI with an intentionally long provider label' },
 ]
 </script>

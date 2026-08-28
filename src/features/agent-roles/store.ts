@@ -30,7 +30,7 @@ export const useAgentRolesStore = defineStore('agentRoles', () => {
 
   async function create(): Promise<boolean> {
     const id = `local-role-${Date.now()}`
-    return save({ id, revision: 0, name: 'New role', description: '', runtimeId: 'builtin.tea', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', status: 'draft', capabilities: [], skills: [], plugins: [] })
+    return save({ id, revision: 0, name: 'New role', description: '', runtimeId: 'external.claude', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', status: 'draft', capabilities: [], skills: [], plugins: [] })
   }
 
   async function save(draft: AgentRoleDraft & { id: string }): Promise<boolean> {

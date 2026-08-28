@@ -6,7 +6,7 @@ import type { ConversationTurn, RuntimeDescriptor } from '../contracts'
 import AgentConversationSurface from './AgentConversationSurface.vue'
 
 const runtime: RuntimeDescriptor = {
-  id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea Agent',
+  id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code',
   capabilities: ['prompt', 'history', 'approval', 'cancel'], status: 'ready',
 }
 const text = ref('')
@@ -31,10 +31,10 @@ const approvalTurn: ConversationTurn = {
 <template>
   <Story title="Agent/Conversation surface" group="Agent">
     <Variant title="Full workspace empty">
-      <div class="h-[760px] w-[1100px]"><AgentConversationSurface v-model:text="text" v-model:attachments="attachments" :profile="fullAgentProfile" title="New conversation" runtime-label="Tea Agent" :turns="[]" :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="default" /></div>
+      <div class="h-[760px] w-[1100px]"><AgentConversationSurface v-model:text="text" v-model:attachments="attachments" :profile="fullAgentProfile" title="New conversation" runtime-label="Claude Code" :turns="[]" :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="default" /></div>
     </Variant>
     <Variant title="Full active history">
-      <div class="h-[760px] w-[1100px]"><AgentConversationSurface v-model:text="text" v-model:attachments="attachments" :profile="fullAgentProfile" title="Drawer architecture review" runtime-label="Tea Agent" :turns="[activeTurn]" :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="readOnly" /></div>
+      <div class="h-[760px] w-[1100px]"><AgentConversationSurface v-model:text="text" v-model:attachments="attachments" :profile="fullAgentProfile" title="Drawer architecture review" runtime-label="Claude Code" :turns="[activeTurn]" :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="readOnly" /></div>
     </Variant>
     <Variant title="Drawer streaming and approval">
       <div class="h-[720px] w-[480px]"><AgentConversationSurface v-model:text="text" v-model:attachments="attachments" :profile="drawerAgentProfile" title="Implementation" subtitle="Product team" back-label="Back" expand-label="Expand" :turns="[activeTurn, approvalTurn]" :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="default" streaming /></div>

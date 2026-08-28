@@ -19,7 +19,7 @@ export interface SettingsClient {
 export const DEFAULT_SETTINGS: AppSettings = {
   locale: 'system',
   conversationDefaults: {
-    runtimeId: 'builtin.tea',
+    runtimeId: 'external.claude',
   },
   layout: {
     leftSidebarOpen: true,

@@ -21,7 +21,7 @@ const { locale } = useI18n()
 locale.value = params.get('lang') === 'zh-CN' ? 'zh-CN' : 'en'
 
 const runtime: RuntimeDescriptor = {
-  id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea Agent',
+  id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code',
   capabilities: ['prompt', 'history', 'approval', 'cancel'], status: 'ready',
 }
 const binding = { transportId: 'fixture.im', accountRef: 'e2e-account', channelRef: 'product' }
@@ -135,7 +135,7 @@ function deliverDraft(): void {
     <template v-else>
       <ConversationSidebar :conversations="conversations" :active-id="conversations[0]?.conversationId ?? null" :runtimes="[runtime]" :loading="false" :loading-more="false" :error="null" :has-more="false" :filter="{ kind: 'all' }" />
       <main class="min-w-0 flex-1">
-        <AgentConversationSurface v-model:text="fullText" v-model:attachments="fullAttachments" :profile="fullAgentProfile" title="Agent drawer architecture" runtime-label="Tea Agent" :turns="turns" collaboration has-older :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="default" :roles="[{ id: 'reviewer', name: 'Reviewer', revision: 2, runtimeId: runtime.id }]" @send="send" @create-draft="draftDialogOpen = true" />
+        <AgentConversationSurface v-model:text="fullText" v-model:attachments="fullAttachments" :profile="fullAgentProfile" title="Agent drawer architecture" runtime-label="Claude Code" :turns="turns" collaboration has-older :runtimes="[runtime]" :runtime-id="runtime.id" :model-options="[{ value: 'default', label: 'Default model' }]" model="default" permission-mode="default" :roles="[{ id: 'reviewer', name: 'Reviewer', revision: 2, runtimeId: runtime.id }]" @send="send" @create-draft="draftDialogOpen = true" />
       </main>
     </template>
 

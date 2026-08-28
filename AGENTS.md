@@ -36,7 +36,6 @@ Vue views/components
   -> context-isolated preload IPC
   -> Electron main application service
   -> ConversationRuntime registry
-     -> BuiltInTeaRuntime
      -> ExternalCliRuntime
      -> AcpConversationRuntime (phase two)
 ```

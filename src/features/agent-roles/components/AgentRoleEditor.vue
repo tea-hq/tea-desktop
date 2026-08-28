@@ -9,8 +9,8 @@ import type { AgentRoleDraft, AgentRoleRecord, AgentRoleVisibility, CapabilityRe
 const props = defineProps<{ role?: AgentRoleRecord | null; saving?: boolean }>()
 const emit = defineEmits<{ save: [draft: AgentRoleDraft]; cancel: [] }>()
 const { t } = useI18n()
-const form = reactive<AgentRoleDraft>({ name: '', description: '', runtimeId: 'builtin.tea', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', audienceRefs: [], status: 'draft', capabilities: [], skills: [], plugins: [] })
-watch(() => props.role, role => { Object.assign(form, role ? { ...role, capabilities: [...(role.capabilities ?? [])] } : { name: '', description: '', runtimeId: 'builtin.tea', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', audienceRefs: [], status: 'draft', capabilities: [], skills: [], plugins: [] }) }, { immediate: true })
+const form = reactive<AgentRoleDraft>({ name: '', description: '', runtimeId: 'external.claude', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', audienceRefs: [], status: 'draft', capabilities: [], skills: [], plugins: [] })
+watch(() => props.role, role => { Object.assign(form, role ? { ...role, capabilities: [...(role.capabilities ?? [])] } : { name: '', description: '', runtimeId: 'external.claude', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', audienceRefs: [], status: 'draft', capabilities: [], skills: [], plugins: [] }) }, { immediate: true })
 const visibilityOptions = computed(() => [
   { value: 'private', label: t('management.agentRoles.visibility.private') },
   { value: 'tenant', label: t('management.agentRoles.visibility.tenant') },

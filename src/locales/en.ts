@@ -3,7 +3,7 @@ export default {
     name: 'Tea',
     newConversationTitle: 'What are we working on?',
     newConversationDescription:
-      'Tea Agent is selected by default. Choose another agent, model, or permission mode below.',
+      'An external Agent is selected by default. Choose an agent, model, or permission mode below.',
   },
   auth: {
     enterprise: {

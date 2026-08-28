@@ -59,10 +59,6 @@ export function useWorkspaceRuntime(
     if (collaboration.runtimes.some(runtime => runtime.id === runtimeId)) collaboration.selectedRuntimeId = runtimeId
   }, { immediate: true })
 
-  watch(() => managedRuntime.modelOptions, values => {
-    conversation.setManagedModelOptions(values)
-  }, { deep: true, immediate: true })
-
   watch(
     () => [managedRuntime.imReady, managedRuntime.state.generation] as const,
     ([ready]) => {

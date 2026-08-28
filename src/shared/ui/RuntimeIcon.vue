@@ -3,7 +3,6 @@ import { computed } from 'vue'
 
 import claudeCodeIcon from '../../assets/runtime-icons/claude-code.svg'
 import codexIcon from '../../assets/runtime-icons/codex.svg'
-import teaIcon from '../../assets/runtime-icons/tea.svg'
 
 const props = defineProps<{
   runtimeId: string
@@ -11,7 +10,6 @@ const props = defineProps<{
 }>()
 
 const icons: Record<string, string> = {
-  'builtin.tea': teaIcon,
   'external.claude': claudeCodeIcon,
   'external.codex': codexIcon,
 }

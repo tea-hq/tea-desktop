@@ -3,7 +3,6 @@ import type {
   ManagedWorkspaceState,
 } from "../../src/features/managed-runtime/contracts";
 import type { ElectronCenterAuthService } from "./centerAuth";
-import type { ElectronConversationService } from "./conversation";
 
 export interface ManagedImCredentials {
   appKey: string;
@@ -25,7 +24,6 @@ export class ElectronManagedWorkspaceService {
 
   constructor(
     private readonly auth: ElectronCenterAuthService,
-    private readonly conversations: ElectronConversationService,
     private readonly emitState: ManagedWorkspaceStateEmitter,
   ) {}
 
@@ -84,17 +82,6 @@ export class ElectronManagedWorkspaceService {
               token: configuration.im.token,
             }
           : null;
-      this.conversations.setManagedProviders(
-        configuration.modelProviders
-          .filter((value) => value.status === "ready")
-          .map((value) => ({
-            id: value.id,
-            displayName: value.displayName,
-            baseUrl: value.baseUrl,
-            apiKey: value.apiKey,
-            models: value.models,
-          })),
-      );
       this.setState({
         phase:
           this.imCredentials ||

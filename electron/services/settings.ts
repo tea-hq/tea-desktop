@@ -73,7 +73,7 @@ export class ElectronSettingsService {
 export function defaultSettings(): AppSettings {
   return {
     locale: "system",
-    conversationDefaults: { runtimeId: "builtin.tea" },
+    conversationDefaults: { runtimeId: "external.claude" },
     layout: { leftSidebarOpen: true, agentDrawerOpen: false },
   };
 }

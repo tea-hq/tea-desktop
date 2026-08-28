@@ -10,7 +10,7 @@ import AgentConversationHeader from './AgentConversationHeader.vue'
 import AgentConversationSurface from './AgentConversationSurface.vue'
 
 const runtime: RuntimeDescriptor = {
-  id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea',
+  id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code',
   capabilities: ['prompt', 'history'], status: 'ready',
 }
 
@@ -19,7 +19,7 @@ function mountSurface(profile = fullAgentProfile) {
     props: {
       profile,
       title: 'Session',
-      runtimeLabel: 'Tea',
+      runtimeLabel: 'Claude Code',
       turns: [],
       text: 'Review this',
       attachments: [],
@@ -34,7 +34,7 @@ function mountSurface(profile = fullAgentProfile) {
 
 describe('AgentConversationSurface', () => {
   it('uses the profile to control header runtime presentation', () => {
-    expect(mountSurface(fullAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel')).toBe('Tea')
+    expect(mountSurface(fullAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel')).toBe('Claude Code')
     expect(mountSurface(drawerAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel')).toBe('')
   })
 
@@ -42,7 +42,7 @@ describe('AgentConversationSurface', () => {
     const wrapper = mountSurface()
     const composer = wrapper.getComponent(AgentConversationComposer)
 
-    expect(composer.props()).toMatchObject({ text: 'Review this', runtimeId: 'builtin.tea' })
+    expect(composer.props()).toMatchObject({ text: 'Review this', runtimeId: 'external.claude' })
     composer.vm.$emit('update:text', 'Updated')
     composer.vm.$emit('send', { text: 'Updated', attachments: [] })
     await wrapper.vm.$nextTick()

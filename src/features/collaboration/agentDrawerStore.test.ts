@@ -14,7 +14,7 @@ describe('useAgentDrawerStore', () => {
   it('moves through index, preparing, creating, active, and back', () => {
     const store = useAgentDrawerStore()
     store.activateBinding(first)
-    store.prepare(first, 'builtin.tea')
+    store.prepare(first, 'external.claude')
     const key = store.beginCreation(first)!
     expect(store.completeCreation(first, key, 'conversation-1')).toBe(true)
     expect(store.ensureState(first).phase).toBe('active')
@@ -24,7 +24,7 @@ describe('useAgentDrawerStore', () => {
 
   it('restores independent draft and index navigation for each Channel', () => {
     const store = useAgentDrawerStore()
-    store.prepare(first, 'builtin.tea')
+    store.prepare(first, 'external.claude')
     store.updateDraft(first, { text: 'first draft' })
     store.setListMode(first, 'all')
     store.setQuery(first, 'older')
@@ -40,7 +40,7 @@ describe('useAgentDrawerStore', () => {
 
   it('rejects stale creation completion and deduplicates staged sources', () => {
     const store = useAgentDrawerStore()
-    store.prepare(first, 'builtin.tea')
+    store.prepare(first, 'external.claude')
     const key = store.beginCreation(first)!
     store.cancelDraft(first)
     expect(store.completeCreation(first, key, 'stale')).toBe(false)
@@ -56,7 +56,7 @@ describe('useAgentDrawerStore', () => {
 
   it('clears drafts only on explicit lifecycle intents', () => {
     const store = useAgentDrawerStore()
-    store.prepare(first, 'builtin.tea')
+    store.prepare(first, 'external.claude')
     store.updateDraft(first, { text: 'keep me' })
     store.activateBinding(second)
     expect(store.ensureState(first).draft.text).toBe('keep me')

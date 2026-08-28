@@ -4,7 +4,7 @@ test('moves from empty history to preparing and creates on first send', async ({
   await openFixture('drawer-empty')
 
   await expect(page.getByText('No Agent conversations for this channel yet.')).toBeVisible()
-  await page.getByRole('button', { name: 'New session with Tea Agent' }).click()
+  await page.getByRole('button', { name: 'New session with Claude Code' }).click()
   const composer = page.getByRole('textbox', { name: 'Ask anything, plan a change, or explore a codebase…' })
   await expect(composer).toBeFocused()
   await composer.fill('Create the implementation plan')

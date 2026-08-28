@@ -40,9 +40,9 @@ let quitting = false;
 
 function createWindow(): void {
   win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1024,
+    width: 1280,
+    height: 800,
+    minWidth: 880,
     minHeight: 640,
     show: false,
     webPreferences: {
@@ -445,7 +445,6 @@ app.whenReady().then(() => {
   );
   managedWorkspaceService = new ElectronManagedWorkspaceService(
     centerAuthService,
-    conversationService,
     (state) =>
       win?.webContents.send("tea:event:managed-workspace-state-changed", state),
   );

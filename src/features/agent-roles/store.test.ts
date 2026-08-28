@@ -41,7 +41,7 @@ describe('agent role store', () => {
       id: 'role.writer',
       name: 'Writer',
       description: '',
-      runtimeId: 'builtin.tea',
+      runtimeId: 'external.claude',
       systemPrompt: '',
       userPromptTemplate: '',
       visibility: 'private',

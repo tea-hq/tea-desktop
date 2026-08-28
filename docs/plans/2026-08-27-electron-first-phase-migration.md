@@ -11,9 +11,9 @@ introducing ACP during the migration phase.
 **Architecture:** Electron main owns platform services, persistence, process
 lifecycle, and typed IPC. The renderer keeps the existing Tea feature stores,
 reducers, Vue components, and product contracts, but accesses platform services
-only through a context-isolated preload API. Phase one preserves the existing
-built-in Tea runtime boundary and channel/management behavior; phase two adds
-the official ACP Client and Agent connections behind the same runtime port.
+only through a context-isolated preload API. Phase one preserves the external
+runtime boundary and channel/management behavior; phase two adds the official
+ACP Client and Agent connections behind the same runtime port.
 
 **Tech Stack:** Electron, Electron Builder, Vue 3, TypeScript, Pinia, PrimeVue,
 Tailwind CSS, Vue I18n, Yunxin Web SDK, Vitest, and Playwright.
@@ -46,9 +46,9 @@ runtime without changing Vue components.
 4. Port service ownership to Electron main: settings, catalog/recovery,
    credentials, plugins, skills, Agent Roles, center auth, managed workspace,
    and channel transport.
-5. Port the existing built-in Tea runtime and external legacy runtime behavior
-   behind the renderer-neutral `ConversationRuntime` boundary. Do not add ACP
-   during this phase.
+5. Port the existing external legacy runtime behavior behind the
+   renderer-neutral `ConversationRuntime` boundary. Do not add ACP during this
+   phase.
 6. Remove the target demo's direct `node-nim` calls and obsolete Ant Design
    screens after the migrated workflows are covered.
 7. Add the official ACP SDK and Agents only in phase two, using the runtime

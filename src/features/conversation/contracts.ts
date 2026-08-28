@@ -1,4 +1,4 @@
-export type RuntimeKind = 'builtInTea' | 'externalCli'
+export type RuntimeKind = 'externalCli'
 
 export type RuntimeCapability = 'approval' | 'cancel' | 'events' | 'history' | 'hostTools' | 'prompt' | 'snapshot' | 'subject'
 

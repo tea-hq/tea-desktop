@@ -3,7 +3,7 @@ import type { AgentDrawerChannelState } from '../agentDrawerContracts'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 import AgentDrawer from './AgentDrawer.vue'
 
-const runtime: RuntimeDescriptor = { id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea Agent', capabilities: ['prompt', 'history'], status: 'ready' }
+const runtime: RuntimeDescriptor = { id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code', capabilities: ['prompt', 'history'], status: 'ready' }
 const binding = { transportId: 'yunxin', accountRef: 'account-1', channelRef: 'product' }
 const emptyState: AgentDrawerChannelState = {
   binding, phase: 'index', listMode: 'recent', query: '', scrollOffset: 0, selectedConversationId: null,

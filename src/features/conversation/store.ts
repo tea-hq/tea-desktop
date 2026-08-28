@@ -24,9 +24,9 @@ import {
   setApprovalFailed,
   setApprovalResolving,
 } from './timelineReducer'
-import { teaModelOptions } from './modelOptions'
+import { runtimeModelOptions } from './modelOptions'
 
-const DEFAULT_RUNTIME_ID = 'builtin.tea'
+const DEFAULT_RUNTIME_ID = 'external.claude'
 const PAGE_LIMIT = 30
 const HISTORY_PAGE_LIMIT = 50
 
@@ -37,7 +37,6 @@ export const useConversationStore = defineStore('conversation', () => {
   const defaultRuntimeId = ref(DEFAULT_RUNTIME_ID)
   const activeRuntimeId = ref<string | null>(null)
   const selectedModel = ref('default')
-  const managedModelOptions = ref<ModelOption[]>([])
   const permissionMode = ref<PermissionMode>('default')
   const conversationId = ref<string | null>(null)
   const turns = ref<ConversationTurn[]>([])
@@ -81,24 +80,7 @@ export const useConversationStore = defineStore('conversation', () => {
     conversationId.value === null && !loading.value && !historyLoading.value,
   )
   const hasConversations = computed(() => conversations.value.length > 0)
-  const modelOptions = computed<ModelOption[]>(() => {
-    if (activeRuntimeId.value === 'external.claude') {
-      return [
-        { value: 'default', labelKey: 'composer.model.default' },
-        { value: 'sonnet', labelKey: 'composer.model.sonnet' },
-        { value: 'opus', labelKey: 'composer.model.opus' },
-        { value: 'haiku', labelKey: 'composer.model.haiku' },
-      ]
-    }
-    if (activeRuntimeId.value === 'builtin.tea') {
-      return teaModelOptions(activeRuntime.value, selectedModel.value, managedModelOptions.value)
-    }
-    return [{ value: 'default', labelKey: 'composer.model.configured' }]
-  })
-
-  function setManagedModelOptions(values: ModelOption[]): void {
-    managedModelOptions.value = values.map(value => ({ ...value }))
-  }
+  const modelOptions = computed<ModelOption[]>(() => runtimeModelOptions(activeRuntime.value))
 
   function localizedError(key: string): ConversationUiError {
     return { kind: 'localized', key }
@@ -416,7 +398,6 @@ export const useConversationStore = defineStore('conversation', () => {
     catalogFilter.value = { kind: 'all' }
     activeRuntimeId.value = null
     selectedModel.value = 'default'
-    managedModelOptions.value = []
     permissionMode.value = 'default'
     conversationId.value = null
     turns.value = []
@@ -544,7 +525,6 @@ export const useConversationStore = defineStore('conversation', () => {
     selectedModel,
     permissionMode,
     modelOptions,
-    setManagedModelOptions,
     conversationId,
     turns,
     loading,

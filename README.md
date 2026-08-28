@@ -1,7 +1,7 @@
 # Tea
 
-Tea is an Electron desktop application for working with built-in and external
-Agent runtimes through one conversation workspace.
+Tea is an Electron desktop application for working with external Agent
+runtimes through one conversation workspace.
 
 The current migration phase moves the Tea Desktop product surface into this
 Electron repository. The next phase will add official ACP support behind the
@@ -13,7 +13,7 @@ runtime boundary.
   cancellation, approvals, and recovery.
 - Yunxin channels with channel history, direct conversations, collaboration,
   drafts, and message delivery.
-- Built-in Tea Agent, Claude Code CLI, and Codex app-server runtimes.
+- External Claude Code CLI and Codex app-server runtimes.
 - Agent Roles, managed workspace state, directory, settings, skills, plugins,
   and credential management.
 - Context-isolated Electron preload with typed and allowlisted IPC.
@@ -65,7 +65,6 @@ Vue components
   -> context-isolated preload IPC
   -> Electron main service
   -> ConversationRuntime registry
-     -> built-in Tea runtime
      -> external Claude/Codex runtime
      -> official ACP runtime (phase two)
 ```

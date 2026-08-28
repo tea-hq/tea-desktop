@@ -10,7 +10,7 @@ import en from '@/locales/en'
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
 import AgentSessionDetail from './AgentSessionDetail.vue'
 
-const runtime: RuntimeDescriptor = { id: 'builtin.tea', kind: 'builtInTea', displayName: 'Tea', capabilities: ['prompt'], status: 'ready' }
+const runtime: RuntimeDescriptor = { id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code', capabilities: ['prompt'], status: 'ready' }
 
 function mountDetail() {
   return shallowMount(AgentSessionDetail, {

@@ -570,13 +570,6 @@ export function getDefaultConversationClient(): ConversationClient {
       const previewClient = new FakeConversationClient()
       previewClient.setRuntimes([
         {
-          id: 'builtin.tea',
-          kind: 'builtInTea',
-          displayName: 'Tea Agent',
-          capabilities: ['prompt', 'cancel', 'events', 'snapshot', 'history', 'approval', 'hostTools'],
-          status: 'ready',
-        },
-        {
           id: 'external.claude',
           kind: 'externalCli',
           displayName: 'Claude Code',

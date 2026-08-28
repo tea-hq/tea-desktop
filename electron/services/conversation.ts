@@ -27,7 +27,6 @@ import type {
   ListConversationsRequest,
   LoadConversationHistoryRequest,
   RuntimeDescriptor,
-  RuntimeModelDescriptor,
   SendMessageOptions,
 } from "../../src/features/conversation/contracts";
 import type {
@@ -58,14 +57,6 @@ const STANDARD_CAPABILITIES = [
   "hostTools",
 ] as const;
 
-interface ManagedProvider {
-  id: string;
-  displayName: string;
-  baseUrl: string;
-  apiKey: string;
-  models: Array<{ id: string; displayName: string }>;
-}
-
 interface StoredConversation {
   summary: ConversationSummary;
   nativeSessionId: string;
@@ -95,52 +86,6 @@ interface PendingHostToolCall {
   toolName: string;
   resolve: (result: HostToolResult) => void;
   timer: ReturnType<typeof setTimeout>;
-}
-
-interface OpenAiTextMessage {
-  role: "user" | "assistant";
-  content: string | null;
-  tool_calls?: OpenAiToolCall[];
-}
-
-interface OpenAiToolMessage {
-  role: "tool";
-  tool_call_id: string;
-  content: string;
-}
-
-type OpenAiMessage = OpenAiTextMessage | OpenAiToolMessage;
-
-interface OpenAiTool {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, ConversationJson>;
-  };
-}
-
-interface OpenAiToolCall {
-  id: string;
-  type: "function";
-  function: { name: string; arguments: string };
-}
-
-interface OpenAiStreamToolCall {
-  index: number;
-  id?: string;
-  name?: string;
-  arguments?: string;
-}
-
-interface OpenAiStreamDelta {
-  content?: string;
-  toolCalls: OpenAiStreamToolCall[];
-}
-
-interface OpenAiStreamResult {
-  text: string;
-  toolCalls: OpenAiToolCall[];
 }
 
 interface ClaudeHostToolScope {
@@ -374,7 +319,6 @@ export class ElectronConversationService {
   private readonly activeRuns = new Map<string, ActiveRun>();
   private readonly approvals = new Map<string, PendingApproval>();
   private readonly pendingHostToolCalls = new Map<string, PendingHostToolCall>();
-  private readonly managedProviders = new Map<string, ManagedProvider>();
   private codexServer: CodexAppServer | null = null;
   private codexServerPromise: Promise<CodexAppServer> | null = null;
   private readonly codexTurnIds = new Map<string, string>();
@@ -418,36 +362,7 @@ export class ElectronConversationService {
   }
 
   listRuntimes(): RuntimeDescriptor[] {
-    const models = [...this.managedProviders.values()].flatMap((provider) =>
-      provider.models.map<RuntimeModelDescriptor>((model) => ({
-        value: `${provider.id}/${model.id}`,
-        providerId: provider.id,
-        displayName: model.displayName,
-        source: "center",
-      })),
-    );
-    const localProvider = process.env["TEA_OPENAI_API_KEY"]
-      ? [
-          {
-            value: process.env["TEA_OPENAI_MODEL"] || "default",
-            providerId: "local.openai",
-            displayName: process.env["TEA_OPENAI_MODEL"] || "Default model",
-            source: "local" as const,
-          },
-        ]
-      : [];
     return [
-      {
-        id: "builtin.tea",
-        kind: "builtInTea",
-        displayName: "Tea Agent",
-        capabilities: [...STANDARD_CAPABILITIES],
-        status:
-          models.length > 0 || localProvider.length > 0
-            ? "ready"
-            : "unconfigured",
-        models: [...localProvider, ...models],
-      },
       {
         id: "external.claude",
         kind: "externalCli",
@@ -473,12 +388,6 @@ export class ElectronConversationService {
         models: [],
       },
     ];
-  }
-
-  setManagedProviders(providers: ManagedProvider[]): void {
-    this.managedProviders.clear();
-    for (const provider of providers)
-      this.managedProviders.set(provider.id, structuredClone(provider));
   }
 
   private async ensureCodexServer(): Promise<CodexAppServer> {
@@ -1260,15 +1169,7 @@ export class ElectronConversationService {
             conversation.collaboration.turnContexts.at(-1)?.sources ?? [],
           )
         : prompt;
-      if (conversation.summary.runtimeId === "builtin.tea")
-        await this.runOpenAi(
-          conversation,
-          turn,
-          runtimeText,
-          options.model,
-          active,
-        );
-      else if (conversation.summary.runtimeId === "external.claude")
+      if (conversation.summary.runtimeId === "external.claude")
         await this.runClaude(conversation, turn, runtimeText, options, active);
       else if (conversation.summary.runtimeId === "external.codex")
         await this.runCodex(conversation, turn, runtimeText, options, active);
@@ -1294,195 +1195,6 @@ export class ElectronConversationService {
       this.activeRuns.delete(conversationId);
       await this.persist();
     }
-  }
-
-  private async runOpenAi(
-    conversation: StoredConversation,
-    turn: ConversationTurn,
-    text: string,
-    requestedModel: string,
-    active: ActiveRun,
-  ): Promise<void> {
-    const provider = this.resolveProvider(requestedModel);
-    if (!provider)
-      throw serviceError(
-        "runtimeUnavailable",
-        true,
-        "Tea Agent has no configured model provider",
-      );
-    const model =
-      (requestedModel && requestedModel !== "default"
-        ? requestedModel.split("/").at(-1)
-        : provider.models[0]?.id || process.env["TEA_OPENAI_MODEL"]) ||
-      "default";
-    const endpoint = `${provider.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-    const messages: OpenAiMessage[] = [
-      ...this.messagesFor(conversation, text),
-    ];
-    const tools = conversation.hostTools.map(toOpenAiTool);
-    for (let round = 0; round < 8; round += 1) {
-      const result = await this.requestOpenAi(
-        endpoint,
-        provider,
-        model,
-        messages,
-        tools,
-        active,
-        conversation,
-        turn,
-      );
-      if (result.toolCalls.length === 0) return;
-      const assistantToolCalls: OpenAiToolCall[] = [];
-      const toolMessages: OpenAiToolMessage[] = [];
-      for (const call of result.toolCalls) {
-        const toolCallId = call.id || randomUUID();
-        const toolName = call.function.name;
-        const toolArguments = call.function.arguments;
-        const parsed = parseToolArguments(toolArguments);
-        const argumentsValue = parsed ?? {};
-        this.appendToolRequested(
-          conversation,
-          turn,
-          toolCallId,
-          toolName,
-          argumentsValue,
-        );
-        const definition = conversation.hostTools.find(
-          (tool) => tool.name === toolName,
-        );
-        const hostResult = parsed
-          ? definition
-            ? await this.requestHostTool(
-                {
-                  conversationId: conversation.summary.conversationId,
-                  callId: toolCallId,
-                  name: toolName,
-                  arguments: parsed,
-                },
-                active,
-              )
-            : {
-                conversationId: conversation.summary.conversationId,
-                callId: toolCallId,
-                status: "failure" as const,
-                code: "unavailable" as const,
-                message: "Tool is unavailable",
-              }
-          : {
-              conversationId: conversation.summary.conversationId,
-              callId: toolCallId,
-              status: "failure" as const,
-              code: "invalidRequest" as const,
-              message: "Tool arguments are not a JSON object",
-            };
-        const content =
-          hostResult.status === "success"
-            ? JSON.stringify(hostResult.output)
-            : JSON.stringify({
-                error: hostResult.code,
-                message: hostResult.message,
-              });
-        toolMessages.push({
-          role: "tool",
-          tool_call_id: toolCallId,
-          content,
-        });
-        assistantToolCalls.push({
-          id: toolCallId,
-          type: "function",
-          function: { name: toolName, arguments: toolArguments },
-        });
-        this.appendToolCompleted(
-          conversation,
-          turn,
-          toolCallId,
-          hostResult.status === "success" ? "completed" : "failed",
-          hostResult.status === "failure" ? hostResult.message : undefined,
-        );
-      }
-      messages.push({
-        role: "assistant",
-        content: result.text || null,
-        tool_calls: assistantToolCalls,
-      });
-      messages.push(...toolMessages);
-    }
-    throw serviceError("contextOverflow", false, "tool call limit exceeded");
-  }
-
-  private async requestOpenAi(
-    endpoint: string,
-    provider: ManagedProvider,
-    model: string,
-    messages: OpenAiMessage[],
-    tools: OpenAiTool[],
-    active: ActiveRun,
-    conversation: StoredConversation,
-    turn: ConversationTurn,
-  ): Promise<OpenAiStreamResult> {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${provider.apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        stream: true,
-        messages,
-        ...(tools.length > 0 ? { tools } : {}),
-      }),
-      signal: active.abort.signal,
-    });
-    if (!response.ok)
-      throw serviceError(
-        response.status === 401 ? "authentication" : "transport",
-        response.status >= 500,
-        `Tea provider returned HTTP ${response.status}`,
-      );
-    if (!response.body)
-      throw serviceError(
-        "transport",
-        true,
-        "Tea provider returned no response body",
-      );
-    turn.status = "running";
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    const toolCalls = new Map<number, OpenAiToolCall>();
-    let text = "";
-    for (;;) {
-      const result = await reader.read();
-      buffer += decoder.decode(result.value ?? new Uint8Array(), {
-        stream: !result.done,
-      });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const value = line.trim().replace(/^data:\s*/, "");
-        if (!value || value === "[DONE]") continue;
-        const delta = extractOpenAiStreamDelta(value);
-        if (!delta) continue;
-        if (delta.content) {
-          text += delta.content;
-          this.appendDelta(conversation, turn, delta.content);
-        }
-        for (const tool of delta.toolCalls) {
-          const current = toolCalls.get(tool.index) ?? {
-            id: "",
-            type: "function" as const,
-            function: { name: "", arguments: "" },
-          };
-          current.id ||= tool.id || "";
-          current.function.name += tool.name || "";
-          current.function.arguments += tool.arguments || "";
-          toolCalls.set(tool.index, current);
-        }
-      }
-      if (result.done) break;
-    }
-    return { text, toolCalls: [...toolCalls.values()] };
   }
 
   private async requestHostTool(
@@ -2034,47 +1746,6 @@ export class ElectronConversationService {
     void this.persist();
   }
 
-  private resolveProvider(requestedModel: string): ManagedProvider | null {
-    if (requestedModel && requestedModel !== "default") {
-      const providerId = requestedModel.includes("/")
-        ? requestedModel.split("/")[0]
-        : undefined;
-      if (providerId) return this.managedProviders.get(providerId) ?? null;
-    }
-    const managed = this.managedProviders.values().next().value as
-      ManagedProvider | undefined;
-    if (managed) return managed;
-    const apiKey = process.env["TEA_OPENAI_API_KEY"];
-    if (!apiKey) return null;
-    return {
-      id: "local.openai",
-      displayName: "OpenAI-compatible",
-      baseUrl:
-        process.env["TEA_OPENAI_BASE_URL"] || "https://api.openai.com/v1",
-      apiKey,
-      models: [],
-    };
-  }
-
-  private messagesFor(
-    conversation: StoredConversation,
-    current: string,
-  ): Array<{ role: "user" | "assistant"; content: string }> {
-    const previous = conversation.turns.flatMap((turn) => {
-      const assistant = turn.blocks
-        .filter((block) => block.kind === "assistantText")
-        .map((block) => block.text)
-        .join("");
-      return [
-        { role: "user" as const, content: turn.user.text },
-        ...(assistant
-          ? [{ role: "assistant" as const, content: assistant }]
-          : []),
-      ];
-    });
-    return [...previous.slice(-20), { role: "user", content: current }];
-  }
-
   private applyVisibleText(
     conversation: StoredConversation,
     turn: ConversationTurn,
@@ -2228,55 +1899,6 @@ function resolveExecutable(value: string): string | undefined {
   return result.status === 0
     ? result.stdout.split(/\r?\n/).find(Boolean)
     : undefined;
-}
-
-function toOpenAiTool(definition: HostToolDefinition): OpenAiTool {
-  return {
-    type: "function",
-    function: {
-      name: definition.name,
-      description: definition.description,
-      parameters: structuredClone(definition.inputSchema),
-    },
-  };
-}
-
-function extractOpenAiStreamDelta(line: string): OpenAiStreamDelta | undefined {
-  const value = parseJson(line);
-  if (!value || !Array.isArray(value.choices)) return undefined;
-  const first = value.choices[0];
-  if (!isRecord(first) || !isRecord(first.delta)) return undefined;
-  const toolCalls = Array.isArray(first.delta.tool_calls)
-    ? first.delta.tool_calls.flatMap((value, index) => {
-        if (!isRecord(value)) return [];
-        const fn = isRecord(value.function) ? value.function : undefined;
-        return [
-          {
-            index:
-              typeof value.index === "number" && Number.isInteger(value.index)
-                ? value.index
-                : index,
-            id: typeof value.id === "string" ? value.id : undefined,
-            name: typeof fn?.name === "string" ? fn.name : undefined,
-            arguments:
-              typeof fn?.arguments === "string" ? fn.arguments : undefined,
-          },
-        ];
-      })
-    : [];
-  return {
-    content: typeof first.delta.content === "string" ? first.delta.content : undefined,
-    toolCalls,
-  };
-}
-
-function parseToolArguments(value: string): Record<string, ConversationJson> | null {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return isRecord(parsed) ? (parsed as Record<string, ConversationJson>) : null;
-  } catch {
-    return null;
-  }
 }
 
 function readJsonRpcId(value: unknown): string | number | undefined {
