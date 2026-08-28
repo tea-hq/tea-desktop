@@ -36,7 +36,6 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
     try {
       const stop = await configured.onStateChanged(value => {
         if (configured !== client.value || eventsBlocked) return
-        operationGeneration += 1
         applyState(value)
       })
       if (subscriptionOperation !== operationGeneration || configured !== client.value) {

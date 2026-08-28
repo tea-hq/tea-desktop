@@ -53,6 +53,30 @@ describe('center auth store', () => {
     expect(store.state.phase).toBe('browserPending')
   })
 
+  it('continues login when enterprise discovery emits authoritative state', async () => {
+    const client = new FakeCenterAuthClient()
+    client.resolveEnterprise = async (domain) => {
+      client.resolveCalls += 1
+      client.listener?.({ ...structuredClone(SIGNED_OUT_STATE), phase: 'resolving' })
+      const enterprise = {
+        organizationDomain: domain.toLowerCase(),
+        displayName: 'Example',
+        loginAvailable: true,
+      }
+      client.listener?.({ ...structuredClone(SIGNED_OUT_STATE), enterprise })
+      return enterprise
+    }
+    const store = useCenterAuthStore()
+    store.configure(client)
+    await store.initialize()
+    store.domain = 'Example.Test'
+
+    await store.login()
+
+    expect(client.startedDomain).toBe('example.test')
+    expect(store.state.phase).toBe('browserPending')
+  })
+
   it('fills an empty domain from packaged initialization configuration', async () => {
     const client = new FakeCenterAuthClient()
     client.defaultEnterpriseDomain = 'example.test'
