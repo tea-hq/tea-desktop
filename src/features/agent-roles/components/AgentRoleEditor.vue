@@ -190,7 +190,8 @@ function submit() {
         >{{ t('management.agentRoles.cancel') }}</TeaButton
       ><TeaButton
         type="submit"
-        class="rounded-control bg-inverse px-4 py-2 text-sm font-medium text-canvas hover:bg-accent-pressed disabled:cursor-not-allowed disabled:bg-muted"
+        appearance="primary"
+        class="px-4 text-sm"
         :disabled="props.saving"
         :aria-busy="props.saving"
         >{{ props.saving ? t('management.saving') : t('management.agentRoles.save') }}</TeaButton

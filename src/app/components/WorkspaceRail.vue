@@ -47,7 +47,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
 
 <template>
   <nav
-    class="hidden h-full w-14 shrink-0 flex-col items-center border-r border-line bg-canvas py-2 text-dim sm:flex"
+    class="hidden h-full w-14 shrink-0 flex-col items-center border-r border-line bg-canvas py-3 text-dim sm:flex"
   >
     <TeaIconButton
       data-testid="workspace-profile"

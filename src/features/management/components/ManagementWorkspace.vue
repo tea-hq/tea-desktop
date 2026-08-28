@@ -40,7 +40,7 @@ onMounted(() => {
           }}<span class="text-disabled">/</span><span class="text-fg">{{ sectionTitle }}</span>
         </div>
         <TeaButton
-          class="inline-flex size-8 items-center justify-center rounded-control text-subtle hover:bg-hover hover:text-fg"
+          class="inline-flex size-8 items-center justify-center rounded-full text-subtle hover:bg-hover hover:text-fg"
           :title="t('management.close')"
           @click="$emit('close')"
           ><span class="i-mdi-close size-4" aria-hidden="true"

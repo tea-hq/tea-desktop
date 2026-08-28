@@ -9,7 +9,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-4">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-5">
     <div class="px-2">
       <p class="text-xs font-medium text-subtle">
         {{ t('management.eyebrow') }}

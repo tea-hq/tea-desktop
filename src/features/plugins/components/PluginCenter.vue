@@ -16,15 +16,14 @@ onMounted(() => void store.initialize())
         <p class="text-sm font-medium text-subtle">
           {{ t('management.plugins.kicker') }}
         </p>
-        <h2 class="mt-1 text-2xl font-semibold tracking-normal text-fg">
+        <h2 class="mt-1 text-2xl font-semibold text-fg">
           {{ t('management.plugins.title') }}
         </h2>
         <p class="mt-2 max-w-xl text-base text-dim">
           {{ t('management.plugins.description') }}
         </p>
       </div>
-      <TeaButton
-        class="inline-flex items-center gap-2 bg-inverse px-3 py-2 text-sm font-medium text-canvas hover:bg-accent-pressed"
+      <TeaButton appearance="primary" class="inline-flex items-center gap-2 px-3 text-sm"
         ><span class="i-mdi-import size-4" aria-hidden="true" />{{
           t('management.plugins.install')
         }}</TeaButton
@@ -36,7 +35,7 @@ onMounted(() => void store.initialize())
       </div>
       <div
         v-else-if="store.plugins.length === 0"
-        class="flex min-h-64 items-center justify-center bg-surface text-center"
+        class="flex min-h-64 items-center justify-center rounded-card bg-muted text-center"
       >
         <div>
           <span
@@ -52,7 +51,7 @@ onMounted(() => void store.initialize())
         </div>
       </div>
       <div v-else class="grid gap-3 md:grid-cols-2">
-        <article v-for="plugin in store.plugins" :key="plugin.id" class="bg-surface p-4">
+        <article v-for="plugin in store.plugins" :key="plugin.id" class="rounded-card bg-muted p-6">
           <div class="flex items-start justify-between gap-4">
             <div class="flex min-w-0 gap-3">
               <span class="flex size-9 shrink-0 items-center justify-center bg-canvas text-dim"

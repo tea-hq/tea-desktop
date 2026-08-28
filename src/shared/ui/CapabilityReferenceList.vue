@@ -7,13 +7,13 @@ const { t } = useI18n()
 </script>
 <template>
   <div class="space-y-2">
-    <div v-if="items.length === 0" class="rounded-control bg-surface px-3 py-4 text-xs text-subtle">
+    <div v-if="items.length === 0" class="rounded-card bg-muted px-3 py-4 text-xs text-subtle">
       {{ t('management.agentRoles.capability.empty') }}
     </div>
     <div
       v-for="(item, index) in items"
       :key="`${item.kind}-${item.id}-${index}`"
-      class="flex items-center gap-3 rounded-control bg-surface px-3 py-2.5"
+      class="flex items-center gap-3 rounded-card bg-muted px-3 py-2.5"
     >
       <span
         class="size-2 rounded-full"
@@ -31,7 +31,7 @@ const { t } = useI18n()
       >
       <button
         type="button"
-        class="inline-flex size-7 items-center justify-center rounded-control text-dim hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        class="inline-flex size-7 items-center justify-center rounded-full text-dim hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
         :title="t('management.agentRoles.capability.remove')"
         @click="emit('remove', index)"
       >

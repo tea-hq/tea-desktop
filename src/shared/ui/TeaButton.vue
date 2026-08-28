@@ -25,11 +25,11 @@ withDefaults(
     :disabled="disabled || loading"
     :aria-busy="loading || undefined"
     :class="[
-      'tea-button inline-flex items-center justify-center gap-2 rounded-control border px-5 text-sm font-medium leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed motion-reduce:transition-none',
-      size === 'small' ? 'min-h-8 px-3' : size === 'primary' ? 'min-h-10' : 'min-h-9',
+      'tea-button inline-flex items-center justify-center gap-2 rounded-control border px-5 text-sm font-semibold leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed motion-reduce:transition-none',
+      size === 'small' ? 'min-h-8 px-3' : 'min-h-10',
       fluid && 'w-full',
       appearance === 'primary' &&
-        'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed disabled:border-line disabled:bg-panel disabled:text-disabled',
+        'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed disabled:border-surface-strong disabled:bg-surface-strong disabled:text-subtle',
       appearance === 'secondary' &&
         'border-line-strong bg-canvas text-fg hover:bg-panel active:bg-muted disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'danger' &&

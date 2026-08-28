@@ -57,7 +57,7 @@ function handleScroll(event: Event): void {
         <span class="i-mdi-plus size-4" aria-hidden="true" />
         {{ t('sidebar.newConversation') }}
       </TeaButton>
-      <div class="mt-1.5 grid grid-cols-3 gap-1 rounded-control bg-panel p-1">
+      <div class="mt-1.5 grid grid-cols-3 gap-1 rounded-pill bg-panel p-1">
         <TeaButton
           v-for="kind in ['all', 'local', 'channel'] as const"
           :key="kind"

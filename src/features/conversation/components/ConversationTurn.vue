@@ -34,13 +34,13 @@ function showWaitingIndicator(): boolean {
   <article class="w-full bg-canvas animate-fade-slide" :data-turn-id="turn.id">
     <div class="flex justify-end">
       <div
-        class="max-w-[88%] rounded-control bg-panel px-4 py-2.5 text-base leading-6 text-fg sm:max-w-[82%]"
+        class="max-w-[88%] rounded-card bg-panel px-4 py-2.5 text-base leading-6 text-fg sm:max-w-[82%]"
       >
         <div v-if="turn.user.attachments.length" class="mb-2 flex flex-wrap justify-end gap-1.5">
           <span
             v-for="attachment in turn.user.attachments"
             :key="attachment"
-            class="rounded-control bg-canvas px-2.5 py-1 text-sm text-dim"
+            class="rounded-pill bg-canvas px-2.5 py-1 text-sm text-dim"
           >
             {{ attachment }}
           </span>

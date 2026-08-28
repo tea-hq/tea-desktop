@@ -42,7 +42,7 @@ function selectValue(event: Event): void {
     :placeholder="placeholder"
     :disabled="disabled"
     :class="[
-      'w-full rounded-control border border-line bg-canvas px-4 text-fg outline-none transition-colors focus:border-fg focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:bg-panel disabled:text-disabled motion-reduce:transition-none',
+      'w-full rounded-control border border-line bg-canvas px-3.5 text-fg outline-none transition-colors focus:border-fg focus:ring-2 focus:ring-focus disabled:cursor-not-allowed disabled:bg-panel disabled:text-disabled motion-reduce:transition-none',
       size === 'small' ? 'min-h-9 text-sm' : 'min-h-10 text-base',
       invalid ? 'border-danger focus:border-danger focus:ring-danger/20' : '',
     ]"

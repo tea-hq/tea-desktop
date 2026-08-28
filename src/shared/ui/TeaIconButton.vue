@@ -25,7 +25,7 @@ withDefaults(
     :title="tooltip || label"
     :disabled="disabled"
     :class="[
-      'tea-icon-button inline-flex shrink-0 items-center justify-center rounded-control border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none',
+      'tea-icon-button inline-flex shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none',
       size === 'small' ? 'size-8' : 'size-9',
       appearance === 'primary' &&
         'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed',

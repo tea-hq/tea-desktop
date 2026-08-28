@@ -40,7 +40,7 @@ const isResolving = computed(() => props.request.status === 'resolving')
           <code
             v-for="resource in request.resources"
             :key="resource"
-            class="block w-fit max-w-full overflow-x-auto rounded-control bg-panel px-3 py-1.5 text-sm leading-4 text-dim"
+            class="block w-fit max-w-full overflow-x-auto rounded-pill bg-panel px-3 py-1.5 text-sm leading-4 text-dim"
             >{{ resource }}</code
           >
         </div>

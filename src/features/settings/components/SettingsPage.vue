@@ -46,7 +46,7 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
 
       <div
         v-if="error"
-        class="mt-6 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger"
+        class="mt-6 rounded-card bg-danger-subtle px-4 py-3 text-sm leading-5 text-danger"
         role="status"
       >
         {{ t(error) }}
@@ -62,7 +62,7 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
               {{ t('settings.language.description') }}
             </p>
           </div>
-          <div class="grid grid-cols-3 gap-1 rounded-control bg-panel p-1" role="group">
+          <div class="grid grid-cols-3 gap-1 rounded-pill bg-panel p-1" role="group">
             <TeaButton
               v-for="option in localeOptions"
               :key="option.value"
@@ -70,7 +70,7 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
               class="min-w-0 px-2"
               :class="
                 localePreference === option.value
-                  ? 'bg-inverse text-canvas'
+                  ? 'bg-canvas text-fg'
                   : 'text-dim hover:bg-pressed'
               "
               :aria-pressed="localePreference === option.value"

@@ -20,7 +20,7 @@ const { t } = useI18n()
         </div>
         <button
           type="button"
-          class="inline-flex size-8 items-center justify-center rounded-control text-dim hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          class="inline-flex size-8 items-center justify-center rounded-full text-dim hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           :title="t('management.agentRoles.closeEditor')"
           @click="emit('close')"
         >

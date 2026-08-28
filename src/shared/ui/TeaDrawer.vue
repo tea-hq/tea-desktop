@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
           <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ title }}</h2>
           <button
             type="button"
-            class="inline-flex size-8 shrink-0 items-center justify-center rounded-control text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus motion-reduce:transition-none"
+            class="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus motion-reduce:transition-none"
             :aria-label="closeLabel"
             :title="closeLabel"
             @click="emit('close')"

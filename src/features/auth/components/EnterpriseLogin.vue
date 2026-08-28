@@ -31,7 +31,7 @@ const { t } = useI18n()
         <p class="text-sm font-semibold uppercase text-subtle">
           {{ t('auth.enterprise.eyebrow') }}
         </p>
-        <h1 class="mt-3 text-4xl font-medium leading-tight text-fg">
+        <h1 class="mt-3 text-4xl font-semibold leading-tight text-fg">
           {{ t('auth.enterprise.title') }}
         </h1>
         <p class="mt-4 max-w-md text-base leading-6 text-dim">

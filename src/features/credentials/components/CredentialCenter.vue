@@ -45,7 +45,7 @@ async function clear(): Promise<void> {
         <p class="text-sm font-medium text-subtle">
           {{ t('management.credentials.kicker') }}
         </p>
-        <h2 class="mt-1 text-2xl font-semibold tracking-normal text-fg">
+        <h2 class="mt-1 text-2xl font-semibold text-fg">
           {{ t('management.credentials.title') }}
         </h2>
         <p class="mt-2 max-w-xl text-base text-dim">
@@ -63,7 +63,7 @@ async function clear(): Promise<void> {
         </div>
         <div
           v-else-if="store.records.length === 0"
-          class="flex min-h-56 items-center justify-center bg-surface text-center"
+          class="flex min-h-56 items-center justify-center rounded-card bg-muted text-center"
         >
           <div>
             <span class="i-mdi-key-off-outline mx-auto size-8 text-disabled" aria-hidden="true" />
@@ -79,7 +79,7 @@ async function clear(): Promise<void> {
           <TeaButton
             v-for="record in store.records"
             :key="`${record.pluginId}:${record.connectionId}`"
-            class="flex w-full items-center justify-between bg-surface px-4 py-3 text-left transition-colors hover:bg-hover"
+            class="flex w-full items-center justify-between rounded-card bg-muted px-4 py-3 text-left transition-colors hover:bg-hover"
             @click="selected = `${record.pluginId}:${record.connectionId}`"
           >
             <span class="min-w-0"
@@ -104,7 +104,7 @@ async function clear(): Promise<void> {
           </TeaButton>
         </div>
       </div>
-      <form class="bg-surface p-5" @submit.prevent="save">
+      <form class="rounded-card bg-muted p-6" @submit.prevent="save">
         <p class="text-base font-semibold text-fg">
           {{ t('management.credentials.addTitle') }}
         </p>
@@ -131,8 +131,9 @@ async function clear(): Promise<void> {
           autocomplete="new-password"
         />
         <TeaButton
+          appearance="primary"
           :disabled="!canSave || store.saving"
-          class="mt-5 flex w-full items-center justify-center gap-2 bg-inverse px-3 py-2.5 text-base font-medium text-canvas transition-colors hover:bg-accent-pressed disabled:cursor-not-allowed disabled:bg-muted"
+          class="mt-5 flex w-full items-center justify-center gap-2 px-3 text-sm"
           ><span class="i-mdi-content-save-outline size-4" aria-hidden="true" />{{
             store.saving ? t('management.saving') : t('management.credentials.save')
           }}</TeaButton

@@ -5,15 +5,15 @@ import { teaDesignTokens } from './teaTokens'
 describe('Tea design tokens', () => {
   it('keeps the spacing, control, and radius scales explicit', () => {
     expect(teaDesignTokens.spacing).toEqual({
-      base: '0.5rem',
-      xxs: '0.125rem',
-      xs: '0.25rem',
-      sm: '0.5rem',
-      md: '0.75rem',
-      lg: '1rem',
-      xl: '1.5rem',
-      xxl: '2rem',
-      section: '5.5rem',
+      base: '0.25rem',
+      xxs: '0.25rem',
+      xs: '0.5rem',
+      sm: '0.75rem',
+      md: '1rem',
+      lg: '1.5rem',
+      xl: '2rem',
+      xxl: '3rem',
+      section: '6rem',
       1: '0.25rem',
       2: '0.5rem',
       3: '0.75rem',
@@ -30,16 +30,17 @@ describe('Tea design tokens', () => {
       menu: '8px',
       inline: '6px',
       card: '12px',
-      control: '9999px',
+      control: '8px',
+      pill: '9999px',
       overlay: '12px',
     })
   })
 
   it('defines the semantic color and overlay contract', () => {
     expect(teaDesignTokens.colors).toMatchObject({
-      accent: '#000000',
+      accent: '#111111',
       canvas: '#ffffff',
-      panel: '#fafafa',
+      panel: '#f8f9fa',
       focus: 'rgb(59 130 246 / 50%)',
     })
     expect(teaDesignTokens.elevation).toEqual({ overlay: 'none' })

@@ -51,7 +51,7 @@ const { t } = useI18n()
       </p>
     </div>
     <div v-else class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-8">
-      <div class="flex size-10 items-center justify-center rounded-control bg-panel text-dim">
+      <div class="flex size-10 items-center justify-center rounded-card bg-muted text-dim">
         <span class="i-mdi-message-lock-outline size-5" aria-hidden="true" />
       </div>
       <h2 class="mt-4 text-xl font-semibold text-fg">

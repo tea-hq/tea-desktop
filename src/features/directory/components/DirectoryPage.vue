@@ -33,7 +33,7 @@ function messageSelectedUser(): void {
         <p class="text-sm font-medium text-subtle">
           {{ t('directory.eyebrow') }}
         </p>
-        <h1 class="mt-1 text-4xl font-medium text-fg">{{ t('directory.title') }}</h1>
+        <h1 class="mt-1 text-4xl font-semibold text-fg">{{ t('directory.title') }}</h1>
       </div>
       <span class="text-base text-dim">{{ users.length }} {{ t('directory.people') }}</span>
     </header>
@@ -87,7 +87,7 @@ function messageSelectedUser(): void {
       <li
         v-for="user in users"
         :key="user.center.userId"
-        class="flex min-w-0 items-center gap-3 bg-canvas px-8 py-4"
+        class="flex min-w-0 items-center gap-3 bg-muted px-8 py-4"
       >
         <TeaButton
           appearance="ghost"

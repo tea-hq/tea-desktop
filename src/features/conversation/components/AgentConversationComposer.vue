@@ -196,14 +196,11 @@ defineExpose({ focus })
   border: 1px solid var(--tea-line);
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
-  padding: 0.75rem;
-  transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+  padding: 1rem;
+  transition: border-color 150ms ease;
 }
 .composer-shell:focus-within {
   border-color: var(--tea-fg);
-  box-shadow: 0 0 0 2px var(--tea-focus);
 }
 .composer-shell :deep(textarea) {
   min-height: 4.5rem;
@@ -222,9 +219,9 @@ defineExpose({ focus })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-radius: var(--tea-radius-control);
-  background: var(--tea-panel);
-  padding: 0.25rem 0.5rem;
+  border-radius: var(--tea-radius-pill);
+  background: var(--tea-muted);
+  padding: 0.25rem 0.75rem;
   color: var(--tea-dim);
   font-size: 0.75rem;
 }

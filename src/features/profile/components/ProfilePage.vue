@@ -89,7 +89,7 @@ function displayValue(value: string | undefined): string {
         </div>
         <div class="flex shrink-0 items-center gap-1">
           <TeaButton
-            class="inline-flex size-8 items-center justify-center rounded-control text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
+            class="inline-flex size-8 items-center justify-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
             :title="t('profile.refresh')"
             :aria-label="t('profile.refresh')"
             :disabled="phase === 'loading'"
@@ -103,7 +103,7 @@ function displayValue(value: string | undefined): string {
           </TeaButton>
           <TeaButton
             data-testid="profile-close"
-            class="inline-flex size-8 items-center justify-center rounded-control text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            class="inline-flex size-8 items-center justify-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             :title="t('profile.close')"
             :aria-label="t('profile.close')"
             @click="emit('close')"
@@ -114,7 +114,7 @@ function displayValue(value: string | undefined): string {
       </header>
 
       <section
-        class="mt-8 flex flex-col gap-5 bg-surface px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+        class="mt-8 flex flex-col gap-5 rounded-card bg-muted px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
       >
         <div class="flex min-w-0 items-center gap-4">
           <div
@@ -179,7 +179,7 @@ function displayValue(value: string | undefined): string {
               {{ t('profile.sources.authenticated') }}
             </span>
           </header>
-          <dl class="mt-4 bg-surface px-5 py-1">
+          <dl class="mt-4 rounded-card bg-muted px-5 py-1">
             <div class="py-4">
               <dt class="text-sm font-medium text-subtle">
                 {{ t('profile.fields.displayName') }}
@@ -274,7 +274,7 @@ function displayValue(value: string | undefined): string {
           <div
             v-if="phase === 'loading' || phase === 'idle'"
             data-testid="profile-loading"
-            class="mt-4 flex min-h-[356px] items-center justify-center bg-surface px-8 text-center"
+            class="mt-4 flex min-h-[356px] items-center justify-center rounded-card bg-muted px-8 text-center"
           >
             <div>
               <span
@@ -289,7 +289,7 @@ function displayValue(value: string | undefined): string {
           </div>
           <div
             v-else-if="phase === 'unsupported' || phase === 'unavailable'"
-            class="mt-4 flex min-h-[356px] items-center justify-center bg-surface px-8 text-center"
+            class="mt-4 flex min-h-[356px] items-center justify-center rounded-card bg-muted px-8 text-center"
           >
             <div class="max-w-xs">
               <span
@@ -304,7 +304,8 @@ function displayValue(value: string | undefined): string {
               </p>
               <TeaButton
                 data-testid="profile-retry"
-                class="mt-5 inline-flex h-8 items-center gap-1.5 rounded-control bg-inverse px-3 text-sm font-semibold text-canvas transition-colors hover:bg-accent-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                appearance="primary"
+                class="mt-5 inline-flex items-center gap-1.5 px-3 text-sm"
                 @click="emit('retry')"
               >
                 <span class="i-mdi-refresh size-3.5" aria-hidden="true" />
@@ -312,7 +313,7 @@ function displayValue(value: string | undefined): string {
               </TeaButton>
             </div>
           </div>
-          <dl v-else-if="channelProfile" class="mt-4 bg-surface px-5 py-1">
+          <dl v-else-if="channelProfile" class="mt-4 rounded-card bg-muted px-5 py-1">
             <div class="py-4">
               <dt class="text-sm font-medium text-subtle">
                 {{ t('profile.fields.imAccount') }}
@@ -366,7 +367,7 @@ function displayValue(value: string | undefined): string {
             {{ t('profile.comparison.title') }}
           </h2>
         </header>
-        <div class="mt-4 bg-surface px-4 py-2 sm:px-5">
+        <div class="mt-4 rounded-card bg-muted px-4 py-2 sm:px-5">
           <div
             v-for="comparison in comparisons"
             :key="comparison.field"

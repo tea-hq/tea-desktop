@@ -37,7 +37,7 @@ async function save(draft: AgentRoleDraft) {
         <p class="text-sm font-medium text-subtle">
           {{ t('management.agentRoles.kicker') }}
         </p>
-        <h2 class="mt-1 text-2xl font-semibold tracking-normal text-fg">
+        <h2 class="mt-1 text-2xl font-semibold text-fg">
           {{ t('management.agentRoles.title') }}
         </h2>
         <p class="mt-2 max-w-xl text-base text-dim">
@@ -49,7 +49,8 @@ async function save(draft: AgentRoleDraft) {
       </div>
       <TeaButton
         type="button"
-        class="inline-flex items-center gap-2 rounded-control bg-inverse px-3 py-2 text-sm font-medium text-canvas hover:bg-accent-pressed"
+        appearance="primary"
+        class="inline-flex items-center gap-2 px-3 text-sm"
         @click="openCreate"
         ><span class="i-mdi-plus size-4" aria-hidden="true" />{{
           t('management.agentRoles.create')
@@ -65,7 +66,7 @@ async function save(draft: AgentRoleDraft) {
       </div>
       <div
         v-else-if="sortedRoles.length === 0"
-        class="flex min-h-64 items-center justify-center bg-surface text-center"
+        class="flex min-h-64 items-center justify-center rounded-card bg-muted text-center"
       >
         <div>
           <span class="i-mdi-account-cog-outline mx-auto size-9 text-disabled" aria-hidden="true" />
@@ -81,7 +82,7 @@ async function save(draft: AgentRoleDraft) {
         <article
           v-for="(role, index) in sortedRoles"
           :key="role.id"
-          class="animate-fade-slide group bg-surface p-4 transition-colors hover:bg-hover"
+          class="animate-fade-slide group rounded-card bg-muted p-6 transition-colors hover:bg-hover"
           :style="{ animationDelay: `${index * 40}ms` }"
         >
           <div class="flex items-start justify-between gap-3">
@@ -121,7 +122,7 @@ async function save(draft: AgentRoleDraft) {
       @close="editorOpen = false"
       ><div
         v-if="store.error"
-        class="mb-5 rounded-control bg-danger-subtle px-3 py-2 text-sm leading-5 text-danger"
+        class="mb-5 rounded-card bg-danger-subtle px-3 py-2 text-sm leading-5 text-danger"
         role="alert"
       >
         {{ t(store.error) }}

@@ -96,7 +96,7 @@ function toggleMenu(): void {
           </p>
 
           <div
-            class="relative z-20 flex shrink-0 rounded-control bg-canvas p-0.5 opacity-0 ring-2 ring-focus ring-offset-2 ring-offset-canvas transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            class="relative z-20 flex shrink-0 rounded-pill bg-canvas p-0.5 opacity-0 ring-2 ring-focus ring-offset-2 ring-offset-canvas transition-opacity group-hover:opacity-100 focus-within:opacity-100"
           >
             <span ref="menuAnchor">
               <TeaIconButton
@@ -130,7 +130,7 @@ function toggleMenu(): void {
             :key="reaction.type"
             appearance="ghost"
             size="small"
-            class="inline-flex h-6 items-center gap-1 rounded-control px-1.5 text-sm transition-colors"
+            class="inline-flex h-6 items-center gap-1 rounded-pill px-1.5 text-sm transition-colors"
             :class="reaction.active ? 'bg-hover text-fg' : 'bg-panel text-dim hover:bg-pressed'"
           >
             <span>#{{ reaction.type }}</span>
