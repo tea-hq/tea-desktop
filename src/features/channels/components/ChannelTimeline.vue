@@ -115,7 +115,7 @@ watch(
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-16 shrink-0 items-center justify-between border-b border-line px-4 sm:px-6"
+      class="flex h-14 shrink-0 items-center justify-between border-b border-line px-4 sm:px-5"
     >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -149,7 +149,7 @@ watch(
       </div>
     </header>
 
-    <div ref="container" class="channel-scroll-area flex-1 overflow-y-auto py-3">
+    <div ref="container" class="channel-scroll-area flex-1 overflow-y-auto py-2">
       <div
         v-if="loading && messages.length === 0"
         class="flex h-full items-center justify-center text-subtle"
@@ -160,14 +160,14 @@ watch(
         v-else-if="messages.length === 0"
         class="flex h-full flex-col items-center justify-center px-8 text-center"
       >
-        <span class="i-mdi-message-outline size-7 text-disabled" aria-hidden="true" />
-        <p class="mt-3 text-base font-medium text-subtle">
+        <span class="i-mdi-message-outline size-6 text-disabled" aria-hidden="true" />
+        <p class="mt-2 text-sm font-medium text-subtle">
           {{ t('channels.empty.title') }}
         </p>
-        <p class="mt-1 text-sm text-disabled">{{ t('channels.empty.description') }}</p>
+        <p class="mt-1 text-xs text-disabled">{{ t('channels.empty.description') }}</p>
       </div>
       <div v-else class="mx-auto w-full max-w-4xl">
-        <div v-if="hasMore" class="flex justify-center pb-3">
+        <div v-if="hasMore" class="flex justify-center pb-2">
           <TeaButton
             appearance="ghost"
             size="small"
@@ -177,7 +177,7 @@ watch(
             {{ loading ? t('channels.history.loading') : t('channels.history.loadMore') }}
           </TeaButton>
         </div>
-        <div class="mb-4 flex items-center gap-3 px-6">
+        <div class="mb-2 flex items-center gap-3 px-5">
           <span class="h-px flex-1 bg-panel" />
           <span class="text-xs text-subtle">{{ t('channels.today') }}</span>
           <span class="h-px flex-1 bg-panel" />
@@ -197,7 +197,7 @@ watch(
       </div>
     </div>
 
-    <div class="shrink-0 border-t border-line bg-canvas px-3 py-3 sm:px-4 sm:pb-4">
+    <div class="shrink-0 border-t border-line bg-canvas px-3 py-2.5 sm:px-4">
       <div class="mx-auto flex w-full max-w-4xl items-end gap-2">
         <TeaIconButton size="small" :label="t('channels.composer.add')" icon="i-mdi-plus" />
         <TeaTextarea

@@ -47,11 +47,11 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
 
 <template>
   <nav
-    class="hidden h-full w-16 shrink-0 flex-col items-center border-r border-line bg-canvas py-3 text-dim sm:flex"
+    class="hidden h-full w-14 shrink-0 flex-col items-center border-r border-line bg-canvas py-2 text-dim sm:flex"
   >
     <TeaIconButton
       data-testid="workspace-profile"
-      class="mb-5 overflow-hidden"
+      class="mb-4 overflow-hidden"
       :class="
         activeMode === 'profile'
           ? 'ring-2 ring-fg ring-offset-2 ring-offset-canvas'
@@ -77,14 +77,14 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       </span>
     </TeaIconButton>
 
-    <div class="flex flex-1 flex-col gap-1.5">
+    <div class="flex flex-1 flex-col gap-1">
       <TeaIconButton
         v-for="entry in entries"
         :key="entry.mode"
         class="relative"
         :class="
           activeMode === entry.mode
-            ? 'bg-panel text-fg before:absolute before:-left-3 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
+            ? 'bg-panel text-fg before:absolute before:-left-2.5 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
             : 'hover:bg-hover hover:text-fg'
         "
         :label="t(entry.key)"
@@ -101,7 +101,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
     </div>
 
     <TeaIconButton
-      class="mb-1.5 disabled:cursor-wait disabled:opacity-50"
+      class="mb-1 disabled:cursor-wait disabled:opacity-50"
       :label="t('workspace.logout')"
       :disabled="logoutPending"
       @click="emit('logout')"
@@ -117,7 +117,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       class="relative"
       :class="
         activeMode === 'settings'
-          ? 'bg-panel text-fg before:absolute before:-left-3 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
+          ? 'bg-panel text-fg before:absolute before:-left-2.5 before:h-4 before:w-0.5 before:rounded-full before:bg-fg'
           : 'hover:bg-hover hover:text-fg'
       "
       :label="t('workspace.settings')"

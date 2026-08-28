@@ -9,22 +9,22 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-5">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-line bg-canvas px-3 py-4">
     <div class="px-2">
       <p class="text-xs font-medium text-subtle">
         {{ t('management.eyebrow') }}
       </p>
-      <h1 class="mt-2 text-xl font-semibold tracking-normal text-fg">
+      <h1 class="mt-1.5 text-lg font-semibold tracking-normal text-fg">
         {{ t('management.title') }}
       </h1>
       <p class="mt-2 text-sm leading-5 text-dim">{{ t('management.description') }}</p>
     </div>
-    <nav class="mt-7 space-y-1" :aria-label="t('management.navigationLabel')">
+    <nav class="mt-5 space-y-1" :aria-label="t('management.navigationLabel')">
       <TeaButton
         v-for="section in MANAGEMENT_SECTIONS"
         :key="section.id"
         appearance="ghost"
-        class="group flex w-full items-start justify-start gap-3 px-3 py-2.5 text-left"
+        class="management-nav-row group flex w-full items-start justify-start gap-2.5 px-2.5 py-2 text-left"
         :class="
           activeSection === section.id
             ? 'bg-panel text-fg'
@@ -49,8 +49,14 @@ const { t } = useI18n()
         </span>
       </TeaButton>
     </nav>
-    <div class="mt-auto px-2 pt-8 text-sm leading-4 text-subtle">
+    <div class="mt-auto px-2 pt-6 text-sm leading-4 text-subtle">
       {{ t('management.localOnly') }}
     </div>
   </aside>
 </template>
+
+<style scoped>
+.management-nav-row {
+  border-radius: var(--tea-radius-inline);
+}
+</style>

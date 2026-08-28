@@ -45,17 +45,17 @@ function toggleMenu(): void {
 
 <template>
   <article
-    class="group relative flex px-6 py-2.5"
+    class="group relative flex px-5 py-1.5"
     :class="message.sentByCurrentUser ? 'justify-end' : 'justify-start'"
     :data-message-id="message.ref.messageClientId"
     :data-message-direction="message.sentByCurrentUser ? 'outgoing' : 'incoming'"
   >
     <div
-      class="flex max-w-[min(84%,44rem)] items-start gap-2.5"
+      class="flex max-w-[min(84%,44rem)] items-start gap-2"
       :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
     >
       <div
-        class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+        class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
         :class="message.sentByCurrentUser ? 'bg-hover text-fg' : 'bg-muted text-dim'"
       >
         {{ initials(message.sender.name) }}
@@ -83,14 +83,14 @@ function toggleMenu(): void {
         >
           <div
             v-if="message.state === 'active'"
-            class="min-w-0 rounded-card px-3.5 py-2.5"
+            class="min-w-0 rounded-card px-3 py-2"
             :class="message.sentByCurrentUser ? 'bg-panel' : 'bg-canvas'"
           >
             <MarkdownContent :source="message.text" compact tone="default" />
           </div>
           <p
             v-else
-            class="min-w-0 rounded-card bg-panel px-3.5 py-2.5 text-base italic leading-5 text-subtle"
+            class="min-w-0 rounded-card bg-panel px-3 py-2 text-sm italic leading-5 text-subtle"
           >
             {{ t('channels.message.revoked') }}
           </p>

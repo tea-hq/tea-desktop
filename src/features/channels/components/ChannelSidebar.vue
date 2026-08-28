@@ -32,9 +32,9 @@ function formatTime(value: number): string {
 </script>
 
 <template>
-  <aside class="hidden h-full w-[320px] shrink-0 flex-col border-r border-line bg-canvas sm:flex">
-    <div class="px-4 pb-2 pt-3.5">
-      <div class="flex h-8 items-center justify-between">
+  <aside class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line bg-canvas sm:flex">
+    <div class="px-4 pb-1.5 pt-3">
+      <div class="flex h-7 items-center justify-between">
         <div class="flex min-w-0 items-center gap-2">
           <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
           <span
@@ -59,7 +59,7 @@ function formatTime(value: number): string {
       </div>
       <TeaInput
         v-model="query"
-        class="mt-2.5"
+        class="mt-2"
         type="search"
         size="small"
         :label="t('channels.search')"
@@ -67,8 +67,8 @@ function formatTime(value: number): string {
       />
     </div>
 
-    <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2.5 pb-3">
-      <div class="flex items-center justify-between px-2 pb-1.5 pt-3">
+    <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2 pb-2">
+      <div class="flex items-center justify-between px-2 pb-1 pt-2.5">
         <p class="text-xs font-medium text-subtle">
           {{ t('channels.recent') }}
         </p>
@@ -79,7 +79,7 @@ function formatTime(value: number): string {
         :key="channel.ref"
         appearance="ghost"
         size="small"
-        class="group mb-0.5 grid min-h-14 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center justify-start gap-2.5 px-2.5 py-2 text-left"
+        class="channel-row group mb-px grid min-h-12 w-full animate-fade-slide grid-cols-[2rem_minmax(0,1fr)] items-center justify-start gap-2 px-2 py-1.5 text-left"
         :class="channel.ref === activeRef ? 'bg-panel' : 'hover:bg-hover'"
         :style="{ animationDelay: `${index * 35}ms` }"
         @click="emit('select', channel.ref)"
@@ -92,7 +92,7 @@ function formatTime(value: number): string {
         <span class="min-w-0 flex-1">
           <span class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2">
             <span
-              class="truncate text-base text-fg"
+              class="truncate text-sm leading-5 text-fg"
               :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
               >{{ channel.name }}</span
             >
@@ -100,9 +100,9 @@ function formatTime(value: number): string {
               formatTime(channel.updatedAt)
             }}</span>
           </span>
-          <span class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          <span class="mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
             <span
-              class="truncate text-sm"
+              class="truncate text-xs leading-4"
               :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
               >{{ channel.lastMessagePreview || channel.description }}</span
             >
@@ -116,7 +116,7 @@ function formatTime(value: number): string {
         </span>
       </TeaButton>
 
-      <p v-if="filteredChannels.length === 0" class="px-3 py-8 text-center text-sm text-subtle">
+      <p v-if="filteredChannels.length === 0" class="px-3 py-6 text-center text-sm text-subtle">
         {{ t('channels.noResults') }}
       </p>
     </div>
@@ -127,6 +127,10 @@ function formatTime(value: number): string {
 .channel-list-scroll-area {
   scrollbar-color: rgb(156 163 175 / 12%) transparent;
   scrollbar-width: thin;
+}
+
+.channel-row {
+  border-radius: var(--tea-radius-inline);
 }
 
 .channel-list-scroll-area::-webkit-scrollbar {
