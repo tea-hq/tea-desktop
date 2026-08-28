@@ -10,8 +10,11 @@ import AgentConversationHeader from './AgentConversationHeader.vue'
 import AgentConversationSurface from './AgentConversationSurface.vue'
 
 const runtime: RuntimeDescriptor = {
-  id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code',
-  capabilities: ['prompt', 'history'], status: 'ready',
+  id: 'external.claude',
+  kind: 'externalCli',
+  displayName: 'Claude Code',
+  capabilities: ['prompt', 'history'],
+  status: 'ready',
 }
 
 function mountSurface(profile = fullAgentProfile) {
@@ -34,8 +37,12 @@ function mountSurface(profile = fullAgentProfile) {
 
 describe('AgentConversationSurface', () => {
   it('uses the profile to control header runtime presentation', () => {
-    expect(mountSurface(fullAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel')).toBe('Claude Code')
-    expect(mountSurface(drawerAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel')).toBe('')
+    expect(
+      mountSurface(fullAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel'),
+    ).toBe('Claude Code')
+    expect(
+      mountSurface(drawerAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel'),
+    ).toBe('')
   })
 
   it('forwards composer state and intents without owning them', async () => {

@@ -14,8 +14,13 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
   let refreshGeneration = 0
   let eventsBlocked = false
 
-  const canEnterWorkspace = computed(() => state.value.phase === 'authenticated' || state.value.phase === 'offlineCached')
-  const pending = computed(() => refreshing.value || ['resolving', 'browserPending', 'exchanging'].includes(state.value.phase))
+  const canEnterWorkspace = computed(
+    () => state.value.phase === 'authenticated' || state.value.phase === 'offlineCached',
+  )
+  const pending = computed(
+    () =>
+      refreshing.value || ['resolving', 'browserPending', 'exchanging'].includes(state.value.phase),
+  )
 
   function configure(value: CenterAuthClient): void {
     operationGeneration += 1
@@ -34,7 +39,7 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
     unsubscribe?.()
     unsubscribe = null
     try {
-      const stop = await configured.onStateChanged(value => {
+      const stop = await configured.onStateChanged((value) => {
         if (configured !== client.value || eventsBlocked) return
         applyState(value)
       })
@@ -133,7 +138,11 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
 
   function applyError(error: unknown): void {
     const code = getErrorCode(error)
-    state.value = { ...state.value, phase: code === 'recoveryRequired' ? 'recoveryRequired' : 'signedOut', errorCode: code }
+    state.value = {
+      ...state.value,
+      phase: code === 'recoveryRequired' ? 'recoveryRequired' : 'signedOut',
+      errorCode: code,
+    }
   }
 
   function applyRefreshError(error: unknown): void {
@@ -164,10 +173,23 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
     client.value = null
   }
 
-  return { state, domain, canEnterWorkspace, pending, configure, initialize, login, cancelLogin, refresh, logout, dispose }
+  return {
+    state,
+    domain,
+    canEnterWorkspace,
+    pending,
+    configure,
+    initialize,
+    login,
+    cancelLogin,
+    refresh,
+    logout,
+    dispose,
+  }
 })
 
 function getErrorCode(error: unknown): string {
   return typeof error === 'object' && error && 'code' in error && typeof error.code === 'string'
-    ? error.code : 'protocolFailure'
+    ? error.code
+    : 'protocolFailure'
 }

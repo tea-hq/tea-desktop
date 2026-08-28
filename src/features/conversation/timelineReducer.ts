@@ -206,7 +206,7 @@ export function setApprovalResolving(
   approvalId: string,
   decision: ApprovalDecision,
 ): ConversationTurn {
-  return updateApproval(turn, approvalId, approval => ({
+  return updateApproval(turn, approvalId, (approval) => ({
     ...approval,
     status: 'resolving',
     decision,
@@ -219,7 +219,7 @@ export function setApprovalFailed(
   approvalId: string,
   error: string,
 ): ConversationTurn {
-  return updateApproval(turn, approvalId, approval => ({
+  return updateApproval(turn, approvalId, (approval) => ({
     ...approval,
     status: 'failed',
     error,
@@ -231,14 +231,14 @@ export function completeApproval(
   approvalId: string,
   decision: ApprovalDecision,
 ): ConversationTurn {
-  const blocks = turn.blocks.map(block => {
+  const blocks = turn.blocks.map((block) => {
     if (block.kind !== 'toolCall' || block.approval?.id !== approvalId) return block
     return {
       ...block,
       status:
         decision === 'allowOnce' || decision === 'allowSession'
-          ? 'running' as const
-          : 'cancelled' as const,
+          ? ('running' as const)
+          : ('cancelled' as const),
       approval: undefined,
     }
   })
@@ -281,7 +281,7 @@ function updateApproval(
 ): ConversationTurn {
   return {
     ...turn,
-    blocks: turn.blocks.map(block =>
+    blocks: turn.blocks.map((block) =>
       block.kind === 'toolCall' && block.approval?.id === approvalId
         ? { ...block, approval: update(block.approval) }
         : block,
@@ -300,14 +300,12 @@ function replaceBlock(
   id: string,
   replacement: ConversationTurnBlock,
 ): ConversationTurnBlock[] {
-  return blocks.map(block => block.id === id ? replacement : block)
+  return blocks.map((block) => (block.id === id ? replacement : block))
 }
 
 function closeStreamingText(blocks: ConversationTurnBlock[]): ConversationTurnBlock[] {
-  return blocks.map(block =>
-    block.kind === 'assistantText' && block.streaming
-      ? { ...block, streaming: false }
-      : block,
+  return blocks.map((block) =>
+    block.kind === 'assistantText' && block.streaming ? { ...block, streaming: false } : block,
   )
 }
 
@@ -315,18 +313,19 @@ function closeTurnBlocks(
   blocks: ConversationTurnBlock[],
   terminal: 'completed' | 'failed' | 'cancelled',
 ): ConversationTurnBlock[] {
-  return closeStreamingText(blocks).map(block => {
+  return closeStreamingText(blocks).map((block) => {
     if (block.kind !== 'toolCall') return block
     if (!['requested', 'running', 'approvalRequired'].includes(block.status)) {
       return { ...block, approval: undefined }
     }
     return {
       ...block,
-      status: terminal === 'completed'
-        ? block.status === 'approvalRequired'
-          ? 'cancelled' as const
-          : 'completed' as const
-        : terminal,
+      status:
+        terminal === 'completed'
+          ? block.status === 'approvalRequired'
+            ? ('cancelled' as const)
+            : ('completed' as const)
+          : terminal,
       approval: undefined,
     }
   })

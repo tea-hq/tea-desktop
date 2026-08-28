@@ -6,7 +6,8 @@ import tsParser from '@typescript-eslint/parser'
 
 const projectRoot = path.resolve(import.meta.dirname, '..')
 const productRoots = ['src/app', 'src/features', 'src/App.vue']
-const visualClass = /^(?:bg|border|decoration|divide|font|from|outline|ring|rounded|shadow|text|to|tracking|via)-(?!clip$|ellipsis$|left$|right$|center$|justify$|wrap$|nowrap$)/
+const visualClass =
+  /^(?:bg|border|decoration|divide|font|from|outline|ring|rounded|shadow|text|to|tracking|via)-(?!clip$|ellipsis$|left$|right$|center$|justify$|wrap$|nowrap$)/
 
 export function inspectUiSource(filename, source) {
   const relativeName = filename.split(path.sep).join('/')
@@ -22,10 +23,12 @@ export function inspectUiSource(filename, source) {
     for (const statement of parsed.ast.body ?? []) {
       if (statement.type !== 'ImportDeclaration') continue
       const value = statement.source.value
-      if (typeof value === 'string'
-        && (value.startsWith('primevue/')
-          || value === '@primeuix/themes'
-          || value.startsWith('@primeuix/themes/'))) {
+      if (
+        typeof value === 'string' &&
+        (value.startsWith('primevue/') ||
+          value === '@primeuix/themes' ||
+          value.startsWith('@primeuix/themes/'))
+      ) {
         violations.push(violation('library-import', value, statement.loc?.start.line))
       }
     }
@@ -33,7 +36,7 @@ export function inspectUiSource(filename, source) {
 
   if (!sharedUi && parsed.services?.getDocumentFragment) {
     const fragment = parsed.services.getDocumentFragment()
-    walkTemplate(fragment, node => {
+    walkTemplate(fragment, (node) => {
       if (node.type === 'VElement') inspectElement(node, violations)
     })
   }
@@ -53,11 +56,13 @@ function inspectElement(element, violations) {
     if (attribute.type === 'VAttribute' && !attribute.directive && attribute.key.name === 'class') {
       inspectClassValue(attribute.value?.value ?? '', attribute.loc?.start.line, violations)
     }
-    if (attribute.type === 'VAttribute'
-      && attribute.directive
-      && attribute.key.name.name === 'bind'
-      && attribute.key.argument?.type === 'VIdentifier'
-      && attribute.key.argument.name === 'class') {
+    if (
+      attribute.type === 'VAttribute' &&
+      attribute.directive &&
+      attribute.key.name.name === 'bind' &&
+      attribute.key.argument?.type === 'VIdentifier' &&
+      attribute.key.argument.name === 'class'
+    ) {
       for (const value of expressionStrings(attribute.value?.expression)) {
         inspectClassValue(value, attribute.loc?.start.line, violations)
       }
@@ -66,9 +71,9 @@ function inspectElement(element, violations) {
 }
 
 function inputType(element) {
-  const attribute = element.startTag.attributes.find(value => value.type === 'VAttribute'
-    && !value.directive
-    && value.key.name === 'type')
+  const attribute = element.startTag.attributes.find(
+    (value) => value.type === 'VAttribute' && !value.directive && value.key.name === 'type',
+  )
   return attribute?.value?.value ?? 'text'
 }
 
@@ -83,13 +88,16 @@ function inspectClassValue(value, line, violations) {
 
 function expressionStrings(node) {
   if (!node || typeof node !== 'object') return []
-  if ((node.type === 'Literal' || node.type === 'StringLiteral') && typeof node.value === 'string') {
+  if (
+    (node.type === 'Literal' || node.type === 'StringLiteral') &&
+    typeof node.value === 'string'
+  ) {
     return [node.value]
   }
   const values = []
   for (const [key, child] of Object.entries(node)) {
     if (key === 'parent' || key === 'loc' || key === 'range') continue
-    if (Array.isArray(child)) child.forEach(value => values.push(...expressionStrings(value)))
+    if (Array.isArray(child)) child.forEach((value) => values.push(...expressionStrings(value)))
     else if (child && typeof child === 'object') values.push(...expressionStrings(child))
   }
   return values
@@ -99,8 +107,15 @@ function walkTemplate(node, visit) {
   if (!node || typeof node !== 'object') return
   visit(node)
   for (const [key, child] of Object.entries(node)) {
-    if (key === 'parent' || key === 'loc' || key === 'range' || key === 'tokens' || key === 'comments') continue
-    if (Array.isArray(child)) child.forEach(value => walkTemplate(value, visit))
+    if (
+      key === 'parent' ||
+      key === 'loc' ||
+      key === 'range' ||
+      key === 'tokens' ||
+      key === 'comments'
+    )
+      continue
+    if (Array.isArray(child)) child.forEach((value) => walkTemplate(value, visit))
     else if (child && typeof child === 'object') walkTemplate(child, visit)
   }
 }
@@ -116,7 +131,8 @@ function sourceFiles(target) {
   for (const entry of readdirSync(absolute)) {
     const child = path.join(absolute, entry)
     if (statSync(child).isDirectory()) files.push(...sourceFiles(path.relative(projectRoot, child)))
-    else if (/\.(?:ts|vue)$/.test(entry) && !/\.(?:test|story)\.vue?$/.test(entry)) files.push(child)
+    else if (/\.(?:ts|vue)$/.test(entry) && !/\.(?:test|story)\.vue?$/.test(entry))
+      files.push(child)
   }
   return files
 }
@@ -132,11 +148,13 @@ function run() {
   }
 
   if (results.length) {
-    const counts = Object.groupBy(results, item => item.kind)
+    const counts = Object.groupBy(results, (item) => item.kind)
     console.log(`UI migration inventory: ${results.length} violations`)
     for (const [kind, items] of Object.entries(counts)) console.log(`  ${kind}: ${items.length}`)
     if (enforce) {
-      results.forEach(item => console.error(`${item.filename}:${item.line} ${item.kind} ${item.value}`))
+      results.forEach((item) =>
+        console.error(`${item.filename}:${item.line} ${item.kind} ${item.value}`),
+      )
       process.exitCode = 1
     }
   } else {

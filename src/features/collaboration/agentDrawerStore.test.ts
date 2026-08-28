@@ -32,7 +32,11 @@ describe('useAgentDrawerStore', () => {
     store.prepare(second, 'external.codex')
     store.updateDraft(second, { text: 'second draft' })
 
-    expect(store.ensureState(first)).toMatchObject({ listMode: 'all', query: 'older', scrollOffset: 120 })
+    expect(store.ensureState(first)).toMatchObject({
+      listMode: 'all',
+      query: 'older',
+      scrollOffset: 120,
+    })
     expect(store.ensureState(first).draft.text).toBe('first draft')
     expect(store.ensureState(second).draft.text).toBe('second draft')
     expect(store.states.has(serializeChannelBinding(first))).toBe(true)
@@ -47,7 +51,12 @@ describe('useAgentDrawerStore', () => {
 
     const source: ChannelSourceInput = {
       messageRef: { channelRef: 'first', messageClientId: 'message-1' },
-      senderName: 'Lin', sentAt: 1, sentByCurrentUser: false, text: 'Source', capturedAt: 2, state: 'active',
+      senderName: 'Lin',
+      sentAt: 1,
+      sentByCurrentUser: false,
+      text: 'Source',
+      capturedAt: 2,
+      state: 'active',
     }
     store.stageSource(first, source)
     store.stageSource(first, source)

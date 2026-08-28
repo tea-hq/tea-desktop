@@ -1,5 +1,6 @@
 export type RuntimeResourceStatus = 'ready' | 'disabled' | 'unavailable'
-export type ManagedWorkspacePhase = 'inactive' | 'preparing' | 'ready' | 'degraded' | 'offline' | 'failed'
+export type ManagedWorkspacePhase =
+  'inactive' | 'preparing' | 'ready' | 'degraded' | 'offline' | 'failed'
 
 export interface ManagedResourceState {
   status: RuntimeResourceStatus

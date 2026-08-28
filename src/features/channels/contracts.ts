@@ -150,10 +150,34 @@ export type ChannelEvent =
   | { type: 'message.upserted'; sequence: number; occurredAt: number; messages: Message[] }
   | { type: 'message.deleted'; sequence: number; occurredAt: number; refs: MessageRef[] }
   | { type: 'message.revoked'; sequence: number; occurredAt: number; refs: MessageRef[] }
-  | { type: 'message.historyCleared'; sequence: number; occurredAt: number; channelRef: ChannelRef; before?: number }
-  | { type: 'message.pinChanged'; sequence: number; occurredAt: number; ref: MessageRef; pinned: boolean }
-  | { type: 'message.reactionsChanged'; sequence: number; occurredAt: number; ref: MessageRef; reactions: MessageReaction[] }
-  | { type: 'message.receiptChanged'; sequence: number; occurredAt: number; ref: MessageRef; receipt: MessageReceipt }
+  | {
+      type: 'message.historyCleared'
+      sequence: number
+      occurredAt: number
+      channelRef: ChannelRef
+      before?: number
+    }
+  | {
+      type: 'message.pinChanged'
+      sequence: number
+      occurredAt: number
+      ref: MessageRef
+      pinned: boolean
+    }
+  | {
+      type: 'message.reactionsChanged'
+      sequence: number
+      occurredAt: number
+      ref: MessageRef
+      reactions: MessageReaction[]
+    }
+  | {
+      type: 'message.receiptChanged'
+      sequence: number
+      occurredAt: number
+      ref: MessageRef
+      receipt: MessageReceipt
+    }
 
 export type ChannelEventPayload = ChannelEvent extends infer Event
   ? Event extends ChannelEvent
@@ -181,7 +205,16 @@ export interface ChannelTransport {
 
 export class ChannelTransportError extends Error {
   constructor(
-    readonly code: 'invalidRequest' | 'notInitialized' | 'notConnected' | 'unsupportedCapability' | 'authentication' | 'transport' | 'protocolFailure' | 'timeout' | 'disposed',
+    readonly code:
+      | 'invalidRequest'
+      | 'notInitialized'
+      | 'notConnected'
+      | 'unsupportedCapability'
+      | 'authentication'
+      | 'transport'
+      | 'protocolFailure'
+      | 'timeout'
+      | 'disposed',
     readonly retryable: boolean,
   ) {
     super(code)

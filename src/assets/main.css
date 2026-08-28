@@ -6,7 +6,9 @@
 }
 
 @theme {
-  --font-sans: 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', system-ui, sans-serif;
+  --font-sans:
+    'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'Noto Sans CJK SC', 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', 'Cascadia Code', Menlo, monospace;
 }
 
@@ -38,61 +40,177 @@ input {
 }
 
 /* Product surfaces use these Aura-backed semantic roles instead of visual utilities. */
-.tea-bg-canvas { background: var(--p-surface-0); }
-.tea-bg-subtle { background: var(--p-surface-50); }
-.tea-bg-muted { background: var(--p-surface-100); }
-.tea-bg-hover { background: var(--p-surface-200); }
-.tea-bg-disabled { background: var(--p-surface-300); }
-.tea-bg-inverse { background: var(--p-surface-900); }
-.tea-bg-transparent { background: transparent; }
-.tea-bg-danger-subtle { background: var(--p-red-50); }
-.tea-bg-danger { background: var(--p-red-500); }
-.tea-bg-success-subtle { background: var(--p-green-50); }
-.tea-bg-success { background: var(--p-green-500); }
-.tea-bg-warning-subtle { background: var(--p-amber-50); }
-.tea-bg-warning { background: var(--p-amber-400); }
-.tea-fg { color: var(--p-text-color); }
-.tea-fg-muted { color: var(--p-text-muted-color); }
-.tea-fg-subtle { color: var(--p-surface-400); }
-.tea-fg-disabled { color: var(--p-surface-300); }
-.tea-fg-inverse { color: var(--p-surface-0); }
-.tea-fg-danger { color: var(--p-red-600); }
-.tea-fg-success { color: var(--p-green-700); }
-.tea-fg-warning { color: var(--p-amber-800); }
-.tea-text-micro { font-size: .625rem; line-height: 1.25; }
-.tea-text-caption { font-size: .75rem; line-height: 1.35; }
-.tea-text-body { font-size: .875rem; line-height: 1.45; }
-.tea-text-lead { font-size: 1rem; line-height: 1.5; }
-.tea-text-title { font-size: 1.125rem; line-height: 1.35; }
-.tea-text-heading { font-size: 1.5rem; line-height: 1.25; }
-.tea-text-display { font-size: 2rem; line-height: 1.2; }
-.tea-weight-medium { font-weight: 500; }
-.tea-weight-strong { font-weight: 600; }
-.tea-mono { font-family: var(--font-mono); }
-.tea-font-ui { font-family: var(--font-sans); }
-.tea-tracking-label { letter-spacing: 0; }
-.tea-radius-small { border-radius: var(--p-border-radius-sm); }
-.tea-radius-control { border-radius: var(--p-border-radius-md); }
-.tea-radius-overlay { border-radius: var(--p-border-radius-lg); }
-.tea-radius-pill { border-radius: 999px; }
-.tea-elevation-low { box-shadow: var(--p-overlay-popover-shadow); }
-.tea-elevation-overlay { box-shadow: var(--p-overlay-navigation-shadow); }
-.tea-border { border-color: var(--p-content-border-color); }
-.tea-border-inverse { border-color: var(--p-surface-700); }
-.tea-selected-ring { box-shadow: 0 0 0 2px var(--p-primary-color); }
-.tea-no-ring { box-shadow: none; }
-.tea-hover-bg:hover { background: var(--p-content-hover-background); }
-.tea-hover-bg-strong:hover { background: var(--p-surface-200); }
-.tea-hover-bg-inverse:hover { background: var(--p-surface-800); }
-.tea-hover-bg-danger:hover { background: var(--p-red-50); }
-.tea-hover-fg:hover { color: var(--p-text-color); }
-.tea-hover-fg-inverse:hover { color: var(--p-surface-0); }
+.tea-bg-canvas {
+  background: var(--p-surface-0);
+}
+.tea-bg-subtle {
+  background: var(--p-surface-50);
+}
+.tea-bg-muted {
+  background: var(--p-surface-100);
+}
+.tea-bg-hover {
+  background: var(--p-surface-200);
+}
+.tea-bg-disabled {
+  background: var(--p-surface-300);
+}
+.tea-bg-inverse {
+  background: var(--p-surface-900);
+}
+.tea-bg-transparent {
+  background: transparent;
+}
+.tea-bg-danger-subtle {
+  background: var(--p-red-50);
+}
+.tea-bg-danger {
+  background: var(--p-red-500);
+}
+.tea-bg-success-subtle {
+  background: var(--p-green-50);
+}
+.tea-bg-success {
+  background: var(--p-green-500);
+}
+.tea-bg-warning-subtle {
+  background: var(--p-amber-50);
+}
+.tea-bg-warning {
+  background: var(--p-amber-400);
+}
+.tea-fg {
+  color: var(--p-text-color);
+}
+.tea-fg-muted {
+  color: var(--p-text-muted-color);
+}
+.tea-fg-subtle {
+  color: var(--p-surface-400);
+}
+.tea-fg-disabled {
+  color: var(--p-surface-300);
+}
+.tea-fg-inverse {
+  color: var(--p-surface-0);
+}
+.tea-fg-danger {
+  color: var(--p-red-600);
+}
+.tea-fg-success {
+  color: var(--p-green-700);
+}
+.tea-fg-warning {
+  color: var(--p-amber-800);
+}
+.tea-text-micro {
+  font-size: 0.625rem;
+  line-height: 1.25;
+}
+.tea-text-caption {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.tea-text-body {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.tea-text-lead {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.tea-text-title {
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+.tea-text-heading {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+.tea-text-display {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+.tea-weight-medium {
+  font-weight: 500;
+}
+.tea-weight-strong {
+  font-weight: 600;
+}
+.tea-mono {
+  font-family: var(--font-mono);
+}
+.tea-font-ui {
+  font-family: var(--font-sans);
+}
+.tea-tracking-label {
+  letter-spacing: 0;
+}
+.tea-radius-small {
+  border-radius: var(--p-border-radius-sm);
+}
+.tea-radius-control {
+  border-radius: var(--p-border-radius-md);
+}
+.tea-radius-overlay {
+  border-radius: var(--p-border-radius-lg);
+}
+.tea-radius-pill {
+  border-radius: 999px;
+}
+.tea-elevation-low {
+  box-shadow: var(--p-overlay-popover-shadow);
+}
+.tea-elevation-overlay {
+  box-shadow: var(--p-overlay-navigation-shadow);
+}
+.tea-border {
+  border-color: var(--p-content-border-color);
+}
+.tea-border-inverse {
+  border-color: var(--p-surface-700);
+}
+.tea-selected-ring {
+  box-shadow: 0 0 0 2px var(--p-primary-color);
+}
+.tea-no-ring {
+  box-shadow: none;
+}
+.tea-hover-bg:hover {
+  background: var(--p-content-hover-background);
+}
+.tea-hover-bg-strong:hover {
+  background: var(--p-surface-200);
+}
+.tea-hover-bg-inverse:hover {
+  background: var(--p-surface-800);
+}
+.tea-hover-bg-danger:hover {
+  background: var(--p-red-50);
+}
+.tea-hover-fg:hover {
+  color: var(--p-text-color);
+}
+.tea-hover-fg-inverse:hover {
+  color: var(--p-surface-0);
+}
 .tea-focus-ring:focus-visible,
-.tea-focus-ring:focus-within { outline: 2px solid var(--p-primary-color); outline-offset: 2px; }
-.group:hover .tea-group-hover-fg { color: var(--p-text-muted-color); }
-.tea-placeholder::placeholder { color: var(--p-text-muted-color); }
-.tea-disabled-bg:disabled { background: var(--p-surface-200); }
-.tea-disabled-fg:disabled { color: var(--p-surface-400); }
+.tea-focus-ring:focus-within {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
+}
+.group:hover .tea-group-hover-fg {
+  color: var(--p-text-muted-color);
+}
+.tea-placeholder::placeholder {
+  color: var(--p-text-muted-color);
+}
+.tea-disabled-bg:disabled {
+  background: var(--p-surface-200);
+}
+.tea-disabled-fg:disabled {
+  color: var(--p-surface-400);
+}
 
 /* Staggered fade-in for list items */
 @keyframes fadeSlide {

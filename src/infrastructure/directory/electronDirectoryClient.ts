@@ -2,7 +2,10 @@ import { hasElectronBridge, invoke } from '../electronBridge'
 import type { DirectoryClient } from '@/features/directory/contracts'
 
 export class ElectronDirectoryClient implements DirectoryClient {
-  async listUsers(): Promise<{ schemaVersion: number; users: import('@/features/directory/contracts').DirectoryUser[] }> {
+  async listUsers(): Promise<{
+    schemaVersion: number
+    users: import('@/features/directory/contracts').DirectoryUser[]
+  }> {
     if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem('tea.directory.mock')
       if (raw) {

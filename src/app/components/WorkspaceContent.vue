@@ -51,7 +51,10 @@ const {
     @retry="profile.refresh()"
     @close="selectWorkspace(previousMode)"
   />
-  <ManagementWorkspace v-else-if="activeMode === 'management'" @close="selectWorkspace(previousMode)" />
+  <ManagementWorkspace
+    v-else-if="activeMode === 'management'"
+    @close="selectWorkspace(previousMode)"
+  />
   <main v-else class="flex min-w-0 flex-1 flex-col tea-bg-canvas">
     <SettingsPage
       :locale-preference="settings.settings.locale"

@@ -28,8 +28,18 @@ const channelProfile: ChannelSelfProfile = {
 
 const alignedComparisons: ProfileComparison[] = [
   { field: 'displayName', centerValue: 'OIDC User', channelValue: 'OIDC User', status: 'aligned' },
-  { field: 'email', centerValue: 'user@example.test', channelValue: 'user@example.test', status: 'aligned' },
-  { field: 'avatarUrl', centerValue: centerProfile.avatarUrl, channelValue: channelProfile.avatarUrl, status: 'aligned' },
+  {
+    field: 'email',
+    centerValue: 'user@example.test',
+    channelValue: 'user@example.test',
+    status: 'aligned',
+  },
+  {
+    field: 'avatarUrl',
+    centerValue: centerProfile.avatarUrl,
+    channelValue: channelProfile.avatarUrl,
+    status: 'aligned',
+  },
 ]
 
 function mountPage(overrides: Record<string, unknown> = {}) {
@@ -60,14 +70,21 @@ describe('ProfilePage', () => {
     expect(wrapper.text()).toContain('oidc.user')
     expect(wrapper.text()).toContain('subject-42')
     expect(wrapper.text()).toContain('tea_account_1')
-    expect(wrapper.get('[data-testid="profile-email-verification"]').text()).toContain('Not asserted by identity provider')
+    expect(wrapper.get('[data-testid="profile-email-verification"]').text()).toContain(
+      'Not asserted by identity provider',
+    )
     expect(wrapper.get('[data-testid="profile-alignment"]').text()).toContain('Matched')
     expect(wrapper.findAll('[data-comparison-status="aligned"]')).toHaveLength(3)
   })
 
   it('makes mismatched fields visually explicit', () => {
     const comparisons: ProfileComparison[] = [
-      { field: 'displayName', centerValue: 'OIDC User', channelValue: 'Old name', status: 'mismatched' },
+      {
+        field: 'displayName',
+        centerValue: 'OIDC User',
+        channelValue: 'Old name',
+        status: 'mismatched',
+      },
       ...alignedComparisons.slice(1),
     ]
     const wrapper = mountPage({ alignment: 'mismatched', comparisons })
@@ -77,15 +94,25 @@ describe('ProfilePage', () => {
   })
 
   it('shows a bounded loading state without stale IM values', () => {
-    const wrapper = mountPage({ phase: 'loading', channelProfile: null, alignment: 'unknown', comparisons: [] })
+    const wrapper = mountPage({
+      phase: 'loading',
+      channelProfile: null,
+      alignment: 'unknown',
+      comparisons: [],
+    })
 
-    expect(wrapper.get('[data-testid="profile-loading"]').text()).toContain('Loading live IM profile')
+    expect(wrapper.get('[data-testid="profile-loading"]').text()).toContain(
+      'Loading live IM profile',
+    )
     expect(wrapper.text()).not.toContain('tea_account_1')
   })
 
   it('emits retry and close intents from unavailable state', async () => {
     const wrapper = mountPage({
-      phase: 'unavailable', channelProfile: null, alignment: 'unknown', comparisons: [],
+      phase: 'unavailable',
+      channelProfile: null,
+      alignment: 'unknown',
+      comparisons: [],
       errorKey: 'profile.errors.notConnected',
     })
 

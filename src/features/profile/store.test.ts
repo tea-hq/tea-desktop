@@ -29,17 +29,28 @@ const channelProfile: ChannelSelfProfile = {
   avatarUrl: 'https://id.example.test/avatar.png',
 }
 
-function profileTransport(options: {
-  status?: ChannelStatus
-  capability?: ChannelCapability
-  load?: () => Promise<ChannelSelfProfile>
-} = {}): ChannelTransport & { emitStatus: (status: ChannelStatus) => void } {
-  let status = options.status ?? { phase: 'connected' as const, accountRef: 'safe-ref', retryable: false }
+function profileTransport(
+  options: {
+    status?: ChannelStatus
+    capability?: ChannelCapability
+    load?: () => Promise<ChannelSelfProfile>
+  } = {},
+): ChannelTransport & { emitStatus: (status: ChannelStatus) => void } {
+  let status = options.status ?? {
+    phase: 'connected' as const,
+    accountRef: 'safe-ref',
+    retryable: false,
+  }
   const listeners = new Set<Parameters<ChannelTransport['subscribe']>[0]>()
   return {
     status: () => status,
     capabilities: () => [options.capability ?? { id: 'profile.self', available: true }],
-    descriptor: () => ({ id: 'test.channel', displayName: 'Test IM', protocolVersion: 1, capabilities: [] }),
+    descriptor: () => ({
+      id: 'test.channel',
+      displayName: 'Test IM',
+      protocolVersion: 1,
+      capabilities: [],
+    }),
     getSelfProfile: vi.fn(options.load ?? (async () => structuredClone(channelProfile))),
     subscribe: (listener: ChannelEventListener) => {
       listeners.add(listener)
@@ -67,7 +78,11 @@ describe('useProfileStore', () => {
     expect(store.phase).toBe('ready')
     expect(store.channelProfile).toEqual(channelProfile)
     expect(store.alignment).toBe('aligned')
-    expect(store.comparisons.map(value => value.status)).toEqual(['aligned', 'aligned', 'aligned'])
+    expect(store.comparisons.map((value) => value.status)).toEqual([
+      'aligned',
+      'aligned',
+      'aligned',
+    ])
     expect(store.providerName).toBe('Test IM')
   })
 
@@ -81,9 +96,15 @@ describe('useProfileStore', () => {
 
   it('exposes loading and retries after a redacted transport failure', async () => {
     let resolve!: (value: ChannelSelfProfile) => void
-    const load = vi.fn()
+    const load = vi
+      .fn()
       .mockRejectedValueOnce(new Error('provider secret must not escape'))
-      .mockImplementationOnce(() => new Promise<ChannelSelfProfile>(done => { resolve = done }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<ChannelSelfProfile>((done) => {
+            resolve = done
+          }),
+      )
     const store = useProfileStore()
     store.setCenterProfile(centerProfile)
     store.configure(profileTransport({ load }))
@@ -142,7 +163,10 @@ describe('useProfileStore', () => {
   it('ignores a stale completion after the transport is replaced', async () => {
     let resolveFirst!: (value: ChannelSelfProfile) => void
     const first = profileTransport({
-      load: () => new Promise<ChannelSelfProfile>(done => { resolveFirst = done }),
+      load: () =>
+        new Promise<ChannelSelfProfile>((done) => {
+          resolveFirst = done
+        }),
     })
     const secondProfile = { ...channelProfile, accountId: 'second-account' }
     const store = useProfileStore()
@@ -160,9 +184,11 @@ describe('useProfileStore', () => {
   it('marks a one-sided field and changed name as mismatched', async () => {
     const store = useProfileStore()
     store.setCenterProfile(centerProfile)
-    store.configure(profileTransport({
-      load: async () => ({ accountId: 'tea_account', name: 'Different name' }),
-    }))
+    store.configure(
+      profileTransport({
+        load: async () => ({ accountId: 'tea_account', name: 'Different name' }),
+      }),
+    )
 
     await store.refresh()
 

@@ -1,6 +1,9 @@
 import type { Channel, JsonValue, Message, MessageRef } from '@/features/channels/contracts'
 import type { V2NIMConversation } from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMConversationService'
-import type { V2NIMMessage, V2NIMMessageRefer } from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMMessageService'
+import type {
+  V2NIMMessage,
+  V2NIMMessageRefer,
+} from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMMessageService'
 
 const MAX_EXTENSION_LENGTH = 4_096
 const MAX_JSON_DEPTH = 5
@@ -23,7 +26,8 @@ export function mapYunxinConversation(value: V2NIMConversation, targetId?: strin
 }
 
 export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): Message | null {
-  if (value.messageType !== 0 || value.isDelete || !value.conversationId || !value.messageClientId) return null
+  if (value.messageType !== 0 || value.isDelete || !value.conversationId || !value.messageClientId)
+    return null
   return {
     ref: mapYunxinMessageRef(value),
     sender: {
@@ -41,7 +45,9 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
   }
 }
 
-export function mapYunxinMessageRef(value: Pick<V2NIMMessage, 'conversationId' | 'messageClientId' | 'messageServerId'>): MessageRef {
+export function mapYunxinMessageRef(
+  value: Pick<V2NIMMessage, 'conversationId' | 'messageClientId' | 'messageServerId'>,
+): MessageRef {
   return {
     channelRef: value.conversationId,
     messageClientId: value.messageClientId,
@@ -80,11 +86,11 @@ function assertJsonDepth(value: JsonValue, depth: number): void {
   if (depth > MAX_JSON_DEPTH) throw new Error('serverExtensionTooDeep')
   if (Array.isArray(value)) {
     if (value.length > 100) throw new Error('serverExtensionTooLarge')
-    value.forEach(item => assertJsonDepth(item, depth + 1))
+    value.forEach((item) => assertJsonDepth(item, depth + 1))
   } else if (value !== null && typeof value === 'object') {
     const values = Object.values(value)
     if (values.length > 100) throw new Error('serverExtensionTooLarge')
-    values.forEach(item => assertJsonDepth(item, depth + 1))
+    values.forEach((item) => assertJsonDepth(item, depth + 1))
   }
 }
 

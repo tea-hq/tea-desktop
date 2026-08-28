@@ -1,4 +1,8 @@
-import type { ApprovalDecision, ComposerAttachment, PermissionMode } from '@/features/conversation/contracts'
+import type {
+  ApprovalDecision,
+  ComposerAttachment,
+  PermissionMode,
+} from '@/features/conversation/contracts'
 import type { DirectoryUser } from '@/features/directory/contracts'
 import type { WorkspaceMode } from '@/app/components/WorkspaceRail.vue'
 import { logoutWorkspace } from './logoutWorkspace'
@@ -26,12 +30,14 @@ export function useWorkspaceActions(
 
   async function handleSelect(id: string): Promise<void> {
     ui.activeMode.value = 'agent'
-    const summary = conversation.conversations.find(value => value.conversationId === id)
+    const summary = conversation.conversations.find((value) => value.conversationId === id)
     const environment = runtime.channelEnvironment.value
     if (summary?.channelBinding && environment) {
       const status = environment.transport.status()
-      if (status.accountRef === summary.channelBinding.accountRef
-        && environment.transport.descriptor().id === summary.channelBinding.transportId) {
+      if (
+        status.accountRef === summary.channelBinding.accountRef &&
+        environment.transport.descriptor().id === summary.channelBinding.transportId
+      ) {
         await channels.selectChannel(summary.channelBinding.channelRef)
         await collaboration.bindChannel(summary.channelBinding.channelRef)
         await collaboration.selectConversation(id)
@@ -51,13 +57,15 @@ export function useWorkspaceActions(
       return
     }
     if (mode === 'profile') {
-      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent') ui.previousMode.value = ui.activeMode.value
+      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent')
+        ui.previousMode.value = ui.activeMode.value
       ui.activeMode.value = mode
       void stores.profile.refresh()
       return
     }
     if (mode === 'settings' || mode === 'management') {
-      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent') ui.previousMode.value = ui.activeMode.value
+      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent')
+        ui.previousMode.value = ui.activeMode.value
       ui.activeMode.value = mode
       return
     }
@@ -111,17 +119,20 @@ export function useWorkspaceActions(
 
   function selectCollaborationModel(value: string): void {
     collaboration.selectedModel = value
-    if (collaboration.activeBinding) agentDrawer.updateDraft(collaboration.activeBinding, { model: value })
+    if (collaboration.activeBinding)
+      agentDrawer.updateDraft(collaboration.activeBinding, { model: value })
   }
 
   function selectCollaborationPermission(value: PermissionMode): void {
     collaboration.permissionMode = value
-    if (collaboration.activeBinding) agentDrawer.updateDraft(collaboration.activeBinding, { permissionMode: value })
+    if (collaboration.activeBinding)
+      agentDrawer.updateDraft(collaboration.activeBinding, { permissionMode: value })
   }
 
   function selectCollaborationRole(roleId: string | null): void {
     selectRole(roleId)
-    if (collaboration.activeBinding) agentDrawer.updateDraft(collaboration.activeBinding, { roleId })
+    if (collaboration.activeBinding)
+      agentDrawer.updateDraft(collaboration.activeBinding, { roleId })
   }
 
   function selectConversationModel(value: string): void {
@@ -153,11 +164,16 @@ export function useWorkspaceActions(
   }
 
   async function retryActiveConversation(): Promise<void> {
-    if (conversation.conversationId) await conversation.selectConversation(conversation.conversationId)
+    if (conversation.conversationId)
+      await conversation.selectConversation(conversation.conversationId)
   }
 
-  async function resolveActiveApproval(payload: { approvalId: string; decision: ApprovalDecision }): Promise<void> {
-    if (ui.collaborationWorkspace.value) await collaboration.respondToApproval(payload.approvalId, payload.decision)
+  async function resolveActiveApproval(payload: {
+    approvalId: string
+    decision: ApprovalDecision
+  }): Promise<void> {
+    if (ui.collaborationWorkspace.value)
+      await collaboration.respondToApproval(payload.approvalId, payload.decision)
     else await conversation.respondToApproval(payload.approvalId, payload.decision)
   }
 
@@ -171,7 +187,10 @@ export function useWorkspaceActions(
     }
   }
 
-  async function handleSend(payload: { text: string; attachments: ComposerAttachment[] }): Promise<void> {
+  async function handleSend(payload: {
+    text: string
+    attachments: ComposerAttachment[]
+  }): Promise<void> {
     await conversation.sendMessage(payload.text, payload.attachments)
     if (conversation.conversationId && !conversation.error) {
       ui.localComposerText.value = ''
@@ -179,13 +198,24 @@ export function useWorkspaceActions(
     }
   }
 
-  async function sendFromFullSurface(payload: { text: string; attachments: ComposerAttachment[] }): Promise<void> {
+  async function sendFromFullSurface(payload: {
+    text: string
+    attachments: ComposerAttachment[]
+  }): Promise<void> {
     if (ui.collaborationWorkspace.value) await collaboration.sendMessage(payload.text)
     else await handleSend(payload)
   }
 
-  async function openDraftEditor(payload: { turnIndex: number; blockId: string; content: string }): Promise<void> {
-    const draft = await collaboration.createDraft(payload.turnIndex, payload.blockId, payload.content)
+  async function openDraftEditor(payload: {
+    turnIndex: number
+    blockId: string
+    content: string
+  }): Promise<void> {
+    const draft = await collaboration.createDraft(
+      payload.turnIndex,
+      payload.blockId,
+      payload.content,
+    )
     if (draft) ui.draftDialogId.value = draft.draftId
   }
 

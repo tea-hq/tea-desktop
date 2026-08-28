@@ -50,18 +50,18 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function setLocalePreference(locale: LocalePreference): Promise<void> {
-    await updateSettings(current => ({ ...current, locale }))
+    await updateSettings((current) => ({ ...current, locale }))
   }
 
   async function setDefaultRuntime(runtimeId: string): Promise<void> {
-    await updateSettings(current => ({
+    await updateSettings((current) => ({
       ...current,
       conversationDefaults: { runtimeId },
     }))
   }
 
   async function toggleLeftSidebar(): Promise<void> {
-    await updateSettings(current => ({
+    await updateSettings((current) => ({
       ...current,
       layout: {
         ...current.layout,
@@ -72,7 +72,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function openAgentDrawer(): Promise<void> {
     if (settings.value.layout.agentDrawerOpen) return
-    await updateSettings(current => ({
+    await updateSettings((current) => ({
       ...current,
       layout: {
         ...current.layout,
@@ -83,7 +83,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function closeAgentDrawer(): Promise<void> {
     if (!settings.value.layout.agentDrawerOpen) return
-    await updateSettings(current => ({
+    await updateSettings((current) => ({
       ...current,
       layout: {
         ...current.layout,
@@ -93,7 +93,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function toggleAgentDrawer(): Promise<void> {
-    await updateSettings(current => ({
+    await updateSettings((current) => ({
       ...current,
       layout: {
         ...current.layout,

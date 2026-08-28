@@ -5,5 +5,5 @@ export async function deriveChannelAccountRef(
 ): Promise<string> {
   const input = new TextEncoder().encode(`${transportId}\0${appKey}\0${account}`)
   const digest = await globalThis.crypto.subtle.digest('SHA-256', input)
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

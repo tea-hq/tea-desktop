@@ -18,10 +18,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 <template>
   <Tabs :value="modelValue" @update:value="emit('update:modelValue', String($event))">
     <TabList :pt="{ tabList: { 'aria-label': label } }">
-      <Tab v-for="tab in tabs" :key="tab.value" :value="tab.value" :disabled="tab.disabled">{{ tab.label }}</Tab>
+      <Tab v-for="tab in tabs" :key="tab.value" :value="tab.value" :disabled="tab.disabled">{{
+        tab.label
+      }}</Tab>
     </TabList>
     <TabPanels>
-      <TabPanel v-for="tab in tabs" :key="tab.value" :value="tab.value"><slot :name="tab.value" /></TabPanel>
+      <TabPanel v-for="tab in tabs" :key="tab.value" :value="tab.value"
+        ><slot :name="tab.value"
+      /></TabPanel>
     </TabPanels>
   </Tabs>
 </template>

@@ -25,11 +25,12 @@ const localeOptions: Array<{ value: LocalePreference; labelKey: string }> = [
   { value: 'en', labelKey: 'settings.language.english' },
   { value: 'zh-CN', labelKey: 'settings.language.chinese' },
 ]
-const runtimeOptions = (runtimes: RuntimeDescriptor[]) => runtimes.map(runtime => ({
-  value: runtime.id,
-  label: `${runtime.displayName} · ${t(`composer.status.${runtime.status}`)}`,
-  disabled: runtime.status !== 'ready',
-}))
+const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
+  runtimes.map((runtime) => ({
+    value: runtime.id,
+    label: `${runtime.displayName} · ${t(`composer.status.${runtime.status}`)}`,
+    disabled: runtime.status !== 'ready',
+  }))
 </script>
 
 <template>
@@ -50,22 +51,34 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) => runtimes.map(runtime =
         </TeaButton>
       </div>
 
-      <div v-if="error" class="mt-6 tea-bg-danger-subtle px-4 py-3 tea-text-body tea-fg-danger" role="status">
+      <div
+        v-if="error"
+        class="mt-6 tea-bg-danger-subtle px-4 py-3 tea-text-body tea-fg-danger"
+        role="status"
+      >
         {{ t(error) }}
       </div>
 
       <section class="mt-10 py-2">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
-            <h2 class="tea-text-body tea-weight-strong tea-fg">{{ t('settings.language.title') }}</h2>
-            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">{{ t('settings.language.description') }}</p>
+            <h2 class="tea-text-body tea-weight-strong tea-fg">
+              {{ t('settings.language.title') }}
+            </h2>
+            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">
+              {{ t('settings.language.description') }}
+            </p>
           </div>
           <div class="grid grid-cols-3 gap-1 tea-radius-control tea-bg-muted p-1" role="group">
             <TeaButton
               v-for="option in localeOptions"
               :key="option.value"
               class="min-w-0 tea-radius-small px-2 py-2 tea-text-caption tea-weight-medium transition-colors tea-focus-ring tea-focus-ring tea-focus-ring"
-              :class="localePreference === option.value ? 'tea-bg-canvas tea-fg' : 'tea-fg-muted tea-hover-bg-strong'"
+              :class="
+                localePreference === option.value
+                  ? 'tea-bg-canvas tea-fg'
+                  : 'tea-fg-muted tea-hover-bg-strong'
+              "
               :aria-pressed="localePreference === option.value"
               @click="emit('updateLocale', option.value)"
             >
@@ -78,14 +91,28 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) => runtimes.map(runtime =
       <section class="mt-8 tea-bg-subtle px-5 py-5">
         <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
           <div>
-            <h2 class="tea-text-body tea-weight-strong tea-fg">{{ t('settings.defaultAgent.title') }}</h2>
-            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">{{ t('settings.defaultAgent.description') }}</p>
+            <h2 class="tea-text-body tea-weight-strong tea-fg">
+              {{ t('settings.defaultAgent.title') }}
+            </h2>
+            <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">
+              {{ t('settings.defaultAgent.description') }}
+            </p>
           </div>
-          <TeaSelect :model-value="defaultRuntimeId" :options="runtimeOptions(runtimes)" :label="t('settings.defaultAgent.title')" :disabled="saving || runtimes.every(runtime => runtime.status !== 'ready')" @update:model-value="$event && emit('updateDefaultRuntime', String($event))" />
+          <TeaSelect
+            :model-value="defaultRuntimeId"
+            :options="runtimeOptions(runtimes)"
+            :label="t('settings.defaultAgent.title')"
+            :disabled="saving || runtimes.every((runtime) => runtime.status !== 'ready')"
+            @update:model-value="$event && emit('updateDefaultRuntime', String($event))"
+          />
         </div>
       </section>
 
-      <p v-if="saving" class="mt-4 flex items-center justify-end gap-2 tea-text-caption tea-fg-subtle" role="status">
+      <p
+        v-if="saving"
+        class="mt-4 flex items-center justify-end gap-2 tea-text-caption tea-fg-subtle"
+        role="status"
+      >
         <span class="i-mdi-loading size-3.5 animate-spin" aria-hidden="true" />
         {{ t('settings.saving') }}
       </p>

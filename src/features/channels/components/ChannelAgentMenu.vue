@@ -31,26 +31,36 @@ const items = computed<TeaMenuItem[]>(() => {
       icon: 'i-mdi-creation-outline',
     })
   }
-  values.push(...props.recentConversations.map(conversation => ({
-    value: `conversation:${conversation.conversationId}`,
-    label: conversation.title || t('sidebar.untitled'),
-    icon: conversation.conversationId === props.activeConversation?.conversationId
-      ? 'i-mdi-check'
-      : 'i-mdi-message-text-outline',
-  })))
+  values.push(
+    ...props.recentConversations.map((conversation) => ({
+      value: `conversation:${conversation.conversationId}`,
+      label: conversation.title || t('sidebar.untitled'),
+      icon:
+        conversation.conversationId === props.activeConversation?.conversationId
+          ? 'i-mdi-check'
+          : 'i-mdi-message-text-outline',
+    })),
+  )
   if (values.length && props.runtimes.length) {
     values.push({ value: 'separator:runtimes', label: '', separator: true })
   }
-  values.push(...props.runtimes.map(runtime => ({
-    value: `runtime:${runtime.id}`,
-    label: runtime.id === props.defaultRuntimeId
-      ? `${runtime.displayName} (${t('channels.collaboration.defaultLabel')})`
-      : runtime.displayName,
-    icon: 'i-mdi-creation-outline',
-    disabled: runtime.status !== 'ready',
-  })))
+  values.push(
+    ...props.runtimes.map((runtime) => ({
+      value: `runtime:${runtime.id}`,
+      label:
+        runtime.id === props.defaultRuntimeId
+          ? `${runtime.displayName} (${t('channels.collaboration.defaultLabel')})`
+          : runtime.displayName,
+      icon: 'i-mdi-creation-outline',
+      disabled: runtime.status !== 'ready',
+    })),
+  )
   if (props.recentConversations.length >= 4) {
-    values.push({ value: 'all', label: t('channels.collaboration.viewAllSessions'), icon: 'i-mdi-view-list-outline' })
+    values.push({
+      value: 'all',
+      label: t('channels.collaboration.viewAllSessions'),
+      icon: 'i-mdi-view-list-outline',
+    })
   }
   return values
 })
@@ -58,7 +68,8 @@ const items = computed<TeaMenuItem[]>(() => {
 function select(value: string): void {
   if (value === 'current') emit('add-to-current')
   else if (value === 'all') emit('view-all')
-  else if (value.startsWith('conversation:')) emit('select-conversation', value.slice('conversation:'.length))
+  else if (value.startsWith('conversation:'))
+    emit('select-conversation', value.slice('conversation:'.length))
   else if (value.startsWith('runtime:')) emit('create-runtime', value.slice('runtime:'.length))
 }
 
@@ -69,5 +80,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <TeaMenu ref="menu" popup :items="items" :label="t('channels.task.openMenu')" @select="select" @hide="emit('close')" />
+  <TeaMenu
+    ref="menu"
+    popup
+    :items="items"
+    :label="t('channels.task.openMenu')"
+    @select="select"
+    @hide="emit('close')"
+  />
 </template>

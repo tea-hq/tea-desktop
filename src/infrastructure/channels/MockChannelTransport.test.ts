@@ -8,8 +8,14 @@ describe('MockChannelTransport', () => {
   })
 
   it('declares quick comments unavailable', () => {
-    const capability = new MockChannelTransport().capabilities().find(value => value.id === 'message.quickComment')
-    expect(capability).toEqual({ id: 'message.quickComment', available: false, reason: 'notVerified' })
+    const capability = new MockChannelTransport()
+      .capabilities()
+      .find((value) => value.id === 'message.quickComment')
+    expect(capability).toEqual({
+      id: 'message.quickComment',
+      available: false,
+      reason: 'notVerified',
+    })
   })
 
   it('exposes a safe preview self profile', async () => {
@@ -26,20 +32,30 @@ describe('MockChannelTransport', () => {
   it('pages before and after an anchor without returning the anchor', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()
-    const initial = await transport.loadMessages({ channelRef: 'product-collab', direction: 'before', limit: 5 })
+    const initial = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 5,
+    })
     const anchor = initial.items[2]!.ref
 
     const before = await transport.loadMessages({
-      channelRef: 'product-collab', direction: 'before', limit: 1, anchorMessage: anchor,
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 1,
+      anchorMessage: anchor,
     })
-    expect(before.items.map(message => message.ref.messageClientId)).toEqual(['m-102'])
+    expect(before.items.map((message) => message.ref.messageClientId)).toEqual(['m-102'])
     expect(before.hasMore).toBe(true)
     expect(before.nextAnchor).toEqual(before.items[0]!.ref)
 
     const after = await transport.loadMessages({
-      channelRef: 'product-collab', direction: 'after', limit: 1, anchorMessage: anchor,
+      channelRef: 'product-collab',
+      direction: 'after',
+      limit: 1,
+      anchorMessage: anchor,
     })
-    expect(after.items.map(message => message.ref.messageClientId)).toEqual(['m-104'])
+    expect(after.items.map((message) => message.ref.messageClientId)).toEqual(['m-104'])
     expect(after.hasMore).toBe(true)
     expect(after.nextAnchor).toEqual(after.items[0]!.ref)
   })
@@ -49,11 +65,20 @@ describe('MockChannelTransport', () => {
     await transport.connect()
     const unknown = { channelRef: 'product-collab', messageClientId: 'missing' }
 
-    await expect(transport.loadMessages({
-      channelRef: 'product-collab', direction: 'before', limit: 1, anchorMessage: unknown,
-    })).rejects.toMatchObject({ code: 'invalidRequest' })
-    await expect(transport.loadMessages({
-      channelRef: 'product-collab', direction: 'after', limit: 101,
-    })).rejects.toMatchObject({ code: 'invalidRequest' })
+    await expect(
+      transport.loadMessages({
+        channelRef: 'product-collab',
+        direction: 'before',
+        limit: 1,
+        anchorMessage: unknown,
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+    await expect(
+      transport.loadMessages({
+        channelRef: 'product-collab',
+        direction: 'after',
+        limit: 101,
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
   })
 })

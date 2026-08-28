@@ -37,7 +37,8 @@ export function renderMarkdownToHtml(source: string): string {
 type MarkdownToken = ReturnType<typeof markdown.parse>[number]
 
 export function markdownToPlainText(source: string, maximum = 160): string {
-  const text = markdown.parse(source, {})
+  const text = markdown
+    .parse(source, {})
     .map(tokenText)
     .filter(Boolean)
     .join(' ')
@@ -49,11 +50,13 @@ export function markdownToPlainText(source: string, maximum = 160): string {
 
 function tokenText(token: MarkdownToken): string {
   if (token.children?.length) return token.children.map(tokenText).join(' ')
-  if (token.type === 'text'
-    || token.type === 'code_inline'
-    || token.type === 'code_block'
-    || token.type === 'fence'
-    || token.type === 'image') {
+  if (
+    token.type === 'text' ||
+    token.type === 'code_inline' ||
+    token.type === 'code_block' ||
+    token.type === 'fence' ||
+    token.type === 'image'
+  ) {
     return token.content
   }
   if (token.type === 'softbreak' || token.type === 'hardbreak') return ' '

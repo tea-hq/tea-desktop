@@ -55,12 +55,26 @@ const { t } = useI18n()
       v-model:text="fullComposerText"
       v-model:attachments="fullComposerAttachments"
       :profile="fullAgentProfile"
-      :title="collaborationWorkspace ? collaboration.activeConversation?.title || t('channels.collaboration.newSession') : conversation.activeConversation?.title || t('app.newConversationTitle')"
-      :subtitle="collaborationWorkspace && channels.activeChannel ? channels.activeChannel.name : ''"
-      :runtime-label="collaborationWorkspace ? collaboration.activeRuntime?.displayName : conversation.activeRuntime?.displayName"
+      :title="
+        collaborationWorkspace
+          ? collaboration.activeConversation?.title || t('channels.collaboration.newSession')
+          : conversation.activeConversation?.title || t('app.newConversationTitle')
+      "
+      :subtitle="
+        collaborationWorkspace && channels.activeChannel ? channels.activeChannel.name : ''
+      "
+      :runtime-label="
+        collaborationWorkspace
+          ? collaboration.activeRuntime?.displayName
+          : conversation.activeRuntime?.displayName
+      "
       :turns="collaborationWorkspace ? collaboration.turns : conversation.turns"
       :turn-contexts="collaborationWorkspace ? collaboration.collaboration.turnContexts : undefined"
-      :draft-block-ids="collaborationWorkspace ? collaboration.collaboration.drafts.map(draft => draft.sourceBlockId) : undefined"
+      :draft-block-ids="
+        collaborationWorkspace
+          ? collaboration.collaboration.drafts.map((draft) => draft.sourceBlockId)
+          : undefined
+      "
       :collaboration="collaborationWorkspace"
       :loading="collaborationWorkspace ? collaboration.loading : conversation.historyLoading"
       :loading-older="!collaborationWorkspace && conversation.historyLoadingMore"
@@ -68,13 +82,23 @@ const { t } = useI18n()
       :error="errorText"
       :sources="collaborationWorkspace ? collaboration.stagedSources : []"
       :runtimes="collaborationWorkspace ? collaboration.runtimes : conversation.runtimes"
-      :runtime-id="collaborationWorkspace ? collaboration.selectedRuntimeId : conversation.activeRuntimeId"
-      :model-options="collaborationWorkspace ? collaborationModelOptions : conversation.modelOptions"
+      :runtime-id="
+        collaborationWorkspace ? collaboration.selectedRuntimeId : conversation.activeRuntimeId
+      "
+      :model-options="
+        collaborationWorkspace ? collaborationModelOptions : conversation.modelOptions
+      "
       :model="collaborationWorkspace ? collaboration.selectedModel : conversation.selectedModel"
-      :permission-mode="collaborationWorkspace ? collaboration.permissionMode : conversation.permissionMode"
+      :permission-mode="
+        collaborationWorkspace ? collaboration.permissionMode : conversation.permissionMode
+      "
       :roles="roleOptions"
       :role-id="selectedRoleId"
-      :disabled="collaborationWorkspace ? !collaboration.canSend : conversation.loading || !conversation.activeRuntimeId"
+      :disabled="
+        collaborationWorkspace
+          ? !collaboration.canSend
+          : conversation.loading || !conversation.activeRuntimeId
+      "
       :streaming="collaborationWorkspace ? collaboration.isStreaming : conversation.isStreaming"
       @send="sendFromFullSurface"
       @stop="stopActiveConversation"

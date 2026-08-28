@@ -60,7 +60,10 @@ describe('Tea primitives', () => {
       props: {
         modelValue: 'tea',
         label: 'Runtime',
-        options: [{ value: 'tea', label: 'Tea' }, { value: 'codex', label: 'Codex' }],
+        options: [
+          { value: 'tea', label: 'Tea' },
+          { value: 'codex', label: 'Codex' },
+        ],
       },
     })
 
@@ -95,7 +98,10 @@ describe('Tea primitives', () => {
       props: {
         modelValue: 'recent',
         label: 'Conversation views',
-        tabs: [{ value: 'recent', label: 'Recent' }, { value: 'all', label: 'All' }],
+        tabs: [
+          { value: 'recent', label: 'Recent' },
+          { value: 'all', label: 'All' },
+        ],
       },
       slots: { recent: 'Recent conversations', all: 'All conversations' },
     })

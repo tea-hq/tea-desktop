@@ -1,11 +1,16 @@
 import { expect, test } from './fixtures/app'
 
-test('moves from empty history to preparing and creates on first send', async ({ openFixture, page }) => {
+test('moves from empty history to preparing and creates on first send', async ({
+  openFixture,
+  page,
+}) => {
   await openFixture('drawer-empty')
 
   await expect(page.getByText('No Agent conversations for this channel yet.')).toBeVisible()
   await page.getByRole('button', { name: 'New session with Claude Code' }).click()
-  const composer = page.getByRole('textbox', { name: 'Ask anything, plan a change, or explore a codebase…' })
+  const composer = page.getByRole('textbox', {
+    name: 'Ask anything, plan a change, or explore a codebase…',
+  })
   await expect(composer).toBeFocused()
   await composer.fill('Create the implementation plan')
   await page.locator('.p-drawer').getByRole('button', { name: 'Send message' }).click()
@@ -37,7 +42,10 @@ test('shows recent sessions, expands to all, and filters', async ({ openFixture,
 })
 
 test('renders the narrow drawer without overlap', async ({ openFixture, page }, testInfo) => {
-  test.skip(testInfo.project.name.includes('reduced'), 'Visual baseline is shared with the normal-motion project.')
+  test.skip(
+    testInfo.project.name.includes('reduced'),
+    'Visual baseline is shared with the normal-motion project.',
+  )
   await page.setViewportSize({ width: 480, height: 760 })
   await openFixture('drawer-active')
   await expect(page).toHaveScreenshot('drawer-active-480x760.png', { animations: 'disabled' })

@@ -20,17 +20,35 @@ export const useAgentRolesStore = defineStore('agentRoles', () => {
     loading.value = true
     error.value = null
     try {
-      roles.value = scope ? await syncAgentRoles(scope.tenantId, scope.subjectId) : await listAgentRoles()
+      roles.value = scope
+        ? await syncAgentRoles(scope.tenantId, scope.subjectId)
+        : await listAgentRoles()
       return true
     } catch (cause) {
       error.value = agentRoleErrorKey(cause, 'management.agentRoles.loadFailed')
       return false
-    } finally { loading.value = false }
+    } finally {
+      loading.value = false
+    }
   }
 
   async function create(): Promise<boolean> {
     const id = `local-role-${Date.now()}`
-    return save({ id, revision: 0, name: 'New role', description: '', runtimeId: 'external.claude', modelId: '', systemPrompt: '', userPromptTemplate: '', visibility: 'private', status: 'draft', capabilities: [], skills: [], plugins: [] })
+    return save({
+      id,
+      revision: 0,
+      name: 'New role',
+      description: '',
+      runtimeId: 'external.claude',
+      modelId: '',
+      systemPrompt: '',
+      userPromptTemplate: '',
+      visibility: 'private',
+      status: 'draft',
+      capabilities: [],
+      skills: [],
+      plugins: [],
+    })
   }
 
   async function save(draft: AgentRoleDraft & { id: string }): Promise<boolean> {
@@ -38,17 +56,21 @@ export const useAgentRolesStore = defineStore('agentRoles', () => {
     saving.value = true
     error.value = null
     try {
-      const capabilities = (draft.capabilities ?? []).map(capability => ({
+      const capabilities = (draft.capabilities ?? []).map((capability) => ({
         kind: capability.kind,
         id: capability.id,
         ...(capability.version ? { version: capability.version } : {}),
       }))
-      const dependencies = draft.dependencies?.map(dependency => ({
-        ...dependency,
-        version: dependency.version ?? '0.0.0',
-      })) ?? (draft.capabilities ?? []).flatMap(capability => capability.kind === 'skill'
-        ? [{ kind: 'skill', id: capability.id, version: capability.version ?? '0.0.0' }]
-        : [])
+      const dependencies =
+        draft.dependencies?.map((dependency) => ({
+          ...dependency,
+          version: dependency.version ?? '0.0.0',
+        })) ??
+        (draft.capabilities ?? []).flatMap((capability) =>
+          capability.kind === 'skill'
+            ? [{ kind: 'skill', id: capability.id, version: capability.version ?? '0.0.0' }]
+            : [],
+        )
       await saveAgentRoleRevision({
         roleId: draft.id,
         revision: draft.revision ?? 0,
@@ -68,10 +90,14 @@ export const useAgentRolesStore = defineStore('agentRoles', () => {
     } catch (cause) {
       error.value = agentRoleErrorKey(cause, 'management.agentRoles.saveFailed')
       return false
-    } finally { saving.value = false }
+    } finally {
+      saving.value = false
+    }
   }
 
-  function clearError(): void { error.value = null }
+  function clearError(): void {
+    error.value = null
+  }
 
   return { roles, loading, saving, error, initialize, create, save, clearError }
 })

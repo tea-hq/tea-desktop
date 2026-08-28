@@ -1,22 +1,22 @@
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import { chmod, mkdtemp, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { ElectronCatalogService } from "./catalog";
-import { ElectronPluginProcessService } from "./plugins";
+import { ElectronCatalogService } from './catalog'
+import { ElectronPluginProcessService } from './plugins'
 
-describe("ElectronPluginProcessService", () => {
-  const services: ElectronPluginProcessService[] = [];
+describe('ElectronPluginProcessService', () => {
+  const services: ElectronPluginProcessService[] = []
 
   afterEach(async () => {
-    await Promise.all(services.splice(0).map((service) => service.shutdown()));
-  });
+    await Promise.all(services.splice(0).map((service) => service.shutdown()))
+  })
 
-  it("speaks the bounded v1 plugin protocol and keeps credentials in the main process", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "tea-plugin-"));
-    const executable = path.join(directory, "plugin.mjs");
+  it('speaks the bounded v1 plugin protocol and keeps credentials in the main process', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'tea-plugin-'))
+    const executable = path.join(directory, 'plugin.mjs')
     await writeFile(
       executable,
       `#!/usr/bin/env node
@@ -41,76 +41,89 @@ process.stdin.on('data', chunk => {
   }
 })
 `,
-      { encoding: "utf8", mode: 0o700 },
-    );
-    await chmod(executable, 0o700);
-    const catalogPath = path.join(directory, "catalog.json");
+      { encoding: 'utf8', mode: 0o700 },
+    )
+    await chmod(executable, 0o700)
+    const catalogPath = path.join(directory, 'catalog.json')
     await writeFile(
       catalogPath,
       JSON.stringify({
         schemaVersion: 1,
         data: {
-          plugins: [{
-            id: "im.test.plugin",
-            version: "1.0.0",
-            displayName: "Test plugin",
-            enabled: true,
-            executable,
-            actions: [{ id: "echo", version: "1.0.0", description: "Echo", effect: "read" }],
-            connections: [{ id: "default", displayName: "Default", enabled: true }],
-          }],
+          plugins: [
+            {
+              id: 'im.test.plugin',
+              version: '1.0.0',
+              displayName: 'Test plugin',
+              enabled: true,
+              executable,
+              actions: [{ id: 'echo', version: '1.0.0', description: 'Echo', effect: 'read' }],
+              connections: [{ id: 'default', displayName: 'Default', enabled: true }],
+            },
+          ],
           skills: [],
           roles: [],
         },
       }),
-    );
-    const catalog = new ElectronCatalogService(catalogPath);
-    await catalog.initialize();
+    )
+    const catalog = new ElectronCatalogService(catalogPath)
+    await catalog.initialize()
     const credentials = {
-      readValue: async () => ({ token: "main-only" }),
-    } as never;
-    const service = new ElectronPluginProcessService(catalog, credentials);
-    services.push(service);
+      readValue: async () => ({ token: 'main-only' }),
+    } as never
+    const service = new ElectronPluginProcessService(catalog, credentials)
+    services.push(service)
 
-    await expect(service.invoke({
-      pluginId: "im.test.plugin",
-      connectionId: "default",
-      actionId: "echo",
-      input: { message: "hello" },
-    })).resolves.toEqual({
-      input: { message: "hello" },
-      credential: { token: "main-only" },
-    });
-  });
+    await expect(
+      service.invoke({
+        pluginId: 'im.test.plugin',
+        connectionId: 'default',
+        actionId: 'echo',
+        input: { message: 'hello' },
+      }),
+    ).resolves.toEqual({
+      input: { message: 'hello' },
+      credential: { token: 'main-only' },
+    })
+  })
 
-  it("rejects invocation when the plugin has no executable instead of claiming success", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "tea-plugin-unavailable-"));
-    const catalogPath = path.join(directory, "catalog.json");
-    await writeFile(catalogPath, JSON.stringify({
-      schemaVersion: 1,
-      data: {
-        plugins: [{
-          id: "im.test.plugin",
-          version: "1.0.0",
-          displayName: "Test plugin",
-          enabled: true,
-          actions: [{ id: "echo", version: "1.0.0", description: "Echo", effect: "read" }],
-          connections: [{ id: "default", displayName: "Default", enabled: true }],
-        }],
-        skills: [],
-        roles: [],
-      },
-    }));
-    const catalog = new ElectronCatalogService(catalogPath);
-    await catalog.initialize();
-    const service = new ElectronPluginProcessService(catalog, { readValue: async () => ({}) } as never);
-    services.push(service);
+  it('rejects invocation when the plugin has no executable instead of claiming success', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'tea-plugin-unavailable-'))
+    const catalogPath = path.join(directory, 'catalog.json')
+    await writeFile(
+      catalogPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        data: {
+          plugins: [
+            {
+              id: 'im.test.plugin',
+              version: '1.0.0',
+              displayName: 'Test plugin',
+              enabled: true,
+              actions: [{ id: 'echo', version: '1.0.0', description: 'Echo', effect: 'read' }],
+              connections: [{ id: 'default', displayName: 'Default', enabled: true }],
+            },
+          ],
+          skills: [],
+          roles: [],
+        },
+      }),
+    )
+    const catalog = new ElectronCatalogService(catalogPath)
+    await catalog.initialize()
+    const service = new ElectronPluginProcessService(catalog, {
+      readValue: async () => ({}),
+    } as never)
+    services.push(service)
 
-    await expect(service.invoke({
-      pluginId: "im.test.plugin",
-      connectionId: "default",
-      actionId: "echo",
-      input: {},
-    })).rejects.toMatchObject({ code: "runtimeUnavailable" });
-  });
-});
+    await expect(
+      service.invoke({
+        pluginId: 'im.test.plugin',
+        connectionId: 'default',
+        actionId: 'echo',
+        input: {},
+      }),
+    ).rejects.toMatchObject({ code: 'runtimeUnavailable' })
+  })
+})

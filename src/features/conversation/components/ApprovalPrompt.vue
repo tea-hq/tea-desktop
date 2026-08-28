@@ -14,15 +14,14 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const canDecide = computed(() => props.request.status === 'pending' || props.request.status === 'failed')
+const canDecide = computed(
+  () => props.request.status === 'pending' || props.request.status === 'failed',
+)
 const isResolving = computed(() => props.request.status === 'resolving')
 </script>
 
 <template>
-  <section
-    class="relative mt-3 w-full pl-5 pt-2 tea-fg"
-    :aria-label="t('approval.title')"
-  >
+  <section class="relative mt-3 w-full pl-5 pt-2 tea-fg" :aria-label="t('approval.title')">
     <span class="absolute inset-y-2 left-0 w-0.5 tea-bg-warning" aria-hidden="true" />
 
     <div class="flex items-start gap-3">
@@ -33,7 +32,10 @@ const isResolving = computed(() => props.request.status === 'resolving')
         stroke="currentColor"
         aria-hidden="true"
       >
-        <path d="M10 2.8 16 5v4.6c0 3.5-2.4 6.2-6 7.6-3.6-1.4-6-4.1-6-7.6V5l6-2.2Z" stroke-width="1.4" />
+        <path
+          d="M10 2.8 16 5v4.6c0 3.5-2.4 6.2-6 7.6-3.6-1.4-6-4.1-6-7.6V5l6-2.2Z"
+          stroke-width="1.4"
+        />
         <path d="M10 6.5v4.2m0 2.6v.1" stroke-width="1.5" stroke-linecap="round" />
       </svg>
 
@@ -44,21 +46,30 @@ const isResolving = computed(() => props.request.status === 'resolving')
         <p class="mt-1 tea-text-caption leading-5 tea-fg-muted">{{ t('approval.description') }}</p>
 
         <div v-if="request.resources.length" class="mt-2.5 space-y-1">
-          <p class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">{{ t('approval.resources') }}</p>
+          <p class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">
+            {{ t('approval.resources') }}
+          </p>
           <code
             v-for="resource in request.resources"
             :key="resource"
             class="block overflow-x-auto tea-bg-muted px-2 py-1.5 tea-text-caption leading-4 tea-fg-muted"
-          >{{ resource }}</code>
+            >{{ resource }}</code
+          >
         </div>
 
-        <div v-if="request.capabilities.length" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">{{ t('approval.capabilities') }}</span>
+        <div
+          v-if="request.capabilities.length"
+          class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1"
+        >
+          <span class="tea-text-micro tea-weight-medium uppercase tea-fg-subtle">{{
+            t('approval.capabilities')
+          }}</span>
           <code
             v-for="capability in request.capabilities"
             :key="capability"
             class="tea-text-caption tea-fg-muted"
-          >{{ capability }}</code>
+            >{{ capability }}</code
+          >
         </div>
 
         <p
@@ -107,7 +118,10 @@ const isResolving = computed(() => props.request.status === 'resolving')
           >
             {{ t('approval.cancel') }}
           </TeaButton>
-          <span v-if="isResolving" class="ml-1 h-3 w-3 animate-spin tea-radius-pill border tea-border tea-border-inverse" />
+          <span
+            v-if="isResolving"
+            class="ml-1 h-3 w-3 animate-spin tea-radius-pill border tea-border tea-border-inverse"
+          />
         </div>
       </div>
     </div>

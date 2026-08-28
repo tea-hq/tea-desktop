@@ -15,12 +15,16 @@ export const useManagedRuntimeStore = defineStore('managed-runtime', () => {
   let unsubscribe: (() => void) | null = null
   let operationGeneration = 0
 
-  const modelOptions = computed<ModelOption[]>(() => state.value.modelProviders
-    .filter(provider => provider.status === 'ready')
-    .flatMap(provider => provider.models.map(model => ({
-      value: model.selectionValue,
-      label: `${provider.displayName} / ${model.displayName}`,
-    }))))
+  const modelOptions = computed<ModelOption[]>(() =>
+    state.value.modelProviders
+      .filter((provider) => provider.status === 'ready')
+      .flatMap((provider) =>
+        provider.models.map((model) => ({
+          value: model.selectionValue,
+          label: `${provider.displayName} / ${model.displayName}`,
+        })),
+      ),
+  )
   const imReady = computed(() => state.value.im?.status === 'ready')
 
   function configure(value: ManagedWorkspaceClient): void {
@@ -36,7 +40,7 @@ export const useManagedRuntimeStore = defineStore('managed-runtime', () => {
     const operation = ++operationGeneration
     unsubscribe?.()
     unsubscribe = null
-    const stop = await configured.onStateChanged(value => {
+    const stop = await configured.onStateChanged((value) => {
       if (client.value === configured && value.generation >= state.value.generation) {
         state.value = structuredClone(value)
       }
@@ -47,9 +51,11 @@ export const useManagedRuntimeStore = defineStore('managed-runtime', () => {
     }
     unsubscribe = stop
     const value = await configured.state()
-    if (operation === operationGeneration
-      && client.value === configured
-      && value.generation >= state.value.generation) {
+    if (
+      operation === operationGeneration &&
+      client.value === configured &&
+      value.generation >= state.value.generation
+    ) {
       state.value = structuredClone(value)
     }
   }

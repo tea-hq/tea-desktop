@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import InputText from 'primevue/inputtext'
 
-withDefaults(defineProps<{
-  modelValue: string
-  label: string
-  type?: 'text' | 'email' | 'password' | 'search' | 'url'
-  placeholder?: string
-  disabled?: boolean
-  invalid?: boolean
-  size?: 'small' | 'default'
-  autocomplete?: string
-}>(), {
-  type: 'text',
-  placeholder: '',
-  disabled: false,
-  invalid: false,
-  size: 'default',
-  autocomplete: 'off',
-})
+withDefaults(
+  defineProps<{
+    modelValue: string
+    label: string
+    type?: 'text' | 'email' | 'password' | 'search' | 'url'
+    placeholder?: string
+    disabled?: boolean
+    invalid?: boolean
+    size?: 'small' | 'default'
+    autocomplete?: string
+  }>(),
+  {
+    type: 'text',
+    placeholder: '',
+    disabled: false,
+    invalid: false,
+    size: 'default',
+    autocomplete: 'off',
+  },
+)
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>

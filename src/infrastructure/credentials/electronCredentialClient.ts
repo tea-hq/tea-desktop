@@ -1,6 +1,10 @@
 import { hasElectronBridge, invoke } from '../electronBridge'
 
-import type { CredentialClient, CredentialMutation, CredentialRecord } from '@/features/credentials/contracts'
+import type {
+  CredentialClient,
+  CredentialMutation,
+  CredentialRecord,
+} from '@/features/credentials/contracts'
 
 export class ElectronCredentialClient implements CredentialClient {
   async list(): Promise<CredentialRecord[]> {
@@ -8,7 +12,13 @@ export class ElectronCredentialClient implements CredentialClient {
     return invoke<CredentialRecord[]>('list_credentials')
   }
   async save(mutation: CredentialMutation): Promise<CredentialRecord> {
-    if (!hasElectronBridge()) return { pluginId: mutation.pluginId, connectionId: mutation.connectionId, configured: true, updatedAt: mutation.updatedAt }
+    if (!hasElectronBridge())
+      return {
+        pluginId: mutation.pluginId,
+        connectionId: mutation.connectionId,
+        configured: true,
+        updatedAt: mutation.updatedAt,
+      }
     return invoke<CredentialRecord>('save_plugin_credentials', { mutation })
   }
   async clear(pluginId: string, connectionId: string): Promise<void> {

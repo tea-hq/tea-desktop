@@ -22,7 +22,11 @@ const runtime: RuntimeDescriptor = {
 class RecordingConversationClient extends FakeConversationClient {
   sends: Array<{ conversationId: string; text: string; options: SendMessageOptions }> = []
 
-  override async sendMessage(conversationId: string, text: string, options: SendMessageOptions): Promise<void> {
+  override async sendMessage(
+    conversationId: string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<void> {
     this.sends.push({ conversationId, text, options: structuredClone(options) })
     await super.sendMessage(conversationId, text, options)
   }
@@ -30,9 +34,13 @@ class RecordingConversationClient extends FakeConversationClient {
 
 class NoSendTransport extends MockChannelTransport {
   override capabilities(): ChannelCapability[] {
-    return super.capabilities().map(capability =>
-      capability.id === 'message.send.text' ? { ...capability, available: false, reason: 'unsupported' } : capability,
-    )
+    return super
+      .capabilities()
+      .map((capability) =>
+        capability.id === 'message.send.text'
+          ? { ...capability, available: false, reason: 'unsupported' }
+          : capability,
+      )
   }
 }
 
@@ -79,7 +87,11 @@ describe('useCollaborationStore', () => {
 
   it('stages and deduplicates sources without starting an Agent run', async () => {
     const { store, client, transport } = await setup()
-    const page = await transport.loadMessages({ channelRef: 'product-collab', direction: 'before', limit: 2 })
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 2,
+    })
     store.stageMessage(page.items[0]!)
     store.stageMessage(page.items[0]!)
 
@@ -88,31 +100,35 @@ describe('useCollaborationStore', () => {
     expect(client.sends).toEqual([])
   })
 
-	it('creates the selected runtime conversation only when the first prompt is sent', async () => {
-		const { store, client } = await setup()
-		const create = vi.spyOn(client, 'createConversation')
-		store.selectRuntime('external.codex')
+  it('creates the selected runtime conversation only when the first prompt is sent', async () => {
+    const { store, client } = await setup()
+    const create = vi.spyOn(client, 'createConversation')
+    store.selectRuntime('external.codex')
 
-		await store.sendMessage('Start only now')
+    await store.sendMessage('Start only now')
 
-		expect(create).toHaveBeenCalledTimes(1)
-		expect(client.sends).toHaveLength(1)
-		expect(client.sends[0]?.text).toBe('Start only now')
-		expect(store.conversationId).toBeTruthy()
-	})
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(client.sends).toHaveLength(1)
+    expect(client.sends[0]?.text).toBe('Start only now')
+    expect(store.conversationId).toBeTruthy()
+  })
 
-	it('prepares a runtime draft before staging a quick-menu message', async () => {
-		const { store, transport } = await setup()
-		const page = await transport.loadMessages({ channelRef: 'product-collab', direction: 'before', limit: 1 })
+  it('prepares a runtime draft before staging a quick-menu message', async () => {
+    const { store, transport } = await setup()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 1,
+    })
 
-		const created = await store.createConversationForMessage('external.codex', page.items[0]!)
+    const created = await store.createConversationForMessage('external.codex', page.items[0]!)
 
-		expect(created).toBe(true)
-		expect(store.activeConversation).toBeNull()
-		expect(store.selectedRuntimeId).toBe('external.codex')
-		expect(store.stagedSources).toHaveLength(1)
-		expect(store.chooserOpen).toBe(false)
-	})
+    expect(created).toBe(true)
+    expect(store.activeConversation).toBeNull()
+    expect(store.selectedRuntimeId).toBe('external.codex')
+    expect(store.stagedSources).toHaveLength(1)
+    expect(store.chooserOpen).toBe(false)
+  })
 
   it('creates one bound conversation and supports sourced and source-free turns', async () => {
     const { store, client, transport } = await setup()
@@ -122,7 +138,11 @@ describe('useCollaborationStore', () => {
       active: null,
       error: null,
     })
-    const page = await transport.loadMessages({ channelRef: 'product-collab', direction: 'before', limit: 1 })
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 1,
+    })
     store.stageMessage(page.items[0]!)
     await store.sendMessage('Summarize the decision')
     const conversationId = store.conversationId
@@ -145,12 +165,12 @@ describe('useCollaborationStore', () => {
     store.configure(client, transport)
     await store.loadRuntimes()
     await store.bindChannel('product-collab')
-	store.selectRuntime('external.codex')
+    store.selectRuntime('external.codex')
 
-	await store.sendMessage('Fail on send')
+    await store.sendMessage('Fail on send')
 
     expect(store.error).toEqual({ kind: 'runtime', message: 'start codex thread: protocol failed' })
-	expect(client.sends).toEqual([])
+    expect(client.sends).toEqual([])
   })
 
   it('renames and archives bound conversations through the collaboration projection', async () => {
@@ -173,8 +193,12 @@ describe('useCollaborationStore', () => {
     await store.createConversation('external.codex')
     await store.sendMessage('Prepare a response')
     await vi.waitFor(() => expect(store.turns[0]?.status).toBe('completed'))
-    const block = store.turns[0]!.blocks.find(value => value.kind === 'assistantText')!
-    const draft = await store.createDraft(0, block.id, block.kind === 'assistantText' ? block.text : '')
+    const block = store.turns[0]!.blocks.find((value) => value.kind === 'assistantText')!
+    const draft = await store.createDraft(
+      0,
+      block.id,
+      block.kind === 'assistantText' ? block.text : '',
+    )
     const updated = await store.updateDraft(draft!.draftId, 'Reviewed response')
     const send = vi.spyOn(transport, 'sendMessage')
 
@@ -192,8 +216,12 @@ describe('useCollaborationStore', () => {
     await store.createConversation('external.codex')
     await store.sendMessage('Prepare a response')
     await vi.waitFor(() => expect(store.turns[0]?.status).toBe('completed'))
-    const block = store.turns[0]!.blocks.find(value => value.kind === 'assistantText')!
-    const draft = await store.createDraft(0, block.id, block.kind === 'assistantText' ? block.text : '')
+    const block = store.turns[0]!.blocks.find((value) => value.kind === 'assistantText')!
+    const draft = await store.createDraft(
+      0,
+      block.id,
+      block.kind === 'assistantText' ? block.text : '',
+    )
 
     await store.deliverDraft(draft!.draftId)
     const failed = store.collaboration.deliveries[0]!
@@ -216,8 +244,12 @@ describe('useCollaborationStore', () => {
     await store.createConversation('external.codex')
     await store.sendMessage('Prepare a response')
     await vi.waitFor(() => expect(store.turns[0]?.status).toBe('completed'))
-    const block = store.turns[0]!.blocks.find(value => value.kind === 'assistantText')!
-    const draft = await store.createDraft(0, block.id, block.kind === 'assistantText' ? block.text : '')
+    const block = store.turns[0]!.blocks.find((value) => value.kind === 'assistantText')!
+    const draft = await store.createDraft(
+      0,
+      block.id,
+      block.kind === 'assistantText' ? block.text : '',
+    )
 
     await store.deliverDraft(draft!.draftId)
     expect(store.collaboration.deliveries[0]).toMatchObject({ status: 'failed' })
@@ -233,8 +265,12 @@ describe('useCollaborationStore', () => {
     await store.createConversation('external.codex')
     await store.sendMessage('Prepare a response')
     await vi.waitFor(() => expect(store.turns[0]?.status).toBe('completed'))
-    const block = store.turns[0]!.blocks.find(value => value.kind === 'assistantText')!
-    const draft = await store.createDraft(0, block.id, block.kind === 'assistantText' ? block.text : '')
+    const block = store.turns[0]!.blocks.find((value) => value.kind === 'assistantText')!
+    const draft = await store.createDraft(
+      0,
+      block.id,
+      block.kind === 'assistantText' ? block.text : '',
+    )
 
     await store.deliverDraft(draft!.draftId)
 

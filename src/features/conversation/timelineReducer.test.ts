@@ -45,14 +45,14 @@ describe('conversation timeline reducer', () => {
 
     for (const incoming of events) turn = reduceConversationTurn(turn, incoming)
 
-    expect(turn.blocks.map(block => block.kind)).toEqual([
+    expect(turn.blocks.map((block) => block.kind)).toEqual([
       'assistantText',
       'toolCall',
       'assistantText',
       'toolCall',
       'assistantText',
     ])
-    expect(turn.blocks.map(block => block.sequence)).toEqual([2, 3, 5, 6, 7])
+    expect(turn.blocks.map((block) => block.sequence)).toEqual([2, 3, 5, 6, 7])
     expect(turn.blocks[0]).toMatchObject({ text: 'First thought.', streaming: false })
     expect(turn.blocks[1]).toMatchObject({ status: 'running', message: 'Read one.txt' })
     expect(turn.blocks[2]).toMatchObject({ text: 'Second thought.', streaming: false })
@@ -61,20 +61,26 @@ describe('conversation timeline reducer', () => {
 
   it('attaches approval state to its tool and removes only the controls after success', () => {
     let turn = createConversationTurn('turn-1', 'prompt-1', 'Write a file', [])
-    turn = reduceConversationTurn(turn, event(1, {
-      type: 'toolRequested',
-      toolCallId: 'tool-1',
-      name: 'write',
-      arguments: { path: 'one.txt' },
-    }))
-    turn = reduceConversationTurn(turn, event(2, {
-      type: 'approvalRequested',
-      approvalId: 'approval-1',
-      toolCallId: 'tool-1',
-      capabilities: ['filesystem.write'],
-      resources: ['one.txt'],
-      decisions: ['allowOnce'],
-    }))
+    turn = reduceConversationTurn(
+      turn,
+      event(1, {
+        type: 'toolRequested',
+        toolCallId: 'tool-1',
+        name: 'write',
+        arguments: { path: 'one.txt' },
+      }),
+    )
+    turn = reduceConversationTurn(
+      turn,
+      event(2, {
+        type: 'approvalRequested',
+        approvalId: 'approval-1',
+        toolCallId: 'tool-1',
+        capabilities: ['filesystem.write'],
+        resources: ['one.txt'],
+        decisions: ['allowOnce'],
+      }),
+    )
 
     expect(findApproval(turn, 'approval-1')).toMatchObject({ status: 'pending' })
     turn = setApprovalResolving(turn, 'approval-1', 'allowOnce')
@@ -105,20 +111,26 @@ describe('conversation timeline reducer', () => {
   it('closes text, tools, and approvals when a run terminates', () => {
     let turn = createConversationTurn('turn-1', 'prompt-1', 'Write a file', [])
     turn = reduceConversationTurn(turn, event(1, { type: 'messageDelta', text: 'Working.' }))
-    turn = reduceConversationTurn(turn, event(2, {
-      type: 'toolRequested',
-      toolCallId: 'tool-1',
-      name: 'write',
-      arguments: {},
-    }))
-    turn = reduceConversationTurn(turn, event(3, {
-      type: 'approvalRequested',
-      approvalId: 'approval-1',
-      toolCallId: 'tool-1',
-      capabilities: ['filesystem.write'],
-      resources: [],
-      decisions: ['allowOnce'],
-    }))
+    turn = reduceConversationTurn(
+      turn,
+      event(2, {
+        type: 'toolRequested',
+        toolCallId: 'tool-1',
+        name: 'write',
+        arguments: {},
+      }),
+    )
+    turn = reduceConversationTurn(
+      turn,
+      event(3, {
+        type: 'approvalRequested',
+        approvalId: 'approval-1',
+        toolCallId: 'tool-1',
+        capabilities: ['filesystem.write'],
+        resources: [],
+        decisions: ['allowOnce'],
+      }),
+    )
     turn = reduceConversationTurn(turn, event(4, { type: 'runFinished' }))
 
     expect(turn.status).toBe('completed')
@@ -132,17 +144,23 @@ describe('conversation timeline reducer', () => {
 
   it('records host tool completion before the assistant continues', () => {
     let turn = createConversationTurn('turn-1', 'prompt-1', 'Inspect history', [])
-    turn = reduceConversationTurn(turn, event(1, {
-      type: 'toolRequested',
-      toolCallId: 'tool-1',
-      name: 'load_channel_messages',
-      arguments: { direction: 'before' },
-    }))
-    turn = reduceConversationTurn(turn, event(2, {
-      type: 'toolCompleted',
-      toolCallId: 'tool-1',
-      status: 'completed',
-    }))
+    turn = reduceConversationTurn(
+      turn,
+      event(1, {
+        type: 'toolRequested',
+        toolCallId: 'tool-1',
+        name: 'load_channel_messages',
+        arguments: { direction: 'before' },
+      }),
+    )
+    turn = reduceConversationTurn(
+      turn,
+      event(2, {
+        type: 'toolCompleted',
+        toolCallId: 'tool-1',
+        status: 'completed',
+      }),
+    )
 
     expect(turn.blocks[0]).toMatchObject({
       kind: 'toolCall',

@@ -17,7 +17,10 @@ describe('ElectronChannelTransport', () => {
 
   it('connects through Host status without passing credentials from the WebView', async () => {
     mocks.invoke.mockResolvedValueOnce({
-      phase: 'connected', account: 'account', accountRef: 'safe-ref', retryable: false,
+      phase: 'connected',
+      account: 'account',
+      accountRef: 'safe-ref',
+      retryable: false,
     })
     const transport = new ElectronChannelTransport()
 
@@ -38,10 +41,13 @@ describe('ElectronChannelTransport', () => {
     const transport = new ElectronChannelTransport()
 
     expect(transport.capabilities()).toContainEqual({
-      id: 'profile.self', available: true,
+      id: 'profile.self',
+      available: true,
     })
     await expect(transport.getSelfProfile()).resolves.toEqual({
-      accountId: 'account', name: 'Tea User', email: 'user@example.test',
+      accountId: 'account',
+      name: 'Tea User',
+      email: 'user@example.test',
     })
     expect(mocks.invoke).toHaveBeenCalledWith('get_channel_self_profile', {})
     expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/token|appKey|apiKey/i)

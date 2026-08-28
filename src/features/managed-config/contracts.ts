@@ -6,11 +6,13 @@ export interface ManagedConfiguration {
   modelProviders: EndpointBootstrap['modelProviders']
 }
 
-export function projectManagedConfiguration(bootstrap: EndpointBootstrap | null): ManagedConfiguration | null {
+export function projectManagedConfiguration(
+  bootstrap: EndpointBootstrap | null,
+): ManagedConfiguration | null {
   if (!bootstrap || bootstrap.schemaVersion !== 1) return null
   return {
     revision: bootstrap.revision,
     im: bootstrap.im,
-    modelProviders: bootstrap.modelProviders.filter(provider => provider.enabled),
+    modelProviders: bootstrap.modelProviders.filter((provider) => provider.enabled),
   }
 }

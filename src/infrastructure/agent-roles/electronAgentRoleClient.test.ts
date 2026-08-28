@@ -28,9 +28,7 @@ describe('electron agent role client', () => {
         { kind: 'mcp', id: 'mcp.docs', available: false },
         { kind: 'tool', id: 'tool.search' },
       ],
-      dependencies: [
-        { kind: 'skill', id: 'skill.copy', version: '' },
-      ],
+      dependencies: [{ kind: 'skill', id: 'skill.copy', version: '' }],
     })
 
     expect(invokeMock).toHaveBeenCalledWith('save_agent_role_revision', {
@@ -48,16 +46,18 @@ describe('electron agent role client', () => {
   it('maps object-shaped Electron rejections to a stable client error', async () => {
     invokeMock.mockRejectedValue({ code: 'invalidRequest', message: 'invalid role revision' })
 
-    await expect(saveAgentRoleRevision({
-      roleId: 'role.writer',
-      revision: 0,
-      name: 'Writer',
-      description: '',
-      runtimeId: 'external.claude',
-      prompt: '',
-      capabilities: [],
-      dependencies: [],
-    })).rejects.toMatchObject({
+    await expect(
+      saveAgentRoleRevision({
+        roleId: 'role.writer',
+        revision: 0,
+        name: 'Writer',
+        description: '',
+        runtimeId: 'external.claude',
+        prompt: '',
+        capabilities: [],
+        dependencies: [],
+      }),
+    ).rejects.toMatchObject({
       name: 'AgentRoleClientError',
       code: 'invalidRequest',
       message: 'Agent role payload was rejected',
@@ -67,38 +67,44 @@ describe('electron agent role client', () => {
   it('recognizes a command-not-found object from an older host runtime', async () => {
     invokeMock.mockRejectedValue({ kind: 'CommandNotFound' })
 
-    await expect(saveAgentRoleRevision({
-      roleId: 'role.writer',
-      revision: 0,
-      name: 'Writer',
-      description: '',
-      runtimeId: 'external.claude',
-      prompt: '',
-      capabilities: [],
-      dependencies: [],
-    })).rejects.toMatchObject({ code: 'commandUnavailable' })
+    await expect(
+      saveAgentRoleRevision({
+        roleId: 'role.writer',
+        revision: 0,
+        name: 'Writer',
+        description: '',
+        runtimeId: 'external.claude',
+        prompt: '',
+        capabilities: [],
+        dependencies: [],
+      }),
+    ).rejects.toMatchObject({ code: 'commandUnavailable' })
   })
 
   it('keeps saved prompts and capability references when listing local roles', async () => {
-    invokeMock.mockResolvedValue([{
-      roleId: 'role.writer',
-      revision: 1,
-      name: 'Writer',
-      description: 'Writes clearly',
-      runtimeId: 'external.claude',
-      modelId: 'model.default',
-      systemPrompt: 'Be concise',
-      userPromptTemplate: '{{input}}',
-      dependencies: [{ kind: 'skill', id: 'skill.copy' }],
-      capabilities: [{ kind: 'mcp', id: 'mcp.docs', version: '1.0.0' }],
-    }])
+    invokeMock.mockResolvedValue([
+      {
+        roleId: 'role.writer',
+        revision: 1,
+        name: 'Writer',
+        description: 'Writes clearly',
+        runtimeId: 'external.claude',
+        modelId: 'model.default',
+        systemPrompt: 'Be concise',
+        userPromptTemplate: '{{input}}',
+        dependencies: [{ kind: 'skill', id: 'skill.copy' }],
+        capabilities: [{ kind: 'mcp', id: 'mcp.docs', version: '1.0.0' }],
+      },
+    ])
 
-    await expect(listAgentRoles()).resolves.toEqual([expect.objectContaining({
-      id: 'role.writer',
-      modelId: 'model.default',
-      systemPrompt: 'Be concise',
-      userPromptTemplate: '{{input}}',
-      capabilities: [{ kind: 'mcp', id: 'mcp.docs', version: '1.0.0' }],
-    })])
+    await expect(listAgentRoles()).resolves.toEqual([
+      expect.objectContaining({
+        id: 'role.writer',
+        modelId: 'model.default',
+        systemPrompt: 'Be concise',
+        userPromptTemplate: '{{input}}',
+        capabilities: [{ kind: 'mcp', id: 'mcp.docs', version: '1.0.0' }],
+      }),
+    ])
   })
 })

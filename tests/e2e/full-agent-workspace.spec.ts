@@ -1,6 +1,9 @@
 import { expect, test } from './fixtures/app'
 
-test('reuses the full Agent surface with model, permission, Role, and approval', async ({ openFixture, page }) => {
+test('reuses the full Agent surface with model, permission, Role, and approval', async ({
+  openFixture,
+  page,
+}) => {
   await page.setViewportSize({ width: 1100, height: 760 })
   await openFixture('full-agent')
 
@@ -13,7 +16,10 @@ test('reuses the full Agent surface with model, permission, Role, and approval',
 })
 
 test('captures the full Agent workspace', async ({ openFixture, page }, testInfo) => {
-  test.skip(testInfo.project.name.includes('reduced'), 'Visual baseline is shared with the normal-motion project.')
+  test.skip(
+    testInfo.project.name.includes('reduced'),
+    'Visual baseline is shared with the normal-motion project.',
+  )
   await page.setViewportSize({ width: 1100, height: 760 })
   await openFixture('full-agent')
   await expect(page).toHaveScreenshot('full-agent-1100x760.png', { animations: 'disabled' })

@@ -3,7 +3,12 @@ import { TeaButton } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 
 import RuntimeIcon from '../../../shared/ui/RuntimeIcon.vue'
-import type { ConversationScopeFilter, ConversationSummary, ConversationUiError, RuntimeDescriptor } from '../contracts'
+import type {
+  ConversationScopeFilter,
+  ConversationSummary,
+  ConversationUiError,
+  RuntimeDescriptor,
+} from '../contracts'
 
 const props = defineProps<{
   conversations: ConversationSummary[]
@@ -26,7 +31,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function runtimeName(runtimeId: string): string {
-  return props.runtimes.find(runtime => runtime.id === runtimeId)?.displayName ?? runtimeId
+  return props.runtimes.find((runtime) => runtime.id === runtimeId)?.displayName ?? runtimeId
 }
 
 function conversationTitle(conversation: ConversationSummary): string {
@@ -57,10 +62,14 @@ function handleScroll(event: Event): void {
       </TeaButton>
       <div class="mt-2 grid grid-cols-3 gap-1 tea-radius-control tea-bg-muted p-1">
         <TeaButton
-          v-for="kind in (['all', 'local', 'channel'] as const)"
+          v-for="kind in ['all', 'local', 'channel'] as const"
           :key="kind"
           class="tea-radius-small px-1.5 py-1 tea-text-micro tea-weight-medium transition-colors"
-          :class="filter.kind === kind ? 'tea-bg-canvas tea-fg tea-elevation-low' : 'tea-fg-subtle tea-hover-fg'"
+          :class="
+            filter.kind === kind
+              ? 'tea-bg-canvas tea-fg tea-elevation-low'
+              : 'tea-fg-subtle tea-hover-fg'
+          "
           @click="emit('filter', { kind })"
         >
           {{ t(`sidebar.filters.${kind}`) }}
@@ -69,7 +78,10 @@ function handleScroll(event: Event): void {
     </div>
 
     <div class="flex-1 overflow-y-auto px-2 pb-3" @scroll.passive="handleScroll">
-      <div v-if="loading" class="flex items-center justify-center gap-2 px-3 py-8 tea-text-caption tea-fg-subtle">
+      <div
+        v-if="loading"
+        class="flex items-center justify-center gap-2 px-3 py-8 tea-text-caption tea-fg-subtle"
+      >
         <span class="i-mdi-loading size-4 animate-spin" aria-hidden="true" />
         {{ t('sidebar.loading') }}
       </div>
@@ -83,7 +95,10 @@ function handleScroll(event: Event): void {
           {{ t('sidebar.retry') }}
         </TeaButton>
       </div>
-      <p v-else-if="conversations.length === 0" class="px-3 py-8 text-center tea-text-caption tea-fg-subtle">
+      <p
+        v-else-if="conversations.length === 0"
+        class="px-3 py-8 text-center tea-text-caption tea-fg-subtle"
+      >
         {{ t('sidebar.empty') }}
       </p>
       <TeaButton
@@ -105,9 +120,16 @@ function handleScroll(event: Event): void {
         <span class="min-w-0 flex-1 truncate tea-text-body tea-weight-medium leading-5 tea-fg">
           {{ conversationTitle(conv) }}
         </span>
-        <span v-if="conv.channelBinding" class="i-mdi-pound size-3 shrink-0 tea-fg-subtle" aria-hidden="true" />
+        <span
+          v-if="conv.channelBinding"
+          class="i-mdi-pound size-3 shrink-0 tea-fg-subtle"
+          aria-hidden="true"
+        />
       </TeaButton>
-      <div v-if="loadingMore" class="flex items-center justify-center gap-2 py-4 tea-text-caption tea-fg-subtle">
+      <div
+        v-if="loadingMore"
+        class="flex items-center justify-center gap-2 py-4 tea-text-caption tea-fg-subtle"
+      >
         <span class="i-mdi-loading size-4 animate-spin" aria-hidden="true" />
         {{ t('sidebar.loadingMore') }}
       </div>

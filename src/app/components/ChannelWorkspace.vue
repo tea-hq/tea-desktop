@@ -58,11 +58,18 @@ const {
     @load-more="channels.loadOlderMessages()"
     @toggle-panel="settings.toggleAgentDrawer()"
   />
-  <ChannelSelectionPlaceholder v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0" />
+  <ChannelSelectionPlaceholder
+    v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0"
+  />
   <ChannelConnectionPanel
     v-else
     :status="channels.status"
-    :error-code="channels.errorCode || managedRuntime.state.im?.errorCode || managedRuntime.state.errorCode || null"
+    :error-code="
+      channels.errorCode ||
+      managedRuntime.state.im?.errorCode ||
+      managedRuntime.state.errorCode ||
+      null
+    "
     :managed-phase="managedRuntime.state.phase"
     :im-status="managedRuntime.state.im?.status"
     :pending="centerAuth.pending || managedRuntime.pending"
@@ -85,11 +92,17 @@ const {
     :error="collaborationErrorText"
     @close="settings.closeAgentDrawer()"
     @select="selectCollaborationConversation"
-    @create="createCollaborationConversation(activeAgentDrawerState.draft.runtimeId || settings.defaultRuntimeId)"
+    @create="
+      createCollaborationConversation(
+        activeAgentDrawerState.draft.runtimeId || settings.defaultRuntimeId,
+      )
+    "
     @view-all="agentDrawer.setListMode(collaboration.activeBinding!, 'all')"
     @update-query="agentDrawer.setQuery(collaboration.activeBinding!, $event)"
     @update-text="agentDrawer.updateDraft(collaboration.activeBinding!, { text: $event })"
-    @update-attachments="agentDrawer.updateDraft(collaboration.activeBinding!, { attachments: $event })"
+    @update-attachments="
+      agentDrawer.updateDraft(collaboration.activeBinding!, { attachments: $event })
+    "
     @send="collaboration.sendMessage($event.text)"
     @stop="collaboration.cancel()"
     @back="agentDrawer.back(collaboration.activeBinding!)"

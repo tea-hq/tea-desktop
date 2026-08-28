@@ -38,10 +38,18 @@ export const useChannelsStore = defineStore('channels', () => {
   let refreshPromise: Promise<void> | null = null
   let lifecycleGeneration = 0
 
-  const channels = computed(() => [...projection.channels.values()].sort((left, right) => right.updatedAt - left.updatedAt))
-  const activeChannel = computed(() => activeChannelRef.value ? projection.channels.get(activeChannelRef.value) ?? null : null)
-  const activeMessages = computed(() => activeChannelRef.value ? projection.messagesByChannel.get(activeChannelRef.value) ?? [] : [])
-  const activeHasMoreMessages = computed(() => activeChannelRef.value ? messageCursors.get(activeChannelRef.value)?.hasMore ?? false : false)
+  const channels = computed(() =>
+    [...projection.channels.values()].sort((left, right) => right.updatedAt - left.updatedAt),
+  )
+  const activeChannel = computed(() =>
+    activeChannelRef.value ? (projection.channels.get(activeChannelRef.value) ?? null) : null,
+  )
+  const activeMessages = computed(() =>
+    activeChannelRef.value ? (projection.messagesByChannel.get(activeChannelRef.value) ?? []) : [],
+  )
+  const activeHasMoreMessages = computed(() =>
+    activeChannelRef.value ? (messageCursors.get(activeChannelRef.value)?.hasMore ?? false) : false,
+  )
   const capabilities = computed(() => transport.value?.capabilities() ?? [])
 
   function configure(value: ChannelTransport): void {
@@ -52,7 +60,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (transport.value) void transport.value.dispose()
     transport.value = value
     status.value = value.status()
-    unsubscribe = value.subscribe(event => {
+    unsubscribe = value.subscribe((event) => {
       if (generation === lifecycleGeneration && transport.value === value) handleEvent(event)
     })
     clearProjection()
@@ -66,7 +74,8 @@ export const useChannelsStore = defineStore('channels', () => {
       await client.connect()
       if (generation !== lifecycleGeneration || transport.value !== client) return
       const nextStatus = client.status()
-      if (status.value.accountRef && status.value.accountRef !== nextStatus.accountRef) clearProjection()
+      if (status.value.accountRef && status.value.accountRef !== nextStatus.accountRef)
+        clearProjection()
       status.value = nextStatus
       await refreshChannels()
     } catch (error) {
@@ -108,7 +117,8 @@ export const useChannelsStore = defineStore('channels', () => {
         }
         if (generation !== lifecycleGeneration || transport.value !== client) return
         replaceChannels(projection, values)
-        if (activeChannelRef.value && !projection.channels.has(activeChannelRef.value)) activeChannelRef.value = null
+        if (activeChannelRef.value && !projection.channels.has(activeChannelRef.value))
+          activeChannelRef.value = null
         if (activeChannelRef.value && !projection.messagesByChannel.has(activeChannelRef.value)) {
           await loadMessages(activeChannelRef.value, false)
         }
@@ -130,9 +140,12 @@ export const useChannelsStore = defineStore('channels', () => {
     const generation = lifecycleGeneration
     activeChannelRef.value = channelRef
     if (!projection.messagesByChannel.has(channelRef)) await loadMessages(channelRef, false)
-    if (generation !== lifecycleGeneration
-      || transport.value !== client
-      || activeChannelRef.value !== channelRef) return
+    if (
+      generation !== lifecycleGeneration ||
+      transport.value !== client ||
+      activeChannelRef.value !== channelRef
+    )
+      return
     try {
       await client.markRead(channelRef)
     } catch (error) {
@@ -213,16 +226,21 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   function handleEvent(event: ChannelEvent): void {
-    if (event.type === 'status.changed'
-      && status.value.accountRef
-      && event.status.accountRef
-      && status.value.accountRef !== event.status.accountRef) {
+    if (
+      event.type === 'status.changed' &&
+      status.value.accountRef &&
+      event.status.accountRef &&
+      status.value.accountRef !== event.status.accountRef
+    ) {
       clearProjection()
     }
     status.value = event.type === 'status.changed' ? event.status : status.value
     reduceChannelEvent(projection, event)
     if (event.type === 'status.changed') {
-      if (event.status.phase === 'kickedOffline' || (event.status.phase === 'disconnected' && !event.status.retryable)) {
+      if (
+        event.status.phase === 'kickedOffline' ||
+        (event.status.phase === 'disconnected' && !event.status.retryable)
+      ) {
         clearProjection()
       }
       if (event.status.phase === 'connected') void refreshChannels().catch(() => undefined)
@@ -271,5 +289,7 @@ export const useChannelsStore = defineStore('channels', () => {
 })
 
 function transportErrorCode(error: unknown): string {
-  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'transport'
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? String(error.code)
+    : 'transport'
 }

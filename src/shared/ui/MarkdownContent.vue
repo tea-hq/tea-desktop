@@ -15,14 +15,25 @@ const props = withDefaults(
     streaming: false,
     compact: false,
     tone: 'default',
-  }
+  },
 )
 
 const sanitizeConfig: Config = {
   ADD_ATTR: ['decoding', 'loading', 'referrerpolicy', 'target'],
   ALLOW_DATA_ATTR: false,
   FORBID_ATTR: ['style'],
-  FORBID_TAGS: ['button', 'embed', 'form', 'iframe', 'input', 'object', 'option', 'select', 'style', 'textarea'],
+  FORBID_TAGS: [
+    'button',
+    'embed',
+    'form',
+    'iframe',
+    'input',
+    'object',
+    'option',
+    'select',
+    'style',
+    'textarea',
+  ],
   RETURN_TRUSTED_TYPE: false,
   USE_PROFILES: { html: true },
 }
@@ -50,7 +61,10 @@ function scheduleRender(): void {
   })
 }
 
-watch([() => props.source, () => props.streaming], scheduleRender, { immediate: true, flush: 'sync' })
+watch([() => props.source, () => props.streaming], scheduleRender, {
+  immediate: true,
+  flush: 'sync',
+})
 
 onBeforeUnmount(() => {
   if (frameId !== null) window.cancelAnimationFrame(frameId)

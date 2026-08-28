@@ -47,9 +47,9 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   const turns = ref<ConversationTurn[]>([])
   const collaboration = ref<CollaborationSnapshot>(emptyCollaboration())
   const drawer = useAgentDrawerStore()
-  const stagedSources = computed(() => activeBinding.value
-    ? drawer.ensureState(activeBinding.value).draft.sources
-    : [])
+  const stagedSources = computed(() =>
+    activeBinding.value ? drawer.ensureState(activeBinding.value).draft.sources : [],
+  )
   const chooserOpen = ref(false)
   const loading = ref(false)
   const sending = ref(false)
@@ -64,23 +64,26 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   let selectionToken = 0
   let lifecycleGeneration = 0
 
-  const activeConversation = computed(() =>
-    conversations.value.find(value => value.conversationId === conversationId.value) ?? null,
+  const activeConversation = computed(
+    () =>
+      conversations.value.find((value) => value.conversationId === conversationId.value) ?? null,
   )
-  const activeRuntime = computed(() =>
-    runtimes.value.find(value => value.id === activeConversation.value?.runtimeId) ?? null,
+  const activeRuntime = computed(
+    () => runtimes.value.find((value) => value.id === activeConversation.value?.runtimeId) ?? null,
   )
   const isStreaming = computed(() => {
     const status = turns.value.at(-1)?.status
     return status === 'sending' || status === 'running'
   })
-  const canSend = computed(() => Boolean(
-    activeBinding.value
-      && selectedRuntimeId.value
-      && !loading.value
-      && !sending.value
-      && !isStreaming.value,
-  ))
+  const canSend = computed(() =>
+    Boolean(
+      activeBinding.value &&
+      selectedRuntimeId.value &&
+      !loading.value &&
+      !sending.value &&
+      !isStreaming.value,
+    ),
+  )
 
   function configure(client: ConversationClient, transport: ChannelTransport): void {
     if (conversationClient.value === client && channelTransport.value === transport) return
@@ -91,33 +94,38 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     conversationClient.value = client
     channelTransport.value = transport
     bridge.value = new ConversationCollaborationClient(client, transport)
-    unsubscribeUpdates = client.subscribeToConversationUpdates(summary => {
-      if (generation === lifecycleGeneration
-        && summary.channelBinding
-        && sameBinding(summary.channelBinding, activeBinding.value)) mergeSummary(summary)
+    unsubscribeUpdates = client.subscribeToConversationUpdates((summary) => {
+      if (
+        generation === lifecycleGeneration &&
+        summary.channelBinding &&
+        sameBinding(summary.channelBinding, activeBinding.value)
+      )
+        mergeSummary(summary)
     })
   }
 
   async function loadRuntimes(): Promise<void> {
     const client = requireClient()
     const generation = lifecycleGeneration
-    const values = (await client.listRuntimes()).filter(runtime =>
-      runtime.capabilities.includes('prompt')
-      && runtime.capabilities.includes('events')
-      && runtime.capabilities.includes('hostTools'),
+    const values = (await client.listRuntimes()).filter(
+      (runtime) =>
+        runtime.capabilities.includes('prompt') &&
+        runtime.capabilities.includes('events') &&
+        runtime.capabilities.includes('hostTools'),
     )
     if (generation !== lifecycleGeneration || conversationClient.value !== client) return
     runtimes.value = values
-    selectedRuntimeId.value = selectedRuntimeId.value
-      && runtimes.value.some(runtime => runtime.id === selectedRuntimeId.value)
-      ? selectedRuntimeId.value
-      : runtimes.value.find(runtime => runtime.status === 'ready')?.id
-        ?? runtimes.value[0]?.id
-        ?? null
+    selectedRuntimeId.value =
+      selectedRuntimeId.value &&
+      runtimes.value.some((runtime) => runtime.id === selectedRuntimeId.value)
+        ? selectedRuntimeId.value
+        : (runtimes.value.find((runtime) => runtime.status === 'ready')?.id ??
+          runtimes.value[0]?.id ??
+          null)
   }
 
   function selectRuntime(runtimeId: string): void {
-    if (!runtimes.value.some(runtime => runtime.id === runtimeId)) return
+    if (!runtimes.value.some((runtime) => runtime.id === runtimeId)) return
     clearSelection()
     selectedRuntimeId.value = runtimeId
     if (activeBinding.value) drawer.updateDraft(activeBinding.value, { runtimeId })
@@ -129,9 +137,10 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   async function bindChannel(channelRef: string): Promise<void> {
     const transport = requireTransport()
     const status = transport.status()
-    const next = channelRef && status.phase === 'connected' && status.accountRef
-      ? { transportId: transport.descriptor().id, accountRef: status.accountRef, channelRef }
-      : null
+    const next =
+      channelRef && status.phase === 'connected' && status.accountRef
+        ? { transportId: transport.descriptor().id, accountRef: status.accountRef, channelRef }
+        : null
     if (sameBinding(next, activeBinding.value)) return
     activeBinding.value = next
     drawer.activateBinding(next)
@@ -154,9 +163,12 @@ export const useCollaborationStore = defineStore('collaboration', () => {
         limit: PAGE_LIMIT,
         filter: { kind: 'binding', binding: { ...binding } },
       })
-      if (generation !== lifecycleGeneration
-        || conversationClient.value !== client
-        || !sameBinding(binding, activeBinding.value)) return
+      if (
+        generation !== lifecycleGeneration ||
+        conversationClient.value !== client ||
+        !sameBinding(binding, activeBinding.value)
+      )
+        return
       conversations.value = uniqueSorted(page.items)
     } catch (cause) {
       if (generation === lifecycleGeneration) error.value = runtimeError(cause)
@@ -174,8 +186,15 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     return null
   }
 
-  async function createConversationForMessage(runtimeId: string, message: Message): Promise<boolean> {
-    if (!activeBinding.value || !runtimes.value.some(runtime => runtime.id === runtimeId && runtime.status === 'ready')) return false
+  async function createConversationForMessage(
+    runtimeId: string,
+    message: Message,
+  ): Promise<boolean> {
+    if (
+      !activeBinding.value ||
+      !runtimes.value.some((runtime) => runtime.id === runtimeId && runtime.status === 'ready')
+    )
+      return false
     await createConversation(runtimeId)
     stageMessage(message, { openChooser: false })
     return true
@@ -183,8 +202,9 @@ export const useCollaborationStore = defineStore('collaboration', () => {
 
   async function selectConversation(id: string): Promise<boolean> {
     if (id === conversationId.value) return true
-    const summary = conversations.value.find(value => value.conversationId === id)
-    if (!summary?.channelBinding || !sameBinding(summary.channelBinding, activeBinding.value)) return false
+    const summary = conversations.value.find((value) => value.conversationId === id)
+    if (!summary?.channelBinding || !sameBinding(summary.channelBinding, activeBinding.value))
+      return false
     const client = requireClient()
     const generation = lifecycleGeneration
     const token = ++selectionToken
@@ -194,14 +214,16 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     const buffered: ConversationEvent[] = []
     let ready = false
     try {
-      const subscription = await client.subscribeToEvents(id, event => {
+      const subscription = await client.subscribeToEvents(id, (event) => {
         if (token !== selectionToken) return
         if (!ready) buffered.push(event)
         else handleEvent(event)
       })
-      if (token !== selectionToken
-        || generation !== lifecycleGeneration
-        || conversationClient.value !== client) {
+      if (
+        token !== selectionToken ||
+        generation !== lifecycleGeneration ||
+        conversationClient.value !== client
+      ) {
         subscription()
         return false
       }
@@ -210,9 +232,12 @@ export const useCollaborationStore = defineStore('collaboration', () => {
         client.getConversation(id),
         client.loadConversationHistory({ conversationId: id, limit: 50 }),
       ])
-      if (token !== selectionToken
-        || generation !== lifecycleGeneration
-        || conversationClient.value !== client) return false
+      if (
+        token !== selectionToken ||
+        generation !== lifecycleGeneration ||
+        conversationClient.value !== client
+      )
+        return false
       applyDetail(detail, history.items)
       if (activeBinding.value) drawer.selectConversation(activeBinding.value, id)
       ready = true
@@ -228,7 +253,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
 
   async function renameConversation(id: string, title: string): Promise<boolean> {
     const nextTitle = title.trim()
-    if (!nextTitle || !conversations.value.some(value => value.conversationId === id)) return false
+    if (!nextTitle || !conversations.value.some((value) => value.conversationId === id))
+      return false
     const client = requireClient()
     const generation = lifecycleGeneration
     try {
@@ -241,13 +267,13 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   }
 
   async function archiveConversation(id: string): Promise<boolean> {
-    if (!conversations.value.some(value => value.conversationId === id)) return false
+    if (!conversations.value.some((value) => value.conversationId === id)) return false
     const client = requireClient()
     const generation = lifecycleGeneration
     try {
       await client.archiveConversation(id)
       if (generation !== lifecycleGeneration || conversationClient.value !== client) return false
-      conversations.value = conversations.value.filter(value => value.conversationId !== id)
+      conversations.value = conversations.value.filter((value) => value.conversationId !== id)
       if (conversationId.value === id) clearSelection()
       return true
     } catch (cause) {
@@ -280,15 +306,21 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       permissionMode: permissionMode.value,
       text: trimmed,
     })
-    const currentId = conversationId.value ?? await createConversationOnFirstSend(binding)
-    if (!currentId
-      || generation !== lifecycleGeneration
-      || conversationClient.value !== client
-      || !sameBinding(binding, activeBinding.value)) return
+    const currentId = conversationId.value ?? (await createConversationOnFirstSend(binding))
+    if (
+      !currentId ||
+      generation !== lifecycleGeneration ||
+      conversationClient.value !== client ||
+      !sameBinding(binding, activeBinding.value)
+    )
+      return
     const sources = stagedSources.value.map(cloneSourceInput)
     const turnIndex = turns.value.length
     const turnId = crypto.randomUUID()
-    turns.value = [...turns.value, createConversationTurn(turnId, crypto.randomUUID(), trimmed, [], 0)]
+    turns.value = [
+      ...turns.value,
+      createConversationTurn(turnId, crypto.randomUUID(), trimmed, [], 0),
+    ]
     sending.value = true
     error.value = null
     try {
@@ -297,8 +329,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
         currentId,
         binding.channelRef,
         turnIndex,
-        sources.map(source => source.messageRef),
-        persisted => {
+        sources.map((source) => source.messageRef),
+        (persisted) => {
           if (generation === lifecycleGeneration) appendPersistedSources(turnIndex, persisted)
         },
       )
@@ -319,11 +351,13 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       if (generation === lifecycleGeneration) {
         cleanupTurnHistory?.()
         cleanupTurnHistory = null
-        updateTurn(turnId, turn => failConversationTurn(turn, {
-          code: 'internal',
-          message: cause instanceof Error ? cause.message : String(cause),
-          retryable: false,
-        }))
+        updateTurn(turnId, (turn) =>
+          failConversationTurn(turn, {
+            code: 'internal',
+            message: cause instanceof Error ? cause.message : String(cause),
+            retryable: false,
+          }),
+        )
         error.value = runtimeError(cause)
       }
     } finally {
@@ -331,7 +365,11 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     }
   }
 
-  async function createDraft(turnIndex: number, blockId: string, content: string): Promise<Draft | null> {
+  async function createDraft(
+    turnIndex: number,
+    blockId: string,
+    content: string,
+  ): Promise<Draft | null> {
     const currentId = conversationId.value
     if (!currentId || !content.trim()) return null
     const client = requireClient()
@@ -353,7 +391,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     try {
       const draft = await client.updateDraft(draftId, content)
       if (generation !== lifecycleGeneration || conversationClient.value !== client) return null
-      collaboration.value.drafts = collaboration.value.drafts.map(value =>
+      collaboration.value.drafts = collaboration.value.drafts.map((value) =>
         value.draftId === draftId ? draft : value,
       )
       return draft
@@ -365,18 +403,23 @@ export const useCollaborationStore = defineStore('collaboration', () => {
 
   async function deliverDraft(draftId: string): Promise<void> {
     if (sending.value) return
-    const draft = collaboration.value.drafts.find(value => value.draftId === draftId)
+    const draft = collaboration.value.drafts.find((value) => value.draftId === draftId)
     if (!draft) return
     const currentBridge = requireBridge()
     const generation = lifecycleGeneration
     sending.value = true
     error.value = null
     try {
-      const delivery = await currentBridge.deliverDraft(draft, activeRuntime.value?.displayName ?? 'Agent')
+      const delivery = await currentBridge.deliverDraft(
+        draft,
+        activeRuntime.value?.displayName ?? 'Agent',
+      )
       if (generation !== lifecycleGeneration || bridge.value !== currentBridge) return
       collaboration.value.deliveries = [
         delivery,
-        ...collaboration.value.deliveries.filter(value => value.deliveryId !== delivery.deliveryId),
+        ...collaboration.value.deliveries.filter(
+          (value) => value.deliveryId !== delivery.deliveryId,
+        ),
       ]
     } catch (cause) {
       if (generation === lifecycleGeneration) {
@@ -407,23 +450,26 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   async function respondToApproval(approvalId: string, decision: ApprovalDecision): Promise<void> {
     const currentId = conversationId.value
     if (!currentId) return
-    const turn = [...turns.value].reverse().find(candidate => findApproval(candidate, approvalId))
+    const turn = [...turns.value].reverse().find((candidate) => findApproval(candidate, approvalId))
     const approval = turn ? findApproval(turn, approvalId) : undefined
-    if (!turn || !approval || (approval.status !== 'pending' && approval.status !== 'failed')) return
+    if (!turn || !approval || (approval.status !== 'pending' && approval.status !== 'failed'))
+      return
     const client = requireClient()
     const generation = lifecycleGeneration
-    updateTurn(turn.id, value => setApprovalResolving(value, approvalId, decision))
+    updateTurn(turn.id, (value) => setApprovalResolving(value, approvalId, decision))
     try {
       await client.respondToApproval(currentId, approvalId, decision)
       if (generation !== lifecycleGeneration || conversationClient.value !== client) return
-      updateTurn(turn.id, value => completeApproval(value, approvalId, decision))
+      updateTurn(turn.id, (value) => completeApproval(value, approvalId, decision))
     } catch (cause) {
       if (generation === lifecycleGeneration) {
-        updateTurn(turn.id, value => setApprovalFailed(
-          value,
-          approvalId,
-          cause instanceof Error ? cause.message : String(cause),
-        ))
+        updateTurn(turn.id, (value) =>
+          setApprovalFailed(
+            value,
+            approvalId,
+            cause instanceof Error ? cause.message : String(cause),
+          ),
+        )
       }
     }
   }
@@ -440,7 +486,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     if (event.conversationId !== conversationId.value) return
     const turn = turns.value.at(-1)
     if (!turn || (turn.status !== 'sending' && turn.status !== 'running')) return
-    updateTurn(turn.id, current => reduceConversationTurn(current, event))
+    updateTurn(turn.id, (current) => reduceConversationTurn(current, event))
     if (event.event.type === 'runFinished' || event.event.type === 'runFailed') {
       cleanupTurnHistory?.()
       cleanupTurnHistory = null
@@ -455,9 +501,12 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     const generation = lifecycleGeneration
     try {
       const detail = await client.getConversation(currentId)
-      if (generation !== lifecycleGeneration
-        || conversationClient.value !== client
-        || conversationId.value !== currentId) return
+      if (
+        generation !== lifecycleGeneration ||
+        conversationClient.value !== client ||
+        conversationId.value !== currentId
+      )
+        return
       collaboration.value = structuredClone(detail.collaboration)
       mergeSummary(detail.summary)
     } catch {
@@ -466,7 +515,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   }
 
   function appendPersistedSources(turnIndex: number, sources: ChannelSource[]): void {
-    const context = collaboration.value.turnContexts.find(value => value.turnIndex === turnIndex)
+    const context = collaboration.value.turnContexts.find((value) => value.turnIndex === turnIndex)
     if (context) context.sources.push(...sources)
   }
 
@@ -482,18 +531,20 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   }
 
   function updateTurn(id: string, update: (turn: ConversationTurn) => ConversationTurn): void {
-    turns.value = turns.value.map(turn => turn.id === id ? update(turn) : turn)
+    turns.value = turns.value.map((turn) => (turn.id === id ? update(turn) : turn))
   }
 
   function mergeSummary(summary: ConversationSummary): void {
     if (summary.archivedAt) {
-      conversations.value = conversations.value.filter(value => value.conversationId !== summary.conversationId)
+      conversations.value = conversations.value.filter(
+        (value) => value.conversationId !== summary.conversationId,
+      )
       if (conversationId.value === summary.conversationId) clearSelection()
       return
     }
     conversations.value = uniqueSorted([
       summary,
-      ...conversations.value.filter(value => value.conversationId !== summary.conversationId),
+      ...conversations.value.filter((value) => value.conversationId !== summary.conversationId),
     ])
   }
 
@@ -525,9 +576,12 @@ export const useCollaborationStore = defineStore('collaboration', () => {
         idempotencyKey: key,
         channelBinding: { ...binding },
       })
-      if (generation !== lifecycleGeneration
-        || conversationClient.value !== client
-        || !sameBinding(binding, activeBinding.value)) return null
+      if (
+        generation !== lifecycleGeneration ||
+        conversationClient.value !== client ||
+        !sameBinding(binding, activeBinding.value)
+      )
+        return null
       if (created.summary) mergeSummary(created.summary)
       if (!drawer.completeCreation(binding, key, created.handle.conversationId)) return null
       const selected = await selectConversation(created.handle.conversationId)
@@ -542,13 +596,20 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   }
 
   function resolveDraftRuntime(binding: ChannelBinding): string | null {
-    const ready = (id: string | null | undefined) => runtimes.value.find(runtime => runtime.id === id && runtime.status === 'ready')?.id
+    const ready = (id: string | null | undefined) =>
+      runtimes.value.find((runtime) => runtime.id === id && runtime.status === 'ready')?.id
     const state = drawer.ensureState(binding)
-    return ready(state.draft.runtimeId)
-      ?? ready(conversations.value.find(summary => summary.channelBinding && sameBinding(summary.channelBinding, binding))?.runtimeId)
-      ?? ready(userDefaultRuntimeId.value)
-      ?? runtimes.value.find(runtime => runtime.status === 'ready')?.id
-      ?? null
+    return (
+      ready(state.draft.runtimeId) ??
+      ready(
+        conversations.value.find(
+          (summary) => summary.channelBinding && sameBinding(summary.channelBinding, binding),
+        )?.runtimeId,
+      ) ??
+      ready(userDefaultRuntimeId.value) ??
+      runtimes.value.find((runtime) => runtime.status === 'ready')?.id ??
+      null
+    )
   }
 
   function setDefaultRuntimeId(runtimeId: string): void {
@@ -649,29 +710,33 @@ function emptyCollaboration(): CollaborationSnapshot {
 }
 
 function sameBinding(left: ChannelBinding | null, right: ChannelBinding | null): boolean {
-  return left?.transportId === right?.transportId
-    && left?.accountRef === right?.accountRef
-    && left?.channelRef === right?.channelRef
+  return (
+    left?.transportId === right?.transportId &&
+    left?.accountRef === right?.accountRef &&
+    left?.channelRef === right?.channelRef
+  )
 }
 
 function uniqueSorted(values: ConversationSummary[]): ConversationSummary[] {
-  const byId = new Map(values.map(value => [value.conversationId, value]))
-  return [...byId.values()].sort((left, right) =>
-    right.updatedAt - left.updatedAt || right.conversationId.localeCompare(left.conversationId),
+  const byId = new Map(values.map((value) => [value.conversationId, value]))
+  return [...byId.values()].sort(
+    (left, right) =>
+      right.updatedAt - left.updatedAt || right.conversationId.localeCompare(left.conversationId),
   )
 }
 
 function runtimeError(value: unknown): ConversationUiError {
   const candidate = value as { code?: unknown; message?: unknown } | null
-  const message = candidate && typeof candidate.message === 'string'
-    ? candidate.message
-    : value instanceof Error
-      ? value.message
-      : candidate && typeof candidate.code === 'string'
-        ? candidate.code
-        : typeof value === 'string'
-          ? value
-          : 'Unknown runtime error'
+  const message =
+    candidate && typeof candidate.message === 'string'
+      ? candidate.message
+      : value instanceof Error
+        ? value.message
+        : candidate && typeof candidate.code === 'string'
+          ? candidate.code
+          : typeof value === 'string'
+            ? value
+            : 'Unknown runtime error'
   return {
     kind: 'runtime',
     message,

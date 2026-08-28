@@ -5,8 +5,10 @@ export function recentChannelConversations(
   limit = 4,
 ): ConversationSummary[] {
   return [...conversations]
-    .sort((left, right) => right.updatedAt - left.updatedAt
-      || right.conversationId.localeCompare(left.conversationId))
+    .sort(
+      (left, right) =>
+        right.updatedAt - left.updatedAt || right.conversationId.localeCompare(left.conversationId),
+    )
     .slice(0, limit)
 }
 

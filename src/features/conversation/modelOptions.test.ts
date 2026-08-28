@@ -22,10 +22,12 @@ describe('runtimeModelOptions', () => {
   })
 
   it('uses the configured default option for other external runtimes', () => {
-    expect(runtimeModelOptions({
-      ...claude,
-      id: 'external.codex',
-      displayName: 'Codex',
-    })).toEqual([{ value: 'default', labelKey: 'composer.model.configured' }])
+    expect(
+      runtimeModelOptions({
+        ...claude,
+        id: 'external.codex',
+        displayName: 'Codex',
+      }),
+    ).toEqual([{ value: 'default', labelKey: 'composer.model.configured' }])
   })
 })

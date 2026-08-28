@@ -10,15 +10,29 @@ import en from '@/locales/en'
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
 import AgentSessionDetail from './AgentSessionDetail.vue'
 
-const runtime: RuntimeDescriptor = { id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code', capabilities: ['prompt'], status: 'ready' }
+const runtime: RuntimeDescriptor = {
+  id: 'external.claude',
+  kind: 'externalCli',
+  displayName: 'Claude Code',
+  capabilities: ['prompt'],
+  status: 'ready',
+}
 
 function mountDetail() {
   return shallowMount(AgentSessionDetail, {
     props: {
-      channelName: 'Product', title: 'Plan', turns: [],
+      channelName: 'Product',
+      title: 'Plan',
+      turns: [],
       collaboration: { turnContexts: [], drafts: [], deliveries: [] },
-      text: '', attachments: [], sources: [], runtimes: [runtime], runtimeId: runtime.id,
-      modelOptions: [{ value: 'default' }], model: 'default', permissionMode: 'default',
+      text: '',
+      attachments: [],
+      sources: [],
+      runtimes: [runtime],
+      runtimeId: runtime.id,
+      modelOptions: [{ value: 'default' }],
+      model: 'default',
+      permissionMode: 'default',
     },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })

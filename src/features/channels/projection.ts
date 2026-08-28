@@ -1,4 +1,11 @@
-import type { Channel, ChannelEvent, ChannelRef, Message, MessagePage, MessageRef } from './contracts'
+import type {
+  Channel,
+  ChannelEvent,
+  ChannelRef,
+  Message,
+  MessagePage,
+  MessageRef,
+} from './contracts'
 
 export const DEFAULT_MESSAGE_LIMIT = 500
 
@@ -10,22 +17,35 @@ export interface ChannelProjection {
 }
 
 export function createChannelProjection(): ChannelProjection {
-  return { channels: new Map(), messagesByChannel: new Map(), lastEventSequence: 0, totalUnreadCount: 0 }
+  return {
+    channels: new Map(),
+    messagesByChannel: new Map(),
+    lastEventSequence: 0,
+    totalUnreadCount: 0,
+  }
 }
 
 export function replaceChannels(projection: ChannelProjection, channels: Channel[]): void {
-  projection.channels = new Map(channels.map(channel => [channel.ref, channel]))
+  projection.channels = new Map(channels.map((channel) => [channel.ref, channel]))
   for (const channelRef of projection.messagesByChannel.keys()) {
     if (!projection.channels.has(channelRef)) projection.messagesByChannel.delete(channelRef)
   }
 }
 
-export function mergeMessagePage(projection: ChannelProjection, page: MessagePage, limit = DEFAULT_MESSAGE_LIMIT): void {
+export function mergeMessagePage(
+  projection: ChannelProjection,
+  page: MessagePage,
+  limit = DEFAULT_MESSAGE_LIMIT,
+): void {
   const current = projection.messagesByChannel.get(page.channelRef) ?? []
   projection.messagesByChannel.set(page.channelRef, mergeMessages(current, page.items, limit))
 }
 
-export function reduceChannelEvent(projection: ChannelProjection, event: ChannelEvent, limit = DEFAULT_MESSAGE_LIMIT): boolean {
+export function reduceChannelEvent(
+  projection: ChannelProjection,
+  event: ChannelEvent,
+  limit = DEFAULT_MESSAGE_LIMIT,
+): boolean {
   if (event.sequence <= projection.lastEventSequence) return false
   projection.lastEventSequence = event.sequence
 
@@ -53,21 +73,33 @@ export function reduceChannelEvent(projection: ChannelProjection, event: Channel
       removeMessages(projection, event.refs)
       break
     case 'message.revoked':
-      updateMessages(projection, event.refs, message => ({ ...message, state: 'revoked', text: '' }))
+      updateMessages(projection, event.refs, (message) => ({
+        ...message,
+        state: 'revoked',
+        text: '',
+      }))
       break
     case 'message.historyCleared': {
       const messages = projection.messagesByChannel.get(event.channelRef) ?? []
-      projection.messagesByChannel.set(event.channelRef, event.before === undefined ? [] : messages.filter(message => message.sentAt > event.before!))
+      projection.messagesByChannel.set(
+        event.channelRef,
+        event.before === undefined
+          ? []
+          : messages.filter((message) => message.sentAt > event.before!),
+      )
       break
     }
     case 'message.pinChanged':
-      updateMessages(projection, [event.ref], message => ({ ...message, pinned: event.pinned }))
+      updateMessages(projection, [event.ref], (message) => ({ ...message, pinned: event.pinned }))
       break
     case 'message.reactionsChanged':
-      updateMessages(projection, [event.ref], message => ({ ...message, reactions: event.reactions }))
+      updateMessages(projection, [event.ref], (message) => ({
+        ...message,
+        reactions: event.reactions,
+      }))
       break
     case 'message.receiptChanged':
-      updateMessages(projection, [event.ref], message => ({ ...message, receipt: event.receipt }))
+      updateMessages(projection, [event.ref], (message) => ({ ...message, receipt: event.receipt }))
       break
   }
   return true
@@ -76,18 +108,28 @@ export function reduceChannelEvent(projection: ChannelProjection, event: Channel
 export function mergeMessages(current: Message[], incoming: Message[], limit: number): Message[] {
   const merged: Message[] = []
   for (const message of [...current, ...incoming]) {
-    const index = merged.findIndex(candidate => sameMessage(candidate.ref, message.ref))
+    const index = merged.findIndex((candidate) => sameMessage(candidate.ref, message.ref))
     if (index >= 0) merged[index] = message
     else merged.push(message)
   }
-  merged.sort((left, right) => left.sentAt - right.sentAt || left.ref.messageClientId.localeCompare(right.ref.messageClientId))
+  merged.sort(
+    (left, right) =>
+      left.sentAt - right.sentAt ||
+      left.ref.messageClientId.localeCompare(right.ref.messageClientId),
+  )
   return merged.slice(Math.max(0, merged.length - limit))
 }
 
 export function sameMessage(left: MessageRef, right: MessageRef): boolean {
   if (left.channelRef !== right.channelRef) return false
-  return left.messageClientId === right.messageClientId
-    || Boolean(left.messageServerId && right.messageServerId && left.messageServerId === right.messageServerId)
+  return (
+    left.messageClientId === right.messageClientId ||
+    Boolean(
+      left.messageServerId &&
+      right.messageServerId &&
+      left.messageServerId === right.messageServerId,
+    )
+  )
 }
 
 function groupByChannel(messages: Message[]): Map<ChannelRef, Message[]> {
@@ -102,12 +144,24 @@ function groupByChannel(messages: Message[]): Map<ChannelRef, Message[]> {
 
 function removeMessages(projection: ChannelProjection, refs: MessageRef[]): void {
   for (const [channelRef, messages] of projection.messagesByChannel) {
-    projection.messagesByChannel.set(channelRef, messages.filter(message => !refs.some(ref => sameMessage(message.ref, ref))))
+    projection.messagesByChannel.set(
+      channelRef,
+      messages.filter((message) => !refs.some((ref) => sameMessage(message.ref, ref))),
+    )
   }
 }
 
-function updateMessages(projection: ChannelProjection, refs: MessageRef[], update: (message: Message) => Message): void {
+function updateMessages(
+  projection: ChannelProjection,
+  refs: MessageRef[],
+  update: (message: Message) => Message,
+): void {
   for (const [channelRef, messages] of projection.messagesByChannel) {
-    projection.messagesByChannel.set(channelRef, messages.map(message => refs.some(ref => sameMessage(message.ref, ref)) ? update(message) : message))
+    projection.messagesByChannel.set(
+      channelRef,
+      messages.map((message) =>
+        refs.some((ref) => sameMessage(message.ref, ref)) ? update(message) : message,
+      ),
+    )
   }
 }

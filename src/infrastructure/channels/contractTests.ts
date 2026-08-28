@@ -1,11 +1,9 @@
 import { expect } from 'vitest'
 import type { ChannelEvent, ChannelTransport } from '@/features/channels/contracts'
 
-export async function verifyTransportContract(
-  transport: ChannelTransport,
-): Promise<void> {
+export async function verifyTransportContract(transport: ChannelTransport): Promise<void> {
   const events: ChannelEvent[] = []
-  const unsubscribe = transport.subscribe(event => events.push(event))
+  const unsubscribe = transport.subscribe((event) => events.push(event))
   await transport.connect()
 
   expect(transport.status()).toMatchObject({
@@ -16,7 +14,7 @@ export async function verifyTransportContract(
   await transport.connect()
   expect(transport.status().accountRef).toBe(accountRef)
   expect(JSON.parse(JSON.stringify(transport.descriptor()))).toEqual(transport.descriptor())
-  const profileCapability = transport.capabilities().find(value => value.id === 'profile.self')
+  const profileCapability = transport.capabilities().find((value) => value.id === 'profile.self')
   if (profileCapability?.available) {
     const profile = await transport.getSelfProfile()
     expect(profile.accountId).toBeTruthy()
@@ -34,12 +32,14 @@ export async function verifyTransportContract(
   const first = await transport.sendMessage(request)
   const duplicate = await transport.sendMessage(request)
   expect(duplicate).toEqual(first)
-  expect(events.some(event => event.type === 'status.changed')).toBe(true)
-  expect(events.every(event => Number.isInteger(event.sequence))).toBe(true)
+  expect(events.some((event) => event.type === 'status.changed')).toBe(true)
+  expect(events.every((event) => Number.isInteger(event.sequence))).toBe(true)
 
   unsubscribe()
   await transport.disconnect()
-  await expect(transport.listChannels({ offset: 0, limit: 1 })).rejects.toMatchObject({ code: 'notConnected' })
+  await expect(transport.listChannels({ offset: 0, limit: 1 })).rejects.toMatchObject({
+    code: 'notConnected',
+  })
   await transport.dispose()
   await transport.dispose()
   await expect(transport.connect()).rejects.toMatchObject({ code: 'disposed' })

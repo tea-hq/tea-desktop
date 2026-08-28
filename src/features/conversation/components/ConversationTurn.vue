@@ -23,7 +23,10 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function showWaitingIndicator(): boolean {
-  return props.turn.status === 'sending' || (props.turn.status === 'running' && props.turn.blocks.length === 0)
+  return (
+    props.turn.status === 'sending' ||
+    (props.turn.status === 'running' && props.turn.blocks.length === 0)
+  )
 }
 </script>
 
@@ -55,12 +58,22 @@ function showWaitingIndicator(): boolean {
 
     <div class="space-y-3 px-5 pb-5 pt-4">
       <template v-for="block in turn.blocks" :key="block.id">
-        <div v-if="block.kind === 'assistantText'" class="group/response" :data-sequence="block.sequence">
+        <div
+          v-if="block.kind === 'assistantText'"
+          class="group/response"
+          :data-sequence="block.sequence"
+        >
           <MarkdownContent :source="block.text" :streaming="block.streaming" />
           <TeaButton
             v-if="collaboration && !draftExists && turn.status === 'completed' && !block.streaming"
             class="mt-2 inline-flex items-center gap-1.5 tea-radius-control px-2 py-1 tea-text-caption tea-weight-medium tea-fg-muted opacity-0 transition-opacity tea-hover-bg-strong tea-hover-fg group-hover/response:opacity-100 focus:opacity-100"
-            @click="emit('createDraft', { turnIndex: turnIndex ?? 0, blockId: block.id, content: block.text })"
+            @click="
+              emit('createDraft', {
+                turnIndex: turnIndex ?? 0,
+                blockId: block.id,
+                content: block.text,
+              })
+            "
           >
             <span class="i-mdi-file-document-edit-outline size-3.5" aria-hidden="true" />
             {{ t('channels.collaboration.createDraft') }}
@@ -79,8 +92,14 @@ function showWaitingIndicator(): boolean {
 
       <span v-if="showWaitingIndicator()" class="inline-flex gap-1.5 py-1" aria-hidden="true">
         <span class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse" />
-        <span class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse" style="animation-delay: 150ms" />
-        <span class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse" style="animation-delay: 300ms" />
+        <span
+          class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse"
+          style="animation-delay: 150ms"
+        />
+        <span
+          class="h-1.5 w-1.5 tea-radius-pill tea-bg-disabled animate-pulse"
+          style="animation-delay: 300ms"
+        />
       </span>
     </div>
   </article>

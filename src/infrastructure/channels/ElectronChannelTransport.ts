@@ -24,12 +24,21 @@ const descriptor: ChannelTransportDescriptor = {
   displayName: 'Yunxin',
   protocolVersion: 1,
   capabilities: [
-    'channel.list', 'profile.self', 'message.history', 'message.send.text', 'channel.read',
-    'message.modify.events', 'message.delete.events', 'message.revoke.events',
-    'message.pin.events', 'message.receipt.events',
-  ].map(id => ({ id: id as ChannelCapability['id'], available: true })).concat([
-    { id: 'message.quickComment', available: false, reason: 'notVerified' },
-  ] as ChannelCapability[]),
+    'channel.list',
+    'profile.self',
+    'message.history',
+    'message.send.text',
+    'channel.read',
+    'message.modify.events',
+    'message.delete.events',
+    'message.revoke.events',
+    'message.pin.events',
+    'message.receipt.events',
+  ]
+    .map((id) => ({ id: id as ChannelCapability['id'], available: true }))
+    .concat([
+      { id: 'message.quickComment', available: false, reason: 'notVerified' },
+    ] as ChannelCapability[]),
 }
 
 export class ElectronChannelTransport implements ChannelTransport {
@@ -38,9 +47,15 @@ export class ElectronChannelTransport implements ChannelTransport {
   private unlisten: Promise<UnlistenFn> | null = null
   private disposed = false
 
-  descriptor(): ChannelTransportDescriptor { return structuredClone(descriptor) }
-  capabilities(): ChannelCapability[] { return structuredClone(descriptor.capabilities) }
-  status(): ChannelStatus { return structuredClone(this.currentStatus) }
+  descriptor(): ChannelTransportDescriptor {
+    return structuredClone(descriptor)
+  }
+  capabilities(): ChannelCapability[] {
+    return structuredClone(descriptor.capabilities)
+  }
+  status(): ChannelStatus {
+    return structuredClone(this.currentStatus)
+  }
 
   async getSelfProfile(): Promise<ChannelSelfProfile> {
     this.assertUsable()
@@ -52,9 +67,8 @@ export class ElectronChannelTransport implements ChannelTransport {
     this.ensureListening()
     try {
       const current = await invoke<ChannelStatus>('get_channel_status')
-      this.currentStatus = current.phase === 'connected'
-        ? current
-        : await invoke<ChannelStatus>('reconnect_channel')
+      this.currentStatus =
+        current.phase === 'connected' ? current : await invoke<ChannelStatus>('reconnect_channel')
     } catch (error) {
       throw mapCommandError(error)
     }
@@ -118,7 +132,7 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   private ensureListening(): void {
     if (this.unlisten) return
-    this.unlisten = listen<ChannelEvent>('channel-event', event => {
+    this.unlisten = listen<ChannelEvent>('channel-event', (event) => {
       if (this.disposed) return
       if (event.payload.type === 'status.changed') this.currentStatus = event.payload.status
       for (const listener of [...this.listeners]) listener(structuredClone(event.payload))
@@ -132,15 +146,23 @@ export class ElectronChannelTransport implements ChannelTransport {
 
 function mapCommandError(value: unknown): ChannelTransportError {
   const candidate = value as { code?: unknown; retryable?: unknown } | null
-  const code = candidate && typeof candidate.code === 'string' ? candidate.code : 'transportUnavailable'
+  const code =
+    candidate && typeof candidate.code === 'string' ? candidate.code : 'transportUnavailable'
   const retryable = candidate?.retryable === true
   switch (code) {
-    case 'invalidRequest': return new ChannelTransportError('invalidRequest', false)
-    case 'notInitialized': return new ChannelTransportError('notInitialized', false)
-    case 'notConnected': return new ChannelTransportError('notConnected', true)
-    case 'authenticationFailed': return new ChannelTransportError('authentication', false)
-    case 'protocolFailure': return new ChannelTransportError('protocolFailure', false)
-    case 'timeout': return new ChannelTransportError('timeout', true)
-    default: return new ChannelTransportError('transport', retryable)
+    case 'invalidRequest':
+      return new ChannelTransportError('invalidRequest', false)
+    case 'notInitialized':
+      return new ChannelTransportError('notInitialized', false)
+    case 'notConnected':
+      return new ChannelTransportError('notConnected', true)
+    case 'authenticationFailed':
+      return new ChannelTransportError('authentication', false)
+    case 'protocolFailure':
+      return new ChannelTransportError('protocolFailure', false)
+    case 'timeout':
+      return new ChannelTransportError('timeout', true)
+    default:
+      return new ChannelTransportError('transport', retryable)
   }
 }

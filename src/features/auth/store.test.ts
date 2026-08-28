@@ -14,16 +14,27 @@ class FakeCenterAuthClient implements CenterAuthClient {
   defaultEnterpriseDomain: string | null = null
 
   async initialize() {
-    return { state: structuredClone(SIGNED_OUT_STATE), defaultEnterpriseDomain: this.defaultEnterpriseDomain }
+    return {
+      state: structuredClone(SIGNED_OUT_STATE),
+      defaultEnterpriseDomain: this.defaultEnterpriseDomain,
+    }
   }
   async resolveEnterprise(domain: string): Promise<EnterpriseDirectory> {
     this.resolveCalls += 1
     if (domain === 'missing.test') throw { code: 'organizationUnavailable' }
-    return { organizationDomain: domain.toLowerCase(), displayName: 'Example', loginAvailable: true }
+    return {
+      organizationDomain: domain.toLowerCase(),
+      displayName: 'Example',
+      loginAvailable: true,
+    }
   }
   async startLogin(domain: string): Promise<CenterAuthState> {
     this.startedDomain = domain
-    return { ...structuredClone(SIGNED_OUT_STATE), phase: 'browserPending', enterprise: { organizationDomain: domain, displayName: 'Example', loginAvailable: true } }
+    return {
+      ...structuredClone(SIGNED_OUT_STATE),
+      phase: 'browserPending',
+      enterprise: { organizationDomain: domain, displayName: 'Example', loginAvailable: true },
+    }
   }
   async cancelLogin(): Promise<CenterAuthState> {
     return { ...structuredClone(SIGNED_OUT_STATE), generation: 2, errorCode: 'loginCancelled' }
@@ -32,10 +43,14 @@ class FakeCenterAuthClient implements CenterAuthClient {
     this.refreshCalls += 1
     return structuredClone(this.refreshResult)
   }
-  async logout(): Promise<CenterAuthState> { return structuredClone(SIGNED_OUT_STATE) }
+  async logout(): Promise<CenterAuthState> {
+    return structuredClone(SIGNED_OUT_STATE)
+  }
   async onStateChanged(listener: (state: CenterAuthState) => void): Promise<() => void> {
     this.listener = listener
-    return () => { this.listener = null }
+    return () => {
+      this.listener = null
+    }
   }
 }
 
@@ -136,7 +151,11 @@ describe('center auth store', () => {
     const second = store.login()
 
     expect(client.resolveCalls).toBe(1)
-    discovery.resolve({ organizationDomain: 'example.test', displayName: 'Example', loginAvailable: true })
+    discovery.resolve({
+      organizationDomain: 'example.test',
+      displayName: 'Example',
+      loginAvailable: true,
+    })
     await Promise.all([first, second])
   })
 
@@ -238,7 +257,9 @@ describe('center auth store', () => {
 
   it('requires login when the cached refresh credential was revoked', async () => {
     const client = new FakeCenterAuthClient()
-    client.refreshBootstrap = async () => { throw { code: 'recoveryRequired', retryable: false } }
+    client.refreshBootstrap = async () => {
+      throw { code: 'recoveryRequired', retryable: false }
+    }
     const store = useCenterAuthStore()
     store.configure(client)
     await store.initialize()
@@ -253,7 +274,9 @@ describe('center auth store', () => {
 
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>(done => { resolve = done })
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
   return { promise, resolve }
 }
 

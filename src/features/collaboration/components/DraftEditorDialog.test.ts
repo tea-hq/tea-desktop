@@ -9,8 +9,14 @@ import en from '@/locales/en'
 import DraftEditorDialog from './DraftEditorDialog.vue'
 
 const draft = {
-  draftId: 'draft-1', conversationId: 'conversation-1', sourceTurnIndex: 0,
-  sourceBlockId: 'block-1', currentVersion: 1, content: 'Initial draft', createdAt: 1, updatedAt: 1,
+  draftId: 'draft-1',
+  conversationId: 'conversation-1',
+  sourceTurnIndex: 0,
+  sourceBlockId: 'block-1',
+  currentVersion: 1,
+  content: 'Initial draft',
+  createdAt: 1,
+  updatedAt: 1,
 }
 
 function mountDialog() {
@@ -19,8 +25,16 @@ function mountDialog() {
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
       stubs: {
-        TeaDialog: defineComponent({ name: 'TeaDialog', emits: ['close'], template: '<div><slot /></div>' }),
-        DraftEditor: defineComponent({ name: 'DraftEditor', emits: ['save', 'deliver'], template: '<div />' }),
+        TeaDialog: defineComponent({
+          name: 'TeaDialog',
+          emits: ['close'],
+          template: '<div><slot /></div>',
+        }),
+        DraftEditor: defineComponent({
+          name: 'DraftEditor',
+          emits: ['save', 'deliver'],
+          template: '<div />',
+        }),
       },
     },
   })

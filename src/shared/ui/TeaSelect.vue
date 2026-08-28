@@ -7,22 +7,25 @@ export interface TeaSelectOption<TValue extends string | number = string> {
   disabled?: boolean
 }
 
-withDefaults(defineProps<{
-  modelValue: T | null
-  options: TeaSelectOption<T>[]
-  label: string
-  placeholder?: string
-  disabled?: boolean
-  invalid?: boolean
-  filter?: boolean
-  size?: 'small' | 'default'
-}>(), {
-  placeholder: '',
-  disabled: false,
-  invalid: false,
-  filter: false,
-  size: 'default',
-})
+withDefaults(
+  defineProps<{
+    modelValue: T | null
+    options: TeaSelectOption<T>[]
+    label: string
+    placeholder?: string
+    disabled?: boolean
+    invalid?: boolean
+    filter?: boolean
+    size?: 'small' | 'default'
+  }>(),
+  {
+    placeholder: '',
+    disabled: false,
+    invalid: false,
+    filter: false,
+    size: 'default',
+  },
+)
 
 const emit = defineEmits<{ 'update:modelValue': [value: T | null] }>()
 </script>

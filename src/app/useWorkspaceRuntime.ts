@@ -1,7 +1,10 @@
 import { onMounted, onUnmounted, shallowRef, watch, type ShallowRef } from 'vue'
 import type { CenterSelfProfile } from '@/features/profile/contracts'
 import { copyCenterSelfProfile } from '@/features/profile/contracts'
-import { createChannelEnvironment, type ChannelEnvironment } from '@/infrastructure/channels/channelComposition'
+import {
+  createChannelEnvironment,
+  type ChannelEnvironment,
+} from '@/infrastructure/channels/channelComposition'
 import { ElectronCenterAuthClient } from '@/infrastructure/auth/electronCenterAuthClient'
 import { ElectronDirectoryClient } from '@/infrastructure/directory/electronDirectoryClient'
 import { ElectronManagedWorkspaceClient } from '@/infrastructure/managed-runtime/electronManagedWorkspaceClient'
@@ -26,7 +29,18 @@ export function useWorkspaceRuntime(
   conversationClient: ConversationClient,
   workspaceLifecycle: WorkspaceLifecycle,
 ): WorkspaceRuntime {
-  const { conversation, channels, collaboration, settings, agentRoles, centerAuth, managedConfig, managedRuntime, profile, directory } = stores
+  const {
+    conversation,
+    channels,
+    collaboration,
+    settings,
+    agentRoles,
+    centerAuth,
+    managedConfig,
+    managedRuntime,
+    profile,
+    directory,
+  } = stores
   const channelEnvironment = shallowRef<ChannelEnvironment | null>(null)
   let channelConnectPending = false
 
@@ -38,31 +52,44 @@ export function useWorkspaceRuntime(
     await managedRuntime.initialize()
   })
 
-  watch(() => centerAuth.state, value => {
-    if (!centerAuth.canEnterWorkspace || !value.bootstrap) {
-      profile.setCenterProfile(null)
-      managedConfig.clear()
-      void workspaceLifecycle.exit().catch(() => undefined)
-      return
-    }
-    profile.setCenterProfile(value.bootstrap.user)
-    directory.configure(new ElectronDirectoryClient())
-    managedConfig.apply(value.bootstrap)
-    const workspaceKey = `${value.bootstrap.tenant.id}:${value.bootstrap.user.id}`
-    const workspaceProfile = copyCenterSelfProfile(value.bootstrap.user)
-    void workspaceLifecycle.enter(workspaceKey, () => createWorkspaceSession(workspaceProfile)).catch(() => undefined)
-  }, { deep: true, immediate: true })
+  watch(
+    () => centerAuth.state,
+    (value) => {
+      if (!centerAuth.canEnterWorkspace || !value.bootstrap) {
+        profile.setCenterProfile(null)
+        managedConfig.clear()
+        void workspaceLifecycle.exit().catch(() => undefined)
+        return
+      }
+      profile.setCenterProfile(value.bootstrap.user)
+      directory.configure(new ElectronDirectoryClient())
+      managedConfig.apply(value.bootstrap)
+      const workspaceKey = `${value.bootstrap.tenant.id}:${value.bootstrap.user.id}`
+      const workspaceProfile = copyCenterSelfProfile(value.bootstrap.user)
+      void workspaceLifecycle
+        .enter(workspaceKey, () => createWorkspaceSession(workspaceProfile))
+        .catch(() => undefined)
+    },
+    { deep: true, immediate: true },
+  )
 
-  watch(() => settings.defaultRuntimeId, runtimeId => {
-    conversation.setDefaultRuntimeId(runtimeId)
-    collaboration.setDefaultRuntimeId(runtimeId)
-    if (collaboration.runtimes.some(runtime => runtime.id === runtimeId)) collaboration.selectedRuntimeId = runtimeId
-  }, { immediate: true })
+  watch(
+    () => settings.defaultRuntimeId,
+    (runtimeId) => {
+      conversation.setDefaultRuntimeId(runtimeId)
+      collaboration.setDefaultRuntimeId(runtimeId)
+      if (collaboration.runtimes.some((runtime) => runtime.id === runtimeId))
+        collaboration.selectedRuntimeId = runtimeId
+    },
+    { immediate: true },
+  )
 
   watch(
     () => [managedRuntime.imReady, managedRuntime.state.generation] as const,
     ([ready]) => {
-      void Promise.all([conversation.loadRuntimes(), collaboration.loadRuntimes()]).catch(() => undefined)
+      void Promise.all([conversation.loadRuntimes(), collaboration.loadRuntimes()]).catch(
+        () => undefined,
+      )
       const environment = channelEnvironment.value
       if (ready && environment && !environment.preview) void connectChannel().catch(() => undefined)
     },
@@ -70,7 +97,9 @@ export function useWorkspaceRuntime(
 
   watch(
     () => [channels.activeChannelRef, channels.status.phase, channels.status.accountRef] as const,
-    ([channelRef]) => { void collaboration.bindChannel(channelRef ?? '') },
+    ([channelRef]) => {
+      void collaboration.bindChannel(channelRef ?? '')
+    },
   )
 
   function createWorkspaceSession(workspaceProfile: CenterSelfProfile): WorkspaceSession {
@@ -87,7 +116,9 @@ export function useWorkspaceRuntime(
         conversation.configure(conversationClient)
         settings.configure(new ElectronSettingsClient())
         const bootstrap = centerAuth.state.bootstrap
-        void agentRoles.initialize(bootstrap ? { tenantId: bootstrap.tenant.id, subjectId: bootstrap.user.id } : undefined)
+        void agentRoles.initialize(
+          bootstrap ? { tenantId: bootstrap.tenant.id, subjectId: bootstrap.user.id } : undefined,
+        )
         await initializeApp(environment, isCurrent)
       },
       async dispose() {
@@ -108,7 +139,10 @@ export function useWorkspaceRuntime(
     }
   }
 
-  async function initializeApp(environment: ChannelEnvironment, isCurrent: () => boolean): Promise<void> {
+  async function initializeApp(
+    environment: ChannelEnvironment,
+    isCurrent: () => boolean,
+  ): Promise<void> {
     await settings.initialize()
     if (!isCurrent()) return
     conversation.setDefaultRuntimeId(settings.defaultRuntimeId)
@@ -120,7 +154,8 @@ export function useWorkspaceRuntime(
       initializeChannels(environment),
     ])
     if (!isCurrent()) return
-    if (collaboration.runtimes.some(runtime => runtime.id === settings.defaultRuntimeId)) collaboration.selectedRuntimeId = settings.defaultRuntimeId
+    if (collaboration.runtimes.some((runtime) => runtime.id === settings.defaultRuntimeId))
+      collaboration.selectedRuntimeId = settings.defaultRuntimeId
   }
 
   async function initializeChannels(environment: ChannelEnvironment): Promise<void> {
@@ -158,5 +193,11 @@ export function useWorkspaceRuntime(
     await recoverManagedWorkspace(centerAuth, managedRuntime, connectChannel)
   }
 
-  return { channelEnvironment, workspaceLifecycle, connectChannel, disconnectChannel, refreshManagedWorkspace }
+  return {
+    channelEnvironment,
+    workspaceLifecycle,
+    connectChannel,
+    disconnectChannel,
+    refreshManagedWorkspace,
+  }
 }

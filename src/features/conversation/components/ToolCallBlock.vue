@@ -27,11 +27,18 @@ const statusDot = computed(() => {
 </script>
 
 <template>
-  <section class="w-full tea-bg-canvas px-3 py-2.5 tea-text-caption tea-fg-muted" :data-tool-call-id="tool.id">
+  <section
+    class="w-full tea-bg-canvas px-3 py-2.5 tea-text-caption tea-fg-muted"
+    :data-tool-call-id="tool.id"
+  >
     <div class="flex min-h-5 min-w-0 items-center gap-2">
       <span class="h-1.5 w-1.5 shrink-0 tea-radius-pill" :class="statusDot" aria-hidden="true" />
-      <code class="shrink-0 tea-mono tea-text-caption tea-weight-medium tea-fg">{{ tool.name }}</code>
-      <span class="shrink-0 tea-text-caption tea-fg-subtle">{{ t(`tools.status.${tool.status}`) }}</span>
+      <code class="shrink-0 tea-mono tea-text-caption tea-weight-medium tea-fg">{{
+        tool.name
+      }}</code>
+      <span class="shrink-0 tea-text-caption tea-fg-subtle">{{
+        t(`tools.status.${tool.status}`)
+      }}</span>
       <span v-if="tool.message" class="min-w-0 truncate tea-text-caption tea-fg-subtle">
         {{ tool.message }}
       </span>
@@ -51,7 +58,12 @@ const statusDot = computed(() => {
           stroke="currentColor"
           aria-hidden="true"
         >
-          <path d="m4.5 6 3.5 3.5L11.5 6" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+          <path
+            d="m4.5 6 3.5 3.5L11.5 6"
+            stroke-width="1.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </TeaButton>
     </div>
@@ -59,7 +71,7 @@ const statusDot = computed(() => {
     <pre
       v-if="hasArguments && detailsOpen"
       class="mt-2 max-h-48 w-full overflow-auto tea-bg-subtle px-2.5 py-2 tea-mono tea-text-caption leading-5 tea-fg-muted"
-    >{{ JSON.stringify(tool.arguments, null, 2) }}</pre>
+      >{{ JSON.stringify(tool.arguments, null, 2) }}</pre>
 
     <ApprovalPrompt
       v-if="tool.approval"

@@ -62,5 +62,10 @@ export interface CenterAuthClient {
 }
 
 export const SIGNED_OUT_STATE: CenterAuthState = {
-  generation: 0, phase: 'signedOut', enterprise: null, bootstrap: null, lastValidatedAt: null, errorCode: null,
+  generation: 0,
+  phase: 'signedOut',
+  enterprise: null,
+  bootstrap: null,
+  lastValidatedAt: null,
+  errorCode: null,
 }

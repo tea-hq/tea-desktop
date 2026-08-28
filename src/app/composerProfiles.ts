@@ -7,11 +7,19 @@ export interface ComposerProfile {
 }
 
 export const fullAgentProfile = Object.freeze<ComposerProfile>({
-  id: 'full', compact: false, showHeaderRuntime: true, showSources: true, maxAttachments: 12,
+  id: 'full',
+  compact: false,
+  showHeaderRuntime: true,
+  showSources: true,
+  maxAttachments: 12,
 })
 
 export const drawerAgentProfile = Object.freeze<ComposerProfile>({
-  id: 'drawer', compact: true, showHeaderRuntime: false, showSources: true, maxAttachments: 8,
+  id: 'drawer',
+  compact: true,
+  showHeaderRuntime: false,
+  showSources: true,
+  maxAttachments: 8,
 })
 
 export function isComposerProfile(value: unknown): value is ComposerProfile {

@@ -14,7 +14,12 @@ export default mergeConfig(
   defineConfig({
     test: {
       globals: true,
-      include: ['electron/**/*.test.ts', 'tests/unit/**/*.test.ts', 'src/**/*.spec.ts', 'src/**/*.test.ts'],
+      include: [
+        'electron/**/*.test.ts',
+        'tests/unit/**/*.test.ts',
+        'src/**/*.spec.ts',
+        'src/**/*.test.ts',
+      ],
       root: fileURLToPath(new URL('./', import.meta.url)),
       setupFiles: ['./tests/setup/testglobals.ts'],
       coverage: {
@@ -29,5 +34,5 @@ export default mergeConfig(
         },
       },
     },
-  })
+  }),
 )

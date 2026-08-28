@@ -20,7 +20,9 @@ describe('recoverManagedWorkspace', () => {
         managed.imReady = true
       },
     }
-    const connect = vi.fn(async () => { order.push('im') })
+    const connect = vi.fn(async () => {
+      order.push('im')
+    })
 
     await recoverManagedWorkspace(auth, managed, connect)
 
@@ -49,7 +51,11 @@ describe('recoverManagedWorkspace', () => {
     }
     const managed = { imReady: false, refresh: vi.fn(async () => undefined) }
 
-    await recoverManagedWorkspace(auth, managed, vi.fn(async () => undefined))
+    await recoverManagedWorkspace(
+      auth,
+      managed,
+      vi.fn(async () => undefined),
+    )
 
     expect(auth.refresh).not.toHaveBeenCalled()
     expect(managed.refresh).toHaveBeenCalledOnce()

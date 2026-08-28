@@ -37,7 +37,10 @@ describe('ElectronSettingsService', () => {
     await writeFile(filePath, JSON.stringify({ schemaVersion: 2, settings: defaultSettings() }))
     const service = new ElectronSettingsService(filePath)
 
-    await expect(service.load()).rejects.toMatchObject({ code: 'unsupportedSchema', retryable: false })
+    await expect(service.load()).rejects.toMatchObject({
+      code: 'unsupportedSchema',
+      retryable: false,
+    })
   })
 
   it('preserves corrupt settings and returns defaults', async () => {

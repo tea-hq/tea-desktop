@@ -50,21 +50,39 @@ function toggleMenu(): void {
     :data-message-id="message.ref.messageClientId"
     :data-message-direction="message.sentByCurrentUser ? 'outgoing' : 'incoming'"
   >
-    <div class="flex max-w-[min(84%,44rem)] items-start gap-2.5" :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'">
+    <div
+      class="flex max-w-[min(84%,44rem)] items-start gap-2.5"
+      :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
+    >
       <div
         class="flex size-8 shrink-0 items-center justify-center tea-radius-control tea-text-caption tea-weight-strong"
-        :class="message.sentByCurrentUser ? 'tea-bg-inverse tea-fg-inverse' : 'tea-bg-muted tea-fg-muted'"
+        :class="
+          message.sentByCurrentUser ? 'tea-bg-inverse tea-fg-inverse' : 'tea-bg-muted tea-fg-muted'
+        "
       >
         {{ initials(message.sender.name) }}
       </div>
 
-      <div class="flex min-w-0 flex-col" :class="message.sentByCurrentUser ? 'items-end' : 'items-start'">
-        <div class="flex items-baseline gap-2" :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'">
-          <span class="max-w-52 truncate tea-text-caption tea-weight-strong tea-fg">{{ message.sender.name }}</span>
-          <span class="shrink-0 tea-text-micro tabular-nums tea-fg-subtle">{{ formatTime(message.sentAt) }}</span>
+      <div
+        class="flex min-w-0 flex-col"
+        :class="message.sentByCurrentUser ? 'items-end' : 'items-start'"
+      >
+        <div
+          class="flex items-baseline gap-2"
+          :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
+        >
+          <span class="max-w-52 truncate tea-text-caption tea-weight-strong tea-fg">{{
+            message.sender.name
+          }}</span>
+          <span class="shrink-0 tea-text-micro tabular-nums tea-fg-subtle">{{
+            formatTime(message.sentAt)
+          }}</span>
         </div>
 
-        <div class="mt-1 flex min-w-0 items-center gap-1.5" :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'">
+        <div
+          class="mt-1 flex min-w-0 items-center gap-1.5"
+          :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
+        >
           <div
             v-if="message.state === 'active'"
             class="min-w-0 tea-radius-overlay px-3 py-2"
@@ -76,11 +94,16 @@ function toggleMenu(): void {
               :tone="message.sentByCurrentUser ? 'inverse' : 'default'"
             />
           </div>
-          <p v-else class="min-w-0 tea-radius-overlay tea-bg-muted px-3 py-2 tea-text-body italic leading-5 tea-fg-subtle">
+          <p
+            v-else
+            class="min-w-0 tea-radius-overlay tea-bg-muted px-3 py-2 tea-text-body italic leading-5 tea-fg-subtle"
+          >
             {{ t('channels.message.revoked') }}
           </p>
 
-          <div class="relative z-20 flex shrink-0 tea-radius-control tea-bg-canvas p-0.5 opacity-0 tea-elevation-low tea-selected-ring tea-selected-ring transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <div
+            class="relative z-20 flex shrink-0 tea-radius-control tea-bg-canvas p-0.5 opacity-0 tea-elevation-low tea-selected-ring tea-selected-ring transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+          >
             <span ref="menuAnchor">
               <TeaIconButton
                 size="small"
@@ -114,7 +137,11 @@ function toggleMenu(): void {
             appearance="ghost"
             size="small"
             class="inline-flex h-6 items-center gap-1 tea-radius-control px-1.5 tea-text-caption transition-colors"
-            :class="reaction.active ? 'tea-bg-hover tea-fg' : 'tea-bg-muted tea-fg-muted tea-hover-bg-strong'"
+            :class="
+              reaction.active
+                ? 'tea-bg-hover tea-fg'
+                : 'tea-bg-muted tea-fg-muted tea-hover-bg-strong'
+            "
           >
             <span>#{{ reaction.type }}</span>
             <span>{{ reaction.count }}</span>

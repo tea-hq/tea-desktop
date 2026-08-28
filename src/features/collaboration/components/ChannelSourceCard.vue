@@ -10,7 +10,10 @@ const { t } = useI18n()
 
 <template>
   <div class="flex min-w-0 items-start gap-2 tea-radius-control tea-bg-muted px-2.5 py-2">
-    <span class="i-mdi-message-text-outline mt-0.5 size-3.5 shrink-0 tea-fg-subtle" aria-hidden="true" />
+    <span
+      class="i-mdi-message-text-outline mt-0.5 size-3.5 shrink-0 tea-fg-subtle"
+      aria-hidden="true"
+    />
     <div class="min-w-0 flex-1">
       <p class="truncate tea-text-caption tea-weight-strong tea-fg">{{ source.senderName }}</p>
       <p class="mt-0.5 line-clamp-2 tea-text-caption leading-4 tea-fg-muted">

@@ -1,4 +1,9 @@
-import { ChannelTransportError, type ChannelTransport, type JsonValue, type Message } from '@/features/channels/contracts'
+import {
+  ChannelTransportError,
+  type ChannelTransport,
+  type JsonValue,
+  type Message,
+} from '@/features/channels/contracts'
 import type { ConversationClient } from '@/features/conversation/contracts'
 import type { ChannelSource, Delivery, Draft, MessageRef } from '@/types/channelCollaboration'
 import {
@@ -26,7 +31,7 @@ export class ConversationCollaborationClient {
     const scope = new ChannelHistoryToolScope(this.transport, channelRef, knownRefs)
     const handled = new Set<string>()
     await this.conversations.configureHostTools(conversationId, [channelHistoryToolDefinition])
-    return this.conversations.subscribeToHostToolCalls(conversationId, call => {
+    return this.conversations.subscribeToHostToolCalls(conversationId, (call) => {
       if (handled.has(call.callId)) return
       handled.add(call.callId)
       void (async () => {
@@ -41,12 +46,14 @@ export class ConversationCollaborationClient {
         }
         await this.conversations.resolveHostToolCall(outcome.result)
       })().catch(async () => {
-        await this.conversations.resolveHostToolCall({
-          conversationId,
-          callId: call.callId,
-          status: 'failure',
-          code: 'executionFailed',
-        }).catch(() => undefined)
+        await this.conversations
+          .resolveHostToolCall({
+            conversationId,
+            callId: call.callId,
+            status: 'failure',
+            code: 'executionFailed',
+          })
+          .catch(() => undefined)
       })
     })
   }
@@ -83,25 +90,28 @@ export class ConversationCollaborationClient {
       })
       return await this.conversations.completeDelivery(delivery.deliveryId, result.ref)
     } catch (error) {
-      await this.conversations.failDelivery(
-        delivery.deliveryId,
-        deliveryFailureCode(error),
-      ).catch(() => undefined)
+      await this.conversations
+        .failDelivery(delivery.deliveryId, deliveryFailureCode(error))
+        .catch(() => undefined)
       throw error
     }
   }
 
   private assertCurrentBinding(delivery: Delivery): void {
     const status = this.transport.status()
-    if (status.phase !== 'connected'
-      || status.accountRef !== delivery.channelBinding.accountRef
-      || this.transport.descriptor().id !== delivery.channelBinding.transportId) {
+    if (
+      status.phase !== 'connected' ||
+      status.accountRef !== delivery.channelBinding.accountRef ||
+      this.transport.descriptor().id !== delivery.channelBinding.transportId
+    ) {
       throw new Error('channelBindingUnavailable')
     }
   }
 
   private hasCapability(id: 'message.history' | 'message.send.text'): boolean {
-    return this.transport.capabilities().some(capability => capability.id === id && capability.available)
+    return this.transport
+      .capabilities()
+      .some((capability) => capability.id === id && capability.available)
   }
 
   private async findDeliveredMessage(delivery: Delivery): Promise<MessageRef | null> {
@@ -110,14 +120,19 @@ export class ConversationCollaborationClient {
       direction: 'before',
       limit: 50,
     })
-    return page.items.find(message => extensionIdempotencyKey(message) === delivery.idempotencyKey)?.ref ?? null
+    return (
+      page.items.find((message) => extensionIdempotencyKey(message) === delivery.idempotencyKey)
+        ?.ref ?? null
+    )
   }
 }
 
 function deliveryFailureCode(error: unknown): string {
   if (error instanceof ChannelTransportError) return error.code
-  if (error instanceof Error
-    && (error.message === 'serverExtensionTooLarge' || error.message === 'serverExtensionTooDeep')) {
+  if (
+    error instanceof Error &&
+    (error.message === 'serverExtensionTooLarge' || error.message === 'serverExtensionTooDeep')
+  ) {
     return error.message
   }
   return 'deliveryUncertain'

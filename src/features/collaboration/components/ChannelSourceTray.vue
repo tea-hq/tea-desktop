@@ -11,7 +11,9 @@ const { t } = useI18n()
 <template>
   <div v-if="sources.length" class="tea-bg-canvas px-3 pb-2 pt-2">
     <div class="mb-1.5 flex items-center justify-between">
-      <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">{{ t('channels.collaboration.sources', { count: sources.length }) }}</p>
+      <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">
+        {{ t('channels.collaboration.sources', { count: sources.length }) }}
+      </p>
     </div>
     <div class="flex gap-2 overflow-x-auto pb-1">
       <ChannelSourceCard

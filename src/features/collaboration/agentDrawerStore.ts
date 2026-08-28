@@ -14,7 +14,9 @@ import {
 export const useAgentDrawerStore = defineStore('agent-drawer', () => {
   const states = reactive(new Map<string, AgentDrawerChannelState>())
   const activeKey = ref<string | null>(null)
-  const activeState = computed(() => activeKey.value ? states.get(activeKey.value) ?? null : null)
+  const activeState = computed(() =>
+    activeKey.value ? (states.get(activeKey.value) ?? null) : null,
+  )
 
   function activateBinding(binding: ChannelBinding | null): void {
     activeKey.value = binding ? serializeChannelBinding(binding) : null
@@ -46,7 +48,8 @@ export const useAgentDrawerStore = defineStore('agent-drawer', () => {
 
   function creationFailed(binding: ChannelBinding, key: string): void {
     const state = ensureState(binding)
-    if (state.phase === 'creating' && state.draft.creationIdempotencyKey === key) state.phase = 'preparing'
+    if (state.phase === 'creating' && state.draft.creationIdempotencyKey === key)
+      state.phase = 'preparing'
   }
 
   function selectConversation(binding: ChannelBinding, conversationId: string): void {
@@ -74,8 +77,15 @@ export const useAgentDrawerStore = defineStore('agent-drawer', () => {
     ensureState(binding).scrollOffset = Math.max(0, offset)
   }
 
-  function updateDraft(binding: ChannelBinding, patch: Partial<Pick<AgentDrawerDraft,
-    'runtimeId' | 'model' | 'permissionMode' | 'roleId' | 'text' | 'attachments'>>): void {
+  function updateDraft(
+    binding: ChannelBinding,
+    patch: Partial<
+      Pick<
+        AgentDrawerDraft,
+        'runtimeId' | 'model' | 'permissionMode' | 'roleId' | 'text' | 'attachments'
+      >
+    >,
+  ): void {
     const draft = ensureState(binding).draft
     if (patch.runtimeId !== undefined) draft.runtimeId = patch.runtimeId
     if (patch.model !== undefined) draft.model = patch.model
@@ -87,13 +97,15 @@ export const useAgentDrawerStore = defineStore('agent-drawer', () => {
 
   function stageSource(binding: ChannelBinding, source: ChannelSourceInput): void {
     const sources = ensureState(binding).draft.sources
-    if (!sources.some(value => sameSource(value, source))) sources.push(structuredClone(source))
+    if (!sources.some((value) => sameSource(value, source))) sources.push(structuredClone(source))
     if (sources.length > 20) sources.splice(0, sources.length - 20)
   }
 
   function removeSource(binding: ChannelBinding, messageClientId: string): void {
     const draft = ensureState(binding).draft
-    draft.sources = draft.sources.filter(source => source.messageRef.messageClientId !== messageClientId)
+    draft.sources = draft.sources.filter(
+      (source) => source.messageRef.messageClientId !== messageClientId,
+    )
   }
 
   function consumeAcceptedInput(binding: ChannelBinding): void {

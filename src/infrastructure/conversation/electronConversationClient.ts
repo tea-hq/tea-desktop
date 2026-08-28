@@ -42,11 +42,16 @@ export class ElectronConversationClient implements ConversationClient {
     return invoke<ConversationDetail>('get_conversation', { conversationId })
   }
 
-  async loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage> {
+  async loadConversationHistory(
+    request: LoadConversationHistoryRequest,
+  ): Promise<ConversationHistoryPage> {
     return invoke<ConversationHistoryPage>('load_conversation_history', { request })
   }
 
-  async createConversation(runtimeId: string, options: CreateConversationOptions): Promise<CreateConversationResponse> {
+  async createConversation(
+    runtimeId: string,
+    options: CreateConversationOptions,
+  ): Promise<CreateConversationResponse> {
     return invoke<CreateConversationResponse>('create_conversation', {
       runtimeId,
       idempotencyKey: options.idempotencyKey,
@@ -117,7 +122,11 @@ export class ElectronConversationClient implements ConversationClient {
     await invoke('delete_conversation', { conversationId })
   }
 
-  async sendMessage(conversationId: string, text: string, options: SendMessageOptions): Promise<void> {
+  async sendMessage(
+    conversationId: string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<void> {
     await invoke('send_message', {
       conversationId,
       text,
@@ -147,7 +156,7 @@ export class ElectronConversationClient implements ConversationClient {
     conversationId: string,
     handler: (event: ConversationEvent) => void,
   ): Promise<() => void> {
-    const unlisten = await listen<ConversationEvent>('conversation:event', event => {
+    const unlisten = await listen<ConversationEvent>('conversation:event', (event) => {
       if (event.payload.conversationId === conversationId) {
         handler(event.payload)
       }
@@ -159,7 +168,7 @@ export class ElectronConversationClient implements ConversationClient {
     conversationId: string,
     handler: (call: HostToolCall) => void,
   ): Promise<() => void> {
-    const unlisten = await listen<HostToolCall>('conversation:host-tool-call', event => {
+    const unlisten = await listen<HostToolCall>('conversation:host-tool-call', (event) => {
       if (event.payload.conversationId === conversationId) handler(event.payload)
     })
     return unlisten
@@ -173,14 +182,16 @@ export class ElectronConversationClient implements ConversationClient {
 function subscribe<T>(eventName: DesktopEvent, handler: (payload: T) => void): () => void {
   let unlisten: UnlistenFn | null = null
   let cancelled = false
-  listen<T>(eventName, event => {
+  listen<T>(eventName, (event) => {
     if (!cancelled) handler(event.payload)
-  }).then(fn => {
-    if (cancelled) fn()
-    else unlisten = fn
-  }).catch(() => {
-    // The browser-only development preview has no Electron event bridge.
   })
+    .then((fn) => {
+      if (cancelled) fn()
+      else unlisten = fn
+    })
+    .catch(() => {
+      // The browser-only development preview has no Electron event bridge.
+    })
   return () => {
     cancelled = true
     unlisten?.()
@@ -213,7 +224,7 @@ export class FakeConversationClient implements ConversationClient {
 
   async listConversations(request: ListConversationsRequest): Promise<ConversationPage> {
     const filter = request.filter ?? { kind: 'all' as const }
-    const items = this._summaries.filter(summary => {
+    const items = this._summaries.filter((summary) => {
       if (!request.includeArchived && summary.archivedAt) return false
       if (filter.kind === 'local') return !summary.channelBinding
       if (filter.kind === 'channel') return Boolean(summary.channelBinding)
@@ -224,15 +235,19 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   async getConversation(conversationId: string): Promise<ConversationDetail> {
-    const summary = this._summaries.find(item => item.conversationId === conversationId)
+    const summary = this._summaries.find((item) => item.conversationId === conversationId)
     if (!summary) throw new Error('unknown conversation')
     return {
       summary: structuredClone(summary),
-      collaboration: structuredClone(this._collaboration.get(conversationId) ?? emptyCollaboration()),
+      collaboration: structuredClone(
+        this._collaboration.get(conversationId) ?? emptyCollaboration(),
+      ),
     }
   }
 
-  async loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage> {
+  async loadConversationHistory(
+    request: LoadConversationHistoryRequest,
+  ): Promise<ConversationHistoryPage> {
     this.requireSummary(request.conversationId)
     const turns = this._turns.get(request.conversationId) ?? []
     const startIndex = Math.max(0, turns.length - request.limit)
@@ -244,7 +259,10 @@ export class FakeConversationClient implements ConversationClient {
     }
   }
 
-  async createConversation(runtimeId: string, options: CreateConversationOptions): Promise<CreateConversationResponse> {
+  async createConversation(
+    runtimeId: string,
+    options: CreateConversationOptions,
+  ): Promise<CreateConversationResponse> {
     const existingId = this._creationKeys.get(options.idempotencyKey)
     if (existingId) {
       const existing = this.requireSummary(existingId)
@@ -283,9 +301,15 @@ export class FakeConversationClient implements ConversationClient {
     sources: ChannelSourceInput[],
   ): Promise<ChannelSource[]> {
     const collaboration = this.requireCollaboration(conversationId)
-    const context = collaboration.turnContexts.find(value => value.turnIndex === turnIndex)
+    const context = collaboration.turnContexts.find((value) => value.turnIndex === turnIndex)
     if (!context) throw new Error('unknown turn context')
-    const inserted = appendFakeSources(conversationId, turnIndex, 'agentTool', context.sources, sources)
+    const inserted = appendFakeSources(
+      conversationId,
+      turnIndex,
+      'agentTool',
+      context.sources,
+      sources,
+    )
     context.sources.push(...inserted)
     return structuredClone(inserted)
   }
@@ -323,8 +347,9 @@ export class FakeConversationClient implements ConversationClient {
   async prepareDelivery(draftId: string): Promise<Delivery> {
     const draft = this.findDraft(draftId)
     const collaboration = this.requireCollaboration(draft.conversationId)
-    const existing = collaboration.deliveries.find(value =>
-      value.draftId === draftId && value.draftVersion === draft.currentVersion)
+    const existing = collaboration.deliveries.find(
+      (value) => value.draftId === draftId && value.draftVersion === draft.currentVersion,
+    )
     if (existing) return structuredClone(existing)
     const binding = this.requireSummary(draft.conversationId).channelBinding
     if (!binding) throw new Error('conversation is not Channel-bound')
@@ -344,8 +369,12 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   async markDeliverySending(deliveryId: string): Promise<Delivery> {
-    return this.updateDelivery(deliveryId, delivery => {
-      if (delivery.status !== 'pending' && delivery.status !== 'sending' && delivery.status !== 'failed') {
+    return this.updateDelivery(deliveryId, (delivery) => {
+      if (
+        delivery.status !== 'pending' &&
+        delivery.status !== 'sending' &&
+        delivery.status !== 'failed'
+      ) {
         throw new Error('invalid delivery state')
       }
       delivery.status = 'sending'
@@ -354,9 +383,10 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   async completeDelivery(deliveryId: string, sentMessageRef: MessageRef): Promise<Delivery> {
-    return this.updateDelivery(deliveryId, delivery => {
+    return this.updateDelivery(deliveryId, (delivery) => {
       if (delivery.status === 'sent') return
-      if (delivery.status !== 'sending' && delivery.status !== 'failed') throw new Error('invalid delivery state')
+      if (delivery.status !== 'sending' && delivery.status !== 'failed')
+        throw new Error('invalid delivery state')
       delivery.status = 'sent'
       delivery.sentMessageRef = structuredClone(sentMessageRef)
       delete delivery.failureCode
@@ -364,7 +394,7 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   async failDelivery(deliveryId: string, failureCode: string): Promise<Delivery> {
-    return this.updateDelivery(deliveryId, delivery => {
+    return this.updateDelivery(deliveryId, (delivery) => {
       if (delivery.status === 'sent') return
       delivery.status = 'failed'
       delivery.failureCode = failureCode
@@ -386,13 +416,17 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
-    this._summaries = this._summaries.filter(value => value.conversationId !== conversationId)
+    this._summaries = this._summaries.filter((value) => value.conversationId !== conversationId)
     this._turns.delete(conversationId)
     this._collaboration.delete(conversationId)
     this._hostTools.delete(conversationId)
   }
 
-  async sendMessage(conversationId: string, text: string, options: SendMessageOptions): Promise<void> {
+  async sendMessage(
+    conversationId: string,
+    text: string,
+    options: SendMessageOptions,
+  ): Promise<void> {
     const summary = this.requireSummary(conversationId)
     const turns = this._turns.get(conversationId)!
     const turnIndex = turns.length
@@ -405,13 +439,15 @@ export class FakeConversationClient implements ConversationClient {
         createdAt: Date.now(),
         sources: [] as ChannelSource[],
       }
-      context.sources.push(...appendFakeSources(
-        conversationId,
-        turnIndex,
-        'userForwarded',
-        context.sources,
-        options.sources ?? [],
-      ))
+      context.sources.push(
+        ...appendFakeSources(
+          conversationId,
+          turnIndex,
+          'userForwarded',
+          context.sources,
+          options.sources ?? [],
+        ),
+      )
       this.requireCollaboration(conversationId).turnContexts.push(context)
     }
     const sourceCount = options.sources?.length ?? 0
@@ -439,8 +475,16 @@ export class FakeConversationClient implements ConversationClient {
     this.emitSummary(summary)
     queueMicrotask(() => {
       this.emitEvent(conversationId, { conversationId, sequence: 1, event: { type: 'runStarted' } })
-      this.emitEvent(conversationId, { conversationId, sequence: 2, event: { type: 'messageDelta', text: draft } })
-      this.emitEvent(conversationId, { conversationId, sequence: 3, event: { type: 'runFinished' } })
+      this.emitEvent(conversationId, {
+        conversationId,
+        sequence: 2,
+        event: { type: 'messageDelta', text: draft },
+      })
+      this.emitEvent(conversationId, {
+        conversationId,
+        sequence: 3,
+        event: { type: 'runFinished' },
+      })
     })
   }
 
@@ -456,7 +500,10 @@ export class FakeConversationClient implements ConversationClient {
 
   async resolveHostToolCall(_result: HostToolResult): Promise<void> {}
 
-  async subscribeToEvents(conversationId: string, handler: (e: ConversationEvent) => void): Promise<() => void> {
+  async subscribeToEvents(
+    conversationId: string,
+    handler: (e: ConversationEvent) => void,
+  ): Promise<() => void> {
     let handlers = this._eventHandlers.get(conversationId)
     if (!handlers) {
       handlers = new Set()
@@ -492,7 +539,7 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   private requireSummary(conversationId: string): ConversationSummary {
-    const summary = this._summaries.find(value => value.conversationId === conversationId)
+    const summary = this._summaries.find((value) => value.conversationId === conversationId)
     if (!summary) throw new Error('unknown conversation')
     return summary
   }
@@ -505,7 +552,7 @@ export class FakeConversationClient implements ConversationClient {
 
   private findDraft(draftId: string): Draft {
     for (const collaboration of this._collaboration.values()) {
-      const draft = collaboration.drafts.find(value => value.draftId === draftId)
+      const draft = collaboration.drafts.find((value) => value.draftId === draftId)
       if (draft) return draft
     }
     throw new Error('unknown Draft')
@@ -513,7 +560,7 @@ export class FakeConversationClient implements ConversationClient {
 
   private updateDelivery(deliveryId: string, update: (delivery: Delivery) => void): Delivery {
     for (const collaboration of this._collaboration.values()) {
-      const delivery = collaboration.deliveries.find(value => value.deliveryId === deliveryId)
+      const delivery = collaboration.deliveries.find((value) => value.deliveryId === deliveryId)
       if (!delivery) continue
       update(delivery)
       delivery.updatedAt = Date.now()
@@ -531,9 +578,11 @@ function sameBinding(
   left: ConversationSummary['channelBinding'],
   right: NonNullable<ConversationSummary['channelBinding']>,
 ): boolean {
-  return left?.transportId === right.transportId
-    && left.accountRef === right.accountRef
-    && left.channelRef === right.channelRef
+  return (
+    left?.transportId === right.transportId &&
+    left.accountRef === right.accountRef &&
+    left.channelRef === right.channelRef
+  )
 }
 
 function appendFakeSources(
@@ -544,8 +593,10 @@ function appendFakeSources(
   values: ChannelSourceInput[],
 ): ChannelSource[] {
   return values
-    .filter(value => !existing.some(source => sameMessageRef(source.messageRef, value.messageRef)))
-    .map(value => ({
+    .filter(
+      (value) => !existing.some((source) => sameMessageRef(source.messageRef, value.messageRef)),
+    )
+    .map((value) => ({
       ...structuredClone(value),
       sourceId: crypto.randomUUID(),
       conversationId,
@@ -555,11 +606,13 @@ function appendFakeSources(
 }
 
 function sameMessageRef(left: MessageRef, right: MessageRef): boolean {
-  return left.channelRef === right.channelRef
-    && left.messageClientId === right.messageClientId
-    && (left.messageServerId === undefined
-      || right.messageServerId === undefined
-      || left.messageServerId === right.messageServerId)
+  return (
+    left.channelRef === right.channelRef &&
+    left.messageClientId === right.messageClientId &&
+    (left.messageServerId === undefined ||
+      right.messageServerId === undefined ||
+      left.messageServerId === right.messageServerId)
+  )
 }
 
 let defaultClient: ConversationClient | null = null
@@ -573,14 +626,30 @@ export function getDefaultConversationClient(): ConversationClient {
           id: 'external.claude',
           kind: 'externalCli',
           displayName: 'Claude Code',
-          capabilities: ['prompt', 'cancel', 'events', 'snapshot', 'history', 'approval', 'hostTools'],
+          capabilities: [
+            'prompt',
+            'cancel',
+            'events',
+            'snapshot',
+            'history',
+            'approval',
+            'hostTools',
+          ],
           status: 'ready',
         },
         {
           id: 'external.codex',
           kind: 'externalCli',
           displayName: 'Codex',
-          capabilities: ['prompt', 'cancel', 'events', 'snapshot', 'history', 'approval', 'hostTools'],
+          capabilities: [
+            'prompt',
+            'cancel',
+            'events',
+            'snapshot',
+            'history',
+            'approval',
+            'hostTools',
+          ],
           status: 'ready',
         },
       ])

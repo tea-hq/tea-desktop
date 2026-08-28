@@ -63,21 +63,25 @@ export const useConversationStore = defineStore('conversation', () => {
   let lifecycleGeneration = 0
   let creationIdempotencyKey = crypto.randomUUID()
 
-  const activeRuntime = computed(() =>
-    runtimes.value.find(runtime => runtime.id === activeRuntimeId.value) ?? null,
+  const activeRuntime = computed(
+    () => runtimes.value.find((runtime) => runtime.id === activeRuntimeId.value) ?? null,
   )
-  const activeConversation = computed(() =>
-    conversations.value.find(item => item.conversationId === conversationId.value) ?? null,
+  const activeConversation = computed(
+    () => conversations.value.find((item) => item.conversationId === conversationId.value) ?? null,
   )
   const isStreaming = computed(() => {
     const status = turns.value.at(-1)?.status
     return status === 'sending' || status === 'running'
   })
-  const canSend = computed(() =>
-    conversationId.value !== null && !isStreaming.value && !loading.value && !historyLoading.value,
+  const canSend = computed(
+    () =>
+      conversationId.value !== null &&
+      !isStreaming.value &&
+      !loading.value &&
+      !historyLoading.value,
   )
-  const canSelectRuntime = computed(() =>
-    conversationId.value === null && !loading.value && !historyLoading.value,
+  const canSelectRuntime = computed(
+    () => conversationId.value === null && !loading.value && !historyLoading.value,
   )
   const hasConversations = computed(() => conversations.value.length > 0)
   const modelOptions = computed<ModelOption[]>(() => runtimeModelOptions(activeRuntime.value))
@@ -88,9 +92,12 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function runtimeError(value: unknown): ConversationUiError {
     const candidate = value as { message?: unknown } | null
-    const message = candidate && typeof candidate.message === 'string'
-      ? candidate.message
-      : value instanceof Error ? value.message : String(value)
+    const message =
+      candidate && typeof candidate.message === 'string'
+        ? candidate.message
+        : value instanceof Error
+          ? value.message
+          : String(value)
     return { kind: 'runtime', message }
   }
 
@@ -99,7 +106,7 @@ export const useConversationStore = defineStore('conversation', () => {
     const generation = lifecycleGeneration
     client = nextClient
     unsubscribeUpdates?.()
-    unsubscribeUpdates = client.subscribeToConversationUpdates(summary => {
+    unsubscribeUpdates = client.subscribeToConversationUpdates((summary) => {
       if (generation === lifecycleGeneration && client === nextClient) mergeSummary(summary)
     })
   }
@@ -134,7 +141,10 @@ export const useConversationStore = defineStore('conversation', () => {
     listLoading.value = true
     listError.value = null
     try {
-      const page = await configured.listConversations({ limit: PAGE_LIMIT, filter: catalogFilter.value })
+      const page = await configured.listConversations({
+        limit: PAGE_LIMIT,
+        filter: catalogFilter.value,
+      })
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = uniqueSorted(page.items)
       nextCursor.value = page.nextCursor
@@ -149,7 +159,13 @@ export const useConversationStore = defineStore('conversation', () => {
 
   async function loadMoreConversations(): Promise<void> {
     const configured = client
-    if (!configured || listLoading.value || listLoadingMore.value || !hasMore.value || !nextCursor.value) {
+    if (
+      !configured ||
+      listLoading.value ||
+      listLoadingMore.value ||
+      !hasMore.value ||
+      !nextCursor.value
+    ) {
       return
     }
     const generation = lifecycleGeneration
@@ -157,7 +173,11 @@ export const useConversationStore = defineStore('conversation', () => {
     listError.value = null
     const cursor = nextCursor.value
     try {
-      const page = await configured.listConversations({ cursor, limit: PAGE_LIMIT, filter: catalogFilter.value })
+      const page = await configured.listConversations({
+        cursor,
+        limit: PAGE_LIMIT,
+        filter: catalogFilter.value,
+      })
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = uniqueSorted([...conversations.value, ...page.items])
       nextCursor.value = page.nextCursor
@@ -215,21 +235,19 @@ export const useConversationStore = defineStore('conversation', () => {
       return
     }
     const generation = lifecycleGeneration
-    const summary = conversations.value.find(item => item.conversationId === id)
+    const summary = conversations.value.find((item) => item.conversationId === id)
     if (!summary) return
 
     const token = ++selectionToken
     cleanupSubscription()
     const bufferedEvents: ConversationEvent[] = []
     let snapshotReady = false
-    const selectedSubscription = await configured.subscribeToEvents(id, event => {
+    const selectedSubscription = await configured.subscribeToEvents(id, (event) => {
       if (token !== selectionToken) return
       if (!snapshotReady) bufferedEvents.push(event)
       else handleEvent(event)
     })
-    if (token !== selectionToken
-      || generation !== lifecycleGeneration
-      || client !== configured) {
+    if (token !== selectionToken || generation !== lifecycleGeneration || client !== configured) {
       selectedSubscription()
       return
     }
@@ -241,9 +259,8 @@ export const useConversationStore = defineStore('conversation', () => {
         configured.getConversation(id),
         configured.loadConversationHistory({ conversationId: id, limit: HISTORY_PAGE_LIMIT }),
       ])
-      if (token !== selectionToken
-        || generation !== lifecycleGeneration
-        || client !== configured) return
+      if (token !== selectionToken || generation !== lifecycleGeneration || client !== configured)
+        return
       conversationId.value = id
       activeRuntimeId.value = detail.summary.runtimeId
       selectedModel.value = 'default'
@@ -270,7 +287,8 @@ export const useConversationStore = defineStore('conversation', () => {
     const configured = client
     const currentId = conversationId.value
     const cursor = historyNextCursor.value
-    if (!configured || !currentId || !cursor || !historyHasMore.value || historyLoadingMore.value) return
+    if (!configured || !currentId || !cursor || !historyHasMore.value || historyLoadingMore.value)
+      return
     const generation = lifecycleGeneration
     const token = selectionToken
     historyLoadingMore.value = true
@@ -281,10 +299,13 @@ export const useConversationStore = defineStore('conversation', () => {
         cursor,
         limit: HISTORY_PAGE_LIMIT,
       })
-      if (generation !== lifecycleGeneration
-        || client !== configured
-        || token !== selectionToken
-        || conversationId.value !== currentId) return
+      if (
+        generation !== lifecycleGeneration ||
+        client !== configured ||
+        token !== selectionToken ||
+        conversationId.value !== currentId
+      )
+        return
       turns.value = mergeHistoryTurns(turns.value, page.items)
       historyNextCursor.value = page.nextCursor
       historyHasMore.value = page.hasMore
@@ -293,7 +314,8 @@ export const useConversationStore = defineStore('conversation', () => {
         historyPageError.value = runtimeError(cause)
       }
     } finally {
-      if (generation === lifecycleGeneration && token === selectionToken) historyLoadingMore.value = false
+      if (generation === lifecycleGeneration && token === selectionToken)
+        historyLoadingMore.value = false
     }
   }
 
@@ -317,7 +339,10 @@ export const useConversationStore = defineStore('conversation', () => {
       turns.value = []
       historyNextCursor.value = null
       historyHasMore.value = false
-      const subscription = await configured.subscribeToEvents(result.handle.conversationId, handleEvent)
+      const subscription = await configured.subscribeToEvents(
+        result.handle.conversationId,
+        handleEvent,
+      )
       if (generation !== lifecycleGeneration || client !== configured) {
         subscription()
         return
@@ -347,7 +372,7 @@ export const useConversationStore = defineStore('conversation', () => {
       turnId,
       crypto.randomUUID(),
       text,
-      attachments.map(attachment => attachment.name),
+      attachments.map((attachment) => attachment.name),
       0,
     )
     turns.value = [...turns.value, turn]
@@ -360,9 +385,13 @@ export const useConversationStore = defineStore('conversation', () => {
     } catch (cause) {
       if (generation !== lifecycleGeneration || client !== configured) return
       const message = cause instanceof Error ? cause.message : String(cause)
-      updateTurn(turnId, current => failConversationTurn(current, {
-        code: 'internal', message, retryable: false,
-      }))
+      updateTurn(turnId, (current) =>
+        failConversationTurn(current, {
+          code: 'internal',
+          message,
+          retryable: false,
+        }),
+      )
       error.value = runtimeError(cause)
     }
   }
@@ -426,19 +455,23 @@ export const useConversationStore = defineStore('conversation', () => {
     const currentId = conversationId.value
     if (!configured || !currentId) return
     const generation = lifecycleGeneration
-    const turn = [...turns.value].reverse().find(candidate => findApproval(candidate, approvalId))
+    const turn = [...turns.value].reverse().find((candidate) => findApproval(candidate, approvalId))
     const request = turn ? findApproval(turn, approvalId) : undefined
     if (!turn || !request || (request.status !== 'pending' && request.status !== 'failed')) return
-    updateTurn(turn.id, current => setApprovalResolving(current, approvalId, decision))
+    updateTurn(turn.id, (current) => setApprovalResolving(current, approvalId, decision))
     try {
       await configured.respondToApproval(currentId, approvalId, decision)
       if (generation !== lifecycleGeneration || client !== configured) return
-      updateTurn(turn.id, current => completeApproval(current, approvalId, decision))
+      updateTurn(turn.id, (current) => completeApproval(current, approvalId, decision))
     } catch (cause) {
       if (generation === lifecycleGeneration) {
-        updateTurn(turn.id, current => setApprovalFailed(
-          current, approvalId, cause instanceof Error ? cause.message : String(cause),
-        ))
+        updateTurn(turn.id, (current) =>
+          setApprovalFailed(
+            current,
+            approvalId,
+            cause instanceof Error ? cause.message : String(cause),
+          ),
+        )
       }
     }
   }
@@ -461,7 +494,7 @@ export const useConversationStore = defineStore('conversation', () => {
     try {
       await configured.archiveConversation(id)
       if (generation !== lifecycleGeneration || client !== configured) return
-      conversations.value = conversations.value.filter(item => item.conversationId !== id)
+      conversations.value = conversations.value.filter((item) => item.conversationId !== id)
       if (conversationId.value === id) startNewConversation()
     } catch (cause) {
       if (generation === lifecycleGeneration) listError.value = runtimeError(cause)
@@ -475,7 +508,7 @@ export const useConversationStore = defineStore('conversation', () => {
     try {
       await configured.deleteConversation(id)
       if (generation !== lifecycleGeneration || client !== configured) return
-      conversations.value = conversations.value.filter(item => item.conversationId !== id)
+      conversations.value = conversations.value.filter((item) => item.conversationId !== id)
       if (conversationId.value === id) startNewConversation()
     } catch (cause) {
       if (generation === lifecycleGeneration) listError.value = runtimeError(cause)
@@ -486,20 +519,21 @@ export const useConversationStore = defineStore('conversation', () => {
     if (event.conversationId !== conversationId.value) return
     const turn = turns.value.at(-1)
     if (!turn || (turn.status !== 'sending' && turn.status !== 'running')) return
-    updateTurn(turn.id, current => reduceConversationTurn(current, event))
+    updateTurn(turn.id, (current) => reduceConversationTurn(current, event))
   }
 
   function mergeSummary(summary: ConversationSummary): void {
     const withoutCurrent = conversations.value.filter(
-      item => item.conversationId !== summary.conversationId,
+      (item) => item.conversationId !== summary.conversationId,
     )
-    conversations.value = summary.archivedAt || !matchesFilter(summary, catalogFilter.value)
-      ? withoutCurrent
-      : uniqueSorted([summary, ...withoutCurrent])
+    conversations.value =
+      summary.archivedAt || !matchesFilter(summary, catalogFilter.value)
+        ? withoutCurrent
+        : uniqueSorted([summary, ...withoutCurrent])
   }
 
   function updateTurn(turnId: string, update: (turn: ConversationTurn) => ConversationTurn): void {
-    turns.value = turns.value.map(turn => turn.id === turnId ? update(turn) : turn)
+    turns.value = turns.value.map((turn) => (turn.id === turnId ? update(turn) : turn))
   }
 
   function cleanupSubscription(): void {
@@ -509,9 +543,9 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function resolveNewConversationRuntime(): string | null {
     const preferred = runtimes.value.find(
-      runtime => runtime.id === defaultRuntimeId.value && runtime.status === 'ready',
+      (runtime) => runtime.id === defaultRuntimeId.value && runtime.status === 'ready',
     )
-    return (preferred ?? runtimes.value.find(runtime => runtime.status === 'ready'))?.id ?? null
+    return (preferred ?? runtimes.value.find((runtime) => runtime.status === 'ready'))?.id ?? null
   }
 
   return {
@@ -570,16 +604,19 @@ function matchesFilter(summary: ConversationSummary, filter: ConversationScopeFi
   if (filter.kind === 'local') return !summary.channelBinding
   if (filter.kind === 'channel') return Boolean(summary.channelBinding)
   const binding = summary.channelBinding
-  return binding?.transportId === filter.binding.transportId
-    && binding.accountRef === filter.binding.accountRef
-    && binding.channelRef === filter.binding.channelRef
+  return (
+    binding?.transportId === filter.binding.transportId &&
+    binding.accountRef === filter.binding.accountRef &&
+    binding.channelRef === filter.binding.channelRef
+  )
 }
 
 function uniqueSorted(items: ConversationSummary[]): ConversationSummary[] {
   const byId = new Map<string, ConversationSummary>()
   for (const item of items) byId.set(item.conversationId, item)
-  return [...byId.values()].sort((left, right) =>
-    right.updatedAt - left.updatedAt || right.conversationId.localeCompare(left.conversationId),
+  return [...byId.values()].sort(
+    (left, right) =>
+      right.updatedAt - left.updatedAt || right.conversationId.localeCompare(left.conversationId),
   )
 }
 
@@ -587,9 +624,6 @@ export function mergeHistoryTurns(
   current: ConversationTurn[],
   older: ConversationTurn[],
 ): ConversationTurn[] {
-  const currentIds = new Set(current.map(turn => turn.id))
-  return [
-    ...structuredClone(older.filter(turn => !currentIds.has(turn.id))),
-    ...current,
-  ]
+  const currentIds = new Set(current.map((turn) => turn.id))
+  return [...structuredClone(older.filter((turn) => !currentIds.has(turn.id))), ...current]
 }

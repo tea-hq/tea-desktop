@@ -19,7 +19,9 @@ export class ElectronManagedWorkspaceClient implements ManagedWorkspaceClient {
 
   async onStateChanged(listener: (state: ManagedWorkspaceState) => void): Promise<() => void> {
     if (!hasElectronBridge()) return () => undefined
-    return listen<ManagedWorkspaceState>('managed-workspace-state-changed', event => listener(event.payload))
+    return listen<ManagedWorkspaceState>('managed-workspace-state-changed', (event) =>
+      listener(event.payload),
+    )
   }
 }
 

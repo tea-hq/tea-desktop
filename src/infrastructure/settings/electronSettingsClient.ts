@@ -1,6 +1,10 @@
 import { invoke } from '../electronBridge'
 
-import { DEFAULT_SETTINGS, type AppSettings, type SettingsClient } from '@/features/settings/contracts'
+import {
+  DEFAULT_SETTINGS,
+  type AppSettings,
+  type SettingsClient,
+} from '@/features/settings/contracts'
 
 export class ElectronSettingsClient implements SettingsClient {
   async getSettings(): Promise<AppSettings> {

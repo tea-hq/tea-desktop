@@ -18,7 +18,7 @@ describe('renderMarkdownToHtml', () => {
         '```ts',
         'const ready = true',
         '```',
-      ].join('\n')
+      ].join('\n'),
     )
 
     expect(html).toContain('<h1>Result</h1>')
@@ -29,7 +29,7 @@ describe('renderMarkdownToHtml', () => {
 
   it('keeps raw HTML inert and rejects dangerous link protocols', () => {
     const html = renderMarkdownToHtml(
-      ['<img src=x onerror="alert(1)">', '', '[unsafe](javascript:alert(1))'].join('\n')
+      ['<img src=x onerror="alert(1)">', '', '[unsafe](javascript:alert(1))'].join('\n'),
     )
 
     expect(html).not.toContain('<img')
@@ -47,7 +47,11 @@ describe('renderMarkdownToHtml', () => {
 
   it('hardens generated links and remote images', () => {
     const html = renderMarkdownToHtml(
-      ['[Tea](https://github.com/tea-hq/tea-rs)', '', '![diagram](https://example.com/diagram.png)'].join('\n')
+      [
+        '[Tea](https://github.com/tea-hq/tea-rs)',
+        '',
+        '![diagram](https://example.com/diagram.png)',
+      ].join('\n'),
     )
 
     expect(html).toContain('target="_blank"')
@@ -58,7 +62,12 @@ describe('renderMarkdownToHtml', () => {
 
   it('creates a bounded plain-text preview from structured Markdown', () => {
     const preview = markdownToPlainText(
-      ['## Release result', '', '- Keep **manual review**', '- [Open task](https://example.com)'].join('\n'),
+      [
+        '## Release result',
+        '',
+        '- Keep **manual review**',
+        '- [Open task](https://example.com)',
+      ].join('\n'),
       80,
     )
 

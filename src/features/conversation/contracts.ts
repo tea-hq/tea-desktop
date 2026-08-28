@@ -1,8 +1,10 @@
 export type RuntimeKind = 'externalCli'
 
-export type RuntimeCapability = 'approval' | 'cancel' | 'events' | 'history' | 'hostTools' | 'prompt' | 'snapshot' | 'subject'
+export type RuntimeCapability =
+  'approval' | 'cancel' | 'events' | 'history' | 'hostTools' | 'prompt' | 'snapshot' | 'subject'
 
-export type ConversationJson = string | number | boolean | null | ConversationJson[] | { [key: string]: ConversationJson }
+export type ConversationJson =
+  string | number | boolean | null | ConversationJson[] | { [key: string]: ConversationJson }
 
 export interface HostToolDefinition {
   name: string
@@ -19,11 +21,23 @@ export interface HostToolCall {
   arguments: { [key: string]: ConversationJson }
 }
 
-export type HostToolFailureCode = 'cancelled' | 'executionFailed' | 'invalidRequest' | 'limitExceeded' | 'timeout' | 'unavailable'
+export type HostToolFailureCode =
+  'cancelled' | 'executionFailed' | 'invalidRequest' | 'limitExceeded' | 'timeout' | 'unavailable'
 
 export type HostToolResult =
-  | { conversationId: string; callId: string; status: 'success'; output: { [key: string]: ConversationJson } }
-  | { conversationId: string; callId: string; status: 'failure'; code: HostToolFailureCode; message?: string }
+  | {
+      conversationId: string
+      callId: string
+      status: 'success'
+      output: { [key: string]: ConversationJson }
+    }
+  | {
+      conversationId: string
+      callId: string
+      status: 'failure'
+      code: HostToolFailureCode
+      message?: string
+    }
 
 export type RuntimeStatus = 'ready' | 'unconfigured' | 'unavailable'
 
@@ -125,10 +139,7 @@ export type PermissionMode = 'default' | 'readOnly' | 'fullAccess'
 
 export type ApprovalDecision = 'allowOnce' | 'allowSession' | 'deny' | 'cancel'
 
-export type ApprovalRequestStatus =
-  | 'pending'
-  | 'resolving'
-  | 'failed'
+export type ApprovalRequestStatus = 'pending' | 'resolving' | 'failed'
 
 export interface ApprovalRequest {
   id: string
@@ -142,12 +153,7 @@ export interface ApprovalRequest {
   error?: string
 }
 
-export type ConversationTurnStatus =
-  | 'sending'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
+export type ConversationTurnStatus = 'sending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
 export interface AssistantTextBlock {
   kind: 'assistantText'
@@ -158,12 +164,7 @@ export interface AssistantTextBlock {
 }
 
 export type ToolCallStatus =
-  | 'requested'
-  | 'running'
-  | 'approvalRequired'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
+  'requested' | 'running' | 'approvalRequired' | 'completed' | 'failed' | 'cancelled'
 
 export interface ToolCallBlock {
   kind: 'toolCall'
@@ -283,7 +284,10 @@ export interface ConversationClient {
   listConversations(request: ListConversationsRequest): Promise<ConversationPage>
   getConversation(conversationId: string): Promise<ConversationDetail>
   loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage>
-  createConversation(runtimeId: string, options: CreateConversationOptions): Promise<CreateConversationResponse>
+  createConversation(
+    runtimeId: string,
+    options: CreateConversationOptions,
+  ): Promise<CreateConversationResponse>
   configureHostTools(conversationId: string, hostTools: HostToolDefinition[]): Promise<void>
   appendConversationSources(
     conversationId: string,

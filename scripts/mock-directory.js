@@ -1,6 +1,19 @@
-(() => {
+;(() => {
   const tenant = { id: 'tenant-demo', domain: 'demo.example.com', displayName: 'Demo Workspace' }
-  const names = ['Ada Lovelace', 'Grace Hopper', 'Linus Torvalds', 'Margaret Hamilton', 'Ken Thompson', 'Barbara Liskov', 'Donald Knuth', 'Radia Perlman', 'Edsger Dijkstra', 'Hedy Lamarr', 'Alan Turing', 'Katherine Johnson']
+  const names = [
+    'Ada Lovelace',
+    'Grace Hopper',
+    'Linus Torvalds',
+    'Margaret Hamilton',
+    'Ken Thompson',
+    'Barbara Liskov',
+    'Donald Knuth',
+    'Radia Perlman',
+    'Edsger Dijkstra',
+    'Hedy Lamarr',
+    'Alan Turing',
+    'Katherine Johnson',
+  ]
   const users = names.map((displayName, index) => {
     const username = displayName.toLowerCase().replaceAll(' ', '.')
     return {

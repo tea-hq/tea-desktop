@@ -5,7 +5,10 @@ export interface ComposerKeyEvent {
   keyCode: number
 }
 
-export function shouldSendFromComposer(event: ComposerKeyEvent, compositionActive: boolean): boolean {
+export function shouldSendFromComposer(
+  event: ComposerKeyEvent,
+  compositionActive: boolean,
+): boolean {
   if (compositionActive || event.isComposing || event.keyCode === 229) return false
   return event.key === 'Enter' && !event.shiftKey
 }

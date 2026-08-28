@@ -14,7 +14,8 @@ export const teaDesignTokens = {
   typography: {
     bodySize: '0.875rem',
     bodyLineHeight: '1.5',
-    sansFamily: "'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', system-ui, sans-serif",
+    sansFamily:
+      "'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', system-ui, sans-serif",
     monoFamily: "'JetBrains Mono Variable', 'Cascadia Code', Menlo, monospace",
   },
   control: {

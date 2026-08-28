@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaIconButton } from '@/shared/ui'
 
-export type WorkspaceMode = 'channels' | 'agent' | 'directory' | 'management' | 'profile' | 'settings'
+export type WorkspaceMode =
+  'channels' | 'agent' | 'directory' | 'management' | 'profile' | 'settings'
 
 const props = defineProps<{
   activeMode: WorkspaceMode
@@ -22,10 +23,19 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const avatarFailed = ref(false)
-const initials = computed(() => Array.from(props.user?.displayName || props.user?.preferredUsername || 'T')
-  .slice(0, 2).join('').toLocaleUpperCase())
+const initials = computed(() =>
+  Array.from(props.user?.displayName || props.user?.preferredUsername || 'T')
+    .slice(0, 2)
+    .join('')
+    .toLocaleUpperCase(),
+)
 
-watch(() => props.user?.avatarUrl, () => { avatarFailed.value = false })
+watch(
+  () => props.user?.avatarUrl,
+  () => {
+    avatarFailed.value = false
+  },
+)
 
 const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
   { mode: 'channels', icon: 'i-mdi-message-text-outline', key: 'workspace.channels' },
@@ -40,7 +50,11 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
     <TeaIconButton
       data-testid="workspace-profile"
       class="mb-5 overflow-hidden"
-      :class="activeMode === 'profile' ? 'tea-selected-ring tea-selected-ring tea-selected-ring tea-selected-ring' : 'hover:opacity-80'"
+      :class="
+        activeMode === 'profile'
+          ? 'tea-selected-ring tea-selected-ring tea-selected-ring tea-selected-ring'
+          : 'hover:opacity-80'
+      "
       :label="t('workspace.profile')"
       :aria-pressed="activeMode === 'profile'"
       @click="emit('select', 'profile')"
@@ -53,7 +67,10 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
         referrerpolicy="no-referrer"
         @error="avatarFailed = true"
       />
-      <span v-else class="flex size-full items-center justify-center tea-bg-inverse tea-text-micro tea-weight-strong tea-fg-inverse">
+      <span
+        v-else
+        class="flex size-full items-center justify-center tea-bg-inverse tea-text-micro tea-weight-strong tea-fg-inverse"
+      >
         {{ initials }}
       </span>
     </TeaIconButton>
@@ -63,7 +80,11 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
         v-for="entry in entries"
         :key="entry.mode"
         class="relative"
-        :class="activeMode === entry.mode ? 'tea-bg-canvas tea-fg' : 'tea-hover-bg-inverse tea-hover-fg-inverse'"
+        :class="
+          activeMode === entry.mode
+            ? 'tea-bg-canvas tea-fg'
+            : 'tea-hover-bg-inverse tea-hover-fg-inverse'
+        "
         :label="t(entry.key)"
         :aria-pressed="activeMode === entry.mode"
         @click="emit('select', entry.mode)"
@@ -83,17 +104,24 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       :disabled="logoutPending"
       @click="emit('logout')"
     >
-      <span :class="logoutPending ? 'i-mdi-loading animate-spin' : 'i-mdi-logout'" class="size-5" aria-hidden="true" />
+      <span
+        :class="logoutPending ? 'i-mdi-loading animate-spin' : 'i-mdi-logout'"
+        class="size-5"
+        aria-hidden="true"
+      />
     </TeaIconButton>
 
     <TeaIconButton
-      :class="activeMode === 'settings' ? 'tea-bg-canvas tea-fg' : 'tea-hover-bg-inverse tea-hover-fg-inverse'"
+      :class="
+        activeMode === 'settings'
+          ? 'tea-bg-canvas tea-fg'
+          : 'tea-hover-bg-inverse tea-hover-fg-inverse'
+      "
       :label="t('workspace.settings')"
       :aria-pressed="activeMode === 'settings'"
       @click="emit('select', 'settings')"
     >
       <span class="i-mdi-cog-outline size-5" aria-hidden="true" />
     </TeaIconButton>
-
   </nav>
 </template>

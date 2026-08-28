@@ -30,11 +30,18 @@ describe('ChannelHistoryToolScope', () => {
   })
 
   it('returns chronological sanitized messages and stable cursors', async () => {
-    const outcome = await scope.execute(call('call-1', {
-      direction: 'before', cursor: { messageClientId: 'm-103', messageServerId: 'server-m-103' }, limit: 2,
-    }))
+    const outcome = await scope.execute(
+      call('call-1', {
+        direction: 'before',
+        cursor: { messageClientId: 'm-103', messageServerId: 'server-m-103' },
+        limit: 2,
+      }),
+    )
 
-    expect(outcome.loadedSources.map(source => source.messageRef.messageClientId)).toEqual(['m-101', 'm-102'])
+    expect(outcome.loadedSources.map((source) => source.messageRef.messageClientId)).toEqual([
+      'm-101',
+      'm-102',
+    ])
     expect(outcome.result).toMatchObject({
       status: 'success',
       output: {
@@ -57,22 +64,37 @@ describe('ChannelHistoryToolScope', () => {
     const recentScope = new ChannelHistoryToolScope(transport, 'product-collab')
     const outcome = await recentScope.execute(call('recent', { direction: 'before', limit: 2 }))
 
-    expect(outcome.loadedSources.map(source => source.messageRef.messageClientId)).toEqual(['m-104', 'm-105'])
+    expect(outcome.loadedSources.map((source) => source.messageRef.messageClientId)).toEqual([
+      'm-104',
+      'm-105',
+    ])
     expect(outcome.result).toMatchObject({ status: 'success' })
   })
 
   it('allows only known cursors from the anchor or prior results', async () => {
-    const unknown = await scope.execute(call('unknown', {
-      direction: 'before', cursor: { messageClientId: 'm-101' }, limit: 1,
-    }))
+    const unknown = await scope.execute(
+      call('unknown', {
+        direction: 'before',
+        cursor: { messageClientId: 'm-101' },
+        limit: 1,
+      }),
+    )
     expect(unknown.result).toMatchObject({ status: 'failure', code: 'invalidRequest' })
 
-    await scope.execute(call('first', {
-      direction: 'before', cursor: { messageClientId: 'm-103', messageServerId: 'server-m-103' }, limit: 2,
-    }))
-    const known = await scope.execute(call('known', {
-      direction: 'after', cursor: { messageClientId: 'm-101', messageServerId: 'server-m-101' }, limit: 1,
-    }))
+    await scope.execute(
+      call('first', {
+        direction: 'before',
+        cursor: { messageClientId: 'm-103', messageServerId: 'server-m-103' },
+        limit: 2,
+      }),
+    )
+    const known = await scope.execute(
+      call('known', {
+        direction: 'after',
+        cursor: { messageClientId: 'm-101', messageServerId: 'server-m-101' },
+        limit: 1,
+      }),
+    )
     expect(known.result).toMatchObject({ status: 'success' })
   })
 
@@ -81,10 +103,12 @@ describe('ChannelHistoryToolScope', () => {
     expect(malformed.result).toMatchObject({ status: 'failure', code: 'invalidRequest' })
 
     for (let index = 0; index < 6; index += 1) {
-      expect((await scope.execute(call(`call-${index}`, { direction: 'before', limit: 1 }))).result)
-        .toMatchObject({ status: 'success' })
+      expect(
+        (await scope.execute(call(`call-${index}`, { direction: 'before', limit: 1 }))).result,
+      ).toMatchObject({ status: 'success' })
     }
-    expect((await scope.execute(call('call-7', { direction: 'before', limit: 1 }))).result)
-      .toMatchObject({ status: 'failure', code: 'limitExceeded' })
+    expect(
+      (await scope.execute(call('call-7', { direction: 'before', limit: 1 }))).result,
+    ).toMatchObject({ status: 'failure', code: 'limitExceeded' })
   })
 })

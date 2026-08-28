@@ -24,15 +24,18 @@ describe('ElectronConversationService', () => {
     const service = createService(filePath, [])
     await service.initialize()
 
-    expect(service.listRuntimes().map(runtime => runtime.id)).toEqual([
+    expect(service.listRuntimes().map((runtime) => runtime.id)).toEqual([
       'external.claude',
       'external.codex',
     ])
-    expect(service.listRuntimes().every(runtime => runtime.kind === 'externalCli')).toBe(true)
+    expect(service.listRuntimes().every((runtime) => runtime.kind === 'externalCli')).toBe(true)
   })
 
   it('persists conversation summaries and honors creation idempotency', async () => {
-    const filePath = path.join(await mkdtemp(path.join(os.tmpdir(), 'tea-conversations-')), 'state.json')
+    const filePath = path.join(
+      await mkdtemp(path.join(os.tmpdir(), 'tea-conversations-')),
+      'state.json',
+    )
     const updates: string[] = []
     const first = createService(filePath, updates)
     await first.initialize()
@@ -52,7 +55,10 @@ describe('ElectronConversationService', () => {
   })
 
   it('keeps draft delivery transitions bound to the conversation binding', async () => {
-    const filePath = path.join(await mkdtemp(path.join(os.tmpdir(), 'tea-collaboration-')), 'state.json')
+    const filePath = path.join(
+      await mkdtemp(path.join(os.tmpdir(), 'tea-collaboration-')),
+      'state.json',
+    )
     const service = createService(filePath, [])
     await service.initialize()
     const created = await service.createConversation('external.claude', 'test:binding', {
@@ -61,7 +67,12 @@ describe('ElectronConversationService', () => {
       channelRef: 'channel-ref',
     })
 
-    const draft = await service.createDraft(created.handle.conversationId, 0, 'block-1', 'Reply to the Channel')
+    const draft = await service.createDraft(
+      created.handle.conversationId,
+      0,
+      'block-1',
+      'Reply to the Channel',
+    )
     const updated = await service.updateDraft(draft.draftId, 'Updated reply')
     const delivery = await service.prepareDelivery(draft.draftId)
     const sending = await service.updateDelivery(delivery.deliveryId, 'sending')
@@ -82,7 +93,9 @@ describe('ElectronConversationService', () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'tea-codex-'))
     const executable = path.join(directory, 'fake-codex.mjs')
     const logPath = path.join(directory, 'requests.log')
-    await writeFile(executable, `#!/usr/bin/env node
+    await writeFile(
+      executable,
+      `#!/usr/bin/env node
 import { appendFileSync } from 'node:fs'
 import readline from 'node:readline'
 
@@ -105,7 +118,9 @@ for await (const line of rl) {
     output({ method: 'turn/completed', params: { threadId: request.params.threadId, turn: { id: turnId, status: 'completed' } } })
   }
 }
-`, { encoding: 'utf8', mode: 0o700 })
+`,
+      { encoding: 'utf8', mode: 0o700 },
+    )
     await chmod(executable, 0o700)
     process.env['TEA_CODEX_EXECUTABLE'] = executable
     process.env['CODEX_TEST_LOG'] = logPath
@@ -115,7 +130,7 @@ for await (const line of rl) {
     const first = new ElectronConversationService(
       statePath,
       process.cwd(),
-      event => firstEvents.push(event.event.type),
+      (event) => firstEvents.push(event.event.type),
       () => undefined,
       () => undefined,
     )
@@ -131,16 +146,19 @@ for await (const line of rl) {
     })
     await first.shutdown()
 
-    const log = (await readFile(logPath, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
-    expect(log.filter(request => request.method === 'thread/start')).toHaveLength(1)
-    expect(log.filter(request => request.method === 'thread/resume')).toHaveLength(0)
-    expect(firstEvents.filter(type => type === 'messageDelta')).toHaveLength(2)
+    const log = (await readFile(logPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    expect(log.filter((request) => request.method === 'thread/start')).toHaveLength(1)
+    expect(log.filter((request) => request.method === 'thread/resume')).toHaveLength(0)
+    expect(firstEvents.filter((type) => type === 'messageDelta')).toHaveLength(2)
 
     const secondEvents: string[] = []
     const second = new ElectronConversationService(
       statePath,
       process.cwd(),
-      event => secondEvents.push(event.event.type),
+      (event) => secondEvents.push(event.event.type),
       () => undefined,
       () => undefined,
     )
@@ -151,8 +169,11 @@ for await (const line of rl) {
     })
     await second.shutdown()
 
-    const resumedLog = (await readFile(logPath, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
-    expect(resumedLog.filter(request => request.method === 'thread/resume')).toHaveLength(1)
+    const resumedLog = (await readFile(logPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    expect(resumedLog.filter((request) => request.method === 'thread/resume')).toHaveLength(1)
     expect(secondEvents).toEqual(expect.arrayContaining(['messageDelta', 'runFinished']))
   })
 })
@@ -166,7 +187,7 @@ function createService(
     filePath,
     process.cwd(),
     () => undefined,
-    summary => updates.push(summary.conversationId),
+    (summary) => updates.push(summary.conversationId),
     emitHostToolCall,
   )
 }

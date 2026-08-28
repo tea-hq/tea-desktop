@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { listMock, saveMock, syncMock, MockAgentRoleClientError } = vi.hoisted(() => {
   class TestAgentRoleClientError extends Error {
-    constructor(public readonly code: string, message = code) {
+    constructor(
+      public readonly code: string,
+      message = code,
+    ) {
       super(message)
       this.name = 'AgentRoleClientError'
     }

@@ -16,9 +16,9 @@ export const useProfileStore = defineStore('profile', () => {
   let refreshWhenConnected = false
   let operationGeneration = 0
 
-  const comparisons = computed(() => channelProfile.value
-    ? compareSelfProfiles(centerProfile.value, channelProfile.value)
-    : [])
+  const comparisons = computed(() =>
+    channelProfile.value ? compareSelfProfiles(centerProfile.value, channelProfile.value) : [],
+  )
   const alignment = computed(() => summarizeAlignment(comparisons.value))
 
   function setCenterProfile(value: CenterSelfProfile | null): void {
@@ -40,11 +40,14 @@ export const useProfileStore = defineStore('profile', () => {
       providerName.value = 'IM'
     }
     try {
-      unsubscribe = value.subscribe(event => {
-        if (event.type !== 'status.changed'
-          || event.status.phase !== 'connected'
-          || !refreshWhenConnected
-          || value !== transport.value) return
+      unsubscribe = value.subscribe((event) => {
+        if (
+          event.type !== 'status.changed' ||
+          event.status.phase !== 'connected' ||
+          !refreshWhenConnected ||
+          value !== transport.value
+        )
+          return
         refreshWhenConnected = false
         void refresh()
       })
@@ -66,7 +69,7 @@ export const useProfileStore = defineStore('profile', () => {
     }
 
     try {
-      const capability = configured.capabilities().find(value => value.id === 'profile.self')
+      const capability = configured.capabilities().find((value) => value.id === 'profile.self')
       if (!capability?.available) {
         refreshWhenConnected = capability?.reason === 'notConnected'
         phase.value = refreshWhenConnected ? 'unavailable' : 'unsupported'
@@ -106,9 +109,8 @@ export const useProfileStore = defineStore('profile', () => {
       } else {
         refreshWhenConnected = code === 'notConnected'
         phase.value = 'unavailable'
-        errorKey.value = code === 'notConnected'
-          ? 'profile.errors.notConnected'
-          : 'profile.errors.loadFailed'
+        errorKey.value =
+          code === 'notConnected' ? 'profile.errors.notConnected' : 'profile.errors.loadFailed'
       }
     }
   }
@@ -142,7 +144,10 @@ export const useProfileStore = defineStore('profile', () => {
 })
 
 function transportErrorCode(error: unknown): string {
-  return typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
     ? error.code
     : 'transport'
 }

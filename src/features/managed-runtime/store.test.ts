@@ -14,17 +14,39 @@ class FakeManagedClient implements ManagedWorkspaceClient {
     im: { status: 'unavailable', errorCode: 'provider_unavailable' },
     modelProviders: [
       {
-        id: 'ready-provider', kind: 'openai_compatible', displayName: 'Ready', status: 'ready',
-        models: [{ id: 'model-a', displayName: 'Model A', selectionValue: 'center.ready-provider:model-a' }],
+        id: 'ready-provider',
+        kind: 'openai_compatible',
+        displayName: 'Ready',
+        status: 'ready',
+        models: [
+          {
+            id: 'model-a',
+            displayName: 'Model A',
+            selectionValue: 'center.ready-provider:model-a',
+          },
+        ],
       },
       {
-        id: 'disabled-provider', kind: 'openai_compatible', displayName: 'Disabled', status: 'disabled',
-        models: [{ id: 'model-b', displayName: 'Model B', selectionValue: 'center.disabled-provider:model-b' }],
+        id: 'disabled-provider',
+        kind: 'openai_compatible',
+        displayName: 'Disabled',
+        status: 'disabled',
+        models: [
+          {
+            id: 'model-b',
+            displayName: 'Model B',
+            selectionValue: 'center.disabled-provider:model-b',
+          },
+        ],
       },
     ],
   }
-  async state(): Promise<ManagedWorkspaceState> { return structuredClone(this.current) }
-  async refresh(): Promise<ManagedWorkspaceState> { return structuredClone(this.current) }
+  async state(): Promise<ManagedWorkspaceState> {
+    return structuredClone(this.current)
+  }
+  async refresh(): Promise<ManagedWorkspaceState> {
+    return structuredClone(this.current)
+  }
   async onStateChanged(listener: (state: ManagedWorkspaceState) => void): Promise<() => void> {
     this.subscribeCalls += 1
     this.listener = listener

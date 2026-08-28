@@ -11,7 +11,13 @@ export interface CapabilityReference {
 
 export type AgentRoleDependency =
   | { kind: 'skill'; id: string; version?: string }
-  | { kind: 'pluginAction'; pluginId: string; connectionId: string; actionId: string; version?: string }
+  | {
+      kind: 'pluginAction'
+      pluginId: string
+      connectionId: string
+      actionId: string
+      version?: string
+    }
 
 export interface AgentRoleRecord {
   id: string

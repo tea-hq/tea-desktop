@@ -14,7 +14,9 @@ export const test = base.extend<AppFixtures>({
   },
   openFixture: async ({ page }, use, testInfo) => {
     await use(async (name, options = {}) => {
-      await page.emulateMedia({ reducedMotion: testInfo.project.name.includes('reduced') ? 'reduce' : 'no-preference' })
+      await page.emulateMedia({
+        reducedMotion: testInfo.project.name.includes('reduced') ? 'reduce' : 'no-preference',
+      })
       const search = new URLSearchParams({ fixture: name, lang: options.lang ?? 'en' })
       await page.goto(`/?${search}`)
       await expect(page.getByTestId('e2e-app')).toBeVisible()

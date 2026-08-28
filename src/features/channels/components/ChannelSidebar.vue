@@ -21,7 +21,7 @@ const query = ref('')
 const filteredChannels = computed(() => {
   const value = query.value.trim().toLocaleLowerCase()
   if (!value) return props.channels
-  return props.channels.filter(channel =>
+  return props.channels.filter((channel) =>
     `${channel.name} ${channel.description}`.toLocaleLowerCase().includes(value),
   )
 })
@@ -39,19 +39,42 @@ function formatTime(value: number): string {
           <h1 class="truncate tea-text-lead tea-weight-strong tea-fg">{{ t('channels.title') }}</h1>
           <span
             class="size-1.5 shrink-0 tea-radius-pill"
-            :class="status.phase === 'connected' ? 'tea-bg-success' : status.phase === 'failed' || status.phase === 'kickedOffline' ? 'tea-bg-danger' : 'tea-bg-disabled'"
+            :class="
+              status.phase === 'connected'
+                ? 'tea-bg-success'
+                : status.phase === 'failed' || status.phase === 'kickedOffline'
+                  ? 'tea-bg-danger'
+                  : 'tea-bg-disabled'
+            "
             :title="t(`channels.connection.${status.phase}`)"
           />
         </div>
-        <TeaIconButton v-if="status.phase === 'connected'" size="small" :label="t('channels.connection.disconnect')" icon="i-mdi-logout" @click="emit('disconnect')" />
+        <TeaIconButton
+          v-if="status.phase === 'connected'"
+          size="small"
+          :label="t('channels.connection.disconnect')"
+          icon="i-mdi-logout"
+          @click="emit('disconnect')"
+        />
       </div>
-      <TeaInput v-model="query" class="mt-2.5" type="search" size="small" :label="t('channels.search')" :placeholder="t('channels.search')" />
+      <TeaInput
+        v-model="query"
+        class="mt-2.5"
+        type="search"
+        size="small"
+        :label="t('channels.search')"
+        :placeholder="t('channels.search')"
+      />
     </div>
 
     <div class="channel-list-scroll-area flex-1 overflow-y-auto px-2.5 pb-3">
       <div class="flex items-center justify-between px-2 pb-1.5 pt-3">
-        <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">{{ t('channels.recent') }}</p>
-        <span class="tea-text-micro tabular-nums tea-fg-disabled">{{ filteredChannels.length }}</span>
+        <p class="tea-text-micro tea-weight-strong uppercase tea-fg-subtle">
+          {{ t('channels.recent') }}
+        </p>
+        <span class="tea-text-micro tabular-nums tea-fg-disabled">{{
+          filteredChannels.length
+        }}</span>
       </div>
       <TeaButton
         v-for="(channel, index) in filteredChannels"
@@ -70,11 +93,21 @@ function formatTime(value: number): string {
         />
         <span class="min-w-0 flex-1">
           <span class="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2">
-            <span class="truncate tea-text-body tea-fg" :class="channel.unreadCount ? 'tea-weight-strong' : 'tea-weight-medium'">{{ channel.name }}</span>
-            <span class="tea-text-micro tabular-nums tea-fg-subtle">{{ formatTime(channel.updatedAt) }}</span>
+            <span
+              class="truncate tea-text-body tea-fg"
+              :class="channel.unreadCount ? 'tea-weight-strong' : 'tea-weight-medium'"
+              >{{ channel.name }}</span
+            >
+            <span class="tea-text-micro tabular-nums tea-fg-subtle">{{
+              formatTime(channel.updatedAt)
+            }}</span>
           </span>
           <span class="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-            <span class="truncate tea-text-caption" :class="channel.unreadCount ? 'tea-fg-muted' : 'tea-fg-subtle'">{{ channel.lastMessagePreview || channel.description }}</span>
+            <span
+              class="truncate tea-text-caption"
+              :class="channel.unreadCount ? 'tea-fg-muted' : 'tea-fg-subtle'"
+              >{{ channel.lastMessagePreview || channel.description }}</span
+            >
             <span
               v-if="channel.unreadCount"
               class="flex h-4 min-w-4 items-center justify-center tea-radius-pill tea-bg-inverse px-1 tea-text-micro tea-weight-strong tabular-nums tea-fg-inverse"
@@ -85,7 +118,10 @@ function formatTime(value: number): string {
         </span>
       </TeaButton>
 
-      <p v-if="filteredChannels.length === 0" class="px-3 py-8 text-center tea-text-caption tea-fg-subtle">
+      <p
+        v-if="filteredChannels.length === 0"
+        class="px-3 py-8 text-center tea-text-caption tea-fg-subtle"
+      >
         {{ t('channels.noResults') }}
       </p>
     </div>

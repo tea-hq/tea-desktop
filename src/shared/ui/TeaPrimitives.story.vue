@@ -33,8 +33,13 @@ const runtimes = [
     </Variant>
     <Variant title="Chinese and long labels">
       <div class="max-w-xl p-6">
-        <TeaEmptyState title="此频道还没有 Agent 会话" description="选择默认 Runtime，然后在首次发送消息时创建会话。">
-          <template #actions><TeaButton appearance="primary">使用默认 Runtime 创建新会话</TeaButton></template>
+        <TeaEmptyState
+          title="此频道还没有 Agent 会话"
+          description="选择默认 Runtime，然后在首次发送消息时创建会话。"
+        >
+          <template #actions
+            ><TeaButton appearance="primary">使用默认 Runtime 创建新会话</TeaButton></template
+          >
         </TeaEmptyState>
       </div>
     </Variant>

@@ -9,7 +9,13 @@ import type { RuntimeDescriptor } from '@/features/conversation/contracts'
 import en from '@/locales/en'
 import AgentSessionIndex from './AgentSessionIndex.vue'
 
-const runtime: RuntimeDescriptor = { id: 'external.claude', kind: 'externalCli', displayName: 'Claude Code', capabilities: ['prompt'], status: 'ready' }
+const runtime: RuntimeDescriptor = {
+  id: 'external.claude',
+  kind: 'externalCli',
+  displayName: 'Claude Code',
+  capabilities: ['prompt'],
+  status: 'ready',
+}
 const conversations = Array.from({ length: 10 }, (_, index) => ({
   conversationId: `conversation-${index}`,
   runtimeId: runtime.id,
@@ -31,7 +37,10 @@ function mountIndex(overrides: Record<string, unknown> = {}) {
       ...overrides,
     },
     global: {
-      plugins: [{ install: installTeaUi }, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      plugins: [
+        { install: installTeaUi },
+        createI18n({ legacy: false, locale: 'en', messages: { en } }),
+      ],
     },
   })
 }
@@ -41,7 +50,10 @@ describe('AgentSessionIndex', () => {
     const wrapper = mountIndex({ conversations: [] })
 
     expect(wrapper.text()).toContain('New session with Claude Code')
-    await wrapper.findAll('button').find(button => button.text().includes('New session with Claude Code'))!.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('New session with Claude Code'))!
+      .trigger('click')
     expect(wrapper.emitted('create')).toHaveLength(1)
   })
 
@@ -49,7 +61,10 @@ describe('AgentSessionIndex', () => {
     const wrapper = mountIndex()
 
     expect(wrapper.findAll('.session-row')).toHaveLength(8)
-    await wrapper.findAll('button').find(button => button.text().includes('View all sessions'))!.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('View all sessions'))!
+      .trigger('click')
     expect(wrapper.emitted('viewAll')).toHaveLength(1)
   })
 

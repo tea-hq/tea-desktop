@@ -6,7 +6,10 @@ import {
   YunxinWebChannelTransport,
   type YunxinSdkFactory,
 } from './YunxinWebChannelTransport'
-import type { ManagedImCredentialClient, ManagedImCredentials } from './electronManagedImCredentials'
+import type {
+  ManagedImCredentialClient,
+  ManagedImCredentials,
+} from './electronManagedImCredentials'
 
 type Listener = (...args: never[]) => void
 
@@ -24,7 +27,7 @@ class FakeService {
   }
 
   emit(name: string, ...args: unknown[]): void {
-    for (const listener of this.listeners.get(name) ?? []) listener(...args as never[])
+    for (const listener of this.listeners.get(name) ?? []) listener(...(args as never[]))
   }
 
   listenerCount(): number {
@@ -41,25 +44,56 @@ function createFakeSdk() {
     getConversationList: vi.fn(async (offset: number, limit: number) => ({
       offset: 0,
       finished: true,
-      conversationList: offset > 0 ? [] : [{
-        conversationId: 'c1', type: 1, name: 'Alice', stickTop: false,
-        localExtension: '', serverExtension: '', unreadCount: 1,
-        sortOrder: 3, createTime: 1, updateTime: 2, lastReadTime: 0,
-      }].slice(0, limit),
+      conversationList:
+        offset > 0
+          ? []
+          : [
+              {
+                conversationId: 'c1',
+                type: 1,
+                name: 'Alice',
+                stickTop: false,
+                localExtension: '',
+                serverExtension: '',
+                unreadCount: 1,
+                sortOrder: 3,
+                createTime: 1,
+                updateTime: 2,
+                lastReadTime: 0,
+              },
+            ].slice(0, limit),
     })),
     getConversation: vi.fn(async (conversationId: string) => ({
-      conversationId, type: 2, name: 'Design team', avatar: 'https://yx-web-nosdn.netease.im/team.png',
-      stickTop: false, localExtension: '', serverExtension: '', unreadCount: 0,
-      sortOrder: 4, createTime: 1, updateTime: 4, lastReadTime: 0,
+      conversationId,
+      type: 2,
+      name: 'Design team',
+      avatar: 'https://yx-web-nosdn.netease.im/team.png',
+      stickTop: false,
+      localExtension: '',
+      serverExtension: '',
+      unreadCount: 0,
+      sortOrder: 4,
+      createTime: 1,
+      updateTime: 4,
+      lastReadTime: 0,
     })),
     markConversationRead: vi.fn(async () => Date.now()),
   })
   let sendCount = 0
   const rawMessage = (text = 'history') => ({
-    conversationId: 'c1', messageClientId: `m${sendCount + 1}`, messageServerId: `s${sendCount + 1}`,
-    messageType: 0, senderId: 'account-a', receiverId: 'other', createTime: 2 + sendCount,
-    isSelf: true, isDelete: false, sendingState: 1, conversationType: 1,
-    messageStatus: { errorCode: 0 }, text,
+    conversationId: 'c1',
+    messageClientId: `m${sendCount + 1}`,
+    messageServerId: `s${sendCount + 1}`,
+    messageType: 0,
+    senderId: 'account-a',
+    receiverId: 'other',
+    createTime: 2 + sendCount,
+    isSelf: true,
+    isDelete: false,
+    sendingState: 1,
+    conversationType: 1,
+    messageStatus: { errorCode: 0 },
+    text,
   })
   const message = Object.assign(new FakeService(), {
     getMessageListEx: vi.fn(async () => {
@@ -68,17 +102,26 @@ function createFakeSdk() {
     }),
     sendMessage: vi.fn(async (value: { text?: string; serverExtension?: string }) => {
       sendCount += 1
-      return { message: { ...rawMessage(value.text), messageClientId: `sent-${sendCount}`, messageServerId: `server-${sendCount}`, serverExtension: value.serverExtension } }
+      return {
+        message: {
+          ...rawMessage(value.text),
+          messageClientId: `sent-${sendCount}`,
+          messageServerId: `server-${sendCount}`,
+          serverExtension: value.serverExtension,
+        },
+      }
     }),
   })
   const user = Object.assign(new FakeService(), {
-    getUserListFromCloud: vi.fn(async () => [{
-      accountId: 'account-a',
-      name: 'OIDC User',
-      email: 'user@example.test',
-      avatar: 'https://id.example.test/avatar.png',
-      createTime: 1,
-    }]),
+    getUserListFromCloud: vi.fn(async () => [
+      {
+        accountId: 'account-a',
+        name: 'OIDC User',
+        email: 'user@example.test',
+        avatar: 'https://id.example.test/avatar.png',
+        createTime: 1,
+      },
+    ]),
   })
   const sdk = {
     V2NIMLoginService: login,
@@ -87,7 +130,8 @@ function createFakeSdk() {
     V2NIMUserService: user,
     V2NIMMessageCreator: { createTextMessage: (text: string) => rawMessage(text) },
     V2NIMConversationIdUtil: {
-      parseConversationTargetId: (conversationId: string) => conversationId.split('|').at(-1) ?? conversationId,
+      parseConversationTargetId: (conversationId: string) =>
+        conversationId.split('|').at(-1) ?? conversationId,
     },
     destroy: vi.fn(async () => undefined),
   }
@@ -100,9 +144,7 @@ const credentials: ManagedImCredentials = {
   token: 'token',
 }
 
-function credentialClient(
-  value: ManagedImCredentials = credentials,
-): ManagedImCredentialClient {
+function credentialClient(value: ManagedImCredentials = credentials): ManagedImCredentialClient {
   return { load: vi.fn(async () => structuredClone(value)) }
 }
 
@@ -127,10 +169,11 @@ describe('YunxinWebChannelTransport', () => {
       create: () => Promise.reject(new Error('sdk failed')),
     })
 
-    await expect(transport.connect())
-      .rejects.toMatchObject({ code: 'transport' })
+    await expect(transport.connect()).rejects.toMatchObject({ code: 'transport' })
     expect(transport.status()).toMatchObject({
-      phase: 'failed', errorCode: 'sdkInitialization', retryable: false,
+      phase: 'failed',
+      errorCode: 'sdkInitialization',
+      retryable: false,
     })
   })
 
@@ -138,7 +181,7 @@ describe('YunxinWebChannelTransport', () => {
     const { sdk } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     const events: ChannelEvent[] = []
-    transport.subscribe(event => events.push(event))
+    transport.subscribe((event) => events.push(event))
 
     await transport.connect()
 
@@ -183,27 +226,41 @@ describe('YunxinWebChannelTransport', () => {
 
   it('rejects a cloud profile for a different account', async () => {
     const { sdk, user } = createFakeSdk()
-    user.getUserListFromCloud.mockResolvedValueOnce([{
-      accountId: 'another-account', name: 'Another user', email: '', avatar: '', createTime: 1,
-    }])
+    user.getUserListFromCloud.mockResolvedValueOnce([
+      {
+        accountId: 'another-account',
+        name: 'Another user',
+        email: '',
+        avatar: '',
+        createTime: 1,
+      },
+    ])
     const transport = createTransport({ create: () => sdk as never })
     await transport.connect()
 
     await expect(transport.getSelfProfile()).rejects.toMatchObject({
-      code: 'protocolFailure', retryable: false,
+      code: 'protocolFailure',
+      retryable: false,
     })
   })
 
   it('rejects unsafe profile values returned by the provider', async () => {
     const { sdk, user } = createFakeSdk()
-    user.getUserListFromCloud.mockResolvedValueOnce([{
-      accountId: 'account-a', name: `Unsafe\n${'a'.repeat(64)}`, email: '', avatar: '', createTime: 1,
-    }])
+    user.getUserListFromCloud.mockResolvedValueOnce([
+      {
+        accountId: 'account-a',
+        name: `Unsafe\n${'a'.repeat(64)}`,
+        email: '',
+        avatar: '',
+        createTime: 1,
+      },
+    ])
     const transport = createTransport({ create: () => sdk as never })
     await transport.connect()
 
     await expect(transport.getSelfProfile()).rejects.toMatchObject({
-      code: 'protocolFailure', retryable: false,
+      code: 'protocolFailure',
+      retryable: false,
     })
   })
 
@@ -211,7 +268,7 @@ describe('YunxinWebChannelTransport', () => {
     const { sdk, login, conversation, message } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     const events: ChannelEvent[] = []
-    transport.subscribe(event => events.push(event))
+    transport.subscribe((event) => events.push(event))
     await transport.connect()
 
     login.emit('onConnectStatus', 3)
@@ -220,7 +277,11 @@ describe('YunxinWebChannelTransport', () => {
     expect(transport.status().phase).toBe('connected')
     login.emit('onKickedOffline', {})
     expect(transport.status().phase).toBe('kickedOffline')
-    expect(events.some(event => event.type === 'status.changed' && event.status.phase === 'kickedOffline')).toBe(true)
+    expect(
+      events.some(
+        (event) => event.type === 'status.changed' && event.status.phase === 'kickedOffline',
+      ),
+    ).toBe(true)
 
     await transport.dispose()
     expect(login.listenerCount() + conversation.listenerCount() + message.listenerCount()).toBe(0)
@@ -231,7 +292,7 @@ describe('YunxinWebChannelTransport', () => {
     const { sdk, message } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     const events: ChannelEvent[] = []
-    transport.subscribe(event => events.push(event))
+    transport.subscribe((event) => events.push(event))
     await transport.connect()
     const refer = { conversationId: 'c1', messageClientId: 'm1', messageServerId: 's1' }
     message.emit('onMessageDeletedNotifications', [{ messageRefer: refer, deleteTime: 3 }])
@@ -239,9 +300,15 @@ describe('YunxinWebChannelTransport', () => {
     message.emit('onClearHistoryNotifications', [{ conversationId: 'c1', deleteTime: 4 }])
     message.emit('onMessagePinNotification', { pinState: 1, pin: { messageRefer: refer } })
     message.emit('onReceiveTeamMessageReadReceipts', [{ ...refer, readCount: 2, unreadCount: 1 }])
-    expect(events.map(event => event.type)).toEqual(expect.arrayContaining([
-      'message.deleted', 'message.revoked', 'message.historyCleared', 'message.pinChanged', 'message.receiptChanged',
-    ]))
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        'message.deleted',
+        'message.revoked',
+        'message.historyCleared',
+        'message.pinChanged',
+        'message.receiptChanged',
+      ]),
+    )
     expect(() => JSON.stringify(events)).not.toThrow()
   })
 
@@ -249,17 +316,26 @@ describe('YunxinWebChannelTransport', () => {
     const { sdk, conversation } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     const events: ChannelEvent[] = []
-    transport.subscribe(event => events.push(event))
+    transport.subscribe((event) => events.push(event))
     await transport.connect()
 
     conversation.emit('onConversationCreated', {
-      conversationId: 'team|app|team-1', type: 2, stickTop: false,
-      localExtension: '', serverExtension: '', unreadCount: 0,
-      sortOrder: 3, createTime: 1, updateTime: 2, lastReadTime: 0,
+      conversationId: 'team|app|team-1',
+      type: 2,
+      stickTop: false,
+      localExtension: '',
+      serverExtension: '',
+      unreadCount: 0,
+      sortOrder: 3,
+      createTime: 1,
+      updateTime: 2,
+      lastReadTime: 0,
     })
 
-    await vi.waitFor(() => expect(conversation.getConversation).toHaveBeenCalledWith('team|app|team-1'))
-    const event = events.find(value => value.type === 'channel.upserted')
+    await vi.waitFor(() =>
+      expect(conversation.getConversation).toHaveBeenCalledWith('team|app|team-1'),
+    )
+    const event = events.find((value) => value.type === 'channel.upserted')
     expect(event).toMatchObject({
       type: 'channel.upserted',
       channels: [{ name: 'Design team', avatarUrl: 'https://yx-web-nosdn.netease.im/team.png' }],
@@ -272,28 +348,52 @@ describe('YunxinWebChannelTransport', () => {
     await transport.connect()
     const first = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
     expect(first.nextAnchor).toEqual(first.items[0]!.ref)
-    expect(message.getMessageListEx).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 0 }))
+    expect(message.getMessageListEx).toHaveBeenLastCalledWith(
+      expect.objectContaining({ direction: 0 }),
+    )
 
     const olderRaw = {
-      conversationId: 'c1', messageClientId: 'older', messageServerId: 'older-server',
-      messageType: 0, senderId: 'other', receiverId: 'account-a', createTime: 1,
-      isSelf: false, isDelete: false, sendingState: 1, conversationType: 1,
-      messageStatus: { errorCode: 0 }, text: 'older',
+      conversationId: 'c1',
+      messageClientId: 'older',
+      messageServerId: 'older-server',
+      messageType: 0,
+      senderId: 'other',
+      receiverId: 'account-a',
+      createTime: 1,
+      isSelf: false,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: 'older',
     }
     const newerRaw = {
-      ...olderRaw, messageClientId: 'newer', messageServerId: 'newer-server', createTime: 4, text: 'newer',
+      ...olderRaw,
+      messageClientId: 'newer',
+      messageServerId: 'newer-server',
+      createTime: 4,
+      text: 'newer',
     }
     message.getMessageListEx.mockResolvedValueOnce({
-      messages: [newerRaw, olderRaw], anchorMessage: newerRaw, hasMore: true,
+      messages: [newerRaw, olderRaw],
+      anchorMessage: newerRaw,
+      hasMore: true,
     })
     const after = await transport.loadMessages({
-      channelRef: 'c1', direction: 'after', limit: 2, anchorMessage: first.nextAnchor,
+      channelRef: 'c1',
+      direction: 'after',
+      limit: 2,
+      anchorMessage: first.nextAnchor,
     })
 
-    expect(message.getMessageListEx).toHaveBeenLastCalledWith(expect.objectContaining({
-      conversationId: 'c1', direction: 1, limit: 2,
-    }))
-    expect(after.items.map(value => value.ref.messageClientId)).toEqual(['older', 'newer'])
+    expect(message.getMessageListEx).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        conversationId: 'c1',
+        direction: 1,
+        limit: 2,
+      }),
+    )
+    expect(after.items.map((value) => value.ref.messageClientId)).toEqual(['older', 'newer'])
     expect(after.hasMore).toBe(true)
     expect(after.nextAnchor?.messageClientId).toBe('newer')
   })
@@ -303,17 +403,22 @@ describe('YunxinWebChannelTransport', () => {
     const transport = createTransport({ create: () => sdk as never })
     await transport.connect()
 
-    await expect(transport.loadMessages({
-      channelRef: 'c1', direction: 'before', limit: 2,
-      anchorMessage: { channelRef: 'c1', messageClientId: 'unknown' },
-    })).rejects.toMatchObject({ code: 'invalidRequest' })
+    await expect(
+      transport.loadMessages({
+        channelRef: 'c1',
+        direction: 'before',
+        limit: 2,
+        anchorMessage: { channelRef: 'c1', messageClientId: 'unknown' },
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
     expect(message.getMessageListEx).not.toHaveBeenCalled()
   })
 
   it('reloads managed credentials and reconnects only when they rotate', async () => {
     const { sdk, login } = createFakeSdk()
     const client = credentialClient()
-    const load = vi.mocked(client.load)
+    const load = vi
+      .mocked(client.load)
       .mockResolvedValueOnce({ ...credentials, token: 'token-a' })
       .mockResolvedValueOnce({ ...credentials, token: 'token-a' })
       .mockResolvedValueOnce({ ...credentials, token: 'token-b' })
@@ -339,7 +444,9 @@ describe('YunxinWebChannelTransport', () => {
     await expect(transport.connect()).rejects.toMatchObject({ code: 'notInitialized' })
     expect(JSON.stringify(transport.status())).not.toContain('must-not-leak-secret')
     expect(transport.status()).toMatchObject({
-      phase: 'failed', errorCode: 'managedCredentialsUnavailable', retryable: false,
+      phase: 'failed',
+      errorCode: 'managedCredentialsUnavailable',
+      retryable: false,
     })
   })
 
@@ -347,7 +454,12 @@ describe('YunxinWebChannelTransport', () => {
     const { sdk } = createFakeSdk()
     let resolveCredentials!: (value: ManagedImCredentials) => void
     const client: ManagedImCredentialClient = {
-      load: vi.fn(() => new Promise<ManagedImCredentials>(resolve => { resolveCredentials = resolve })),
+      load: vi.fn(
+        () =>
+          new Promise<ManagedImCredentials>((resolve) => {
+            resolveCredentials = resolve
+          }),
+      ),
     }
     const factory = { create: vi.fn(() => sdk as never) }
     const transport = createTransport(factory, client)

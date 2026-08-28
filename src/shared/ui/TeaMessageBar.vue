@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import Message from 'primevue/message'
 
-withDefaults(defineProps<{
-  tone?: 'info' | 'success' | 'warning' | 'error'
-  closable?: boolean
-}>(), { tone: 'info', closable: false })
+withDefaults(
+  defineProps<{
+    tone?: 'info' | 'success' | 'warning' | 'error'
+    closable?: boolean
+  }>(),
+  { tone: 'info', closable: false },
+)
 const emit = defineEmits<{ close: [] }>()
 </script>
 
@@ -14,5 +17,6 @@ const emit = defineEmits<{ close: [] }>()
     :closable="closable"
     size="small"
     @close="emit('close')"
-  ><slot /></Message>
+    ><slot
+  /></Message>
 </template>

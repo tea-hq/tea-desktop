@@ -39,8 +39,9 @@ export function compareSelfProfiles(
 }
 
 export function summarizeAlignment(comparisons: ProfileComparison[]): ProfileAlignment {
-  if (comparisons.length === 0 || comparisons.every(value => value.status === 'notAvailable')) return 'unknown'
-  return comparisons.some(value => value.status === 'mismatched') ? 'mismatched' : 'aligned'
+  if (comparisons.length === 0 || comparisons.every((value) => value.status === 'notAvailable'))
+    return 'unknown'
+  return comparisons.some((value) => value.status === 'mismatched') ? 'mismatched' : 'aligned'
 }
 
 function compareField(

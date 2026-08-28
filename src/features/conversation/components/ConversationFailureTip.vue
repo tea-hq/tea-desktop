@@ -11,10 +11,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <aside
-    class="flex w-full items-start gap-3 tea-bg-canvas px-3 py-2.5 text-left"
-    role="status"
-  >
+  <aside class="flex w-full items-start gap-3 tea-bg-canvas px-3 py-2.5 text-left" role="status">
     <span class="mt-1 h-4 w-0.5 shrink-0 tea-bg-danger" aria-hidden="true" />
     <div class="min-w-0 flex-1">
       <p class="tea-text-caption tea-weight-medium tea-fg-subtle">{{ t('messages.runNotice') }}</p>

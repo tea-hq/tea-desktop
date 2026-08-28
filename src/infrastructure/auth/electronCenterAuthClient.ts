@@ -14,7 +14,8 @@ function hasElectronBridge(): boolean {
 
 export class ElectronCenterAuthClient implements CenterAuthClient {
   async initialize(): Promise<CenterAuthInitialization> {
-    if (!hasElectronBridge()) return { state: structuredClone(SIGNED_OUT_STATE), defaultEnterpriseDomain: null }
+    if (!hasElectronBridge())
+      return { state: structuredClone(SIGNED_OUT_STATE), defaultEnterpriseDomain: null }
     return invoke<CenterAuthInitialization>('get_center_auth_state')
   }
 
@@ -29,7 +30,8 @@ export class ElectronCenterAuthClient implements CenterAuthClient {
   }
 
   async cancelLogin(): Promise<CenterAuthState> {
-    if (!hasElectronBridge()) return { ...structuredClone(SIGNED_OUT_STATE), errorCode: 'loginCancelled' }
+    if (!hasElectronBridge())
+      return { ...structuredClone(SIGNED_OUT_STATE), errorCode: 'loginCancelled' }
     return invoke<CenterAuthState>('cancel_center_login')
   }
 
@@ -44,6 +46,6 @@ export class ElectronCenterAuthClient implements CenterAuthClient {
 
   async onStateChanged(listener: (state: CenterAuthState) => void): Promise<() => void> {
     if (!hasElectronBridge()) return () => undefined
-    return listen<CenterAuthState>('center-auth-state-changed', event => listener(event.payload))
+    return listen<CenterAuthState>('center-auth-state-changed', (event) => listener(event.payload))
   }
 }

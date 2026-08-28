@@ -72,7 +72,7 @@ export async function listAgentRoles(): Promise<AgentRoleRecord[]> {
   if (!hasElectronBridge()) return []
   try {
     const revisions = await invoke<AgentRoleRevisionDto[]>('list_agent_roles')
-    return revisions.map(revision => ({
+    return revisions.map((revision) => ({
       id: revision.roleId,
       name: revision.name,
       description: revision.description,
@@ -82,8 +82,10 @@ export async function listAgentRoles(): Promise<AgentRoleRecord[]> {
       userPromptTemplate: revision.userPromptTemplate,
       capabilities: revision.capabilities ?? [],
       dependencies: revision.dependencies,
-      skills: revision.dependencies.filter(item => item.kind === 'skill').map(item => item.id),
-      plugins: revision.dependencies.filter(item => item.kind === 'pluginAction').map(item => item.pluginId),
+      skills: revision.dependencies.filter((item) => item.kind === 'skill').map((item) => item.id),
+      plugins: revision.dependencies
+        .filter((item) => item.kind === 'pluginAction')
+        .map((item) => item.pluginId),
       revision: revision.revision,
       enabled: true,
     }))
@@ -92,11 +94,16 @@ export async function listAgentRoles(): Promise<AgentRoleRecord[]> {
   }
 }
 
-export async function syncAgentRoles(tenantId: string, subjectId: string): Promise<AgentRoleRecord[]> {
+export async function syncAgentRoles(
+  tenantId: string,
+  subjectId: string,
+): Promise<AgentRoleRecord[]> {
   if (!hasElectronBridge()) return []
   try {
-    const state = await invoke<AgentRoleCacheState>('sync_agent_roles', { request: { tenantId, subjectId } })
-    return (state.roles ?? []).map(role => ({
+    const state = await invoke<AgentRoleCacheState>('sync_agent_roles', {
+      request: { tenantId, subjectId },
+    })
+    return (state.roles ?? []).map((role) => ({
       id: role.roleId,
       name: role.name,
       description: role.description,
@@ -108,8 +115,12 @@ export async function syncAgentRoles(tenantId: string, subjectId: string): Promi
       status: role.status,
       capabilities: role.currentRevision.capabilities ?? [],
       dependencies: role.currentRevision.dependencies ?? [],
-      skills: (role.currentRevision.dependencies ?? []).filter(item => item.kind === 'skill').map(item => item.id),
-      plugins: (role.currentRevision.dependencies ?? []).filter(item => item.kind === 'pluginAction').map(item => item.pluginId),
+      skills: (role.currentRevision.dependencies ?? [])
+        .filter((item) => item.kind === 'skill')
+        .map((item) => item.id),
+      plugins: (role.currentRevision.dependencies ?? [])
+        .filter((item) => item.kind === 'pluginAction')
+        .map((item) => item.pluginId),
       revision: role.currentRevision.revision,
       enabled: state.status === 'ready',
     }))
@@ -154,20 +165,23 @@ function normalizeDependency(value: Record<string, string>): Record<string, stri
 
 function normalizeCapability(value: Record<string, unknown>): Record<string, string> {
   const kind = value.kind
-  const version = typeof value.version === 'string' && value.version.trim() ? value.version : '0.0.0'
+  const version =
+    typeof value.version === 'string' && value.version.trim() ? value.version : '0.0.0'
   if (kind === 'skill' || kind === 'mcp' || kind === 'tool') {
     if (typeof value.id !== 'string' || !value.id.trim()) {
       throw new AgentRoleClientError('invalidRequest', 'Agent role capability is incomplete')
     }
     return { kind, id: value.id, version }
   }
-  if (kind === 'pluginAction'
-    && typeof value.pluginId === 'string'
-    && typeof value.connectionId === 'string'
-    && typeof value.actionId === 'string'
-    && value.pluginId.trim()
-    && value.connectionId.trim()
-    && value.actionId.trim()) {
+  if (
+    kind === 'pluginAction' &&
+    typeof value.pluginId === 'string' &&
+    typeof value.connectionId === 'string' &&
+    typeof value.actionId === 'string' &&
+    value.pluginId.trim() &&
+    value.connectionId.trim() &&
+    value.actionId.trim()
+  ) {
     return {
       kind,
       pluginId: value.pluginId,
@@ -184,12 +198,25 @@ function mapAgentRoleError(value: unknown): AgentRoleClientError {
   const candidate = value as { code?: unknown; kind?: unknown; message?: unknown } | null
   const code = typeof candidate?.code === 'string' ? candidate.code : ''
   const kind = typeof candidate?.kind === 'string' ? candidate.kind : ''
-  const message = typeof candidate?.message === 'string' ? candidate.message : typeof value === 'string' ? value : ''
+  const message =
+    typeof candidate?.message === 'string'
+      ? candidate.message
+      : typeof value === 'string'
+        ? value
+        : ''
   const normalized = `${code} ${kind} ${message}`.toLowerCase()
-  if (normalized.includes('not found') || normalized.includes('unknown command') || normalized.includes('commandnotfound')) {
+  if (
+    normalized.includes('not found') ||
+    normalized.includes('unknown command') ||
+    normalized.includes('commandnotfound')
+  ) {
     return new AgentRoleClientError('commandUnavailable', 'Agent role command is unavailable')
   }
-  if (normalized.includes('invalid') || normalized.includes('deserialize') || normalized.includes('expected')) {
+  if (
+    normalized.includes('invalid') ||
+    normalized.includes('deserialize') ||
+    normalized.includes('expected')
+  ) {
     return new AgentRoleClientError('invalidRequest', 'Agent role payload was rejected')
   }
   return new AgentRoleClientError('transport', 'Agent role operation could not be completed')

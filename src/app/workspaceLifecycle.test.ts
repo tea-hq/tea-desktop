@@ -40,7 +40,9 @@ describe('WorkspaceLifecycle', () => {
 
 function controlledSession(name: string): ControlledSession {
   let release!: () => void
-  const gate = new Promise<void>(resolve => { release = resolve })
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
   const session: ControlledSession = {
     name,
     initialized: false,
@@ -50,7 +52,9 @@ function controlledSession(name: string): ControlledSession {
       await gate
       if (isCurrent()) session.initialized = true
     },
-    async dispose() { session.disposed += 1 },
+    async dispose() {
+      session.disposed += 1
+    },
   }
   return session
 }
@@ -61,8 +65,12 @@ function immediateSession(name: string): ControlledSession {
     initialized: false,
     disposed: 0,
     release: () => undefined,
-    async initialize(isCurrent) { session.initialized = isCurrent() },
-    async dispose() { session.disposed += 1 },
+    async initialize(isCurrent) {
+      session.initialized = isCurrent()
+    },
+    async dispose() {
+      session.disposed += 1
+    },
   }
   return session
 }

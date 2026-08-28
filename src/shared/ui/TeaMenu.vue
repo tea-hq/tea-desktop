@@ -11,21 +11,32 @@ export interface TeaMenuItem {
   separator?: boolean
 }
 
-const props = withDefaults(defineProps<{
-  items: TeaMenuItem[]
-  popup?: boolean
-  label: string
-}>(), { popup: false })
+const props = withDefaults(
+  defineProps<{
+    items: TeaMenuItem[]
+    popup?: boolean
+    label: string
+  }>(),
+  { popup: false },
+)
 const emit = defineEmits<{ select: [value: string]; hide: [] }>()
 const menu = ref<InstanceType<typeof Menu> | null>(null)
-const model = computed<MenuItem[]>(() => props.items.map(item => ({
-  ...item,
-  command: item.separator ? undefined : () => emit('select', item.value),
-})))
+const model = computed<MenuItem[]>(() =>
+  props.items.map((item) => ({
+    ...item,
+    command: item.separator ? undefined : () => emit('select', item.value),
+  })),
+)
 
-function toggle(event: Event): void { menu.value?.toggle(event) }
-function show(event: Event): void { menu.value?.show(event) }
-function hide(): void { menu.value?.hide() }
+function toggle(event: Event): void {
+  menu.value?.toggle(event)
+}
+function show(event: Event): void {
+  menu.value?.show(event)
+}
+function hide(): void {
+  menu.value?.hide()
+}
 
 defineExpose({ toggle, show, hide })
 </script>

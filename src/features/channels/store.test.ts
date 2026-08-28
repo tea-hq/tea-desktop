@@ -34,7 +34,10 @@ describe('useChannelsStore', () => {
     await store.selectChannel('product-collab')
     const latest = JSON.parse(JSON.stringify(store.activeMessages.at(-1)!))
     transport.emitForTest({ type: 'message.revoked', refs: [latest.ref] })
-    transport.emitForTest({ type: 'message.upserted', messages: [{ ...latest, text: 'updated', state: 'active' }] })
+    transport.emitForTest({
+      type: 'message.upserted',
+      messages: [{ ...latest, text: 'updated', state: 'active' }],
+    })
     expect(store.activeMessages.at(-1)).toMatchObject({ text: 'updated', state: 'active' })
   })
 
@@ -49,7 +52,10 @@ describe('useChannelsStore', () => {
   it('clears account-scoped projection on kicked-offline and disposes once', async () => {
     const { store, transport } = await connectedStore()
     await store.selectChannel('product-collab')
-    transport.emitForTest({ type: 'status.changed', status: { phase: 'kickedOffline', retryable: false } })
+    transport.emitForTest({
+      type: 'status.changed',
+      status: { phase: 'kickedOffline', retryable: false },
+    })
     expect(store.channels).toEqual([])
     expect(store.activeChannelRef).toBeNull()
     await store.dispose()
@@ -63,7 +69,9 @@ describe('useChannelsStore', () => {
     const page = await original({ offset: 0, limit: 100 })
     await transport.disconnect()
     let release!: () => void
-    const gate = new Promise<void>(resolve => { release = resolve })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
     const list = vi.spyOn(transport, 'listChannels').mockImplementation(async () => {
       await gate
       return structuredClone(page)

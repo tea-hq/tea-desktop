@@ -22,10 +22,19 @@ describe('channel conversation preview', () => {
       summary('four', 4),
     ]
 
-    expect(recentChannelConversations(conversations).map(value => value.conversationId))
-      .toEqual(['five', 'four', 'three', 'two'])
-    expect(conversations.map(value => value.conversationId))
-      .toEqual(['one', 'five', 'three', 'two', 'four'])
+    expect(recentChannelConversations(conversations).map((value) => value.conversationId)).toEqual([
+      'five',
+      'four',
+      'three',
+      'two',
+    ])
+    expect(conversations.map((value) => value.conversationId)).toEqual([
+      'one',
+      'five',
+      'three',
+      'two',
+      'four',
+    ])
   })
 
   it('uses relative time for recent activity and a compact date for older activity', () => {

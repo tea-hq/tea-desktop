@@ -9,7 +9,10 @@ import type {
   SendMessageRequest,
   SendMessageResult,
 } from '../../src/features/channels/contracts'
-import { YunxinWebChannelTransport, type YunxinSdkFactory } from '../../src/infrastructure/channels/YunxinWebChannelTransport'
+import {
+  YunxinWebChannelTransport,
+  type YunxinSdkFactory,
+} from '../../src/infrastructure/channels/YunxinWebChannelTransport'
 import type { ManagedImCredentials } from './managedWorkspace'
 import { createNodeYunxinSdkFactory } from './yunxinNode'
 
@@ -24,7 +27,7 @@ export class ElectronChannelService {
     factory: YunxinSdkFactory = createNodeYunxinSdkFactory(),
   ) {
     this.transport = new YunxinWebChannelTransport({ load: getCredentials }, factory)
-    this.transport.subscribe(event => this.emitEvent(event))
+    this.transport.subscribe((event) => this.emitEvent(event))
   }
 
   descriptor(): ChannelTransportDescriptor {

@@ -39,7 +39,8 @@ class FakeClient {
   createCalls = 0
   sendCalls = 0
   cancelCalls = 0
-  approvalCalls: Array<{ conversationId: string; approvalId: string; decision: ApprovalDecision }> = []
+  approvalCalls: Array<{ conversationId: string; approvalId: string; decision: ApprovalDecision }> =
+    []
   approvalError: Error | null = null
   lastSendOptions: SendMessageOptions | null = null
   createSummary: ConversationSummary | null | undefined
@@ -64,7 +65,9 @@ class FakeClient {
     return { summary, collaboration: emptyCollaboration() }
   }
 
-  async loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage> {
+  async loadConversationHistory(
+    request: LoadConversationHistoryRequest,
+  ): Promise<ConversationHistoryPage> {
     const result = this.historyPages.get(request.conversationId)?.shift()
     if (result instanceof Error) throw result
     return structuredClone(result ?? { items: [], nextCursor: null, hasMore: false, startIndex: 0 })
@@ -75,9 +78,10 @@ class FakeClient {
     const handle = { conversationId: `conv-${this.createCalls}`, runtimeId }
     return {
       handle,
-      summary: this.createSummary === undefined
-        ? summaryFor(handle.conversationId, Date.now())
-        : this.createSummary,
+      summary:
+        this.createSummary === undefined
+          ? summaryFor(handle.conversationId, Date.now())
+          : this.createSummary,
     }
   }
 
@@ -89,15 +93,33 @@ class FakeClient {
     _conversationId: string,
     _turnIndex: number,
     _sources: ChannelSourceInput[],
-  ): Promise<never[]> { return [] }
-  async createDraft(): Promise<never> { throw new Error('not implemented') }
-  async updateDraft(): Promise<never> { throw new Error('not implemented') }
-  async prepareDelivery(): Promise<never> { throw new Error('not implemented') }
-  async markDeliverySending(): Promise<never> { throw new Error('not implemented') }
-  async completeDelivery(_deliveryId: string, _ref: MessageRef): Promise<never> { throw new Error('not implemented') }
-  async failDelivery(): Promise<never> { throw new Error('not implemented') }
+  ): Promise<never[]> {
+    return []
+  }
+  async createDraft(): Promise<never> {
+    throw new Error('not implemented')
+  }
+  async updateDraft(): Promise<never> {
+    throw new Error('not implemented')
+  }
+  async prepareDelivery(): Promise<never> {
+    throw new Error('not implemented')
+  }
+  async markDeliverySending(): Promise<never> {
+    throw new Error('not implemented')
+  }
+  async completeDelivery(_deliveryId: string, _ref: MessageRef): Promise<never> {
+    throw new Error('not implemented')
+  }
+  async failDelivery(): Promise<never> {
+    throw new Error('not implemented')
+  }
 
-  async sendMessage(_conversationId: string, _text: string, options: SendMessageOptions): Promise<void> {
+  async sendMessage(
+    _conversationId: string,
+    _text: string,
+    options: SendMessageOptions,
+  ): Promise<void> {
     this.sendCalls++
     this.lastSendOptions = options
   }
@@ -117,7 +139,10 @@ class FakeClient {
 
   async resolveHostToolCall(_result: HostToolResult): Promise<void> {}
 
-  async subscribeToEvents(conversationId: string, handler: (e: ConversationEvent) => void): Promise<() => void> {
+  async subscribeToEvents(
+    conversationId: string,
+    handler: (e: ConversationEvent) => void,
+  ): Promise<() => void> {
     this.subscriptionCalls.push(conversationId)
     let set = this.handlers.get(conversationId)
     if (!set) {
@@ -128,7 +153,10 @@ class FakeClient {
     return () => set!.delete(handler)
   }
 
-  async subscribeToHostToolCalls(_conversationId: string, _handler: (call: HostToolCall) => void): Promise<() => void> {
+  async subscribeToHostToolCalls(
+    _conversationId: string,
+    _handler: (call: HostToolCall) => void,
+  ): Promise<() => void> {
     return () => undefined
   }
 
@@ -200,10 +228,10 @@ describe('useConversationStore', () => {
     store.configure(fake)
 
     await store.initializeConversationList()
-    expect(store.conversations.map(item => item.conversationId)).toEqual(['newer'])
+    expect(store.conversations.map((item) => item.conversationId)).toEqual(['newer'])
     expect(store.hasMore).toBe(true)
     await store.loadMoreConversations()
-    expect(store.conversations.map(item => item.conversationId)).toEqual(['newer', 'older'])
+    expect(store.conversations.map((item) => item.conversationId)).toEqual(['newer', 'older'])
     expect(store.hasMore).toBe(false)
   })
 
@@ -231,8 +259,18 @@ describe('useConversationStore', () => {
     const fake = new FakeClient()
     fake.pages = [{ items: [summaryFor('saved', 1)], nextCursor: null, hasMore: false }]
     fake.historyPages.set('saved', [
-      { items: [completedTurn('three'), completedTurn('four')], nextCursor: 'older-1', hasMore: true, startIndex: 2 },
-      { items: [completedTurn('one'), completedTurn('two')], nextCursor: null, hasMore: false, startIndex: 0 },
+      {
+        items: [completedTurn('three'), completedTurn('four')],
+        nextCursor: 'older-1',
+        hasMore: true,
+        startIndex: 2,
+      },
+      {
+        items: [completedTurn('one'), completedTurn('two')],
+        nextCursor: null,
+        hasMore: false,
+        startIndex: 0,
+      },
     ])
     const store = useConversationStore()
     store.configure(fake)
@@ -241,7 +279,7 @@ describe('useConversationStore', () => {
     await store.selectConversation('saved')
     await store.loadOlderHistory()
 
-    expect(store.turns.map(turn => turn.id)).toEqual(['one', 'two', 'three', 'four'])
+    expect(store.turns.map((turn) => turn.id)).toEqual(['one', 'two', 'three', 'four'])
     expect(store.historyHasMore).toBe(false)
     expect(store.historyNextCursor).toBeNull()
   })
@@ -260,17 +298,19 @@ describe('useConversationStore', () => {
 
     await store.loadOlderHistory()
 
-    expect(store.turns.map(turn => turn.id)).toEqual(['current'])
+    expect(store.turns.map((turn) => turn.id)).toEqual(['current'])
     expect(store.historyPageError).toEqual({ kind: 'runtime', message: 'history transport failed' })
     expect(store.historyHasMore).toBe(true)
   })
 
   it('deduplicates old pages without overwriting the live projection', () => {
     const current = completedTurn('shared', 'live')
-    expect(mergeHistoryTurns(
-      [current, completedTurn('new')],
-      [completedTurn('old'), completedTurn('shared', 'stale')],
-    ).map(turn => [turn.id, turn.user.text])).toEqual([
+    expect(
+      mergeHistoryTurns(
+        [current, completedTurn('new')],
+        [completedTurn('old'), completedTurn('shared', 'stale')],
+      ).map((turn) => [turn.id, turn.user.text]),
+    ).toEqual([
       ['old', 'old'],
       ['shared', 'live'],
       ['new', 'new'],
@@ -294,10 +334,7 @@ describe('useConversationStore', () => {
 
   it('locks runtime selection after restoring a catalog conversation', async () => {
     const fake = new FakeClient()
-    fake.setRuntimes([
-      runtime,
-      { ...runtime, id: 'external.codex', displayName: 'Codex' },
-    ])
+    fake.setRuntimes([runtime, { ...runtime, id: 'external.codex', displayName: 'Codex' }])
     fake.pages = [{ items: [summaryFor('saved', 1)], nextCursor: null, hasMore: false }]
     const store = useConversationStore()
     store.configure(fake)
@@ -319,15 +356,27 @@ describe('useConversationStore', () => {
 
   it('does not let a stale history response replace the latest selection', async () => {
     const fake = new FakeClient()
-    fake.pages = [{
-      items: [summaryFor('older', 1), summaryFor('newer', 2)],
-      nextCursor: null,
-      hasMore: false,
-    }]
+    fake.pages = [
+      {
+        items: [summaryFor('older', 1), summaryFor('newer', 2)],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ]
     let resolveOlder!: (detail: ConversationDetail) => void
     let resolveNewer!: (detail: ConversationDetail) => void
-    fake.detailPromises.set('older', new Promise(resolve => { resolveOlder = resolve }))
-    fake.detailPromises.set('newer', new Promise(resolve => { resolveNewer = resolve }))
+    fake.detailPromises.set(
+      'older',
+      new Promise((resolve) => {
+        resolveOlder = resolve
+      }),
+    )
+    fake.detailPromises.set(
+      'newer',
+      new Promise((resolve) => {
+        resolveNewer = resolve
+      }),
+    )
     const store = useConversationStore()
     store.configure(fake)
     await store.initializeConversationList()
@@ -367,10 +416,7 @@ describe('useConversationStore', () => {
 
   it('falls back to a ready runtime without changing the saved default', async () => {
     const fake = new FakeClient()
-    fake.setRuntimes([
-      { ...runtime, id: 'external.codex', status: 'unavailable' },
-      runtime,
-    ])
+    fake.setRuntimes([{ ...runtime, id: 'external.codex', status: 'unavailable' }, runtime])
     const store = useConversationStore()
     store.configure(fake)
     store.setDefaultRuntimeId('external.codex')
@@ -437,7 +483,7 @@ describe('useConversationStore', () => {
       sequence: 2,
       event: { type: 'messageDelta', text: 'world!' },
     })
-    const assistant = store.turns[0].blocks.find(block => block.kind === 'assistantText')
+    const assistant = store.turns[0].blocks.find((block) => block.kind === 'assistantText')
     expect(assistant?.kind).toBe('assistantText')
     if (assistant?.kind !== 'assistantText') throw new Error('assistant text block missing')
     expect(assistant.text).toBe('Hello world!')
@@ -448,7 +494,7 @@ describe('useConversationStore', () => {
       event: { type: 'runFinished' },
     })
     expect(store.isStreaming).toBe(false)
-    const completedAssistant = store.turns[0].blocks.find(block => block.kind === 'assistantText')
+    const completedAssistant = store.turns[0].blocks.find((block) => block.kind === 'assistantText')
     expect(completedAssistant?.kind === 'assistantText' && completedAssistant.streaming).toBe(false)
   })
 
@@ -471,13 +517,13 @@ describe('useConversationStore', () => {
       },
     })
     expect(store.isStreaming).toBe(false)
-    const tip = store.turns[0].blocks.find(block => block.kind === 'failureTip')
+    const tip = store.turns[0].blocks.find((block) => block.kind === 'failureTip')
     expect(tip?.kind === 'failureTip' && tip.failure).toEqual({
       code: 'rateLimited',
       message: 'HTTP 429: quota exceeded',
       retryable: true,
     })
-    expect(store.turns[0].blocks.some(block => block.kind === 'assistantText')).toBe(false)
+    expect(store.turns[0].blocks.some((block) => block.kind === 'assistantText')).toBe(false)
   })
 
   it('keeps partial assistant text before appending a failure tip', async () => {
@@ -504,7 +550,7 @@ describe('useConversationStore', () => {
       },
     })
 
-    const assistant = store.turns[0].blocks.find(block => block.kind === 'assistantText')
+    const assistant = store.turns[0].blocks.find((block) => block.kind === 'assistantText')
     expect(assistant?.kind === 'assistantText' && assistant.text).toBe('Partial answer')
     expect(assistant?.kind === 'assistantText' && assistant.streaming).toBe(false)
     expect(store.turns[0].blocks.at(-1)?.kind).toBe('failureTip')
@@ -523,7 +569,12 @@ describe('useConversationStore', () => {
     fake.emit(convId, {
       conversationId: convId,
       sequence: 1,
-      event: { type: 'toolRequested', toolCallId: 'tool-1', name: 'read', arguments: { path: 'fixture.txt' } },
+      event: {
+        type: 'toolRequested',
+        toolCallId: 'tool-1',
+        name: 'read',
+        arguments: { path: 'fixture.txt' },
+      },
     })
     fake.emit(convId, {
       conversationId: convId,
@@ -549,7 +600,7 @@ describe('useConversationStore', () => {
         totalUnits: undefined,
       },
     ])
-    expect(store.turns[0].blocks.some(block => block.kind === 'assistantText')).toBe(false)
+    expect(store.turns[0].blocks.some((block) => block.kind === 'assistantText')).toBe(false)
 
     fake.emit(convId, {
       conversationId: convId,
@@ -678,7 +729,10 @@ describe('useConversationStore', () => {
     await store.sendMessage('Update fixture.txt')
     const convId = store.conversationId!
 
-    for (const [sequence, approvalId] of [[1, 'approval-1'], [2, 'approval-2']] as const) {
+    for (const [sequence, approvalId] of [
+      [1, 'approval-1'],
+      [2, 'approval-2'],
+    ] as const) {
       fake.emit(convId, {
         conversationId: convId,
         sequence,
@@ -747,7 +801,9 @@ describe('useConversationStore', () => {
   it('clears the workspace and ignores a late runtime response after dispose', async () => {
     const fake = new FakeClient()
     let release!: (value: RuntimeDescriptor[]) => void
-    const runtimes = new Promise<RuntimeDescriptor[]>(resolve => { release = resolve })
+    const runtimes = new Promise<RuntimeDescriptor[]>((resolve) => {
+      release = resolve
+    })
     fake.listRuntimes = () => runtimes
     fake.pages = [{ items: [summaryFor('tenant-a', 10)], nextCursor: null, hasMore: false }]
     const store = useConversationStore()

@@ -22,9 +22,12 @@ const toneClasses = {
   'tone-3': 'tea-bg-hover tea-fg',
 } as const
 
-watch(() => props.avatarUrl, () => {
-  imageFailed.value = false
-})
+watch(
+  () => props.avatarUrl,
+  () => {
+    imageFailed.value = false
+  },
+)
 </script>
 
 <template>
