@@ -14,7 +14,7 @@ opt-in release checks.
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Registry      | Both pinned Agent artifacts verify before either ready descriptor is published; one failure prevents a partial registry                                |
 | Process       | Explicit entry point/arguments, `shell: false`, bounded diagnostics, environment allowlist, close and forced termination                               |
-| Protocol      | V2 preference, fresh V1 fallback, exact wire binding, official SDK request/notification methods, bounded NDJSON                                        |
+| Protocol      | V2 preference, V1-shape decoder fallback on a fresh connection, exact wire binding, official SDK request/notification methods, bounded NDJSON          |
 | Session       | New session, multiple turns, duplicate create rejection, cancellation, terminal states, connection failure, shutdown                                   |
 | Recovery      | Exact binding validation, V1 load replay, V1/V2 resume, no downgrade, no replacement session, replay bounds                                            |
 | Projection    | Text, thought, tool lifecycle/progress, passive updates, ordering, duplicate/out-of-order rejection, terminal failure                                  |

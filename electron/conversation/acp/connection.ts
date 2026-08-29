@@ -318,8 +318,20 @@ const NOOP_PROTOCOL_HANDLERS: AcpProtocolHandlers = {
 
 function isVersionRejection(error: unknown): boolean {
   if (error instanceof AcpHostError) return error.code === 'protocolVersionUnsupported'
-  const candidate = error as { code?: unknown } | null
-  return candidate?.code === -32600 || candidate?.code === -32602
+  const candidate = error as { code?: unknown; issues?: unknown } | null
+  if (candidate?.code === -32600 || candidate?.code === -32602) return true
+
+  // Some ACP V1-only Agents accept the initialize request but answer with the
+  // V1 response shape. The official V2 SDK rejects that response while
+  // decoding it (before exposing the protocolVersion), so recognize the
+  // stable missing-V2-info issue and retry on a fresh V1 connection.
+  if (!isRecord(candidate) || !Array.isArray(candidate.issues)) return false
+  return candidate.issues.some((issue: unknown) => {
+    if (!isRecord(issue) || issue.code !== 'invalid_type' || issue.expected !== 'object') {
+      return false
+    }
+    return Array.isArray(issue.path) && issue.path.length === 1 && issue.path[0] === 'info'
+  })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

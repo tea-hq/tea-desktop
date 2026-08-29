@@ -66,6 +66,46 @@ describe('AcpConnectionFactory', () => {
     expect(process.close).toHaveBeenCalledOnce()
   })
 
+  it('falls back when the official V2 decoder sees a V1 initialize response shape', async () => {
+    const artifact = resolvedArtifact()
+    const processes = [fakeProcess(artifact), fakeProcess(artifact)]
+    const launcher = { launch: vi.fn(() => processes.shift()!) }
+    const protocol = fakeProtocol(1)
+    const v1ShapeDecodeError = Object.assign(new Error('V2 response did not decode'), {
+      issues: [{ code: 'invalid_type', expected: 'object', path: ['info'] }],
+    })
+    const driver = {
+      connect: vi.fn(async (_process: AcpProcess, version: 1 | 2) => {
+        if (version === 2) throw v1ShapeDecodeError
+        return protocol
+      }),
+    }
+    const connection = await new AcpConnectionFactory(
+      { resolve: vi.fn(async () => artifact) },
+      launcher,
+      driver,
+    ).connect(artifact.definition, { cwd: '/workspace' })
+
+    expect(launcher.launch).toHaveBeenCalledTimes(2)
+    expect(processes).toHaveLength(0)
+    expect(connection.protocol.wireVersion).toBe(1)
+  })
+
+  it('retries a V1-only Agent fixture through a fresh official SDK connection', async () => {
+    const artifact = resolvedArtifact()
+    artifact.entrypointPath = fileURLToPath(new URL('./fixtures/v1Agent.mjs', import.meta.url))
+
+    const connection = await new AcpConnectionFactory(
+      { resolve: vi.fn(async () => artifact) },
+      new AcpProcessLauncher(undefined, process.execPath),
+      new OfficialAcpProtocolDriver(),
+    ).connect(artifact.definition, { cwd: process.cwd() })
+
+    expect(connection.protocol.wireVersion).toBe(1)
+    expect(connection.protocol.initialization.protocolVersion).toBe(1)
+    await connection.close()
+  })
+
   it('uses only the recorded wire version during recovery', async () => {
     const artifact = resolvedArtifact()
     const process = fakeProcess(artifact)

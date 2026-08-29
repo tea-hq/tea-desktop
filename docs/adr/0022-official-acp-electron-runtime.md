@@ -145,6 +145,13 @@ versions. Once initialized, a connection uses exactly one wire version. The
 selected version is recorded in the runtime binding and restore requires that
 same version; existing sessions are never silently upgraded or downgraded.
 
+The pinned Claude `0.70.0` and Codex `1.7.0` adapters currently answer the V2
+probe with a valid V1 initialization shape. The official V2 decoder rejects
+that shape before exposing its protocol version, so the factory recognizes
+only that decoder issue as the V1 compatibility signal and retries on a fresh
+V1 connection. Other decode, transport, or process failures remain explicit
+connection failures.
+
 If the official TypeScript SDK later exposes a general client-side protocol
 connector, Tea adopts it. Until then, the Electron factory is limited to
 starting an official V2 or V1 Client on a fresh connection and selecting the
