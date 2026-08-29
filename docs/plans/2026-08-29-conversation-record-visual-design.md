@@ -16,9 +16,9 @@ Use a hybrid conversation record:
   assistant response blocks.
 - Render assistant text as the primary reading surface with generous rhythm and
   no enclosing bubble.
-- Render tool calls as compact activity rows with an icon, tool name, status,
-  and optional message. Arguments remain available behind an explicit,
-  keyboard-accessible disclosure control.
+- Render tool calls as compact activity rows with a neutral icon, tool name,
+  and status. Messages and arguments remain available behind the same explicit,
+  keyboard-accessible disclosure control so the default record stays single-line.
 - Keep approval controls attached to the tool activity that is waiting for a
   decision. Failures keep their error and retry/detail semantics.
 - Show a lightweight turn status for sending, running, completed, failed, and

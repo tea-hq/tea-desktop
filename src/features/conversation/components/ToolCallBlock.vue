@@ -17,6 +17,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const detailsOpen = ref(false)
 const hasArguments = computed(() => props.tool.arguments !== undefined)
+const hasMessage = computed(() => Boolean(props.tool.message?.trim()))
+const hasDetails = computed(() => hasArguments.value || hasMessage.value)
 const activityIcon = computed(() => {
   const name = props.tool.name.toLowerCase()
   if (/(browser|web|url|page)/.test(name)) return 'i-mdi-web'
@@ -48,10 +50,9 @@ const detailLabel = computed(() =>
           <code class="tool-event__name">{{ tool.name }}</code>
           <span class="tool-event__status">{{ t(`tools.status.${tool.status}`) }}</span>
         </div>
-        <p v-if="tool.message" class="tool-event__message">{{ tool.message }}</p>
       </div>
       <TeaIconButton
-        v-if="hasArguments"
+        v-if="hasDetails"
         size="small"
         appearance="ghost"
         class="tool-event__disclosure"
@@ -68,10 +69,15 @@ const detailLabel = computed(() =>
       </TeaIconButton>
     </div>
 
-    <pre
-      v-if="hasArguments && detailsOpen"
-      class="tool-event__details max-h-48 w-full overflow-auto rounded-menu font-mono text-sm leading-5 text-dim"
-      >{{ JSON.stringify(tool.arguments, null, 2) }}</pre>
+    <div
+      v-if="hasDetails && detailsOpen"
+      class="tool-event__details max-h-48 w-full overflow-auto rounded-menu text-sm leading-5 text-dim"
+    >
+      <p v-if="hasMessage" class="tool-event__detail-message">{{ tool.message }}</p>
+      <pre v-if="hasArguments" class="tool-event__arguments font-mono">{{
+        JSON.stringify(tool.arguments, null, 2)
+      }}</pre>
+    </div>
 
     <ApprovalPrompt
       v-if="tool.approval"
@@ -102,23 +108,6 @@ const detailLabel = computed(() =>
   color: var(--tea-subtle);
 }
 
-.tool-event--running .tool-event__icon,
-.tool-event--requested .tool-event__icon {
-  color: var(--tea-dim);
-}
-
-.tool-event--approvalRequired .tool-event__icon {
-  color: var(--tea-warning);
-}
-
-.tool-event--completed .tool-event__icon {
-  color: var(--tea-success);
-}
-
-.tool-event--failed .tool-event__icon {
-  color: var(--tea-danger);
-}
-
 .tool-event__copy {
   min-width: 0;
   flex: 1 1 auto;
@@ -127,10 +116,9 @@ const detailLabel = computed(() =>
 .tool-event__heading {
   display: flex;
   min-width: 0;
-  align-items: baseline;
-  flex-wrap: wrap;
-  column-gap: 0.5rem;
-  row-gap: 0.125rem;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .tool-event__name {
@@ -145,18 +133,10 @@ const detailLabel = computed(() =>
   white-space: nowrap;
 }
 
-.tool-event__status,
-.tool-event__message {
+.tool-event__status {
   color: var(--tea-subtle);
   font-size: 0.75rem;
   line-height: 1.45;
-}
-
-.tool-event__message {
-  margin: 0.125rem 0 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tool-event__disclosure {
@@ -190,6 +170,16 @@ const detailLabel = computed(() =>
   border-left: 1px solid var(--tea-line);
   background: var(--tea-panel);
   overflow-wrap: anywhere;
+}
+
+.tool-event__detail-message {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.tool-event__arguments {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

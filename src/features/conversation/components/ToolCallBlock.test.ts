@@ -61,4 +61,19 @@ describe('ToolCallBlock', () => {
     expect(wrapper.get('.tool-event').text()).toContain('Permission required')
     expect(wrapper.get('.tool-event__icon').classes()).toContain('i-mdi-file-edit-outline')
   })
+
+  it('keeps a long tool message behind the same disclosure control', async () => {
+    const wrapper = mountTool({
+      arguments: undefined,
+      message: 'You are not in plan mode. To enter plan mode, restart the task.',
+      status: 'failed',
+    })
+
+    expect(wrapper.get('.tool-event__disclosure')).toBeTruthy()
+    expect(wrapper.find('.tool-event__detail-message').exists()).toBe(false)
+
+    await wrapper.get('.tool-event__disclosure').trigger('click')
+
+    expect(wrapper.get('.tool-event__detail-message').text()).toContain('not in plan mode')
+  })
 })
