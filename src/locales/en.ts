@@ -428,6 +428,9 @@ export default {
     },
   },
   sidebar: {
+    title: 'Conversations',
+    filterLabel: 'Conversation scope',
+    workspace: 'Workspace',
     newConversation: 'New Conversation',
     empty: 'No conversations yet',
     loading: 'Loading conversations',

@@ -95,7 +95,6 @@ async function loadOlder(): Promise<void> {
 <style scoped>
 .agent-thread {
   background: var(--tea-canvas);
-  scrollbar-width: thin;
 }
 
 .conversation-turns {

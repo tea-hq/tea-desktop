@@ -14,6 +14,7 @@ import TeaMenu from '../TeaMenu.vue'
 import TeaMenuSelect from '../TeaMenuSelect.vue'
 import TeaSelect from '../TeaSelect.vue'
 import TeaTabs from '../TeaTabs.vue'
+import TeaTextarea from '../TeaTextarea.vue'
 
 function mountTea(component: Component, options: MountingOptions<never> = {}) {
   return mount(component, {
@@ -33,6 +34,28 @@ describe('Tea primitives', () => {
     expect(input.attributes('aria-invalid')).toBe('true')
     await input.setValue('after')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['after'])
+  })
+
+  it('grows auto-sizing textareas with content and shrinks after controlled updates', async () => {
+    const wrapper = mountTea(TeaTextarea, {
+      props: { modelValue: 'One line', label: 'Message', rows: 1, autoGrow: true },
+    })
+    const textarea = wrapper.get('textarea')
+    let scrollHeight = 72
+    Object.defineProperty(textarea.element, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    })
+
+    await textarea.setValue('One line\nTwo lines\nThree lines')
+    expect((textarea.element as HTMLTextAreaElement).style.height).toBe('72px')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+      'One line\nTwo lines\nThree lines',
+    ])
+
+    scrollHeight = 28
+    await wrapper.setProps({ modelValue: '' })
+    expect((textarea.element as HTMLTextAreaElement).style.height).toBe('28px')
   })
 
   it('disables loading buttons and preserves their busy state', () => {

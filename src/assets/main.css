@@ -92,6 +92,9 @@
   --tea-radius-pill: 9999px;
   --tea-radius-overlay: 12px;
   --tea-shadow-overlay: none;
+  --tea-scrollbar-size: 4px;
+  --tea-scrollbar-thumb: rgb(107 114 128 / 14%);
+  --tea-scrollbar-thumb-hover: rgb(107 114 128 / 28%);
   --tea-control-height-small: 2.25rem;
   --tea-control-height: 2.5rem;
   --tea-control-height-primary: 2.5rem;
@@ -141,6 +144,30 @@ textarea {
 textarea,
 input {
   @apply select-auto;
+}
+
+* {
+  scrollbar-color: var(--tea-scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: var(--tea-scrollbar-size);
+  height: var(--tea-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: var(--tea-radius-pill);
+  background: var(--tea-scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--tea-scrollbar-thumb-hover);
 }
 
 /* Staggered fade-in for list items */

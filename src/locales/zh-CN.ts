@@ -412,6 +412,9 @@ export default {
     },
   },
   sidebar: {
+    title: '会话',
+    filterLabel: '会话范围',
+    workspace: '工作空间',
     newConversation: '新建会话',
     empty: '暂无历史会话',
     loading: '正在加载会话',

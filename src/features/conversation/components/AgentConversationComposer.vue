@@ -126,6 +126,7 @@ defineExpose({ focus })
         <TeaTextarea
           data-agent-composer
           class="composer-input"
+          auto-grow
           :model-value="text"
           :label="t('composer.placeholder')"
           :rows="profile.compact ? 2 : 3"
@@ -204,14 +205,10 @@ defineExpose({ focus })
   background: var(--tea-panel);
 }
 .composer-shell {
-  border: 1px solid var(--tea-line);
+  border: 1px solid var(--tea-line-soft);
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
   padding: 0.75rem;
-  transition: border-color 150ms ease;
-}
-.composer-shell:focus-within {
-  border-color: var(--tea-fg);
 }
 .composer-input {
   min-height: 4.5rem;

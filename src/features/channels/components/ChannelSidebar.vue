@@ -111,11 +111,6 @@ function formatTime(value: number): string {
 </template>
 
 <style scoped>
-.channel-list-scroll-area {
-  scrollbar-color: rgb(156 163 175 / 12%) transparent;
-  scrollbar-width: thin;
-}
-
 .channel-row {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) 3.75rem;
@@ -126,28 +121,5 @@ function formatTime(value: number): string {
 .channel-row--active {
   background: var(--tea-muted);
   color: var(--tea-fg);
-}
-
-.channel-list-scroll-area::-webkit-scrollbar {
-  width: 4px;
-}
-
-.channel-list-scroll-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.channel-list-scroll-area::-webkit-scrollbar-thumb {
-  background: rgb(156 163 175 / 12%);
-  border-radius: 2px;
-}
-
-.channel-list-scroll-area:hover,
-.channel-list-scroll-area:focus-within {
-  scrollbar-color: rgb(156 163 175 / 28%) transparent;
-}
-
-.channel-list-scroll-area:hover::-webkit-scrollbar-thumb,
-.channel-list-scroll-area:focus-within::-webkit-scrollbar-thumb {
-  background: rgb(156 163 175 / 28%);
 }
 </style>

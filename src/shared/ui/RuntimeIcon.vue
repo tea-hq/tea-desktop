@@ -4,10 +4,14 @@ import { computed } from 'vue'
 import claudeCodeIcon from '../../assets/runtime-icons/claude-code.svg'
 import codexIcon from '../../assets/runtime-icons/codex.svg'
 
-const props = defineProps<{
-  runtimeId: string
-  label: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    runtimeId: string
+    label: string
+    size?: 'small' | 'default'
+  }>(),
+  { size: 'default' },
+)
 
 const icons: Record<string, string> = {
   'external.claude': claudeCodeIcon,
@@ -24,17 +28,24 @@ const maskStyle = computed(() => {
 
 <template>
   <span
-    class="inline-flex size-5 shrink-0 items-center justify-center"
+    :class="size === 'small' ? 'size-4' : 'size-5'"
+    class="inline-flex shrink-0 items-center justify-center"
     role="img"
     :aria-label="label"
     :title="label"
   >
     <span
       v-if="runtimeIcon"
-      class="size-[18px] bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]"
+      :class="size === 'small' ? 'size-4' : 'size-[18px]'"
+      class="bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]"
       :style="maskStyle"
       aria-hidden="true"
     />
-    <span v-else class="i-mdi-console-line size-[18px]" aria-hidden="true" />
+    <span
+      v-else
+      :class="size === 'small' ? 'size-4' : 'size-[18px]'"
+      class="i-mdi-console-line"
+      aria-hidden="true"
+    />
   </span>
 </template>

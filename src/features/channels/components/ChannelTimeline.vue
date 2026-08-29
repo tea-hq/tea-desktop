@@ -203,6 +203,7 @@ watch(
           v-model="draft"
           class="channel-composer-input min-w-0 flex-1"
           size="compact"
+          auto-grow
           :rows="1"
           :label="t('channels.composer.placeholder', { channel: channel.name })"
           :placeholder="t('channels.composer.placeholder', { channel: channel.name })"
@@ -224,23 +225,15 @@ watch(
 </template>
 
 <style scoped>
-.channel-scroll-area {
-  scrollbar-color: rgb(156 163 175 / 28%) transparent;
-  scrollbar-width: thin;
-}
 .channel-composer-bar {
   border-top: 1px solid var(--tea-line-soft);
   background: var(--tea-panel);
 }
 .channel-composer-shell {
-  border: 1px solid var(--tea-line);
+  border: 1px solid var(--tea-line-soft);
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
   padding: 0.375rem 0.5rem 0.375rem 0.75rem;
-  transition: border-color 150ms ease;
-}
-.channel-composer-shell:focus-within {
-  border-color: var(--tea-fg);
 }
 .channel-composer-input {
   min-height: 2.25rem;
