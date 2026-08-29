@@ -36,12 +36,12 @@ describe('ToolCallBlock', () => {
     expect(wrapper.find('.tool-event__details').exists()).toBe(false)
 
     const disclosure = wrapper.get('.tool-event__disclosure')
-    expect(disclosure.attributes('aria-label')).toBe('Show tool arguments')
+    expect(disclosure.attributes('aria-label')).toBe('Show tool details')
     await disclosure.trigger('click')
 
     expect(wrapper.get('.tool-event__details').text()).toContain('src/App.vue')
     expect(disclosure.attributes('aria-expanded')).toBe('true')
-    expect(disclosure.attributes('aria-label')).toBe('Hide tool arguments')
+    expect(disclosure.attributes('aria-label')).toBe('Hide tool details')
   })
 
   it('keeps approval content attached to the activity row', () => {
@@ -65,15 +65,17 @@ describe('ToolCallBlock', () => {
   it('keeps a long tool message behind the same disclosure control', async () => {
     const wrapper = mountTool({
       arguments: undefined,
-      message: 'You are not in plan mode. To enter plan mode, restart the task.',
+      message: '```text\n<tool_use_error>You are not in plan mode.</tool_use_error>\n```',
       status: 'failed',
     })
 
     expect(wrapper.get('.tool-event__disclosure')).toBeTruthy()
-    expect(wrapper.find('.tool-event__detail-message').exists()).toBe(false)
+    expect(wrapper.find('[data-markdown-content]').exists()).toBe(false)
 
     await wrapper.get('.tool-event__disclosure').trigger('click')
 
-    expect(wrapper.get('.tool-event__detail-message').text()).toContain('not in plan mode')
+    expect(wrapper.get('[data-markdown-content] code.language-text').text()).toContain(
+      'You are not in plan mode.',
+    )
   })
 })

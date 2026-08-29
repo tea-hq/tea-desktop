@@ -463,8 +463,8 @@ export default {
   },
   tools: {
     details: 'Arguments',
-    showDetails: 'Show tool arguments',
-    hideDetails: 'Hide tool arguments',
+    showDetails: 'Show tool details',
+    hideDetails: 'Hide tool details',
     status: {
       requested: 'Requested',
       running: 'Running',

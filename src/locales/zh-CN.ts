@@ -447,8 +447,8 @@ export default {
   },
   tools: {
     details: '参数',
-    showDetails: '展开工具参数',
-    hideDetails: '收起工具参数',
+    showDetails: '展开工具详情',
+    hideDetails: '收起工具详情',
     status: {
       requested: '已请求',
       running: '运行中',

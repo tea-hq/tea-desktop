@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaIconButton } from '@/shared/ui'
+import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 
 import type { ApprovalDecision, ToolCallBlock } from '../contracts'
 import ApprovalPrompt from './ApprovalPrompt.vue'
@@ -71,9 +72,9 @@ const detailLabel = computed(() =>
 
     <div
       v-if="hasDetails && detailsOpen"
-      class="tool-event__details max-h-48 w-full overflow-auto rounded-menu text-sm leading-5 text-dim"
+      class="tool-event__details max-h-48 overflow-auto rounded-menu text-sm leading-5 text-dim"
     >
-      <p v-if="hasMessage" class="tool-event__detail-message">{{ tool.message }}</p>
+      <MarkdownContent v-if="hasMessage" :source="tool.message ?? ''" compact />
       <pre v-if="hasArguments" class="tool-event__arguments font-mono">{{
         JSON.stringify(tool.arguments, null, 2)
       }}</pre>
@@ -165,16 +166,13 @@ const detailLabel = computed(() =>
 }
 
 .tool-event__details {
-  margin: 0.5rem 0 0 1.5rem;
+  box-sizing: border-box;
+  width: auto;
+  margin: 0.5rem 1.5rem 0 1.5rem;
   padding: 0.625rem 0.75rem;
   border-left: 1px solid var(--tea-line);
   background: var(--tea-panel);
   overflow-wrap: anywhere;
-}
-
-.tool-event__detail-message {
-  margin: 0;
-  white-space: pre-wrap;
 }
 
 .tool-event__arguments {
