@@ -61,3 +61,12 @@ CSC_IDENTITY_AUTO_DISCOVERY=false npm run electron:build
 Do not provide signing credentials or invoke `codesign`/`notarytool` unless the
 request is a release operation. A successful web build is not evidence that
 packaged child processes or platform binaries can execute.
+
+## Verification Record
+
+On 2026-08-29, the requested macOS arm64 packaging check completed with
+`CSC_IDENTITY_AUTO_DISCOVERY=false`. The generated DMG and app bundle contained
+the unpacked `mcp-process` relay, both official ACP adapter entrypoints, the
+Claude Agent SDK arm64 binary, and the Codex arm64 launcher/resources. The
+check did not contact a real Claude or Codex account, so authenticated Agent
+startup and live MCP calls remain part of integration testing.

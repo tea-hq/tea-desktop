@@ -10,12 +10,12 @@ conversation behavior: streaming output, tools, approvals, cancellation,
 modes, models, MCP, channel history, Plugin actions, snapshots, subject
 generation, multiple turns, and restart recovery.
 
-The predecessor application was a Tauri 2 + Vue 3 implementation. This
-repository is the Electron target and currently preserves the predecessor's
-external runtime behavior in a main-process service: Claude uses a structured
-CLI stream and Codex uses the Codex App Server JSON-RPC protocol. Those paths
-prove product behavior, but every new agent would repeat process integration,
-event mapping, approval correlation, and recovery logic.
+The predecessor application was a Tauri 2 + Vue 3 implementation. Its
+structured Claude stream and Codex App Server paths established the product
+behavior that this Electron target must preserve. Those vendor-specific host
+implementations have now been removed after the ACP compatibility gate; every
+new agent uses the shared ACP process, projection, approval, and recovery
+boundaries described below.
 
 ACP is the public protocol designed for this boundary. It standardizes
 initialization, capabilities, sessions, prompts, updates, permissions,

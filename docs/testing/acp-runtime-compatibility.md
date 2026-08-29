@@ -10,20 +10,21 @@ opt-in release checks.
 
 ## Automated Coverage
 
-| Boundary      | Covered behavior                                                                                                         |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Registry      | Both pinned Agent artifacts verify before either ready descriptor is published; one failure prevents a partial registry  |
-| Process       | Explicit entry point/arguments, `shell: false`, bounded diagnostics, environment allowlist, close and forced termination |
-| Protocol      | V2 preference, fresh V1 fallback, exact wire binding, official SDK request/notification methods, bounded NDJSON          |
-| Session       | New session, multiple turns, duplicate create rejection, cancellation, terminal states, connection failure, shutdown     |
-| Recovery      | Exact binding validation, V1 load replay, V1/V2 resume, no downgrade, no replacement session, replay bounds              |
-| Projection    | Text, thought, tool lifecycle/progress, passive updates, ordering, duplicate/out-of-order rejection, terminal failure    |
-| Approval      | Request/session/tool correlation, exact offered option ids, allow/deny/cancel, connection exit, cleanup                  |
-| Configuration | V1 modes/config options, V2 config options, Claude/Codex permission mappings, advertised-model validation before prompt  |
-| HostTools     | Main-owned name/version resolution, immutable selection, explicit empty scope, authenticated local MCP attachment        |
-| Subject       | Disposable no-tool ACP session, bounded title, concurrency coalescing, cleanup, no catalog binding                       |
-| Catalog       | Atomic local create, idempotency, exact restore, Channel context, draft/delivery durability, stable failure facts        |
-| IPC           | One runtime command service, typed failures/events, HostTool references only, schema-bearing input rejection             |
+| Boundary      | Covered behavior                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Registry      | Both pinned Agent artifacts verify before either ready descriptor is published; one failure prevents a partial registry                                |
+| Process       | Explicit entry point/arguments, `shell: false`, bounded diagnostics, environment allowlist, close and forced termination                               |
+| Protocol      | V2 preference, fresh V1 fallback, exact wire binding, official SDK request/notification methods, bounded NDJSON                                        |
+| Session       | New session, multiple turns, duplicate create rejection, cancellation, terminal states, connection failure, shutdown                                   |
+| Recovery      | Exact binding validation, V1 load replay, V1/V2 resume, no downgrade, no replacement session, replay bounds                                            |
+| Projection    | Text, thought, tool lifecycle/progress, passive updates, ordering, duplicate/out-of-order rejection, terminal failure                                  |
+| Approval      | Request/session/tool correlation, exact offered option ids, allow/deny/cancel, connection exit, cleanup                                                |
+| Configuration | V1 modes/config options, V2 config options, Claude/Codex permission mappings, advertised-model validation before prompt                                |
+| HostTools     | Main-owned name/version resolution, immutable selection, explicit empty scope, authenticated local MCP attachment                                      |
+| Subject       | Disposable no-tool ACP session, bounded title, concurrency coalescing, cleanup, no catalog binding                                                     |
+| Catalog       | Atomic local create, idempotency, exact restore, Channel context, draft/delivery durability, stable failure facts                                      |
+| IPC           | One runtime command service, typed failures/events, HostTool references only, schema-bearing input rejection                                           |
+| Legacy parity | Former Electron vendor service behaviors are covered by ACP runtime, service, catalog, MCP, projection, and IPC tests; the obsolete service is removed |
 
 ## Product Mapping
 
@@ -53,7 +54,9 @@ projection complete.
   re-hash the complete dependency tree.
 - Live account-dependent models and real Agent behavior require opt-in tests.
 - Packaged process execution, platform optional packages, executable mode, and
-  signing/notarization are not proven by unit tests.
+  signing/notarization are not proven by unit tests. The macOS arm64 package
+  layout was verified separately on 2026-08-29; live account-backed Agent
+  startup remains an integration check.
 
 ## Verification
 

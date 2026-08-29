@@ -634,6 +634,11 @@ the old vendor state machines into Electron.
 
 ## Task 12: Remove Obsolete External Implementations
 
+Implementation status on 2026-08-29: complete. The legacy Electron vendor
+service and its historical tests were deleted after the ACP compatibility
+coverage gate passed. No production import, fallback, parser, or private MCP
+bridge remains.
+
 **Files:**
 
 - Delete after the compatibility gate: `electron/services/conversation.ts`
@@ -652,6 +657,11 @@ Before deletion, confirm that each old behavior has an ACP test and a
 corresponding row in `docs/testing/acp-runtime-compatibility.md`.
 
 ## Task 13: Complete Compatibility And Security Verification
+
+Implementation status on 2026-08-29: deterministic compatibility and security
+checks are complete. Target-specific packaged process execution remains an
+explicit release check and is documented below; it is not implied by unit or
+web-build validation.
 
 **Files:**
 
