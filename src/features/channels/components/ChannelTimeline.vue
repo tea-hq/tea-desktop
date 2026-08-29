@@ -197,12 +197,11 @@ watch(
       </div>
     </div>
 
-    <div class="shrink-0 border-t border-line-soft bg-panel px-3 py-2.5 sm:px-4">
-      <div class="mx-auto flex w-full max-w-4xl items-end gap-2">
-        <TeaIconButton size="small" :label="t('channels.composer.add')" icon="i-mdi-plus" />
+    <div class="channel-composer-bar shrink-0 px-3 py-2.5 sm:px-4">
+      <div class="channel-composer-shell mx-auto flex w-full max-w-4xl items-end gap-2">
         <TeaTextarea
           v-model="draft"
-          class="min-w-0 flex-1"
+          class="channel-composer-input min-w-0 flex-1"
           size="compact"
           :rows="1"
           :label="t('channels.composer.placeholder', { channel: channel.name })"
@@ -211,6 +210,7 @@ watch(
           @keydown.ctrl.enter.prevent="submitMessage"
         />
         <TeaIconButton
+          class="channel-composer-send"
           size="small"
           :label="t('channels.composer.send')"
           icon="i-mdi-arrow-up"
@@ -227,5 +227,37 @@ watch(
 .channel-scroll-area {
   scrollbar-color: rgb(156 163 175 / 28%) transparent;
   scrollbar-width: thin;
+}
+.channel-composer-bar {
+  border-top: 1px solid var(--tea-line-soft);
+  background: var(--tea-panel);
+}
+.channel-composer-shell {
+  border: 1px solid var(--tea-line);
+  border-radius: var(--tea-radius-card);
+  background: var(--tea-canvas);
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  transition: border-color 150ms ease;
+}
+.channel-composer-shell:focus-within {
+  border-color: var(--tea-fg);
+}
+.channel-composer-input {
+  min-height: 2.25rem;
+  max-height: 8rem;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.375rem 0.25rem;
+  box-shadow: none;
+}
+.channel-composer-input:focus {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.channel-composer-send {
+  margin-bottom: 0.125rem;
 }
 </style>

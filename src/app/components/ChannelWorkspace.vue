@@ -28,6 +28,7 @@ const {
   selectCollaborationModel,
   selectCollaborationPermission,
   selectCollaborationRole,
+  applyCollaborationRolePrompt,
 } = useTeaDesktopAppContext()
 </script>
 
@@ -112,5 +113,6 @@ const {
     @select-model="selectCollaborationModel"
     @select-permission="selectCollaborationPermission"
     @select-role="selectCollaborationRole"
+    @apply-role-prompt="applyCollaborationRolePrompt"
   />
 </template>

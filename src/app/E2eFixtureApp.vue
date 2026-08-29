@@ -22,6 +22,7 @@ import type { Delivery, Draft } from '@/types/channelCollaboration'
 
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
+const multipleRoles = params.get('roles') === 'multiple'
 const { locale } = useI18n()
 locale.value = params.get('lang') === 'zh-CN' ? 'zh-CN' : 'en'
 
@@ -164,6 +165,55 @@ const turns = ref<ConversationTurn[]>(
 )
 const fullText = ref('')
 const fullAttachments = ref<ComposerAttachment[]>([])
+const fullRoleId = ref<string | null>(null)
+const roleOptions = [
+  {
+    id: 'reviewer',
+    name: 'Reviewer',
+    description: 'Keep changes focused and verify the result.',
+    prompt: 'Review the task for correctness, scope, and test coverage.',
+    skills: ['code-review', 'testing', 'accessibility'],
+    revision: 2,
+    runtimeId: runtime.id,
+  },
+  {
+    id: 'planner',
+    name: 'Planner',
+    description: 'Turn ambiguous requests into clear implementation steps.',
+    prompt: 'Build a concise implementation plan with risks and checkpoints.',
+    skills: ['planning', 'architecture'],
+    revision: 1,
+    runtimeId: runtime.id,
+  },
+  {
+    id: 'builder',
+    name: 'Builder',
+    description: 'Make focused changes and verify them with the right checks.',
+    prompt: 'Implement the requested change and run the relevant checks.',
+    skills: ['typescript', 'testing'],
+    revision: 1,
+    runtimeId: runtime.id,
+  },
+  {
+    id: 'explorer',
+    name: 'Explorer',
+    description: 'Map unfamiliar code and surface the important dependencies.',
+    prompt: 'Explore the codebase and summarize the relevant ownership boundaries.',
+    skills: ['code-search', 'architecture'],
+    revision: 1,
+    runtimeId: runtime.id,
+  },
+  {
+    id: 'writer',
+    name: 'Writer',
+    description: 'Shape technical work into concise, readable documentation.',
+    prompt: 'Draft clear documentation that captures decisions and next steps.',
+    skills: ['documentation', 'editing'],
+    revision: 1,
+    runtimeId: runtime.id,
+  },
+]
+const fixtureRoles = multipleRoles ? roleOptions : roleOptions.slice(0, 1)
 const activeMode = ref<'channels' | 'agent'>(fixture.value === 'full-agent' ? 'agent' : 'channels')
 const draftDialogOpen = ref(fixture.value === 'draft-dialog')
 const draft = ref<Draft>({
@@ -214,6 +264,12 @@ function send(payload: { text: string; attachments: ComposerAttachment[] }): voi
     lastEventSequence: 0,
   })
   drawerState.draft.text = ''
+}
+function injectPrompt(current: string, prompt: string): string {
+  const next = prompt.trim()
+  if (!next) return current
+  const existing = current.trim()
+  return existing ? `${existing}\n\n${next}` : next
 }
 function saveDraft(content: string): void {
   draft.value = {
@@ -280,7 +336,7 @@ function deliverDraft(): void {
         :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
         :runtimes="[runtime]"
         :model-options="[{ value: 'default', label: 'Default model' }]"
-        :roles="[{ id: 'reviewer', name: 'Reviewer', revision: 2, runtimeId: runtime.id }]"
+        :roles="fixtureRoles"
         @close="drawerOpen = false"
         @create="createSession"
         @select="selectSession"
@@ -292,6 +348,7 @@ function deliverDraft(): void {
         @select-model="drawerState.draft.model = $event"
         @select-permission="drawerState.draft.permissionMode = $event"
         @select-role="drawerState.draft.roleId = $event"
+        @apply-role-prompt="drawerState.draft.text = injectPrompt(drawerState.draft.text, $event)"
         @send="send"
         @back="drawerState.phase = 'index'"
         @expand="activeMode = 'agent'"
@@ -325,9 +382,12 @@ function deliverDraft(): void {
           :model-options="[{ value: 'default', label: 'Default model' }]"
           model="default"
           permission-mode="default"
-          :roles="[{ id: 'reviewer', name: 'Reviewer', revision: 2, runtimeId: runtime.id }]"
+          :roles="fixtureRoles"
+          :role-id="fullRoleId"
           @send="send"
           @create-draft="draftDialogOpen = true"
+          @select-role="fullRoleId = $event"
+          @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
         />
       </main>
     </template>

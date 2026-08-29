@@ -11,6 +11,7 @@ import TeaEmptyState from '../TeaEmptyState.vue'
 import TeaIconButton from '../TeaIconButton.vue'
 import TeaInput from '../TeaInput.vue'
 import TeaMenu from '../TeaMenu.vue'
+import TeaMenuSelect from '../TeaMenuSelect.vue'
 import TeaSelect from '../TeaSelect.vue'
 import TeaTabs from '../TeaTabs.vue'
 
@@ -63,6 +64,27 @@ describe('Tea primitives', () => {
 
     await wrapper.get('select').setValue('codex')
     await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
+  })
+
+  it('uses an application menu instead of the native select popup', async () => {
+    const wrapper = mountTea(TeaMenuSelect, {
+      props: {
+        modelValue: 'tea',
+        label: 'Runtime',
+        options: [
+          { value: 'tea', label: 'Tea' },
+          { value: 'codex', label: 'Codex' },
+        ],
+      },
+    })
+
+    await wrapper.get('[role="combobox"]').trigger('click')
+    expect(wrapper.get('[role="menu"]')).toBeTruthy()
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text() === 'Codex')!
+      .trigger('click')
     expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
   })
 

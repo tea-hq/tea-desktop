@@ -18,6 +18,7 @@ const {
   collaborationModelOptions,
   errorText,
   sendFromFullSurface,
+  applyActiveRolePrompt,
   handleNew,
   handleSelect,
   openDraftEditor,
@@ -109,6 +110,7 @@ const { t } = useI18n()
       @select-model="selectActiveModel"
       @select-permission="selectActivePermission"
       @select-role="selectRole"
+      @apply-role-prompt="applyActiveRolePrompt"
       @resolve-approval="resolveActiveApproval"
       @create-draft="openDraftEditor"
     />

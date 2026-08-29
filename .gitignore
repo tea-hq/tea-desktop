@@ -16,6 +16,9 @@ coverage
 *.tsbuildinfo
 *.local
 
+# Local CodeGraph index and daemon state
+.codegraph/
+
 # Generated declaration files
 /auto-imports.d.ts
 /components.d.ts

@@ -43,6 +43,7 @@ const emit = defineEmits<{
   selectModel: [id: string]
   selectPermission: [mode: PermissionMode]
   selectRole: [id: string | null]
+  applyRolePrompt: [value: string]
   resolveApproval: [payload: { approvalId: string; decision: ApprovalDecision }]
   createDraft: [payload: { turnIndex: number; blockId: string; content: string }]
   'update:text': [value: string]
@@ -92,6 +93,7 @@ onMounted(async () => {
     @select-role="emit('selectRole', $event)"
     @resolve-approval="emit('resolveApproval', $event)"
     @create-draft="emit('createDraft', $event)"
+    @apply-role-prompt="emit('applyRolePrompt', $event)"
     @update:text="emit('update:text', $event)"
     @update:attachments="emit('update:attachments', $event)"
   />

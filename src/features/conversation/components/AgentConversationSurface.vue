@@ -65,6 +65,7 @@ const emit = defineEmits<{
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
   selectRole: [value: string | null]
+  applyRolePrompt: [value: string]
 }>()
 </script>
 
@@ -81,6 +82,10 @@ const emit = defineEmits<{
     />
     <AgentConversationThread
       :turns="turns"
+      :roles="roles"
+      :runtime-id="runtimeId"
+      :role-id="roleId"
+      :role-disabled="disabled"
       :turn-contexts="turnContexts"
       :draft-block-ids="draftBlockIds"
       :collaboration="collaboration"
@@ -92,6 +97,8 @@ const emit = defineEmits<{
       @retry="emit('retry')"
       @resolve-approval="emit('resolveApproval', $event)"
       @create-draft="emit('createDraft', $event)"
+      @select-role="emit('selectRole', $event)"
+      @apply-role-prompt="emit('applyRolePrompt', $event)"
     />
     <AgentConversationComposer
       ref="composer"
@@ -104,8 +111,6 @@ const emit = defineEmits<{
       :model-options="modelOptions"
       :model="model"
       :permission-mode="permissionMode"
-      :roles="roles"
-      :role-id="roleId"
       :disabled="disabled"
       :streaming="streaming"
       @update:text="emit('update:text', $event)"
@@ -113,7 +118,6 @@ const emit = defineEmits<{
       @select-runtime="emit('selectRuntime', $event)"
       @select-model="emit('selectModel', $event)"
       @select-permission="emit('selectPermission', $event)"
-      @select-role="emit('selectRole', $event)"
       @remove-source="emit('removeSource', $event)"
       @send="emit('send', $event)"
       @stop="emit('stop')"

@@ -6,6 +6,7 @@ export interface TeaMenuItem {
   label: string
   icon?: string
   disabled?: boolean
+  selected?: boolean
   separator?: boolean
 }
 
@@ -36,14 +37,17 @@ function setItemRef(element: Element | null, index: number): void {
 function updatePosition(anchor: HTMLElement): void {
   const rect = anchor.getBoundingClientRect()
   position.value = { top: rect.bottom + 4, left: rect.left }
-  void nextTick(() => {
+  const clampToViewport = (): void => {
     if (!menu.value) return
     const menuRect = menu.value.getBoundingClientRect()
     position.value = {
       top: Math.min(position.value.top, Math.max(8, window.innerHeight - menuRect.height - 8)),
       left: Math.min(position.value.left, Math.max(8, window.innerWidth - menuRect.width - 8)),
     }
-  })
+  }
+  // The popup is rendered by v-if after `open` changes; wait for that DOM pass
+  // before measuring its size so menus near an edge are clamped correctly.
+  void nextTick(() => void nextTick(clampToViewport))
 }
 
 function show(event: Event): void {
@@ -56,6 +60,7 @@ function show(event: Event): void {
   if (anchor) updatePosition(anchor)
   open.value = true
   activeIndex.value = focusableIndices.value[0] ?? -1
+  void nextTick(() => itemRefs.value[activeIndex.value]?.focus())
 }
 
 function toggle(event: Event): void {
@@ -160,14 +165,16 @@ defineExpose({ toggle, show, hide })
         v-else
         :ref="(element) => setItemRef(element as Element | null, index)"
         type="button"
-        role="menuitem"
+        :role="item.selected ? 'menuitemradio' : 'menuitem'"
         :disabled="item.disabled"
+        :aria-checked="item.selected || undefined"
         :tabindex="activeIndex === index ? 0 : -1"
         class="flex min-h-9 w-full items-center gap-2 rounded-menu px-2.5 text-left text-sm text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
         @click="select(item)"
       >
         <span v-if="item.icon" :class="[item.icon, 'size-4 shrink-0']" aria-hidden="true" />
         <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+        <span v-if="item.selected" class="i-mdi-check size-4 shrink-0" aria-hidden="true" />
       </button>
     </template>
   </div>

@@ -64,6 +64,9 @@ export interface AgentRoleOption {
   name: string
   revision: number
   runtimeId: string
+  description?: string
+  prompt?: string
+  skills?: string[]
 }
 
 export interface ConversationHandle {

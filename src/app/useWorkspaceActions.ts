@@ -28,6 +28,24 @@ export function useWorkspaceActions(
     if (conversation.conversationId) conversation.startNewConversation()
   }
 
+  function applyActiveRolePrompt(prompt: string): void {
+    if (ui.collaborationWorkspace.value && collaboration.activeBinding) {
+      const draft = agentDrawer.ensureState(collaboration.activeBinding).draft
+      agentDrawer.updateDraft(collaboration.activeBinding, {
+        text: appendPrompt(draft.text, prompt),
+      })
+      return
+    }
+    ui.localComposerText.value = appendPrompt(ui.localComposerText.value, prompt)
+  }
+
+  function applyCollaborationRolePrompt(prompt: string): void {
+    const binding = collaboration.activeBinding
+    if (!binding) return
+    const draft = agentDrawer.ensureState(binding).draft
+    agentDrawer.updateDraft(binding, { text: appendPrompt(draft.text, prompt) })
+  }
+
   async function handleSelect(id: string): Promise<void> {
     ui.activeMode.value = 'agent'
     const summary = conversation.conversations.find((value) => value.conversationId === id)
@@ -231,6 +249,8 @@ export function useWorkspaceActions(
     handleNew,
     handleSelect,
     selectRole,
+    applyActiveRolePrompt,
+    applyCollaborationRolePrompt,
     selectWorkspace,
     messageDirectoryUser,
     forwardToAgent,
@@ -252,4 +272,11 @@ export function useWorkspaceActions(
     saveDialogDraft,
     deliverDialogDraft,
   }
+}
+
+function appendPrompt(existing: string, prompt: string): string {
+  const next = prompt.trim()
+  if (!next) return existing
+  const current = existing.trim()
+  return current ? `${current}\n\n${next}` : next
 }

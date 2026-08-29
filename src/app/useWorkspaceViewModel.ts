@@ -17,6 +17,9 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
         name: role.name,
         revision: role.revision,
         runtimeId: role.runtimeId,
+        description: role.description,
+        prompt: role.userPromptTemplate || role.systemPrompt || '',
+        skills: [...role.skills],
       })),
   )
   const activeAgentDrawerState = computed(() =>

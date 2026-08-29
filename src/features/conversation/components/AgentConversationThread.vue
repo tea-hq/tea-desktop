@@ -3,11 +3,17 @@ import { nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaEmptyState, TeaMessageBar } from '@/shared/ui'
 import type { ApprovalDecision, ConversationTurn } from '../contracts'
+import type { AgentRoleOption } from '../contracts'
 import type { ConversationTurnContext } from '@/types/channelCollaboration'
 import ConversationTurnView from './ConversationTurn.vue'
+import AgentRolePickerCard from './AgentRolePickerCard.vue'
 
 defineProps<{
   turns: ConversationTurn[]
+  roles?: AgentRoleOption[]
+  runtimeId?: string | null
+  roleId?: string | null
+  roleDisabled?: boolean
   turnContexts?: ConversationTurnContext[]
   draftBlockIds?: string[]
   collaboration?: boolean
@@ -21,6 +27,8 @@ const emit = defineEmits<{
   retry: []
   resolveApproval: [payload: { approvalId: string; decision: ApprovalDecision }]
   createDraft: [payload: { turnIndex: number; blockId: string; content: string }]
+  selectRole: [value: string]
+  applyRolePrompt: [value: string]
 }>()
 const container = ref<HTMLElement | null>(null)
 const { t } = useI18n()
@@ -37,6 +45,14 @@ async function loadOlder(): Promise<void> {
 
 <template>
   <div ref="container" class="agent-thread min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
+    <AgentRolePickerCard
+      :roles="roles ?? []"
+      :runtime-id="runtimeId ?? null"
+      :role-id="roleId"
+      :disabled="roleDisabled"
+      @select-role="emit('selectRole', $event)"
+      @apply-prompt="emit('applyRolePrompt', $event)"
+    />
     <div v-if="hasOlder" class="flex justify-center pb-3">
       <TeaButton size="small" appearance="ghost" :loading="loadingOlder" @click="loadOlder">{{
         t('channels.history.loadMore')

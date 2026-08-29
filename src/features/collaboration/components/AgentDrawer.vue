@@ -43,6 +43,7 @@ const emit = defineEmits<{
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
   selectRole: [value: string | null]
+  applyRolePrompt: [value: string]
   send: [payload: { text: string; attachments: ComposerAttachment[] }]
   stop: []
   back: []
@@ -111,6 +112,7 @@ const { t } = useI18n()
       @select-model="emit('selectModel', $event)"
       @select-permission="emit('selectPermission', $event)"
       @select-role="emit('selectRole', $event)"
+      @apply-role-prompt="emit('applyRolePrompt', $event)"
       @resolve-approval="emit('resolveApproval', $event)"
       @create-draft="emit('createDraft', $event)"
       @update:text="emit('updateText', $event)"

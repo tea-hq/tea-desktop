@@ -2,11 +2,10 @@
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ComposerProfile } from '@/app/composerProfiles'
-import { TeaIconButton, TeaSelect, TeaTextarea } from '@/shared/ui'
+import { TeaIconButton, TeaMenuSelect, TeaTextarea } from '@/shared/ui'
 import ChannelSourceTray from '@/features/collaboration/components/ChannelSourceTray.vue'
 import type { ChannelSourceInput } from '@/types/channelCollaboration'
 import type {
-  AgentRoleOption,
   ComposerAttachment,
   ModelOption,
   PermissionMode,
@@ -24,8 +23,6 @@ const props = defineProps<{
   modelOptions: ModelOption[]
   model: string
   permissionMode: PermissionMode
-  roles?: AgentRoleOption[]
-  roleId?: string | null
   disabled?: boolean
   streaming?: boolean
 }>()
@@ -35,7 +32,6 @@ const emit = defineEmits<{
   selectRuntime: [value: string]
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
-  selectRole: [value: string | null]
   removeSource: [messageClientId: string]
   send: [payload: { text: string; attachments: ComposerAttachment[] }]
   stop: []
@@ -62,10 +58,6 @@ const permissions = computed(() =>
     label: t(`composer.permission.${value}.label`),
   })),
 )
-const roleOptions = computed(() => [
-  { value: '', label: t('composer.role.default') },
-  ...(props.roles ?? []).map((value) => ({ value: value.id, label: value.name })),
-])
 
 function submit(): void {
   const text = props.text.trim()
@@ -96,6 +88,12 @@ function files(event: Event): void {
   )
   input.value = ''
 }
+function removeAttachment(id: string): void {
+  emit(
+    'update:attachments',
+    props.attachments.filter((value) => value.id !== id).map((value) => ({ ...value })),
+  )
+}
 function focus(): void {
   void nextTick(() => document.querySelector<HTMLTextAreaElement>('[data-agent-composer]')?.focus())
 }
@@ -110,14 +108,24 @@ defineExpose({ focus })
         :sources="sources ?? []"
         @remove="emit('removeSource', $event)"
       />
-      <div v-if="attachments.length" class="mb-2 flex gap-1 overflow-x-auto">
-        <span v-for="item in attachments" :key="item.id" class="attachment-chip">{{
-          item.name
-        }}</span>
+      <div v-if="attachments.length" class="attachment-list" aria-live="polite">
+        <div v-for="item in attachments" :key="item.id" class="attachment-chip">
+          <span class="attachment-chip__name">{{ item.name }}</span>
+          <button
+            type="button"
+            class="attachment-chip__remove"
+            :aria-label="`${t('composer.removeAttachment')}: ${item.name}`"
+            :title="t('composer.removeAttachment')"
+            @click="removeAttachment(item.id)"
+          >
+            <span class="i-mdi-close size-3" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <div class="composer-shell" :class="profile.compact ? 'composer-shell--compact' : ''">
         <TeaTextarea
           data-agent-composer
+          class="composer-input"
           :model-value="text"
           :label="t('composer.placeholder')"
           :rows="profile.compact ? 2 : 3"
@@ -128,59 +136,62 @@ defineExpose({ focus })
           @compositionstart="composing = true"
           @compositionend="composing = false"
         />
-        <div class="composer-toolbar mt-2 flex min-w-0 items-end gap-1.5">
+        <div class="composer-toolbar">
           <input ref="fileInput" type="file" multiple class="hidden" @change="files" />
-          <TeaIconButton
-            :label="t('composer.addFiles')"
-            icon="i-mdi-paperclip"
-            @click="fileInput?.click()"
-          />
-          <div class="composer-options grid min-w-0 flex-1 grid-cols-2 gap-1.5 sm:grid-cols-4">
-            <TeaSelect
+          <div class="composer-toolbar-controls">
+            <TeaIconButton
+              size="small"
+              :label="t('composer.addFiles')"
+              icon="i-mdi-paperclip"
+              @click="fileInput?.click()"
+            />
+            <TeaMenuSelect
+              class="composer-menu-select composer-menu-select--runtime"
               :model-value="runtimeId"
               :options="runtimeOptions"
               :label="t('composer.selectAgent')"
               size="small"
+              :disabled="disabled || streaming"
               @update:model-value="$event && emit('selectRuntime', String($event))"
             />
-            <TeaSelect
-              :model-value="model"
-              :options="models"
-              :label="t('composer.selectModel')"
-              size="small"
-              @update:model-value="$event && emit('selectModel', String($event))"
-            />
-            <TeaSelect
+            <TeaMenuSelect
+              class="composer-menu-select composer-menu-select--permission"
               :model-value="permissionMode"
               :options="permissions"
               :label="t('composer.selectPermission')"
               size="small"
+              :disabled="disabled || streaming"
+              :class="`composer-permission--${permissionMode}`"
               @update:model-value="$event && emit('selectPermission', $event as PermissionMode)"
             />
-            <TeaSelect
-              v-if="roleOptions.length > 1"
-              :model-value="roleId ?? ''"
-              :options="roleOptions"
-              :label="t('composer.selectRole')"
+          </div>
+          <div class="composer-toolbar-actions">
+            <TeaMenuSelect
+              class="composer-menu-select composer-menu-select--model"
+              :model-value="model"
+              :options="models"
+              :label="t('composer.selectModel')"
               size="small"
-              @update:model-value="emit('selectRole', $event ? String($event) : null)"
+              :disabled="disabled || streaming"
+              @update:model-value="$event && emit('selectModel', String($event))"
+            />
+            <TeaIconButton
+              v-if="streaming"
+              class="composer-submit"
+              :label="t('composer.stop')"
+              icon="i-mdi-stop"
+              appearance="danger"
+              @click="emit('stop')"
+            />
+            <TeaIconButton
+              v-else
+              :label="t('composer.send')"
+              icon="i-mdi-arrow-up"
+              appearance="primary"
+              :disabled="disabled || !text.trim()"
+              @click="submit"
             />
           </div>
-          <TeaIconButton
-            v-if="streaming"
-            :label="t('composer.stop')"
-            icon="i-mdi-stop"
-            appearance="danger"
-            @click="emit('stop')"
-          />
-          <TeaIconButton
-            v-else
-            :label="t('composer.send')"
-            icon="i-mdi-arrow-up"
-            appearance="primary"
-            :disabled="disabled || !text.trim()"
-            @click="submit"
-          />
         </div>
       </div>
     </div>
@@ -196,14 +207,15 @@ defineExpose({ focus })
   border: 1px solid var(--tea-line);
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
-  padding: 1rem;
+  padding: 0.75rem;
   transition: border-color 150ms ease;
 }
 .composer-shell:focus-within {
   border-color: var(--tea-fg);
 }
-.composer-shell :deep(textarea) {
+.composer-input {
   min-height: 4.5rem;
+  max-height: 12rem;
   resize: none;
   border: 0;
   border-radius: 0;
@@ -211,21 +223,136 @@ defineExpose({ focus })
   padding: 0;
   box-shadow: none;
 }
-.composer-shell--compact :deep(textarea) {
+.composer-input:focus {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.composer-shell--compact .composer-input {
   min-height: 3rem;
+  max-height: 8rem;
+}
+.attachment-list {
+  display: flex;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.125rem;
 }
 .attachment-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 16rem;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--tea-line);
+  border-radius: var(--tea-radius-pill);
+  background: var(--tea-panel);
+  padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+  color: var(--tea-dim);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+.attachment-chip__name {
   max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-radius: var(--tea-radius-pill);
-  background: var(--tea-muted);
-  padding: 0.25rem 0.75rem;
-  color: var(--tea-dim);
-  font-size: 0.75rem;
 }
-.composer-options :deep(select) {
+.attachment-chip__remove {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tea-radius-pill);
+  color: var(--tea-subtle);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.attachment-chip__remove:hover {
+  background: var(--tea-hover);
+  color: var(--tea-fg);
+}
+.attachment-chip__remove:focus-visible {
+  outline: 2px solid var(--tea-focus);
+  outline-offset: 1px;
+}
+.composer-toolbar {
+  display: flex;
   min-width: 0;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+}
+.composer-toolbar-controls,
+.composer-toolbar-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+}
+.composer-toolbar-controls {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+.composer-toolbar-actions {
+  margin-left: auto;
+}
+.composer-menu-select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.composer-menu-select--runtime {
+  max-width: 10rem;
+}
+.composer-menu-select--model {
+  max-width: 11rem;
+}
+.composer-menu-select--permission {
+  max-width: 9rem;
+}
+.composer-menu-select :deep(.tea-menu-select__trigger) {
+  color: var(--tea-dim);
+}
+.composer-menu-select :deep(.tea-menu-select__trigger:hover),
+.composer-menu-select :deep(.tea-menu-select__trigger:focus-visible) {
+  color: var(--tea-fg);
+}
+.composer-permission--fullAccess :deep(.tea-menu-select__trigger) {
+  color: var(--tea-warning);
+}
+.composer-permission--readOnly :deep(.tea-menu-select__trigger) {
+  color: var(--tea-subtle);
+}
+.composer-submit {
+  margin-bottom: 0.125rem;
+}
+
+@media (max-width: 40rem) {
+  .agent-composer {
+    padding: 0.625rem 0.75rem;
+  }
+  .composer-shell {
+    padding: 0.625rem;
+  }
+  .composer-toolbar-controls {
+    flex-basis: 100%;
+  }
+  .composer-menu-select {
+    flex: 1 1 0;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachment-chip__remove,
+  .composer-shell {
+    transition: none;
+  }
 }
 </style>
