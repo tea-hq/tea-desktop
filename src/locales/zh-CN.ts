@@ -437,9 +437,18 @@ export default {
   messages: {
     empty: '发送一条消息开始对话。',
     runNotice: '运行提示',
+    status: {
+      sending: '正在启动',
+      running: '正在处理',
+      completed: '已完成',
+      failed: '执行失败',
+      cancelled: '已停止',
+    },
   },
   tools: {
     details: '参数',
+    showDetails: '展开工具参数',
+    hideDetails: '收起工具参数',
     status: {
       requested: '已请求',
       running: '运行中',

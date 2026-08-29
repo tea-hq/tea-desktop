@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { TeaButton } from '@/shared/ui'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ApprovalDecision, ConversationTurn } from '../contracts'
 import type { ChannelSource } from '@/types/channelCollaboration'
@@ -21,6 +22,15 @@ const emit = defineEmits<{
   createDraft: [payload: { turnIndex: number; blockId: string; content: string }]
 }>()
 const { t } = useI18n()
+const turnStatusIcon = computed(() => {
+  if (props.turn.status === 'failed') return 'i-mdi-alert-circle-outline'
+  if (props.turn.status === 'cancelled') return 'i-mdi-stop-circle-outline'
+  return 'i-mdi-loading'
+})
+const turnStatusLabel = computed(() => t(`messages.status.${props.turn.status}`))
+const showTurnStatus = computed(() =>
+  ['sending', 'running', 'failed', 'cancelled'].includes(props.turn.status),
+)
 
 function showWaitingIndicator(): boolean {
   return (
@@ -31,10 +41,10 @@ function showWaitingIndicator(): boolean {
 </script>
 
 <template>
-  <article class="w-full bg-canvas animate-fade-slide" :data-turn-id="turn.id">
+  <article class="conversation-turn w-full animate-fade-slide" :data-turn-id="turn.id">
     <div class="flex justify-end">
       <div
-        class="max-w-[88%] rounded-card bg-panel px-4 py-2.5 text-base leading-6 text-fg sm:max-w-[82%]"
+        class="conversation-user max-w-[88%] px-3.5 py-2.5 text-sm leading-6 text-fg sm:max-w-[82%]"
       >
         <div v-if="turn.user.attachments.length" class="mb-2 flex flex-wrap justify-end gap-1.5">
           <span
@@ -58,11 +68,29 @@ function showWaitingIndicator(): boolean {
       />
     </div>
 
-    <div class="space-y-3 pt-5">
+    <div class="conversation-blocks space-y-4 pt-5">
+      <div
+        v-if="showTurnStatus"
+        class="turn-status"
+        :class="`turn-status--${turn.status}`"
+        role="status"
+        aria-live="polite"
+      >
+        <span
+          class="turn-status__icon"
+          :class="[
+            turnStatusIcon,
+            turn.status === 'sending' || turn.status === 'running' ? 'animate-spin' : '',
+          ]"
+          aria-hidden="true"
+        />
+        <span>{{ turnStatusLabel }}</span>
+      </div>
+
       <template v-for="block in turn.blocks" :key="block.id">
         <div
           v-if="block.kind === 'assistantText'"
-          class="group/response"
+          class="conversation-response group/response"
           :data-sequence="block.sequence"
         >
           <MarkdownContent :source="block.text" :streaming="block.streaming" />
@@ -108,3 +136,48 @@ function showWaitingIndicator(): boolean {
     </div>
   </article>
 </template>
+
+<style scoped>
+.conversation-turn {
+  color: var(--tea-fg);
+}
+
+.conversation-user {
+  border-radius: 10px;
+  background: var(--tea-panel);
+}
+
+.conversation-blocks,
+.conversation-response {
+  min-width: 0;
+}
+
+.turn-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--tea-subtle);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.turn-status__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.turn-status--failed {
+  color: var(--tea-danger);
+}
+
+.turn-status--cancelled {
+  color: var(--tea-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-status__icon.animate-spin {
+    animation: none;
+  }
+}
+</style>

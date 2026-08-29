@@ -453,9 +453,18 @@ export default {
   messages: {
     empty: 'Send a message to start.',
     runNotice: 'Run notice',
+    status: {
+      sending: 'Starting',
+      running: 'Working',
+      completed: 'Completed',
+      failed: 'Failed',
+      cancelled: 'Stopped',
+    },
   },
   tools: {
     details: 'Arguments',
+    showDetails: 'Show tool arguments',
+    hideDetails: 'Hide tool arguments',
     status: {
       requested: 'Requested',
       running: 'Running',

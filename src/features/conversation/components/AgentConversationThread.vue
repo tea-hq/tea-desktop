@@ -76,7 +76,7 @@ async function loadOlder(): Promise<void> {
       :title="t('messages.empty')"
       icon="i-mdi-message-outline"
     />
-    <div v-else class="mx-auto flex w-full max-w-3xl flex-col gap-7">
+    <div v-else class="conversation-turns mx-auto flex w-full max-w-3xl flex-col gap-8">
       <ConversationTurnView
         v-for="(turn, turnIndex) in turns"
         :key="turn.id"
@@ -96,5 +96,9 @@ async function loadOlder(): Promise<void> {
 .agent-thread {
   background: var(--tea-canvas);
   scrollbar-width: thin;
+}
+
+.conversation-turns {
+  min-width: 0;
 }
 </style>

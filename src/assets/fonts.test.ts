@@ -10,10 +10,10 @@ describe('font loading', () => {
     expect(index).not.toContain('fonts.gstatic.com')
   })
 
-  it('uses a 16px root and the desktop CJK font stack', () => {
+  it('uses a 14px root and the desktop CJK font stack', () => {
     expect(mainCss).toContain("'Segoe UI Variable'")
     expect(mainCss).toContain("'PingFang SC'")
-    expect(mainCss).toMatch(/html\s*\{[^}]*font-size:\s*16px/s)
+    expect(mainCss).toMatch(/html\s*\{[^}]*font-size:\s*14px/s)
     expect(mainCss).toMatch(/body\s*\{[^}]*font-size:\s*1rem/s)
     expect(mainCss).toContain("'JetBrains Mono Variable'")
   })
