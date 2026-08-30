@@ -10,11 +10,13 @@ import type {
   ConversationUiError,
   RuntimeDescriptor,
 } from '../contracts'
+import AgentRuntimeMenu from './AgentRuntimeMenu.vue'
 
 const props = defineProps<{
   conversations: ConversationSummary[]
   activeId: string | null
   runtimes: RuntimeDescriptor[]
+  defaultRuntimeId?: string | null
   loading: boolean
   loadingMore: boolean
   error: ConversationUiError | null
@@ -24,6 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   new: []
+  newWithRuntime: [runtimeId: string]
   select: [id: string]
   loadMore: []
   retry: []
@@ -77,6 +80,14 @@ function handleScroll(event: Event): void {
         :label="t('sidebar.newConversation')"
         icon="i-mdi-plus"
         @click="emit('new')"
+      />
+      <AgentRuntimeMenu
+        v-if="runtimes.length > 1"
+        :runtimes="runtimes"
+        :default-runtime-id="defaultRuntimeId"
+        :label="t('channels.collaboration.chooseOtherAgent')"
+        :menu-label="t('channels.collaboration.chooseAgent')"
+        @select="emit('newWithRuntime', $event)"
       />
     </header>
     <nav class="conversation-filters" :aria-label="t('sidebar.filterLabel')">

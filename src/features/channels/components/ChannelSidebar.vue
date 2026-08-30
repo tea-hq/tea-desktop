@@ -117,14 +117,14 @@ function formatTime(value: number): string {
             :name="channel.name"
             :avatar-url="channel.avatarUrl"
           />
-          <span class="min-w-0">
+          <span class="channel-row__details min-w-0">
             <span
               class="block truncate text-sm leading-5 text-fg"
               :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
               >{{ channel.name }}</span
             >
             <span
-              class="mt-0.5 block truncate text-xs leading-4"
+              class="channel-row__preview mt-0.5 block truncate text-xs leading-4"
               :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
               >{{ channel.lastMessagePreview || channel.description }}</span
             >
@@ -156,9 +156,22 @@ function formatTime(value: number): string {
 <style scoped>
 .channel-row {
   display: grid;
+  block-size: 3.25rem;
   grid-template-columns: 2rem minmax(0, 1fr) 3.75rem;
+  min-block-size: 3.25rem;
   border-radius: var(--tea-radius-inline);
   padding-inline: 0.875rem;
+}
+
+.channel-row__details {
+  display: flex;
+  min-block-size: 2.375rem;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.channel-row__preview {
+  min-block-size: 1rem;
 }
 
 .channel-row--active {

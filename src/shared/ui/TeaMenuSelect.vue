@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends string | number">
 import { computed, nextTick, ref } from 'vue'
-import TeaMenu, { type TeaMenuItem } from './TeaMenu.vue'
+import TeaMenu, { type TeaMenuItem, type TeaMenuPlacement } from './TeaMenu.vue'
 import type { TeaSelectOption } from './TeaSelect.vue'
 
 const props = withDefaults(
@@ -12,12 +12,14 @@ const props = withDefaults(
     disabled?: boolean
     invalid?: boolean
     size?: 'small' | 'default'
+    menuPlacement?: TeaMenuPlacement
   }>(),
   {
     placeholder: '',
     disabled: false,
     invalid: false,
     size: 'default',
+    menuPlacement: 'down',
   },
 )
 
@@ -105,6 +107,7 @@ function hide(): void {
       ref="menu"
       :items="menuItems"
       popup
+      :placement="menuPlacement"
       :label="label"
       @select="selectValue"
       @hide="hide"

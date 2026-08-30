@@ -37,6 +37,12 @@ const runtime: RuntimeDescriptor = {
   capabilities: ['prompt', 'history', 'approval', 'cancel'],
   status: 'ready',
 }
+const alternateRuntime: RuntimeDescriptor = {
+  ...runtime,
+  id: 'external.codex',
+  displayName: 'Codex',
+}
+const availableRuntimes = [runtime, alternateRuntime]
 const fixtureModelOptions: ModelOption[] = [
   { value: 'gpt-5.6-sol', label: '5.6 Sol', source: 'runtime' },
   { value: 'gpt-5.6-terra', label: '5.6 Terra', source: 'runtime' },
@@ -176,6 +182,7 @@ const turns = ref<ConversationTurn[]>(
 )
 const fullText = ref('')
 const fullAttachments = ref<ComposerAttachment[]>([])
+const fullRuntimeId = ref(runtime.id)
 const fullModel = ref(fixtureModelOptions[0]!.value)
 const fullPermissionMode = ref<PermissionMode>('default')
 const fullRoleId = ref<string | null>(null)
@@ -248,6 +255,10 @@ function createSession(): void {
   drawerState.phase = 'preparing'
   drawerState.selectedConversationId = null
 }
+function createSessionWithRuntime(runtimeId: string): void {
+  drawerState.draft.runtimeId = runtimeId
+  createSession()
+}
 function selectSession(id: string): void {
   drawerState.phase = 'active'
   drawerState.selectedConversationId = id
@@ -257,7 +268,7 @@ function send(payload: { text: string; attachments: ComposerAttachment[] }): voi
   if (drawerState.phase === 'preparing') {
     const summary: ConversationSummary = {
       conversationId: 'conversation-created',
-      runtimeId: runtime.id,
+      runtimeId: drawerState.draft.runtimeId ?? runtime.id,
       workspaceId: 'e2e',
       title: 'New Agent session',
       createdAt: Date.now(),
@@ -277,6 +288,12 @@ function send(payload: { text: string; attachments: ComposerAttachment[] }): voi
     lastEventSequence: 0,
   })
   drawerState.draft.text = ''
+}
+function createFullSessionWithRuntime(runtimeId: string): void {
+  fullRuntimeId.value = runtimeId
+  fullText.value = ''
+  turns.value = []
+  activeMode.value = 'agent'
 }
 function injectPrompt(current: string, prompt: string): string {
   const next = prompt.trim()
@@ -347,7 +364,7 @@ function deliverDraft(): void {
         :active-conversation="conversations[0] ?? null"
         :recent-conversations="conversations.slice(0, 4)"
         :current-session-available="true"
-        :runtimes="[runtime]"
+        :runtimes="availableRuntimes"
         :default-runtime-id="runtime.id"
         @toggle-panel="drawerOpen = !drawerOpen"
       />
@@ -358,11 +375,13 @@ function deliverDraft(): void {
         :conversations="visibleConversations"
         :turns="turns"
         :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
-        :runtimes="[runtime]"
+        :runtimes="availableRuntimes"
+        :default-runtime-id="runtime.id"
         :model-options="fixtureModelOptions"
         :roles="fixtureRoles"
         @close="drawerOpen = false"
         @create="createSession"
+        @create-with-runtime="createSessionWithRuntime"
         @select="selectSession"
         @view-all="drawerState.listMode = 'all'"
         @update-query="drawerState.query = $event"
@@ -384,12 +403,14 @@ function deliverDraft(): void {
       <ConversationSidebar
         :conversations="conversations"
         :active-id="conversations[0]?.conversationId ?? null"
-        :runtimes="[runtime]"
+        :runtimes="availableRuntimes"
+        :default-runtime-id="runtime.id"
         :loading="false"
         :loading-more="false"
         :error="null"
         :has-more="false"
         :filter="{ kind: 'all' }"
+        @new-with-runtime="createFullSessionWithRuntime"
       />
       <main class="min-w-0 flex-1">
         <AgentConversationSurface
@@ -397,12 +418,14 @@ function deliverDraft(): void {
           v-model:attachments="fullAttachments"
           :profile="fullAgentProfile"
           title="Agent drawer architecture"
-          runtime-label="Claude Code"
+          :runtime-label="
+            availableRuntimes.find((value) => value.id === fullRuntimeId)?.displayName
+          "
           :turns="turns"
           collaboration
           has-older
-          :runtimes="[runtime]"
-          :runtime-id="runtime.id"
+          :runtimes="availableRuntimes"
+          :runtime-id="fullRuntimeId"
           :model-options="fixtureModelOptions"
           :model="fullModel"
           :permission-mode="fullPermissionMode"

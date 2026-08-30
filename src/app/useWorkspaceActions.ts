@@ -17,10 +17,14 @@ export function useWorkspaceActions(
 ) {
   const { conversation, channels, collaboration, agentDrawer, settings, centerAuth } = stores
 
-  function handleNew(): void {
+  function handleNewWithRuntime(runtimeId?: string): void {
     ui.activeMode.value = 'agent'
     ui.collaborationWorkspace.value = false
-    conversation.startNewConversation()
+    conversation.startNewConversation(runtimeId)
+  }
+
+  function handleNew(): void {
+    handleNewWithRuntime()
   }
 
   function selectRole(roleId: string | null): void {
@@ -120,7 +124,7 @@ export function useWorkspaceActions(
     if (!settings.agentDrawerOpen) await settings.openAgentDrawer()
   }
 
-  async function createCollaborationConversation(runtimeId: string): Promise<void> {
+  async function createCollaborationConversation(runtimeId?: string): Promise<void> {
     const conversationId = await collaboration.createConversation(runtimeId)
     if (conversationId) collaboration.closeChooser()
   }
@@ -247,6 +251,7 @@ export function useWorkspaceActions(
 
   return {
     handleNew,
+    handleNewWithRuntime,
     handleSelect,
     selectRole,
     applyActiveRolePrompt,

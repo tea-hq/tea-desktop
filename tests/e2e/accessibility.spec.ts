@@ -15,7 +15,7 @@ test('renders localized Chinese controls without horizontal overflow', async ({
 }) => {
   await page.setViewportSize({ width: 480, height: 760 })
   await openFixture('drawer-empty', { lang: 'zh-CN' })
-  await expect(page.getByText('当前通道还没有 Agent 会话。')).toBeVisible()
+  await expect(page.getByText('还没有 Agent 会话')).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   )

@@ -149,11 +149,13 @@ defineExpose({ focus })
               @click="fileInput?.click()"
             />
             <TeaMenuSelect
+              v-if="profile.showRuntimeSelect"
               class="composer-menu-select composer-menu-select--runtime"
               :model-value="runtimeId"
               :options="runtimeOptions"
               :label="t('composer.selectAgent')"
               size="small"
+              menu-placement="up"
               :disabled="disabled || streaming"
               @update:model-value="$event && emit('selectRuntime', String($event))"
             />
@@ -163,6 +165,7 @@ defineExpose({ focus })
               :options="permissions"
               :label="t('composer.selectPermission')"
               size="small"
+              menu-placement="up"
               :disabled="disabled || streaming"
               :class="`composer-permission--${permissionMode}`"
               @update:model-value="$event && emit('selectPermission', $event as PermissionMode)"

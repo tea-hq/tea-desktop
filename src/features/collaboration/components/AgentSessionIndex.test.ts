@@ -15,6 +15,11 @@ const runtime: RuntimeDescriptor = {
   capabilities: ['prompt'],
   status: 'ready',
 }
+const alternateRuntime: RuntimeDescriptor = {
+  ...runtime,
+  id: 'external.codex',
+  displayName: 'Codex',
+}
 const conversations = Array.from({ length: 10 }, (_, index) => ({
   conversationId: `conversation-${index}`,
   runtimeId: runtime.id,
@@ -30,7 +35,6 @@ function mountIndex(overrides: Record<string, unknown> = {}) {
     props: {
       conversations,
       runtimes: [runtime],
-      runtimeId: runtime.id,
       mode: 'recent',
       query: '',
       ...overrides,
@@ -42,25 +46,46 @@ function mountIndex(overrides: Record<string, unknown> = {}) {
 }
 
 describe('AgentSessionIndex', () => {
-  it('shows a Runtime-specific first action when history is empty', async () => {
+  it('uses an accessible icon action when history is empty', async () => {
     const wrapper = mountIndex({ conversations: [] })
 
-    expect(wrapper.text()).toContain('New session with Claude Code')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('New session with Claude Code'))!
-      .trigger('click')
+    const create = wrapper.get('button[aria-label="New session"]')
+    expect(create.attributes('title')).toBe('New session')
+    expect(create.text()).toBe('')
+    expect(wrapper.find('select').exists()).toBe(false)
+    await create.trigger('click')
     expect(wrapper.emitted('create')).toHaveLength(1)
+  })
+
+  it('enables the default new action when a ready Agent exists', () => {
+    const wrapper = mountIndex({ conversations: [] })
+
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.get('button[aria-label="New session"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('starts a new session with an explicitly chosen Agent', async () => {
+    const wrapper = mountIndex({
+      runtimes: [runtime, alternateRuntime],
+      defaultRuntimeId: runtime.id,
+    })
+
+    await wrapper.get('button[aria-label="Choose another Agent"]').trigger('click')
+    const codex = wrapper.findAll('[role="menuitem"]').find((item) => item.text() === 'Codex')
+    expect(codex).toBeDefined()
+    await codex!.trigger('click')
+
+    expect(wrapper.emitted('createWithRuntime')).toEqual([['external.codex']])
   })
 
   it('limits recent sessions and exposes the full list intent', async () => {
     const wrapper = mountIndex()
 
     expect(wrapper.findAll('.session-row')).toHaveLength(8)
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('View all sessions'))!
-      .trigger('click')
+    const viewAll = wrapper.get('button[aria-label="View all sessions"]')
+    expect(viewAll.attributes('title')).toBe('View all sessions')
+    expect(viewAll.text()).toBe('')
+    await viewAll.trigger('click')
     expect(wrapper.emitted('viewAll')).toHaveLength(1)
   })
 

@@ -413,6 +413,36 @@ describe('useConversationStore', () => {
     expect(store.activeRuntimeId).toBe('external.codex')
   })
 
+  it('honors an explicit ready runtime for a new conversation', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([
+      runtime,
+      {
+        ...runtime,
+        id: 'external.codex',
+        displayName: 'Codex',
+      },
+    ])
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+
+    expect(store.startNewConversation('external.codex')).toBe(true)
+    expect(store.activeRuntimeId).toBe('external.codex')
+  })
+
+  it('fails closed when an explicit runtime is unavailable', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([{ ...runtime, id: 'external.codex', status: 'unavailable' }])
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+
+    expect(store.startNewConversation('external.codex')).toBe(false)
+    expect(store.activeRuntimeId).toBeNull()
+    expect(store.error).toEqual({ kind: 'localized', key: 'errors.noRuntimeSelected' })
+  })
+
   it('falls back to a ready runtime without changing the saved default', async () => {
     const fake = new FakeClient()
     fake.setRuntimes([{ ...runtime, id: 'external.codex', status: 'unavailable' }, runtime])

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { TeaButton } from '@/shared/ui'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
+
 const props = defineProps<{
   conversations: ConversationSummary[]
   runtimes: RuntimeDescriptor[]
@@ -15,24 +16,32 @@ function runtime(id: string): string {
 }
 </script>
 <template>
-  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-1">
     <TeaButton
       v-for="conversation in conversations"
       :key="conversation.conversationId"
       appearance="ghost"
-      class="session-row mx-1.5 flex w-auto min-w-0 items-start justify-start gap-2 px-2.5 py-2 text-left"
+      class="session-row flex w-full min-w-0 items-start justify-start gap-3 px-3 py-2.5 text-left"
       @click="emit('select', conversation.conversationId)"
     >
-      <span class="i-mdi-message-processing-outline mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span class="min-w-0 flex-1"
-        ><strong class="block truncate text-sm">{{
+      <span
+        class="i-mdi-message-text-outline mt-0.5 size-4 shrink-0 text-subtle"
+        aria-hidden="true"
+      />
+      <span class="min-w-0 flex-1">
+        <strong class="block truncate text-sm font-semibold leading-5 text-fg">{{
           conversation.title || t('sidebar.untitled')
-        }}</strong
-        ><span class="mt-0.5 block truncate text-xs">{{
-          conversation.lastMessagePreview || t('channels.collaboration.noPreview')
-        }}</span></span
-      >
-      <span class="max-w-24 truncate text-xs">{{ runtime(conversation.runtimeId) }}</span>
+        }}</strong>
+        <span class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-4">
+          <span class="min-w-0 flex-1 truncate text-dim">{{
+            conversation.lastMessagePreview || t('channels.collaboration.noPreview')
+          }}</span>
+          <span class="text-subtle" aria-hidden="true">&#183;</span>
+          <span class="max-w-28 shrink-0 truncate text-subtle">{{
+            runtime(conversation.runtimeId)
+          }}</span>
+        </span>
+      </span>
     </TeaButton>
     <TeaButton
       v-if="hasMore"
@@ -48,13 +57,5 @@ function runtime(id: string): string {
 .session-row {
   color: var(--tea-fg);
   border-radius: var(--tea-radius-inline);
-}
-.session-row:hover,
-.session-row:focus-visible {
-  background: var(--tea-hover);
-  outline: none;
-}
-.session-row span {
-  color: var(--tea-dim);
 }
 </style>

@@ -42,7 +42,11 @@ describe('AgentSessionDetail', () => {
   it('renders the shared surface with the fixed drawer profile', () => {
     const surface = mountDetail().getComponent(AgentConversationSurface)
     expect(surface.props('profile')).toBe(drawerAgentProfile)
-    expect(surface.props()).toMatchObject({ subtitle: 'Product', backLabel: 'Back to sessions' })
+    expect(surface.props()).toMatchObject({
+      subtitle: 'Product',
+      runtimeLabel: 'Claude Code',
+      backLabel: 'Back to sessions',
+    })
   })
 
   it('forwards navigation and conversation intents', async () => {

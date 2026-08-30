@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { calculateFloatingMenuPosition } from './menuPosition'
 
 export interface TeaMenuItem {
   value: string
@@ -10,16 +11,23 @@ export interface TeaMenuItem {
   separator?: boolean
 }
 
+export type TeaMenuPlacement = 'down' | 'up'
+
+const MENU_GAP = 4
+const VIEWPORT_GUTTER = 8
+
 const props = withDefaults(
   defineProps<{
     items: TeaMenuItem[]
     popup?: boolean
     label: string
+    placement?: TeaMenuPlacement
   }>(),
-  { popup: false },
+  { popup: false, placement: 'down' },
 )
 const emit = defineEmits<{ select: [value: string]; hide: [] }>()
 const menu = ref<HTMLElement | null>(null)
+const anchor = ref<HTMLElement | null>(null)
 const itemRefs = ref<Array<HTMLButtonElement | null>>([])
 const open = ref(!props.popup)
 const position = ref({ top: 0, left: 0 })
@@ -34,20 +42,31 @@ function setItemRef(element: Element | null, index: number): void {
   itemRefs.value[index] = element instanceof HTMLButtonElement ? element : null
 }
 
-function updatePosition(anchor: HTMLElement): void {
-  const rect = anchor.getBoundingClientRect()
-  position.value = { top: rect.bottom + 4, left: rect.left }
-  const clampToViewport = (): void => {
+function updatePosition(anchorElement: HTMLElement | null = anchor.value): void {
+  if (!anchorElement || !props.popup) return
+  anchor.value = anchorElement
+  const rect = anchorElement.getBoundingClientRect()
+  const initialTop = props.placement === 'up' ? rect.top - MENU_GAP : rect.bottom + MENU_GAP
+  position.value = {
+    top: Math.max(VIEWPORT_GUTTER, initialTop),
+    left: Math.max(VIEWPORT_GUTTER, rect.left),
+  }
+
+  const positionAfterMeasure = (): void => {
     if (!menu.value) return
     const menuRect = menu.value.getBoundingClientRect()
-    position.value = {
-      top: Math.min(position.value.top, Math.max(8, window.innerHeight - menuRect.height - 8)),
-      left: Math.min(position.value.left, Math.max(8, window.innerWidth - menuRect.width - 8)),
-    }
+    const nextPosition = calculateFloatingMenuPosition(
+      rect,
+      { width: menuRect.width, height: menuRect.height },
+      { width: window.innerWidth, height: window.innerHeight },
+      { alignEnd: false, preferUp: props.placement === 'up', gap: MENU_GAP },
+    )
+    position.value = nextPosition
   }
+
   // The popup is rendered by v-if after `open` changes; wait for that DOM pass
-  // before measuring its size so menus near an edge are clamped correctly.
-  void nextTick(() => void nextTick(clampToViewport))
+  // before measuring its size so menus near an edge are placed and clamped correctly.
+  void nextTick(positionAfterMeasure)
 }
 
 function show(event: Event): void {
@@ -57,8 +76,8 @@ function show(event: Event): void {
       : event.target instanceof HTMLElement
         ? event.target
         : null
-  if (anchor) updatePosition(anchor)
   open.value = true
+  if (anchor) updatePosition(anchor)
   activeIndex.value = focusableIndices.value[0] ?? -1
   void nextTick(() => itemRefs.value[activeIndex.value]?.focus())
 }
@@ -120,6 +139,10 @@ function handlePointerdown(event: PointerEvent): void {
   if (props.popup && open.value && !menu.value?.contains(event.target as Node)) hide()
 }
 
+function handleViewportChange(): void {
+  if (open.value) updatePosition()
+}
+
 watch(
   open,
   (value) => {
@@ -127,9 +150,17 @@ watch(
     if (value) {
       document.addEventListener('keydown', handleKeydown)
       document.addEventListener('pointerdown', handlePointerdown)
+      if (props.popup && typeof window !== 'undefined') {
+        window.addEventListener('resize', handleViewportChange)
+        window.addEventListener('scroll', handleViewportChange, true)
+      }
     } else {
       document.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('pointerdown', handlePointerdown)
+      if (props.popup && typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleViewportChange)
+        window.removeEventListener('scroll', handleViewportChange, true)
+      }
     }
   },
   { immediate: true },
@@ -138,6 +169,10 @@ onBeforeUnmount(() => {
   if (typeof document !== 'undefined') {
     document.removeEventListener('keydown', handleKeydown)
     document.removeEventListener('pointerdown', handlePointerdown)
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('scroll', handleViewportChange, true)
+    }
   }
 })
 
@@ -151,7 +186,7 @@ defineExpose({ toggle, show, hide })
     role="menu"
     :aria-label="label"
     :class="[
-      'z-50 min-w-52 overflow-y-auto rounded-menu border border-line bg-raised p-1 text-fg',
+      'z-50 min-w-52 max-h-[calc(100vh-1rem)] overflow-y-auto rounded-menu border border-line bg-raised p-1 text-fg',
       popup ? 'fixed' : 'relative',
     ]"
     :style="popup ? { top: `${position.top}px`, left: `${position.left}px` } : undefined"

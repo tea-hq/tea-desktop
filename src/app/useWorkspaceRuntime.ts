@@ -105,7 +105,11 @@ export function useWorkspaceRuntime(
     (runtimeId) => {
       conversation.setDefaultRuntimeId(runtimeId)
       collaboration.setDefaultRuntimeId(runtimeId)
-      if (collaboration.runtimes.some((runtime) => runtime.id === runtimeId))
+      if (
+        collaboration.runtimes.some(
+          (runtime) => runtime.id === runtimeId && runtime.status === 'ready',
+        )
+      )
         collaboration.selectedRuntimeId = runtimeId
     },
     { immediate: true },
@@ -181,7 +185,11 @@ export function useWorkspaceRuntime(
       initializeChannels(environment),
     ])
     if (!isCurrent()) return
-    if (collaboration.runtimes.some((runtime) => runtime.id === settings.defaultRuntimeId))
+    if (
+      collaboration.runtimes.some(
+        (runtime) => runtime.id === settings.defaultRuntimeId && runtime.status === 'ready',
+      )
+    )
       collaboration.selectedRuntimeId = settings.defaultRuntimeId
   }
 

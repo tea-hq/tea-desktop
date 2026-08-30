@@ -9,6 +9,7 @@ import TeaDialog from '../TeaDialog.vue'
 import TeaDrawer from '../TeaDrawer.vue'
 import TeaEmptyState from '../TeaEmptyState.vue'
 import TeaIconButton from '../TeaIconButton.vue'
+import TeaIconMenu from '../TeaIconMenu.vue'
 import TeaInput from '../TeaInput.vue'
 import TeaMenu from '../TeaMenu.vue'
 import TeaMenuSelect from '../TeaMenuSelect.vue'
@@ -109,6 +110,75 @@ describe('Tea primitives', () => {
       .find((item) => item.text() === 'Codex')!
       .trigger('click')
     expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
+  })
+
+  it('places requested popup menus above their trigger and clamps them to the viewport', async () => {
+    const wrapper = mountTea(TeaMenuSelect, {
+      props: {
+        modelValue: 'tea',
+        label: 'Permission mode',
+        menuPlacement: 'up',
+        options: [
+          { value: 'tea', label: 'Ask for approval' },
+          { value: 'codex', label: 'Full access' },
+        ],
+      },
+    })
+    const trigger = wrapper.get('[role="combobox"]').element as HTMLElement
+    Object.defineProperty(trigger, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 480,
+        right: 280,
+        bottom: 512,
+        left: 180,
+        width: 100,
+        height: 32,
+        x: 180,
+        y: 480,
+        toJSON: () => {},
+      }),
+    })
+
+    await wrapper.get('[role="combobox"]').trigger('click')
+    const menu = wrapper.get('[role="menu"]').element as HTMLElement
+    Object.defineProperty(menu, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 0,
+        right: 208,
+        bottom: 100,
+        left: 0,
+        width: 208,
+        height: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      }),
+    })
+
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(Number.parseFloat(menu.style.top)).toBe(376)
+    expect(Number.parseFloat(menu.style.left)).toBe(180)
+    wrapper.unmount()
+  })
+
+  it('allows an open icon menu to close from its own trigger', async () => {
+    const wrapper = mountTea(TeaIconMenu, {
+      props: {
+        label: 'Choose Agent',
+        items: [{ value: 'codex', label: 'Codex' }],
+      },
+    })
+    const trigger = wrapper.get('button')
+
+    await trigger.trigger('click')
+    expect(wrapper.get('[role="menu"]')).toBeTruthy()
+    await trigger.trigger('pointerdown')
+    await trigger.trigger('click')
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('emits semantic menu commands', async () => {

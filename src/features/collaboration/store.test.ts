@@ -9,6 +9,7 @@ import {
 import type { RuntimeDescriptor, SendMessageOptions } from '@/features/conversation/contracts'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
 import { FakeConversationClient } from '@/infrastructure/conversation/electronConversationClient'
+import { useAgentDrawerStore } from './agentDrawerStore'
 import { useCollaborationStore } from './store'
 
 const runtime: RuntimeDescriptor = {
@@ -85,6 +86,19 @@ async function setup(transport: MockChannelTransport = new MockChannelTransport(
 describe('useCollaborationStore', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
+  it('initializes untouched Channel drafts with the selected ready Runtime', async () => {
+    const { store } = await setup()
+    const drawer = useAgentDrawerStore()
+
+    expect(drawer.activeState?.draft.runtimeId).toBe('external.codex')
+
+    drawer.updateDraft(store.activeBinding!, { runtimeId: 'external.explicit' })
+    await store.bindChannel('another-channel')
+    await store.bindChannel('product-collab')
+
+    expect(drawer.activeState?.draft.runtimeId).toBe('external.explicit')
+  })
+
   it('stages and deduplicates sources without starting an Agent run', async () => {
     const { store, client, transport } = await setup()
     const page = await transport.loadMessages({
@@ -131,6 +145,43 @@ describe('useCollaborationStore', () => {
     expect(store.selectedRuntimeId).toBe('external.codex')
     expect(store.stagedSources).toHaveLength(1)
     expect(store.chooserOpen).toBe(false)
+  })
+
+  it('uses the configured default Agent when the drawer starts a new session', async () => {
+    const { store } = await setup()
+    store.setDefaultRuntimeId('external.codex')
+
+    await store.createConversation()
+
+    expect(store.selectedRuntimeId).toBe('external.codex')
+    expect(useAgentDrawerStore().activeState?.draft.runtimeId).toBe('external.codex')
+  })
+
+  it('rejects an unavailable Agent without falling back', async () => {
+    const { store, client } = await setup()
+    client.setRuntimes([
+      runtime,
+      { ...runtime, id: 'external.offline', displayName: 'Offline', status: 'unavailable' },
+    ])
+    await store.loadRuntimes()
+
+    expect(await store.createConversation('external.offline')).toBeNull()
+    expect(store.selectedRuntimeId).toBe('external.codex')
+    expect(store.error).toEqual({ kind: 'localized', key: 'errors.noRuntimeSelected' })
+  })
+
+  it('locks runtime selection after a bound conversation is active', async () => {
+    const { store, client } = await setup()
+    client.setRuntimes([runtime, { ...runtime, id: 'external.claude', displayName: 'Claude' }])
+    await store.loadRuntimes()
+    await store.createConversation('external.codex')
+    await store.sendMessage('Start the session')
+    const activeId = store.conversationId
+
+    store.selectRuntime('external.claude')
+
+    expect(store.conversationId).toBe(activeId)
+    expect(store.selectedRuntimeId).toBe('external.codex')
   })
 
   it('creates one bound conversation and supports sourced and source-free turns', async () => {

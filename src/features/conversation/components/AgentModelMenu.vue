@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { TeaButton } from '@/shared/ui'
 import type { TeaSelectOption } from '@/shared/ui'
+import { calculateFloatingMenuPosition } from '@/shared/ui/menuPosition'
 import type { ThinkingEffort } from '../contracts'
 
 type MenuSection = 'model' | 'effort'
@@ -65,17 +66,16 @@ function updatePosition(): void {
     const popup = panel.value
     if (!popup) return
 
-    const width = popup.offsetWidth
-    const height = popup.offsetHeight
-    const top =
-      anchorRect.top - height - 8 >= 8
-        ? anchorRect.top - height - 8
-        : Math.min(anchorRect.bottom + 8, window.innerHeight - height - 8)
-    const left = Math.min(
-      Math.max(8, anchorRect.right - width),
-      Math.max(8, window.innerWidth - width - 8),
+    const nextPosition = calculateFloatingMenuPosition(
+      anchorRect,
+      { width: popup.offsetWidth, height: popup.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight },
+      { alignEnd: true, preferUp: true },
     )
-    position.value = { top: `${Math.max(8, top)}px`, left: `${left}px` }
+    position.value = {
+      top: `${nextPosition.top}px`,
+      left: `${nextPosition.left}px`,
+    }
   })
 }
 

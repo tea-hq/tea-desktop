@@ -2,6 +2,7 @@ export interface ComposerProfile {
   readonly id: 'full' | 'drawer'
   readonly compact: boolean
   readonly showHeaderRuntime: boolean
+  readonly showRuntimeSelect: boolean
   readonly showSources: boolean
   readonly maxAttachments: number
 }
@@ -10,6 +11,7 @@ export const fullAgentProfile = Object.freeze<ComposerProfile>({
   id: 'full',
   compact: false,
   showHeaderRuntime: true,
+  showRuntimeSelect: false,
   showSources: true,
   maxAttachments: 12,
 })
@@ -17,7 +19,8 @@ export const fullAgentProfile = Object.freeze<ComposerProfile>({
 export const drawerAgentProfile = Object.freeze<ComposerProfile>({
   id: 'drawer',
   compact: true,
-  showHeaderRuntime: false,
+  showHeaderRuntime: true,
+  showRuntimeSelect: false,
   showSources: true,
   maxAttachments: 8,
 })

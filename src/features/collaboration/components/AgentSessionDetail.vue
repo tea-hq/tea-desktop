@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { drawerAgentProfile } from '@/app/composerProfiles'
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
@@ -13,7 +13,7 @@ import type {
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
 import type { ChannelSourceInput, CollaborationSnapshot } from '@/types/channelCollaboration'
-defineProps<{
+const props = defineProps<{
   channelName: string
   title: string
   turns: ConversationTurn[]
@@ -51,6 +51,9 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const surface = ref<InstanceType<typeof AgentConversationSurface> | null>(null)
+const runtimeLabel = computed(
+  () => props.runtimes.find((runtime) => runtime.id === props.runtimeId)?.displayName ?? '',
+)
 onMounted(async () => {
   await nextTick()
   surface.value?.focusComposer?.()
@@ -62,6 +65,7 @@ onMounted(async () => {
     :profile="drawerAgentProfile"
     :title="title"
     :subtitle="channelName"
+    :runtime-label="runtimeLabel"
     :back-label="t('channels.collaboration.back')"
     :expand-label="t('channels.collaboration.expand')"
     :turns="turns"

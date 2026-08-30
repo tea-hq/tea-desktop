@@ -83,6 +83,7 @@ const {
     :state="activeAgentDrawerState"
     :conversations="collaboration.conversations"
     :runtimes="collaboration.runtimes"
+    :default-runtime-id="settings.defaultRuntimeId"
     :turns="collaboration.turns"
     :collaboration="collaboration.collaboration"
     :model-options="collaborationModelOptions"
@@ -93,11 +94,8 @@ const {
     :error="collaborationErrorText"
     @close="settings.closeAgentDrawer()"
     @select="selectCollaborationConversation"
-    @create="
-      createCollaborationConversation(
-        activeAgentDrawerState.draft.runtimeId || settings.defaultRuntimeId,
-      )
-    "
+    @create="createCollaborationConversation()"
+    @create-with-runtime="createCollaborationConversation($event)"
     @view-all="agentDrawer.setListMode(collaboration.activeBinding!, 'all')"
     @update-query="agentDrawer.setQuery(collaboration.activeBinding!, $event)"
     @update-text="agentDrawer.updateDraft(collaboration.activeBinding!, { text: $event })"

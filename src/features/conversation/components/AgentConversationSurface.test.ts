@@ -42,7 +42,7 @@ describe('AgentConversationSurface', () => {
     ).toBe('Claude Code')
     expect(
       mountSurface(drawerAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel'),
-    ).toBe('')
+    ).toBe('Claude Code')
   })
 
   it('forwards composer state and intents without owning them', async () => {

@@ -15,6 +15,11 @@ const runtime: RuntimeDescriptor = {
   capabilities: ['prompt'],
   status: 'ready',
 }
+const alternateRuntime: RuntimeDescriptor = {
+  ...runtime,
+  id: 'external.codex',
+  displayName: 'Codex',
+}
 
 function summary(conversationId: string, workspaceId: string): ConversationSummary {
   return {
@@ -61,5 +66,31 @@ describe('ConversationSidebar', () => {
     expect(newButton.text()).toBe('')
     await newButton.trigger('click')
     expect(wrapper.emitted('new')).toHaveLength(1)
+  })
+
+  it('offers alternate Agents from the same lightweight menu', async () => {
+    const wrapper = mount(ConversationSidebar, {
+      props: {
+        conversations: [],
+        activeId: null,
+        runtimes: [runtime, alternateRuntime],
+        defaultRuntimeId: runtime.id,
+        loading: false,
+        loadingMore: false,
+        error: null,
+        hasMore: false,
+        filter: { kind: 'all' },
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    await wrapper.get('button[aria-label="Choose another Agent"]').trigger('click')
+    const codex = wrapper.findAll('[role="menuitem"]').find((item) => item.text() === 'Codex')
+    expect(codex).toBeDefined()
+    await codex!.trigger('click')
+
+    expect(wrapper.emitted('newWithRuntime')).toEqual([['external.codex']])
   })
 })

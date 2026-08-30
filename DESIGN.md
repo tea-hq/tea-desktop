@@ -433,6 +433,8 @@ Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI
 
 ### Buttons
 
+**Action hierarchy for the desktop workspace** — Start with no visible button chrome. Use an unframed `TeaIconButton` whenever a familiar MDI icon communicates a repeated command on its own (for example add, close, search, back, or expand). Do not pair a familiar icon with redundant visible text merely to increase emphasis. Reserve text buttons for commands that remain ambiguous as an icon, primary commitments, and consequential or destructive actions. Reserve filled buttons for the single primary commitment in a surface, not routine toolbar actions. Every icon action must have a localized accessible name and tooltip, a stable 32px or 36px hit target, visible keyboard focus, and explicit disabled state.
+
 **`button-primary`** — The signature primary CTA. Background `{colors.primary}` (#111111), text `{colors.on-primary}`, type `{typography.button}` (Inter 14px / 600), padding 12px × 20px, height 40px, rounded `{rounded.md}` (8px). Active state `button-primary-active` shifts to `{colors.primary-active}` (#242424).
 
 **`button-secondary`** — White button with hairline outline. Background `{colors.canvas}`, text `{colors.ink}`, 1px hairline border, same padding + height + radius as primary.
@@ -442,6 +444,14 @@ Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI
 **`button-text-link`** — Inline text button, no background. Used for "Sign in" in the top nav and inline CTA links inside cards.
 
 **`text-link`** — Inline body links in `{colors.ink}` (the brand keeps inline links monochrome). Underlined on hover (not documented per the no-hover policy, but mentioned for context).
+
+### Agent Session Controls
+
+Agent session creation follows one lightweight pattern in the full Agent page and the Channel drawer. The default action is an icon-only plus button. When more than one ready or configured Agent is available, place an account-switch icon beside it to open the shared Agent menu; mark the configured default, show unavailable states, and keep unavailable entries disabled. Selecting an alternate Agent starts a new draft with that runtime explicitly.
+
+Once a session is prepared or active, do not repeat Agent selection in the composer. The conversation header shows the current Agent identity instead. Runtime selection is a pre-session concern, and both surfaces route through the same typed creation action and runtime validation.
+
+Agent pop-up menus use the shared menu primitive with `menu-placement="up"`: open above bottom-anchored controls by default, fall back below only when the viewport cannot fit the menu above, and clamp both axes to an 8px viewport gutter. Keep this rule scoped to Agent surfaces; non-Agent menus retain their local placement.
 
 ### Cards & Containers
 
@@ -496,6 +506,7 @@ Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI
 - Embed real product UI fragments inside marketing cards. Don't paint marketing illustrations of the product when you can show the product itself.
 - Keep avatar circles at 36px, perfect circles, sometimes with pastel fills. Avatars are the only place where badge pastels appear.
 - Use `{component.nav-pill-group}` for grouped sub-nav segments. The pill-in-pill treatment is signature.
+- Prefer familiar, unframed icon actions over outlined or filled text buttons for routine workspace commands.
 - End every page with the dark footer. The light-to-dark transition is part of the editorial rhythm.
 
 ### Don't
@@ -506,6 +517,7 @@ Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI
 - Don't put dark surface cards anywhere except the footer and the featured pricing tier. The dark surface is a deliberate, scarce signal.
 - Don't repeat the same surface mode in two consecutive bands. Cal.com's pacing alternates white → light-gray → white → product-mockup-card → white → dark-footer.
 - Don't add hover state styling beyond what the system already encodes — primary darkens on press; nothing else changes.
+- Don't add a visible button surface or repeat an icon's meaning in text unless the action needs that extra semantic weight.
 
 ## Responsive Behavior
 

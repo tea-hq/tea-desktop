@@ -8,7 +8,8 @@ test('reuses the full Agent surface with model, permission, Role, and approval',
   await openFixture('full-agent')
 
   await expect(page.getByRole('heading', { name: 'Agent drawer architecture' })).toBeVisible()
-  await expect(page.getByRole('combobox')).toHaveCount(3)
+  await expect(page.getByRole('combobox')).toHaveCount(2)
+  await expect(page.getByText('Claude Code', { exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Select model' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Select model' }).click()
   await expect(page.getByRole('menu', { name: 'Select model' })).toBeVisible()
@@ -24,6 +25,13 @@ test('reuses the full Agent surface with model, permission, Role, and approval',
   await expect(page.getByRole('button', { name: 'Use prompt' })).toBeVisible()
   await expect(page.getByText('workspace.edit')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load earlier messages' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Choose another Agent' }).click()
+  const agentMenu = page.getByRole('menu', { name: 'Choose Agent runtime' })
+  await expect(agentMenu).toContainText('Codex')
+  await agentMenu.getByRole('menuitem', { name: 'Codex', exact: true }).click()
+  await expect(page.getByText('Codex', { exact: true })).toBeVisible()
+  await expect(page.getByRole('combobox')).toHaveCount(2)
 })
 
 test('captures the full Agent workspace', async ({ openFixture, page }, testInfo) => {

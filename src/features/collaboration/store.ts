@@ -24,6 +24,7 @@ import {
   setApprovalResolving,
 } from '@/features/conversation/timelineReducer'
 import { ConversationCollaborationClient } from '@/infrastructure/collaboration/ConversationCollaborationClient'
+import { readyRuntimeId, resolvePreferredRuntimeId } from '@/features/conversation/runtimeSelection'
 import type {
   ChannelBinding,
   ChannelSource,
@@ -115,20 +116,21 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     )
     if (generation !== lifecycleGeneration || conversationClient.value !== client) return
     runtimes.value = values
-    selectedRuntimeId.value =
-      selectedRuntimeId.value &&
-      runtimes.value.some((runtime) => runtime.id === selectedRuntimeId.value)
-        ? selectedRuntimeId.value
-        : (runtimes.value.find((runtime) => runtime.status === 'ready')?.id ??
-          runtimes.value[0]?.id ??
-          null)
+    if (!conversationId.value) {
+      selectedRuntimeId.value =
+        readyRuntimeId(runtimes.value, selectedRuntimeId.value) ??
+        runtimes.value.find((runtime) => runtime.status === 'ready')?.id ??
+        null
+    }
   }
 
   function selectRuntime(runtimeId: string): void {
-    if (!runtimes.value.some((runtime) => runtime.id === runtimeId)) return
+    if (conversationId.value || loading.value || sending.value || isStreaming.value) return
+    const selected = readyRuntimeId(runtimes.value, runtimeId)
+    if (!selected) return
     clearSelection()
-    selectedRuntimeId.value = runtimeId
-    if (activeBinding.value) drawer.updateDraft(activeBinding.value, { runtimeId })
+    selectedRuntimeId.value = selected
+    if (activeBinding.value) drawer.updateDraft(activeBinding.value, { runtimeId: selected })
     selectedModel.value = 'default'
     error.value = null
     chooserOpen.value = false
@@ -148,6 +150,13 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     clearSelection()
     conversations.value = []
     if (!next) return
+    const state = drawer.ensureState(next)
+    const selectedRuntimeReady = runtimes.value.some(
+      (runtime) => runtime.id === selectedRuntimeId.value && runtime.status === 'ready',
+    )
+    if (!state.draft.runtimeId && selectedRuntimeReady) {
+      drawer.updateDraft(next, { runtimeId: selectedRuntimeId.value })
+    }
     await loadConversations()
   }
 
@@ -177,11 +186,25 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     }
   }
 
-  async function createConversation(runtimeId = selectedRuntimeId.value): Promise<string | null> {
+  async function createConversation(runtimeId?: string): Promise<string | null> {
     const binding = activeBinding.value
-    if (!binding || !runtimeId) return null
-    selectedRuntimeId.value = runtimeId
-    drawer.prepare(binding, runtimeId)
+    const selected = runtimeId
+      ? readyRuntimeId(runtimes.value, runtimeId)
+      : resolveNewConversationRuntime()
+    if (!binding || !selected) {
+      error.value = { kind: 'localized', key: 'errors.noRuntimeSelected' }
+      return null
+    }
+    clearSelection()
+    selectedRuntimeId.value = selected
+    selectedModel.value = 'default'
+    permissionMode.value = 'readOnly'
+    drawer.prepare(binding, selected)
+    drawer.updateDraft(binding, {
+      runtimeId: selected,
+      model: selectedModel.value,
+      permissionMode: permissionMode.value,
+    })
     error.value = null
     return null
   }
@@ -611,6 +634,10 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       runtimes.value.find((runtime) => runtime.status === 'ready')?.id ??
       null
     )
+  }
+
+  function resolveNewConversationRuntime(): string | null {
+    return resolvePreferredRuntimeId(runtimes.value, userDefaultRuntimeId.value)
   }
 
   function setDefaultRuntimeId(runtimeId: string): void {

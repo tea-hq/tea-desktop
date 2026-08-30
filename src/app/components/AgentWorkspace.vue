@@ -20,6 +20,7 @@ const {
   sendFromFullSurface,
   applyActiveRolePrompt,
   handleNew,
+  handleNewWithRuntime,
   handleSelect,
   openDraftEditor,
   selectRole,
@@ -39,12 +40,14 @@ const { t } = useI18n()
     :conversations="conversation.conversations"
     :active-id="collaborationWorkspace ? collaboration.conversationId : conversation.conversationId"
     :runtimes="conversation.runtimes"
+    :default-runtime-id="settings.defaultRuntimeId"
     :loading="conversation.listLoading"
     :loading-more="conversation.listLoadingMore"
     :error="conversation.listError"
     :has-more="conversation.hasMore"
     :filter="conversation.catalogFilter"
     @new="handleNew"
+    @new-with-runtime="handleNewWithRuntime"
     @select="handleSelect"
     @load-more="conversation.loadMoreConversations()"
     @retry="conversation.initializeConversationList(true)"

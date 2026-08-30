@@ -1,44 +1,45 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TeaButton, TeaEmptyState, TeaSelect } from '@/shared/ui'
+import { TeaEmptyState, TeaIconButton } from '@/shared/ui'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
-const props = defineProps<{ runtimes: RuntimeDescriptor[]; runtimeId: string | null }>()
-const emit = defineEmits<{ create: []; selectRuntime: [id: string] }>()
+import AgentRuntimeMenu from '@/features/conversation/components/AgentRuntimeMenu.vue'
+
+const props = defineProps<{
+  runtimes: RuntimeDescriptor[]
+  defaultRuntimeId?: string | null
+}>()
+const emit = defineEmits<{ create: []; createWithRuntime: [runtimeId: string] }>()
 const { t } = useI18n()
-const options = computed(() =>
-  props.runtimes.map((value) => ({
-    value: value.id,
-    label: value.displayName,
-    disabled: value.status !== 'ready',
-  })),
-)
-const selectedRuntime = computed(() => props.runtimes.find((value) => value.id === props.runtimeId))
+const selectedRuntime = () =>
+  props.runtimes.find((value) => value.id === props.defaultRuntimeId && value.status === 'ready') ??
+  props.runtimes.find((value) => value.status === 'ready')
+const canCreate = () => selectedRuntime()?.status === 'ready'
 </script>
 <template>
   <TeaEmptyState
     :title="t('channels.collaboration.noConversations')"
     :description="t('channels.collaboration.emptyDescription')"
-    icon="i-mdi-creation-outline"
+    icon="i-mdi-message-plus-outline"
   >
-    <template #actions
-      ><div class="grid min-w-64 gap-2">
-        <TeaSelect
-          :model-value="runtimeId"
-          :options="options"
-          :label="t('channels.collaboration.chooseAgent')"
-          @update:model-value="$event && emit('selectRuntime', String($event))"
-        /><TeaButton
-          appearance="primary"
-          :disabled="!selectedRuntime || selectedRuntime.status !== 'ready'"
-          @click="emit('create')"
-          >{{
-            t('channels.collaboration.useDefaultToCreate', {
-              runtime: selectedRuntime?.displayName ?? t('channels.collaboration.defaultAgent'),
-            })
-          }}</TeaButton
-        >
-      </div></template
-    >
+    <template #actions>
+      <div class="flex w-64 max-w-full flex-col items-center gap-2">
+        <div class="flex items-center gap-1">
+          <TeaIconButton
+            :label="t('channels.collaboration.newSession')"
+            icon="i-mdi-plus"
+            :disabled="!canCreate()"
+            @click="emit('create')"
+          />
+          <AgentRuntimeMenu
+            v-if="runtimes.length > 1"
+            :runtimes="runtimes"
+            :default-runtime-id="defaultRuntimeId"
+            :label="t('channels.collaboration.chooseOtherAgent')"
+            :menu-label="t('channels.collaboration.chooseAgent')"
+            @select="emit('createWithRuntime', $event)"
+          />
+        </div>
+      </div>
+    </template>
   </TeaEmptyState>
 </template>

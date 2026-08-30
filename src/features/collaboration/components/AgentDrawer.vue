@@ -23,6 +23,7 @@ defineProps<{
   turns: ConversationTurn[]
   collaboration: CollaborationSnapshot
   runtimes: RuntimeDescriptor[]
+  defaultRuntimeId?: string | null
   modelOptions: ModelOption[]
   roles?: AgentRoleOption[]
   loading?: boolean
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   close: []
   select: [id: string]
   create: []
+  createWithRuntime: [runtimeId: string]
   viewAll: []
   updateQuery: [value: string]
   selectRuntime: [id: string]
@@ -66,16 +68,16 @@ const { t } = useI18n()
       v-if="state.phase === 'index'"
       :conversations="conversations"
       :runtimes="runtimes"
-      :runtime-id="state.draft.runtimeId"
+      :default-runtime-id="defaultRuntimeId"
       :mode="state.listMode"
       :query="state.query"
       :loading="loading"
       :has-more="hasMore"
       @select="emit('select', $event)"
       @create="emit('create')"
+      @create-with-runtime="emit('createWithRuntime', $event)"
       @view-all="emit('viewAll')"
       @update-query="emit('updateQuery', $event)"
-      @select-runtime="emit('selectRuntime', $event)"
       @load-more="emit('loadMore')"
     />
     <AgentSessionDetail

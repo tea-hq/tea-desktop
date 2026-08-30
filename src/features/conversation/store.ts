@@ -25,6 +25,7 @@ import {
   setApprovalResolving,
 } from './timelineReducer'
 import { runtimeModelOptions } from './modelOptions'
+import { readyRuntimeId, resolvePreferredRuntimeId } from './runtimeSelection'
 
 const DEFAULT_RUNTIME_ID = 'external.claude'
 const PAGE_LIMIT = 30
@@ -124,7 +125,11 @@ export const useConversationStore = defineStore('conversation', () => {
       const values = await configured.listRuntimes()
       if (generation !== lifecycleGeneration || client !== configured) return
       runtimes.value = values
-      if (activeRuntimeId.value === null && runtimes.value.length > 0) {
+      if (
+        conversationId.value === null &&
+        !readyRuntimeId(runtimes.value, activeRuntimeId.value) &&
+        runtimes.value.length > 0
+      ) {
         activeRuntimeId.value = resolveNewConversationRuntime()
       }
     } catch {
@@ -190,8 +195,9 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   function selectRuntime(id: string): void {
-    if (!canSelectRuntime.value || id === activeRuntimeId.value) return
-    activeRuntimeId.value = id
+    const selected = readyRuntimeId(runtimes.value, id)
+    if (!canSelectRuntime.value || !selected || selected === activeRuntimeId.value) return
+    activeRuntimeId.value = selected
     selectedModel.value = 'default'
     cleanupSubscription()
     conversationId.value = null
@@ -211,7 +217,10 @@ export const useConversationStore = defineStore('conversation', () => {
     await initializeConversationList(true)
   }
 
-  function startNewConversation(): void {
+  function startNewConversation(runtimeId?: string): boolean {
+    const nextRuntimeId = runtimeId
+      ? readyRuntimeId(runtimes.value, runtimeId)
+      : resolveNewConversationRuntime()
     selectionToken++
     cleanupSubscription()
     conversationId.value = null
@@ -221,10 +230,12 @@ export const useConversationStore = defineStore('conversation', () => {
     historyPageError.value = null
     historyNextCursor.value = null
     historyHasMore.value = false
-    activeRuntimeId.value = resolveNewConversationRuntime()
+    activeRuntimeId.value = nextRuntimeId
     selectedModel.value = 'default'
     permissionMode.value = 'default'
     creationIdempotencyKey = crypto.randomUUID()
+    if (!nextRuntimeId) error.value = localizedError('errors.noRuntimeSelected')
+    return Boolean(nextRuntimeId)
   }
 
   async function selectConversation(id: string): Promise<void> {
@@ -542,10 +553,7 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   function resolveNewConversationRuntime(): string | null {
-    const preferred = runtimes.value.find(
-      (runtime) => runtime.id === defaultRuntimeId.value && runtime.status === 'ready',
-    )
-    return (preferred ?? runtimes.value.find((runtime) => runtime.status === 'ready'))?.id ?? null
+    return resolvePreferredRuntimeId(runtimes.value, defaultRuntimeId.value)
   }
 
   return {
