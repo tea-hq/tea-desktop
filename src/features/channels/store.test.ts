@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
+import { ChannelTransportError } from './contracts'
 import { useChannelsStore } from './store'
 
 async function connectedStore() {
@@ -75,6 +76,62 @@ describe('useChannelsStore', () => {
     await store.selectChannel('product-collab')
     expect(store.activeMessages.length).toBeGreaterThan(0)
     expect(markRead).toHaveBeenCalledWith('product-collab')
+  })
+
+  it('does not skip a channel selected while another history request is pending', async () => {
+    const { store, transport } = await connectedStore()
+    const originalLoadMessages = transport.loadMessages.bind(transport)
+    const requestedChannels: string[] = []
+    let releaseFirst!: () => void
+    const firstRequest = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    vi.spyOn(transport, 'loadMessages').mockImplementation(async (request) => {
+      requestedChannels.push(request.channelRef)
+      if (request.channelRef === 'product-collab') await firstRequest
+      return originalLoadMessages(request)
+    })
+
+    const firstSelection = store.selectChannel('product-collab')
+    await vi.waitFor(() => expect(requestedChannels).toContain('product-collab'))
+
+    const secondSelection = store.selectChannel('runtime-architecture')
+    await vi.waitFor(() => expect(requestedChannels).toContain('runtime-architecture'))
+    expect(store.activeChannelRef).toBe('runtime-architecture')
+
+    releaseFirst()
+    await Promise.all([firstSelection, secondSelection])
+
+    expect(store.activeChannelRef).toBe('runtime-architecture')
+    expect(store.activeMessages).toEqual([])
+  })
+
+  it('does not surface a stale history failure after switching channels', async () => {
+    const { store, transport } = await connectedStore()
+    const originalLoadMessages = transport.loadMessages.bind(transport)
+    const requestedChannels: string[] = []
+    let rejectFirst!: (reason?: unknown) => void
+    const firstRequest = new Promise<void>((_resolve, reject) => {
+      rejectFirst = reject
+    })
+    vi.spyOn(transport, 'loadMessages').mockImplementation(async (request) => {
+      requestedChannels.push(request.channelRef)
+      if (request.channelRef === 'product-collab') await firstRequest
+      return originalLoadMessages(request)
+    })
+
+    const firstSelection = store.selectChannel('product-collab')
+    await vi.waitFor(() => expect(requestedChannels).toContain('product-collab'))
+    const secondSelection = store.selectChannel('runtime-architecture')
+    await vi.waitFor(() => expect(requestedChannels).toContain('runtime-architecture'))
+
+    rejectFirst(new ChannelTransportError('transport', true))
+    const results = await Promise.allSettled([firstSelection, secondSelection])
+
+    expect(results[0].status).toBe('rejected')
+    expect(results[1].status).toBe('fulfilled')
+    expect(store.activeChannelRef).toBe('runtime-architecture')
+    expect(store.errorCode).toBeNull()
   })
 
   it('merges out-of-order realtime events into the same projection', async () => {

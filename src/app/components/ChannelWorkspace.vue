@@ -5,6 +5,7 @@ import ChannelSelectionPlaceholder from '@/features/channels/components/ChannelS
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
 import AgentDrawer from '@/features/collaboration/components/AgentDrawer.vue'
+import type { ChannelRef } from '@/features/channels/contracts'
 
 const {
   centerAuth,
@@ -30,6 +31,18 @@ const {
   selectCollaborationRole,
   applyCollaborationRolePrompt,
 } = useTeaDesktopAppContext()
+
+function handleChannelSelect(channelRef: ChannelRef): void {
+  void channels.selectChannel(channelRef).catch(() => undefined)
+}
+
+function handleChannelSend(text: string): void {
+  void channels.sendText(text).catch(() => undefined)
+}
+
+function handleLoadMoreChannels(): void {
+  void channels.loadOlderMessages().catch(() => undefined)
+}
 </script>
 
 <template>
@@ -38,7 +51,7 @@ const {
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
     :loading="channels.loadingChannels"
-    @select="channels.selectChannel($event)"
+    @select="handleChannelSelect"
   />
   <ChannelTimeline
     v-if="channels.activeChannel"
@@ -54,8 +67,8 @@ const {
     :runtimes="collaboration.runtimes"
     :default-runtime-id="settings.defaultRuntimeId"
     @forward-to-agent="forwardToAgent"
-    @send="channels.sendText($event)"
-    @load-more="channels.loadOlderMessages()"
+    @send="handleChannelSend"
+    @load-more="handleLoadMoreChannels"
     @toggle-panel="settings.toggleAgentDrawer()"
   />
   <ChannelSelectionPlaceholder

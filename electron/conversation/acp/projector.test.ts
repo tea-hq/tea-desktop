@@ -68,6 +68,22 @@ describe('AcpEventProjector', () => {
     ).toThrowError(expect.objectContaining({ code: 'invalidState' }))
   })
 
+  it('projects V1 thought chunks as a separate visible timeline event', () => {
+    const projector = new AcpEventProjector(1)
+
+    expect(
+      projector.project(
+        v1Update({
+          sessionUpdate: 'agent_thought_chunk',
+          messageId: 'thought-1',
+          content: { type: 'text', text: 'Inspecting the request.' },
+        }),
+      ),
+    ).toEqual({
+      events: [{ type: 'thoughtDelta', messageId: 'thought-1', text: 'Inspecting the request.' }],
+    })
+  })
+
   it('applies V2 message upserts without duplicating already projected text', () => {
     const projector = new AcpEventProjector(2)
 
@@ -99,6 +115,33 @@ describe('AcpEventProjector', () => {
         }),
       ),
     ).toThrowError(expect.objectContaining({ code: 'invalidState' }))
+  })
+
+  it('projects V2 thought chunks and replacement updates', () => {
+    const projector = new AcpEventProjector(2)
+
+    expect(
+      projector.project(
+        v2Update({
+          sessionUpdate: 'agent_thought_chunk',
+          messageId: 'thought-1',
+          content: { type: 'text', text: 'First pass' },
+        }),
+      ),
+    ).toEqual({ events: [{ type: 'thoughtDelta', messageId: 'thought-1', text: 'First pass' }] })
+    expect(
+      projector.project(
+        v2Update({
+          sessionUpdate: 'agent_thought',
+          messageId: 'thought-1',
+          content: [{ type: 'text', text: 'Revised pass' }],
+        }),
+      ),
+    ).toEqual({
+      events: [
+        { type: 'thoughtDelta', messageId: 'thought-1', replace: true, text: 'Revised pass' },
+      ],
+    })
   })
 
   it('uses V1 prompt stops and V2 idle state as terminal outcomes', () => {

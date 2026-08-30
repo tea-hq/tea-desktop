@@ -79,6 +79,12 @@ export type ConversationEventKind =
   | { type: 'runStarted' }
   | { type: 'messageDelta'; text: string }
   | {
+      type: 'thoughtDelta'
+      text: string
+      messageId?: string | null
+      replace?: boolean
+    }
+  | {
       type: 'toolRequested'
       toolCallId: string
       name: string
@@ -168,6 +174,15 @@ export interface AssistantTextBlock {
   streaming: boolean
 }
 
+export interface AgentThoughtBlock {
+  kind: 'agentThought'
+  id: string
+  sequence: number
+  text: string
+  streaming: boolean
+  messageId?: string | null
+}
+
 export type ToolCallStatus =
   'requested' | 'running' | 'approvalRequired' | 'completed' | 'failed' | 'cancelled'
 
@@ -191,7 +206,8 @@ export interface FailureTipBlock {
   failure: ConversationFailure
 }
 
-export type ConversationTurnBlock = AssistantTextBlock | ToolCallBlock | FailureTipBlock
+export type ConversationTurnBlock =
+  AssistantTextBlock | AgentThoughtBlock | ToolCallBlock | FailureTipBlock
 
 export interface ConversationTurn {
   id: string

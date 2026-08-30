@@ -806,6 +806,17 @@ describe('AcpConversationRuntime', () => {
       notification: {
         sessionId: 'session-restored',
         update: {
+          sessionUpdate: 'agent_thought_chunk',
+          messageId: 'thought-1',
+          content: { type: 'text', text: 'Inspecting the recorded turn.' },
+        },
+      },
+    })
+    await harness.handlers().sessionUpdate({
+      wireVersion: 1,
+      notification: {
+        sessionId: 'session-restored',
+        update: {
           sessionUpdate: 'agent_message_chunk',
           content: { type: 'text', text: 'Recovered answer' },
         },
@@ -832,7 +843,15 @@ describe('AcpConversationRuntime', () => {
         {
           user: { id: 'user-1', text: 'Recovered prompt' },
           status: 'completed',
-          blocks: [{ kind: 'assistantText', text: 'Recovered answer', streaming: false }],
+          blocks: [
+            {
+              kind: 'agentThought',
+              text: 'Inspecting the recorded turn.',
+              streaming: false,
+              messageId: 'thought-1',
+            },
+            { kind: 'assistantText', text: 'Recovered answer', streaming: false },
+          ],
         },
       ],
     })

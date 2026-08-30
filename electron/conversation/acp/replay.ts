@@ -89,7 +89,7 @@ export class AcpV1ReplayCollector {
     if (update.sessionUpdate === 'agent_message_chunk') {
       requireTextContent(update.content, 'agent message')
     } else if (update.sessionUpdate === 'agent_thought_chunk') {
-      throw invalidReplay('ACP replay contains unsupported Agent thought content')
+      requireTextContent(update.content, 'agent thought')
     }
 
     const projected = this.projector.project(input)
@@ -101,7 +101,7 @@ export class AcpV1ReplayCollector {
       throw invalidReplay('ACP replay output arrived before a user prompt')
     this.phase = 'output'
     for (const event of projected.events) {
-      if (event.type === 'messageDelta') this.addText(event.text)
+      if (event.type === 'messageDelta' || event.type === 'thoughtDelta') this.addText(event.text)
       this.reduceCurrent(event)
     }
   }

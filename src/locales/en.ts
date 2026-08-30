@@ -459,6 +459,7 @@ export default {
   messages: {
     empty: 'Send a message to start.',
     runNotice: 'Run notice',
+    thought: 'Agent thought',
     status: {
       sending: 'Starting',
       running: 'Working',
@@ -564,6 +565,7 @@ export default {
     runtimeListFailed: 'Available agents could not be loaded.',
     noRuntimeSelected: 'Select an agent before starting a conversation.',
     noActiveConversation: 'There is no active conversation.',
+    conversationUnavailable: 'This conversation is no longer available in the current channel.',
     message: 'Error: {message}',
     runFailed: 'Run failed: {code}',
     details: 'Technical details',

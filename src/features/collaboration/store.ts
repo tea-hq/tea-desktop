@@ -64,6 +64,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   let cleanupTurnHistory: (() => void) | null = null
   let selectionToken = 0
   let lifecycleGeneration = 0
+  let conversationLoad: { binding: ChannelBinding; promise: Promise<void> } | null = null
 
   const activeConversation = computed(
     () =>
@@ -90,6 +91,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     if (conversationClient.value === client && channelTransport.value === transport) return
     lifecycleGeneration += 1
     const generation = lifecycleGeneration
+    conversationLoad = null
     disposeSubscriptions()
     unsubscribeUpdates?.()
     conversationClient.value = client
@@ -143,7 +145,12 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       channelRef && status.phase === 'connected' && status.accountRef
         ? { transportId: transport.descriptor().id, accountRef: status.accountRef, channelRef }
         : null
-    if (sameBinding(next, activeBinding.value)) return
+    if (sameBinding(next, activeBinding.value)) {
+      if (next && conversationLoad && sameBinding(next, conversationLoad.binding)) {
+        await conversationLoad.promise
+      }
+      return
+    }
     activeBinding.value = next
     drawer.activateBinding(next)
     chooserOpen.value = false
@@ -157,7 +164,13 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     if (!state.draft.runtimeId && selectedRuntimeReady) {
       drawer.updateDraft(next, { runtimeId: selectedRuntimeId.value })
     }
-    await loadConversations()
+    const promise = loadConversations()
+    conversationLoad = { binding: { ...next }, promise }
+    try {
+      await promise
+    } finally {
+      if (conversationLoad?.promise === promise) conversationLoad = null
+    }
   }
 
   async function loadConversations(): Promise<void> {
@@ -226,8 +239,14 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   async function selectConversation(id: string): Promise<boolean> {
     if (id === conversationId.value) return true
     const summary = conversations.value.find((value) => value.conversationId === id)
-    if (!summary?.channelBinding || !sameBinding(summary.channelBinding, activeBinding.value))
+    if (
+      !summary ||
+      !summary.channelBinding ||
+      !sameBinding(summary.channelBinding, activeBinding.value)
+    ) {
+      error.value = { kind: 'localized', key: 'errors.conversationUnavailable' }
       return false
+    }
     const client = requireClient()
     const generation = lifecycleGeneration
     const token = ++selectionToken
@@ -662,6 +681,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     runtimes.value = []
     conversations.value = []
     activeBinding.value = null
+    conversationLoad = null
     drawer.dispose()
     chooserOpen.value = false
     loading.value = false

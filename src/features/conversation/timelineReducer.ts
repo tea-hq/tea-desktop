@@ -62,6 +62,51 @@ export function reduceConversationTurn(
     }
   }
 
+  if (event.type === 'thoughtDelta') {
+    const last = next.blocks.at(-1)
+    const sameThought =
+      last?.kind === 'agentThought' &&
+      last.streaming &&
+      (last.messageId ?? null) === (event.messageId ?? null)
+    if (sameThought && !event.replace) {
+      return {
+        ...next,
+        status: 'running',
+        blocks: replaceBlock(next.blocks, last.id, { ...last, text: last.text + event.text }),
+      }
+    }
+    if (event.replace && last?.kind === 'agentThought' && last.messageId === event.messageId) {
+      if (!event.text) {
+        return {
+          ...next,
+          status: 'running',
+          blocks: next.blocks.filter((block) => block.id !== last.id),
+        }
+      }
+      return {
+        ...next,
+        status: 'running',
+        blocks: replaceBlock(next.blocks, last.id, { ...last, text: event.text, streaming: true }),
+      }
+    }
+    if (!event.text) return next
+    return {
+      ...next,
+      status: 'running',
+      blocks: [
+        ...closeStreamingText(next.blocks),
+        {
+          kind: 'agentThought',
+          id: `${turn.id}-thought-${incoming.sequence}`,
+          sequence: incoming.sequence,
+          text: event.text,
+          streaming: true,
+          messageId: event.messageId,
+        },
+      ],
+    }
+  }
+
   if (event.type === 'toolRequested') {
     const existing = findTool(next.blocks, event.toolCallId)
     if (existing) {
@@ -305,7 +350,9 @@ function replaceBlock(
 
 function closeStreamingText(blocks: ConversationTurnBlock[]): ConversationTurnBlock[] {
   return blocks.map((block) =>
-    block.kind === 'assistantText' && block.streaming ? { ...block, streaming: false } : block,
+    (block.kind === 'assistantText' || block.kind === 'agentThought') && block.streaming
+      ? { ...block, streaming: false }
+      : block,
   )
 }
 

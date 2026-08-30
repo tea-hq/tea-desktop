@@ -34,7 +34,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const synchronizingChannels = ref(false)
   const channelCatalogReady = ref(true)
   const initialConversationSyncFinished = ref(false)
-  const loadingMessages = ref(false)
+  const loadingMessageChannels = reactive(new Set<ChannelRef>())
   const sendingMessage = ref(false)
   const errorCode = ref<string | null>(null)
   let unsubscribe: (() => void) | null = null
@@ -57,6 +57,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const loadingChannels = computed(
     () => refreshingChannels.value || synchronizingChannels.value || !channelCatalogReady.value,
   )
+  const loadingMessages = computed(() => loadingMessageChannels.size > 0)
 
   function configure(value: ChannelTransport): void {
     if (transport.value === value) return
@@ -69,6 +70,7 @@ export const useChannelsStore = defineStore('channels', () => {
     refreshPromise = null
     refreshingChannels.value = false
     synchronizingChannels.value = false
+    loadingMessageChannels.clear()
     channelCatalogReady.value = false
     initialConversationSyncFinished.value = false
     unsubscribe = value.subscribe((event) => {
@@ -163,6 +165,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (!projection.channels.has(channelRef)) return
     const client = requireTransport()
     const generation = lifecycleGeneration
+    errorCode.value = null
     activeChannelRef.value = channelRef
     if (!projection.messagesByChannel.has(channelRef)) await loadMessages(channelRef, false)
     if (
@@ -222,7 +225,7 @@ export const useChannelsStore = defineStore('channels', () => {
     synchronizingChannels.value = false
     channelCatalogReady.value = true
     initialConversationSyncFinished.value = false
-    loadingMessages.value = false
+    loadingMessageChannels.clear()
     sendingMessage.value = false
     errorCode.value = null
     status.value = { phase: 'disconnected', retryable: false }
@@ -230,11 +233,11 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   async function loadMessages(channelRef: ChannelRef, older: boolean): Promise<void> {
-    if (loadingMessages.value) return
+    if (loadingMessageChannels.has(channelRef)) return
     const cursor = messageCursors.get(channelRef)
     const client = requireTransport()
     const generation = lifecycleGeneration
-    loadingMessages.value = true
+    loadingMessageChannels.add(channelRef)
     try {
       const page = await client.loadMessages({
         channelRef,
@@ -242,14 +245,20 @@ export const useChannelsStore = defineStore('channels', () => {
         limit: INITIAL_MESSAGE_LIMIT,
         anchorMessage: older ? cursor?.anchor : undefined,
       })
-      if (generation !== lifecycleGeneration || transport.value !== client) return
+      if (
+        generation !== lifecycleGeneration ||
+        transport.value !== client ||
+        !projection.channels.has(channelRef)
+      )
+        return
       mergeMessagePage(projection, page)
       messageCursors.set(channelRef, { hasMore: page.hasMore, anchor: page.nextAnchor })
     } catch (error) {
-      if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
+      if (generation === lifecycleGeneration && activeChannelRef.value === channelRef)
+        errorCode.value = transportErrorCode(error)
       throw error
     } finally {
-      if (generation === lifecycleGeneration) loadingMessages.value = false
+      loadingMessageChannels.delete(channelRef)
     }
   }
 

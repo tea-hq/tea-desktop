@@ -59,6 +59,25 @@ describe('conversation timeline reducer', () => {
     expect(turn.blocks[4]).toMatchObject({ text: 'Done.', streaming: true })
   })
 
+  it('keeps thought text separate from the assistant response', () => {
+    let turn = createConversationTurn('turn-1', 'prompt-1', 'Review the change', [])
+    turn = reduceConversationTurn(
+      turn,
+      event(1, { type: 'thoughtDelta', messageId: 'thought-1', text: 'Inspecting ' }),
+    )
+    turn = reduceConversationTurn(
+      turn,
+      event(2, { type: 'thoughtDelta', messageId: 'thought-1', text: 'the files.' }),
+    )
+    turn = reduceConversationTurn(turn, event(3, { type: 'messageDelta', text: 'Done.' }))
+    turn = reduceConversationTurn(turn, event(4, { type: 'runFinished' }))
+
+    expect(turn.blocks).toMatchObject([
+      { kind: 'agentThought', text: 'Inspecting the files.', streaming: false },
+      { kind: 'assistantText', text: 'Done.', streaming: false },
+    ])
+  })
+
   it('attaches approval state to its tool and removes only the controls after success', () => {
     let turn = createConversationTurn('turn-1', 'prompt-1', 'Write a file', [])
     turn = reduceConversationTurn(

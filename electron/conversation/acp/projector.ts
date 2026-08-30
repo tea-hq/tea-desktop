@@ -34,6 +34,7 @@ interface ToolPatch {
 export class AcpEventProjector {
   private readonly tools = new Map<string, ToolProjection>()
   private readonly v2AgentMessages = new Map<string, string>()
+  private readonly v2AgentThoughts = new Map<string, string>()
 
   constructor(private readonly wireVersion: 1 | 2) {}
 
@@ -59,6 +60,8 @@ export class AcpEventProjector {
     switch (update.sessionUpdate) {
       case 'agent_message_chunk':
         return { events: textDelta(update.content) }
+      case 'agent_thought_chunk':
+        return { events: thoughtDelta(update.content, update.messageId) }
       case 'tool_call':
       case 'tool_call_update':
         return { events: this.projectTool(update, 1) }
@@ -77,6 +80,14 @@ export class AcpEventProjector {
       case 'agent_message':
         return {
           events: this.projectV2AgentMessage(update as acpV2.AgentMessage),
+        }
+      case 'agent_thought_chunk':
+        return {
+          events: this.projectV2AgentThoughtChunk(update as acpV2.ContentChunk),
+        }
+      case 'agent_thought':
+        return {
+          events: this.projectV2AgentThought(update as acpV2.AgentThought),
         }
       case 'tool_call_update':
         return {
@@ -116,6 +127,27 @@ export class AcpEventProjector {
     this.v2AgentMessages.set(update.messageId, next)
     const delta = next.slice(previous.length)
     return delta ? [{ type: 'messageDelta', text: delta }] : []
+  }
+
+  private projectV2AgentThoughtChunk(update: acpV2.ContentChunk): ConversationEventKind[] {
+    const delta = contentText(update.content)
+    if (!delta) return []
+    const previous = this.v2AgentThoughts.get(update.messageId) ?? ''
+    this.v2AgentThoughts.set(update.messageId, previous + delta)
+    return [{ type: 'thoughtDelta', text: delta, messageId: update.messageId }]
+  }
+
+  private projectV2AgentThought(update: acpV2.AgentThought): ConversationEventKind[] {
+    if (update.content === undefined) return []
+    const previous = this.v2AgentThoughts.get(update.messageId) ?? ''
+    const next = update.content ? update.content.map(contentText).join('') : ''
+    if (next === previous) return []
+    this.v2AgentThoughts.set(update.messageId, next)
+    if (next.startsWith(previous)) {
+      const delta = next.slice(previous.length)
+      return delta ? [{ type: 'thoughtDelta', text: delta, messageId: update.messageId }] : []
+    }
+    return [{ type: 'thoughtDelta', text: next, messageId: update.messageId, replace: true }]
   }
 
   private projectTool(update: ToolPatch, wireVersion: 1 | 2): ConversationEventKind[] {
@@ -174,6 +206,14 @@ export class AcpEventProjector {
 function textDelta(content: acpV1.ContentBlock): ConversationEventKind[] {
   const text = contentText(content)
   return text ? [{ type: 'messageDelta', text }] : []
+}
+
+function thoughtDelta(
+  content: acpV1.ContentBlock,
+  messageId?: string | null,
+): ConversationEventKind[] {
+  const text = contentText(content)
+  return text ? [{ type: 'thoughtDelta', text, messageId }] : []
 }
 
 function contentText(content: unknown): string {

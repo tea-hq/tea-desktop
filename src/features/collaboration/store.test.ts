@@ -33,6 +33,29 @@ class RecordingConversationClient extends FakeConversationClient {
   }
 }
 
+class DeferredListConversationClient extends RecordingConversationClient {
+  private readonly listGate: Promise<void>
+  private releaseListGate!: () => void
+
+  constructor() {
+    super()
+    this.listGate = new Promise((resolve) => {
+      this.releaseListGate = resolve
+    })
+  }
+
+  override async listConversations(
+    ...args: Parameters<FakeConversationClient['listConversations']>
+  ) {
+    await this.listGate
+    return super.listConversations(...args)
+  }
+
+  releaseList(): void {
+    this.releaseListGate()
+  }
+}
+
 class NoSendTransport extends MockChannelTransport {
   override capabilities(): ChannelCapability[] {
     return super
@@ -155,6 +178,50 @@ describe('useCollaborationStore', () => {
 
     expect(store.selectedRuntimeId).toBe('external.codex')
     expect(useAgentDrawerStore().activeState?.draft.runtimeId).toBe('external.codex')
+  })
+
+  it('waits for a shared channel list before selecting a collaboration session', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const client = new DeferredListConversationClient()
+    client.setRuntimes([runtime])
+    const binding = {
+      transportId: transport.descriptor().id,
+      accountRef: transport.status().accountRef!,
+      channelRef: 'product-collab',
+    }
+    const created = await client.createConversation(runtime.id, {
+      idempotencyKey: 'history-selection',
+      channelBinding: binding,
+      hostTools: [],
+    })
+    const store = useCollaborationStore()
+    store.configure(client, transport)
+    await store.loadRuntimes()
+
+    const firstBind = store.bindChannel(binding.channelRef)
+    const secondBind = store.bindChannel(binding.channelRef)
+    const selection = (async () => {
+      await secondBind
+      return store.selectConversation(created.handle.conversationId)
+    })()
+
+    client.releaseList()
+
+    await firstBind
+    expect(await selection).toBe(true)
+    expect(store.conversationId).toBe(created.handle.conversationId)
+  })
+
+  it('reports when a collaboration session does not belong to the active channel', async () => {
+    const { store, client } = await setup()
+    const local = await client.createConversation(runtime.id, {
+      idempotencyKey: 'local-history',
+      hostTools: [],
+    })
+
+    expect(await store.selectConversation(local.handle.conversationId)).toBe(false)
+    expect(store.error).toEqual({ kind: 'localized', key: 'errors.conversationUnavailable' })
   })
 
   it('rejects an unavailable Agent without falling back', async () => {

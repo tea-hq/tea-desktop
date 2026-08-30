@@ -60,7 +60,11 @@ export function useWorkspaceActions(
         status.accountRef === summary.channelBinding.accountRef &&
         environment.transport.descriptor().id === summary.channelBinding.transportId
       ) {
-        await channels.selectChannel(summary.channelBinding.channelRef)
+        try {
+          await channels.selectChannel(summary.channelBinding.channelRef)
+        } catch {
+          // Agent history can still open when the Channel message request fails.
+        }
         await collaboration.bindChannel(summary.channelBinding.channelRef)
         await collaboration.selectConversation(id)
         ui.collaborationWorkspace.value = true

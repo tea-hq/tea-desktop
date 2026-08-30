@@ -13,6 +13,7 @@ const props = defineProps<{
   mode: 'recent' | 'all'
   query: string
   loading?: boolean
+  error?: string | null
   hasMore?: boolean
 }>()
 const emit = defineEmits<{
@@ -82,6 +83,14 @@ const visible = computed(() => {
         :placeholder="t('channels.collaboration.searchSessions')"
         @update:model-value="emit('updateQuery', $event)"
       />
+    </div>
+    <div
+      v-if="error"
+      class="flex shrink-0 items-start gap-2 px-4 py-2 text-sm leading-5 text-danger"
+      role="alert"
+    >
+      <span class="i-mdi-alert-circle-outline mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span>{{ error }}</span>
     </div>
     <div
       v-if="loading && conversations.length === 0"

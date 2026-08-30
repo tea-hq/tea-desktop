@@ -443,6 +443,7 @@ export default {
   messages: {
     empty: '发送一条消息开始对话。',
     runNotice: '运行提示',
+    thought: 'Agent 思考',
     status: {
       sending: '正在启动',
       running: '正在处理',
@@ -548,6 +549,7 @@ export default {
     runtimeListFailed: '无法加载可用 Agent。',
     noRuntimeSelected: '请先选择一个 Agent。',
     noActiveConversation: '当前没有活动会话。',
+    conversationUnavailable: '该会话已不属于当前频道，暂时无法打开。',
     message: '错误：{message}',
     runFailed: '运行失败：{code}',
     details: '技术详情',

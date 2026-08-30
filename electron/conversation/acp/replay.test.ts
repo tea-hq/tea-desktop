@@ -66,6 +66,33 @@ describe('AcpV1ReplayCollector', () => {
     expect(replay.turns[0].blocks.filter((block) => block.kind === 'toolCall')).toHaveLength(1)
   })
 
+  it('restores thought chunks as visible blocks instead of rejecting the replay', () => {
+    const collector = new AcpV1ReplayCollector('conversation-1', 'session-1')
+    collector.accept(update(user('Explain the change')))
+    collector.accept(update(thought('I will inspect the affected files.', 'thought-1')))
+    collector.accept(update(thought(' Then summarize the behavior.', 'thought-1')))
+    collector.accept(update(agent('The change is localized to the replay projector.')))
+
+    const replay = collector.finish()
+
+    expect(replay.turns[0]).toMatchObject({
+      status: 'completed',
+      blocks: [
+        {
+          kind: 'agentThought',
+          text: 'I will inspect the affected files. Then summarize the behavior.',
+          streaming: false,
+          messageId: 'thought-1',
+        },
+        {
+          kind: 'assistantText',
+          text: 'The change is localized to the replay projector.',
+          streaming: false,
+        },
+      ],
+    })
+  })
+
   it.each([
     [
       'wrong session',
@@ -175,4 +202,12 @@ function user(text: string, messageId?: string): acpV1.SessionUpdate {
 
 function agent(text: string): acpV1.SessionUpdate {
   return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } }
+}
+
+function thought(text: string, messageId?: string): acpV1.SessionUpdate {
+  return {
+    sessionUpdate: 'agent_thought_chunk',
+    content: { type: 'text', text },
+    ...(messageId ? { messageId } : {}),
+  }
 }

@@ -6,6 +6,7 @@ import type { ApprovalDecision, ConversationTurn } from '../contracts'
 import type { ChannelSource } from '@/types/channelCollaboration'
 import ChannelSourceCard from '@/features/collaboration/components/ChannelSourceCard.vue'
 import MarkdownContent from '../../../shared/ui/MarkdownContent.vue'
+import AgentThoughtBlock from './AgentThoughtBlock.vue'
 import ConversationFailureTip from './ConversationFailureTip.vue'
 import ToolCallBlock from './ToolCallBlock.vue'
 
@@ -111,6 +112,8 @@ function showWaitingIndicator(): boolean {
             {{ t('channels.collaboration.createDraft') }}
           </TeaButton>
         </div>
+
+        <AgentThoughtBlock v-else-if="block.kind === 'agentThought'" :thought="block" />
 
         <ToolCallBlock
           v-else-if="block.kind === 'toolCall'"

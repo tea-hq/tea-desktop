@@ -72,6 +72,7 @@ const { t } = useI18n()
       :mode="state.listMode"
       :query="state.query"
       :loading="loading"
+      :error="error"
       :has-more="hasMore"
       @select="emit('select', $event)"
       @create="emit('create')"
