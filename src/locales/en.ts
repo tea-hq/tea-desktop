@@ -460,6 +460,8 @@ export default {
     empty: 'Send a message to start.',
     runNotice: 'Run notice',
     thought: 'Agent thought',
+    showThought: 'Show thought details',
+    hideThought: 'Hide thought details',
     status: {
       sending: 'Starting',
       running: 'Working',

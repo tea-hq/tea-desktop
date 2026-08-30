@@ -444,6 +444,8 @@ export default {
     empty: '发送一条消息开始对话。',
     runNotice: '运行提示',
     thought: 'Agent 思考',
+    showThought: '展开思考详情',
+    hideThought: '收起思考详情',
     status: {
       sending: '正在启动',
       running: '正在处理',
