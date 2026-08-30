@@ -12,6 +12,7 @@ import type {
   RuntimeDescriptor,
 } from '../contracts'
 import { shouldSendFromComposer } from '../composerKeyboard'
+import AgentModelMenu from './AgentModelMenu.vue'
 
 const props = defineProps<{
   profile: ComposerProfile
@@ -50,6 +51,7 @@ const models = computed(() =>
   props.modelOptions.map((value) => ({
     value: value.value,
     label: value.label ?? (value.labelKey ? t(value.labelKey) : value.value),
+    disabled: value.unavailable,
   })),
 )
 const permissions = computed(() =>
@@ -167,12 +169,11 @@ defineExpose({ focus })
             />
           </div>
           <div class="composer-toolbar-actions">
-            <TeaMenuSelect
+            <AgentModelMenu
               class="composer-menu-select composer-menu-select--model"
               :model-value="model"
               :options="models"
               :label="t('composer.selectModel')"
-              size="small"
               :disabled="disabled || streaming"
               @update:model-value="$event && emit('selectModel', String($event))"
             />
@@ -308,7 +309,7 @@ defineExpose({ focus })
   max-width: 10rem;
 }
 .composer-menu-select--model {
-  max-width: 11rem;
+  max-width: 13rem;
 }
 .composer-menu-select--permission {
   max-width: 9rem;

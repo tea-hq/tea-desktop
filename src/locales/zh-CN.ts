@@ -486,6 +486,20 @@ export default {
     agentLocked: '当前会话的 Agent 已锁定',
     selectPermission: '选择权限模式',
     selectModel: '选择模型',
+    modelMenu: {
+      navigation: '模型设置',
+      model: '模型',
+      effort: '思考深度',
+      advanced: '高级设置',
+      effortOptions: {
+        light: '轻量',
+        medium: '中等',
+        high: '高',
+        extraHigh: '超高',
+        ultra: '极高',
+      },
+      ultraHint: '会更快消耗使用额度',
+    },
     send: '发送消息',
     stop: '停止生成',
     rolePicker: {

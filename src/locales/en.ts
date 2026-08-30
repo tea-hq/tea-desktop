@@ -502,6 +502,20 @@ export default {
     agentLocked: 'The Agent is fixed for this conversation',
     selectPermission: 'Select permission mode',
     selectModel: 'Select model',
+    modelMenu: {
+      navigation: 'Model settings',
+      model: 'Model',
+      effort: 'Effort',
+      advanced: 'Advanced',
+      effortOptions: {
+        light: 'Light',
+        medium: 'Medium',
+        high: 'High',
+        extraHigh: 'Extra High',
+        ultra: 'Ultra',
+      },
+      ultraHint: 'Consumes usage limits faster',
+    },
     send: 'Send message',
     stop: 'Stop response',
     rolePicker: {

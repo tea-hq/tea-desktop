@@ -140,6 +140,8 @@ export interface ConversationUserPrompt {
 
 export type PermissionMode = 'default' | 'readOnly' | 'fullAccess'
 
+export type ThinkingEffort = 'light' | 'medium' | 'high' | 'extraHigh' | 'ultra'
+
 export type ApprovalDecision = 'allowOnce' | 'allowSession' | 'deny' | 'cancel'
 
 export type ApprovalRequestStatus = 'pending' | 'resolving' | 'failed'

@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 
 import { drawerAgentProfile, fullAgentProfile } from '@/app/composerProfiles'
-import type { ConversationTurn, RuntimeDescriptor } from '../contracts'
+import type { ConversationTurn, ModelOption, RuntimeDescriptor } from '../contracts'
 import AgentConversationSurface from './AgentConversationSurface.vue'
 
 const runtime: RuntimeDescriptor = {
@@ -12,7 +12,15 @@ const runtime: RuntimeDescriptor = {
   capabilities: ['prompt', 'history', 'approval', 'cancel'],
   status: 'ready',
 }
+const modelOptions: ModelOption[] = [
+  { value: 'gpt-5.6-sol', label: '5.6 Sol', source: 'runtime' },
+  { value: 'gpt-5.6-terra', label: '5.6 Terra', source: 'runtime' },
+  { value: 'gpt-5.6-luna', label: '5.6 Luna', source: 'runtime' },
+  { value: 'gpt-5.5', label: '5.5', source: 'runtime' },
+  { value: 'gpt-5.2', label: '5.2', source: 'runtime' },
+]
 const text = ref('')
+const selectedModel = ref(modelOptions[0]!.value)
 const attachments = ref([
   { id: 'brief', name: 'product-requirements-with-a-long-name.md', size: 4096 },
 ])
@@ -74,9 +82,10 @@ const approvalTurn: ConversationTurn = {
           :turns="[]"
           :runtimes="[runtime]"
           :runtime-id="runtime.id"
-          :model-options="[{ value: 'default', label: 'Default model' }]"
-          model="default"
+          :model-options="modelOptions"
+          :model="selectedModel"
           permission-mode="default"
+          @select-model="selectedModel = $event"
         />
       </div>
     </Variant>
@@ -91,9 +100,10 @@ const approvalTurn: ConversationTurn = {
           :turns="[activeTurn]"
           :runtimes="[runtime]"
           :runtime-id="runtime.id"
-          :model-options="[{ value: 'default', label: 'Default model' }]"
-          model="default"
+          :model-options="modelOptions"
+          :model="selectedModel"
           permission-mode="readOnly"
+          @select-model="selectedModel = $event"
         />
       </div>
     </Variant>
@@ -110,10 +120,11 @@ const approvalTurn: ConversationTurn = {
           :turns="[activeTurn, approvalTurn]"
           :runtimes="[runtime]"
           :runtime-id="runtime.id"
-          :model-options="[{ value: 'default', label: 'Default model' }]"
-          model="default"
+          :model-options="modelOptions"
+          :model="selectedModel"
           permission-mode="default"
           streaming
+          @select-model="selectedModel = $event"
         />
       </div>
     </Variant>

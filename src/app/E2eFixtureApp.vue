@@ -16,6 +16,8 @@ import type {
   ComposerAttachment,
   ConversationSummary,
   ConversationTurn,
+  ModelOption,
+  PermissionMode,
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
 import type { Delivery, Draft } from '@/types/channelCollaboration'
@@ -33,6 +35,13 @@ const runtime: RuntimeDescriptor = {
   capabilities: ['prompt', 'history', 'approval', 'cancel'],
   status: 'ready',
 }
+const fixtureModelOptions: ModelOption[] = [
+  { value: 'gpt-5.6-sol', label: '5.6 Sol', source: 'runtime' },
+  { value: 'gpt-5.6-terra', label: '5.6 Terra', source: 'runtime' },
+  { value: 'gpt-5.6-luna', label: '5.6 Luna', source: 'runtime' },
+  { value: 'gpt-5.5', label: '5.5', source: 'runtime' },
+  { value: 'gpt-5.2', label: '5.2', source: 'runtime' },
+]
 const binding = { transportId: 'fixture.im', accountRef: 'e2e-account', channelRef: 'product' }
 const channel: Channel = {
   ref: binding.channelRef,
@@ -145,7 +154,7 @@ const drawerState = reactive<AgentDrawerChannelState>({
   selectedConversationId: initialPhase === 'active' ? conversations.value[0]!.conversationId : null,
   draft: {
     runtimeId: runtime.id,
-    model: 'default',
+    model: fixtureModelOptions[0]!.value,
     permissionMode: 'default',
     roleId: null,
     text: initialPhase === 'preparing' ? 'Create a concise implementation plan' : '',
@@ -165,6 +174,8 @@ const turns = ref<ConversationTurn[]>(
 )
 const fullText = ref('')
 const fullAttachments = ref<ComposerAttachment[]>([])
+const fullModel = ref(fixtureModelOptions[0]!.value)
+const fullPermissionMode = ref<PermissionMode>('default')
 const fullRoleId = ref<string | null>(null)
 const roleOptions = [
   {
@@ -335,7 +346,7 @@ function deliverDraft(): void {
         :turns="turns"
         :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
         :runtimes="[runtime]"
-        :model-options="[{ value: 'default', label: 'Default model' }]"
+        :model-options="fixtureModelOptions"
         :roles="fixtureRoles"
         @close="drawerOpen = false"
         @create="createSession"
@@ -379,12 +390,14 @@ function deliverDraft(): void {
           has-older
           :runtimes="[runtime]"
           :runtime-id="runtime.id"
-          :model-options="[{ value: 'default', label: 'Default model' }]"
-          model="default"
-          permission-mode="default"
+          :model-options="fixtureModelOptions"
+          :model="fullModel"
+          :permission-mode="fullPermissionMode"
           :roles="fixtureRoles"
           :role-id="fullRoleId"
           @send="send"
+          @select-model="fullModel = $event"
+          @select-permission="fullPermissionMode = $event"
           @create-draft="draftDialogOpen = true"
           @select-role="fullRoleId = $event"
           @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
