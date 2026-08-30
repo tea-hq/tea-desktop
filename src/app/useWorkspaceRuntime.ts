@@ -43,6 +43,12 @@ export function useWorkspaceRuntime(
   } = stores
   const channelEnvironment = shallowRef<ChannelEnvironment | null>(null)
   let channelConnectPending = false
+  let lastManagedRecoveryKey: string | null = null
+  let managedRecoveryInFlight: {
+    workspaceKey: string
+    promise: Promise<void>
+  } | null = null
+  let workspaceEntry: { workspaceKey: string; promise: Promise<void> } | null = null
 
   onMounted(async () => {
     centerAuth.configure(new ElectronCenterAuthClient())
@@ -56,6 +62,8 @@ export function useWorkspaceRuntime(
     () => centerAuth.state,
     (value) => {
       if (!centerAuth.canEnterWorkspace || !value.bootstrap) {
+        lastManagedRecoveryKey = null
+        workspaceEntry = null
         profile.setCenterProfile(null)
         managedConfig.clear()
         void workspaceLifecycle.exit().catch(() => undefined)
@@ -66,9 +74,28 @@ export function useWorkspaceRuntime(
       managedConfig.apply(value.bootstrap)
       const workspaceKey = `${value.bootstrap.tenant.id}:${value.bootstrap.user.id}`
       const workspaceProfile = copyCenterSelfProfile(value.bootstrap.user)
-      void workspaceLifecycle
-        .enter(workspaceKey, () => createWorkspaceSession(workspaceProfile))
-        .catch(() => undefined)
+      const recoveryKey = `${workspaceKey}:${value.phase}`
+      const shouldRecover = lastManagedRecoveryKey !== recoveryKey
+      if (shouldRecover) lastManagedRecoveryKey = recoveryKey
+      void enterWorkspace(workspaceKey, workspaceProfile)
+        .then(async () => {
+          if (!shouldRecover || !isCurrentWorkspace(workspaceKey)) return
+          if (managedRecoveryInFlight?.workspaceKey === workspaceKey) {
+            await managedRecoveryInFlight.promise
+            return
+          }
+          const recovery = recoverManagedWorkspace(centerAuth, managedRuntime, async () => {
+            if (isCurrentWorkspace(workspaceKey)) await connectChannel()
+          }).finally(() => {
+            if (managedRecoveryInFlight?.workspaceKey === workspaceKey)
+              managedRecoveryInFlight = null
+          })
+          managedRecoveryInFlight = { workspaceKey, promise: recovery }
+          await recovery
+        })
+        .catch(() => {
+          if (shouldRecover && lastManagedRecoveryKey === recoveryKey) lastManagedRecoveryKey = null
+        })
     },
     { deep: true, immediate: true },
   )
@@ -191,6 +218,31 @@ export function useWorkspaceRuntime(
 
   async function refreshManagedWorkspace(): Promise<void> {
     await recoverManagedWorkspace(centerAuth, managedRuntime, connectChannel)
+  }
+
+  function isCurrentWorkspace(workspaceKey: string): boolean {
+    const bootstrap = centerAuth.state.bootstrap
+    return (
+      centerAuth.canEnterWorkspace &&
+      !!bootstrap &&
+      `${bootstrap.tenant.id}:${bootstrap.user.id}` === workspaceKey
+    )
+  }
+
+  function enterWorkspace(
+    workspaceKey: string,
+    workspaceProfile: CenterSelfProfile,
+  ): Promise<void> {
+    if (workspaceEntry?.workspaceKey === workspaceKey) return workspaceEntry.promise
+    const entry = { workspaceKey, promise: Promise.resolve() }
+    entry.promise = workspaceLifecycle
+      .enter(workspaceKey, () => createWorkspaceSession(workspaceProfile))
+      .catch((error) => {
+        if (workspaceEntry === entry) workspaceEntry = null
+        throw error
+      })
+    workspaceEntry = entry
+    return entry.promise
   }
 
   return {

@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 
-import type { CenterAuthClient, CenterAuthState } from './contracts'
+import type { CenterAuthClient, CenterAuthErrorCode, CenterAuthState } from './contracts'
 import { SIGNED_OUT_STATE } from './contracts'
 
 export const useCenterAuthStore = defineStore('center-auth', () => {
@@ -151,7 +151,11 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
       state.value = { ...state.value, errorCode: code }
       return
     }
-    if (code === 'recoveryRequired' || code === 'protocolFailure') {
+    if (
+      code === 'authorizationDenied' ||
+      code === 'recoveryRequired' ||
+      code === 'protocolFailure'
+    ) {
       state.value = {
         ...structuredClone(SIGNED_OUT_STATE),
         generation: state.value.generation,
@@ -188,8 +192,20 @@ export const useCenterAuthStore = defineStore('center-auth', () => {
   }
 })
 
-function getErrorCode(error: unknown): string {
-  return typeof error === 'object' && error && 'code' in error && typeof error.code === 'string'
-    ? error.code
+function getErrorCode(error: unknown): CenterAuthErrorCode {
+  if (typeof error !== 'object' || !error || !('code' in error)) return 'protocolFailure'
+  const code = error.code
+  return code === 'authorizationDenied' ||
+    code === 'centerUnavailable' ||
+    code === 'recoveryRequired' ||
+    code === 'protocolFailure' ||
+    code === 'invalidRequest' ||
+    code === 'organizationUnavailable' ||
+    code === 'invalidCallback' ||
+    code === 'callbackExpired' ||
+    code === 'loginCancelled' ||
+    code === 'storageFailure' ||
+    code === 'secureStorageUnavailable'
+    ? code
     : 'protocolFailure'
 }

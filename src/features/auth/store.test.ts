@@ -270,6 +270,23 @@ describe('center auth store', () => {
     expect(store.state.phase).toBe('recoveryRequired')
     expect(store.canEnterWorkspace).toBe(false)
   })
+
+  it('requires login when the cached device authorization was denied', async () => {
+    const client = new FakeCenterAuthClient()
+    client.refreshBootstrap = async () => {
+      throw { code: 'authorizationDenied', retryable: false }
+    }
+    const store = useCenterAuthStore()
+    store.configure(client)
+    await store.initialize()
+    client.listener?.({ ...structuredClone(SIGNED_OUT_STATE), phase: 'offlineCached' })
+
+    await store.refresh()
+
+    expect(store.state.phase).toBe('recoveryRequired')
+    expect(store.state.errorCode).toBe('authorizationDenied')
+    expect(store.canEnterWorkspace).toBe(false)
+  })
 })
 
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {

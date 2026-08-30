@@ -37,6 +37,7 @@ const {
     :channels="channels.channels"
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
+    :loading="channels.loadingChannels"
     @select="channels.selectChannel($event)"
   />
   <ChannelTimeline
@@ -71,6 +72,7 @@ const {
     "
     :managed-phase="managedRuntime.state.phase"
     :im-status="managedRuntime.state.im?.status"
+    :channels-loading="channels.loadingChannels"
     :pending="centerAuth.pending || managedRuntime.pending"
     @retry="refreshManagedWorkspace"
   />

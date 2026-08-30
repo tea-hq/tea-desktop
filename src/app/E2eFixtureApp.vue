@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { fullAgentProfile } from '@/app/composerProfiles'
 import WorkspaceRail from '@/app/components/WorkspaceRail.vue'
+import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
 import type { Channel, Message } from '@/features/channels/contracts'
@@ -25,6 +26,7 @@ import type { Delivery, Draft } from '@/types/channelCollaboration'
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
 const multipleRoles = params.get('roles') === 'multiple'
+const channelLoading = computed(() => fixture.value === 'channel-loading')
 const { locale } = useI18n()
 locale.value = params.get('lang') === 'zh-CN' ? 'zh-CN' : 'en'
 
@@ -320,11 +322,22 @@ function deliverDraft(): void {
 
     <template v-if="activeMode === 'channels'">
       <ChannelSidebar
-        :channels="channels"
+        :channels="channelLoading ? [] : channels"
         :active-ref="channel.ref"
         :status="{ phase: 'connected', retryable: true }"
+        :loading="channelLoading"
+      />
+      <ChannelConnectionPanel
+        v-if="channelLoading"
+        :status="{ phase: 'connected', retryable: true }"
+        :error-code="null"
+        managed-phase="ready"
+        im-status="ready"
+        :channels-loading="true"
+        :pending="false"
       />
       <ChannelTimeline
+        v-else
         :channel="channel"
         :messages="messages"
         :panel-open="drawerOpen"

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { safeStorage, shell } from 'electron'
 
 import type {
+  CenterAuthErrorCode,
   CenterAuthInitialization,
   CenterAuthState,
   EndpointBootstrap,
@@ -11,6 +12,11 @@ import type {
 import { SIGNED_OUT_STATE } from '../../src/features/auth/contracts'
 import type { DirectoryUser } from '../../src/features/directory/contracts'
 import { JsonStore } from './jsonStore'
+import {
+  handoffProofPayload,
+  normalizeCenterAuthErrorCode,
+  refreshProofPayload,
+} from './centerAuthProtocol'
 
 interface AuthFile {
   endpointInstanceId: string
@@ -290,7 +296,7 @@ export class ElectronCenterAuthService {
     })
     try {
       const privateKey = this.loadPrivateKey()
-      const signature = sign(null, Buffer.from(`${transactionId}\n${code}`), privateKey).toString(
+      const signature = sign(null, handoffProofPayload(transactionId, code), privateKey).toString(
         'base64url',
       )
       const session = await this.request<SessionResponse>('/v1/endpoint-sessions/exchange', {
@@ -320,7 +326,7 @@ export class ElectronCenterAuthService {
 
   private async refreshSession(refresh: string): Promise<void> {
     const privateKey = this.loadPrivateKey()
-    const signature = sign(null, Buffer.from(refresh), privateKey).toString('base64url')
+    const signature = sign(null, refreshProofPayload(refresh), privateKey).toString('base64url')
     const session = await this.request<SessionResponse>('/v1/endpoint-sessions/refresh', {
       method: 'POST',
       body: {
@@ -464,7 +470,7 @@ export class ElectronCenterAuthService {
       if (!response.ok) {
         const code =
           isRecord(parsed) && typeof parsed.code === 'string'
-            ? parsed.code
+            ? normalizeCenterAuthErrorCode(parsed.code)
             : response.status >= 500
               ? 'centerUnavailable'
               : response.status === 401 || response.status === 403
@@ -527,9 +533,11 @@ function validSession(value: SessionResponse): boolean {
     value.capabilities.length <= 64,
   )
 }
-function errorCode(error: unknown): string {
+function errorCode(error: unknown): CenterAuthErrorCode {
   const value = error as { code?: unknown } | null
-  return typeof value?.code === 'string' ? value.code : 'protocolFailure'
+  return typeof value?.code === 'string'
+    ? normalizeCenterAuthErrorCode(value.code)
+    : 'protocolFailure'
 }
 function isCenterUnavailable(error: unknown): boolean {
   return errorCode(error) === 'centerUnavailable'

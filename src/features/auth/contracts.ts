@@ -7,6 +7,19 @@ export type CenterAuthPhase =
   | 'offlineCached'
   | 'recoveryRequired'
 
+export type CenterAuthErrorCode =
+  | 'invalidRequest'
+  | 'organizationUnavailable'
+  | 'centerUnavailable'
+  | 'invalidCallback'
+  | 'callbackExpired'
+  | 'loginCancelled'
+  | 'storageFailure'
+  | 'recoveryRequired'
+  | 'authorizationDenied'
+  | 'protocolFailure'
+  | 'secureStorageUnavailable'
+
 export interface EnterpriseDirectory {
   organizationDomain: string
   displayName: string
@@ -43,7 +56,7 @@ export interface CenterAuthState {
   enterprise: EnterpriseDirectory | null
   bootstrap: EndpointBootstrap | null
   lastValidatedAt: number | null
-  errorCode: string | null
+  errorCode: CenterAuthErrorCode | null
 }
 
 export interface CenterAuthInitialization {

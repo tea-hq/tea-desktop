@@ -2,13 +2,13 @@
 import { TeaButton, TeaInput } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 import LoginProgress from './LoginProgress.vue'
-import type { CenterAuthPhase } from '../contracts'
+import type { CenterAuthErrorCode, CenterAuthPhase } from '../contracts'
 
 defineProps<{
   domain: string
   phase: CenterAuthPhase
   pending: boolean
-  errorCode: string | null
+  errorCode: CenterAuthErrorCode | null
 }>()
 const emit = defineEmits<{ 'update:domain': [value: string]; submit: []; cancel: [] }>()
 const { t } = useI18n()

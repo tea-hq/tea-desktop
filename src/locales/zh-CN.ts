@@ -36,6 +36,7 @@ export default {
       loginCancelled: '登录已取消，可以重新发起登录。',
       storageFailure: '无法在此设备上保存安全凭据。',
       recoveryRequired: '当前会话无法继续刷新，请重新登录。',
+      authorizationDenied: '此设备已不再获得授权，请重新登录。',
       protocolFailure: 'Tea Center 返回了当前版本不支持的数据。',
     },
     offline: {
@@ -248,6 +249,7 @@ export default {
     title: '消息',
     search: '搜索通道',
     recent: '最近',
+    loading: '正在同步会话',
     noResults: '没有匹配的通道',
     selection: {
       empty: '未选择会话',

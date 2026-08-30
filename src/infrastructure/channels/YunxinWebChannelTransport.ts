@@ -393,11 +393,6 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     this.setStatus({ phase: 'reconnecting', errorCode: errorCode(error), retryable: true })
   private readonly onConnectFailed = (error: V2NIMError) =>
     this.setStatus({ phase: 'failed', errorCode: errorCode(error), retryable: true })
-  private readonly onDataSync = (_type: number, state: number, error?: V2NIMError) => {
-    if (error) this.emit({ type: 'sync.failed', errorCode: errorCode(error) })
-    else if (state === 1 || state === 2) this.emit({ type: 'sync.started' })
-    else if (state === 3) this.emit({ type: 'sync.finished' })
-  }
   private readonly onSyncStarted = () => this.emit({ type: 'sync.started' })
   private readonly onSyncFinished = () => this.emit({ type: 'sync.finished' })
   private readonly onSyncFailed = (error: V2NIMError) =>
@@ -499,7 +494,6 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     login.on('onConnectStatus', this.onConnectStatus)
     login.on('onDisconnected', this.onDisconnected)
     login.on('onConnectFailed', this.onConnectFailed)
-    login.on('onDataSync', this.onDataSync)
     const conversation = this.sdk.V2NIMConversationService
     conversation.on('onSyncStarted', this.onSyncStarted)
     conversation.on('onSyncFinished', this.onSyncFinished)
@@ -530,7 +524,6 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     login.off('onConnectStatus', this.onConnectStatus)
     login.off('onDisconnected', this.onDisconnected)
     login.off('onConnectFailed', this.onConnectFailed)
-    login.off('onDataSync', this.onDataSync)
     const conversation = this.sdk.V2NIMConversationService
     conversation.off('onSyncStarted', this.onSyncStarted)
     conversation.off('onSyncFinished', this.onSyncFinished)

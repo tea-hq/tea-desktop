@@ -30,7 +30,10 @@ export const useChannelsStore = defineStore('channels', () => {
   const status = ref<ChannelStatus>({ phase: 'disconnected', retryable: false })
   const activeChannelRef = ref<ChannelRef | null>(null)
   const messageCursors = reactive(new Map<ChannelRef, MessageCursor>())
-  const loadingChannels = ref(false)
+  const refreshingChannels = ref(false)
+  const synchronizingChannels = ref(false)
+  const channelCatalogReady = ref(true)
+  const initialConversationSyncFinished = ref(false)
   const loadingMessages = ref(false)
   const sendingMessage = ref(false)
   const errorCode = ref<string | null>(null)
@@ -51,6 +54,9 @@ export const useChannelsStore = defineStore('channels', () => {
     activeChannelRef.value ? (messageCursors.get(activeChannelRef.value)?.hasMore ?? false) : false,
   )
   const capabilities = computed(() => transport.value?.capabilities() ?? [])
+  const loadingChannels = computed(
+    () => refreshingChannels.value || synchronizingChannels.value || !channelCatalogReady.value,
+  )
 
   function configure(value: ChannelTransport): void {
     if (transport.value === value) return
@@ -60,6 +66,11 @@ export const useChannelsStore = defineStore('channels', () => {
     if (transport.value) void transport.value.dispose()
     transport.value = value
     status.value = value.status()
+    refreshPromise = null
+    refreshingChannels.value = false
+    synchronizingChannels.value = false
+    channelCatalogReady.value = false
+    initialConversationSyncFinished.value = false
     unsubscribe = value.subscribe((event) => {
       if (generation === lifecycleGeneration && transport.value === value) handleEvent(event)
     })
@@ -69,6 +80,10 @@ export const useChannelsStore = defineStore('channels', () => {
   async function connect(): Promise<void> {
     const client = requireTransport()
     const generation = lifecycleGeneration
+    if (projection.channels.size === 0 && status.value.phase !== 'connected') {
+      channelCatalogReady.value = false
+      initialConversationSyncFinished.value = false
+    }
     errorCode.value = null
     try {
       await client.connect()
@@ -81,6 +96,10 @@ export const useChannelsStore = defineStore('channels', () => {
     } catch (error) {
       status.value = client.status()
       errorCode.value = status.value.errorCode ?? transportErrorCode(error)
+      if (generation === lifecycleGeneration) {
+        synchronizingChannels.value = false
+        channelCatalogReady.value = true
+      }
       throw error
     }
   }
@@ -103,7 +122,7 @@ export const useChannelsStore = defineStore('channels', () => {
     let operation!: Promise<void>
     // eslint-disable-next-line prefer-const
     operation = (async () => {
-      loadingChannels.value = true
+      refreshingChannels.value = true
       errorCode.value = null
       try {
         let offset = 0
@@ -117,16 +136,22 @@ export const useChannelsStore = defineStore('channels', () => {
         }
         if (generation !== lifecycleGeneration || transport.value !== client) return
         replaceChannels(projection, values)
+        // An empty provider page is not authoritative until conversation sync has completed.
+        if (values.length > 0 || initialConversationSyncFinished.value)
+          channelCatalogReady.value = true
         if (activeChannelRef.value && !projection.channels.has(activeChannelRef.value))
           activeChannelRef.value = null
         if (activeChannelRef.value && !projection.messagesByChannel.has(activeChannelRef.value)) {
           await loadMessages(activeChannelRef.value, false)
         }
       } catch (error) {
-        if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
+        if (generation === lifecycleGeneration) {
+          errorCode.value = transportErrorCode(error)
+          channelCatalogReady.value = true
+        }
         throw error
       } finally {
-        if (generation === lifecycleGeneration) loadingChannels.value = false
+        if (generation === lifecycleGeneration) refreshingChannels.value = false
         if (refreshPromise === operation) refreshPromise = null
       }
     })()
@@ -193,7 +218,10 @@ export const useChannelsStore = defineStore('channels', () => {
     transport.value = null
     clearProjection()
     refreshPromise = null
-    loadingChannels.value = false
+    refreshingChannels.value = false
+    synchronizingChannels.value = false
+    channelCatalogReady.value = true
+    initialConversationSyncFinished.value = false
     loadingMessages.value = false
     sendingMessage.value = false
     errorCode.value = null
@@ -226,6 +254,7 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   function handleEvent(event: ChannelEvent): void {
+    const previousStatusPhase = status.value.phase
     if (
       event.type === 'status.changed' &&
       status.value.accountRef &&
@@ -233,6 +262,8 @@ export const useChannelsStore = defineStore('channels', () => {
       status.value.accountRef !== event.status.accountRef
     ) {
       clearProjection()
+      channelCatalogReady.value = false
+      initialConversationSyncFinished.value = false
     }
     status.value = event.type === 'status.changed' ? event.status : status.value
     reduceChannelEvent(projection, event)
@@ -242,11 +273,34 @@ export const useChannelsStore = defineStore('channels', () => {
         (event.status.phase === 'disconnected' && !event.status.retryable)
       ) {
         clearProjection()
+        synchronizingChannels.value = false
+        channelCatalogReady.value = true
+        initialConversationSyncFinished.value = false
+      }
+      if (event.status.phase === 'failed') {
+        synchronizingChannels.value = false
+        channelCatalogReady.value = true
+      }
+      if (
+        event.status.phase === 'connecting' &&
+        previousStatusPhase !== 'connected' &&
+        projection.channels.size === 0
+      ) {
+        channelCatalogReady.value = false
+        initialConversationSyncFinished.value = false
       }
       if (event.status.phase === 'connected') void refreshChannels().catch(() => undefined)
+    } else if (event.type === 'sync.started') {
+      synchronizingChannels.value = true
+      if (projection.channels.size === 0) channelCatalogReady.value = false
     } else if (event.type === 'sync.finished') {
+      synchronizingChannels.value = false
+      initialConversationSyncFinished.value = true
       void refreshChannels().catch(() => undefined)
     } else if (event.type === 'sync.failed') {
+      synchronizingChannels.value = false
+      initialConversationSyncFinished.value = true
+      channelCatalogReady.value = true
       errorCode.value = event.errorCode
     }
   }

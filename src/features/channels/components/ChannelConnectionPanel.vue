@@ -12,6 +12,7 @@ defineProps<{
   errorCode: string | null
   managedPhase: ManagedWorkspacePhase
   imStatus?: RuntimeResourceStatus
+  channelsLoading: boolean
   pending: boolean
 }>()
 const emit = defineEmits<{
@@ -25,21 +26,24 @@ const { t } = useI18n()
     <div
       v-if="
         pending ||
+        channelsLoading ||
+        managedPhase === 'inactive' ||
         managedPhase === 'preparing' ||
         status.phase === 'connecting' ||
         status.phase === 'synchronizing' ||
         status.phase === 'reconnecting'
       "
       class="flex flex-1 items-center justify-center gap-2 text-base text-subtle"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
     >
       <span class="i-mdi-loading size-5 animate-spin" aria-hidden="true" />
-      {{
-        t(
-          managedPhase === 'preparing'
-            ? 'channels.connection.preparing'
-            : `channels.connection.${status.phase}`,
-        )
-      }}
+      <span v-if="managedPhase === 'inactive' || managedPhase === 'preparing'">
+        {{ t('channels.connection.preparing') }}
+      </span>
+      <span v-else-if="channelsLoading">{{ t('channels.loading') }}</span>
+      <span v-else>{{ t(`channels.connection.${status.phase}`) }}</span>
     </div>
     <div
       v-else-if="status.phase === 'connected'"

@@ -38,6 +38,7 @@ export default {
       loginCancelled: 'Sign-in was cancelled. You can try again.',
       storageFailure: 'Secure credentials could not be saved on this device.',
       recoveryRequired: 'Your session can no longer be refreshed. Sign in again.',
+      authorizationDenied: 'This device is no longer authorized. Sign in again.',
       protocolFailure: 'Tea Center returned an unsupported response.',
     },
     offline: {
@@ -262,6 +263,7 @@ export default {
     title: 'Channels',
     search: 'Search channels',
     recent: 'Recent',
+    loading: 'Syncing conversations',
     noResults: 'No matching channels',
     selection: {
       empty: 'No conversation selected',

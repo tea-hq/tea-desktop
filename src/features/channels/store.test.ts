@@ -21,6 +21,54 @@ describe('useChannelsStore', () => {
     expect(store.status.accountRef).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it('keeps an initial empty catalog loading until conversation sync finishes', async () => {
+    const transport = new MockChannelTransport()
+    const listChannels = vi.spyOn(transport, 'listChannels')
+    const synchronizedPage = await transport
+      .connect()
+      .then(() => transport.listChannels({ offset: 0, limit: 100 }))
+    await transport.disconnect()
+    let synchronized = false
+    listChannels.mockImplementation(async () =>
+      synchronized
+        ? structuredClone(synchronizedPage)
+        : { items: [], nextOffset: 0, hasMore: false },
+    )
+    const store = useChannelsStore()
+    store.configure(transport)
+
+    await store.connect()
+
+    expect(store.channels).toEqual([])
+    expect(store.loadingChannels).toBe(true)
+
+    synchronized = true
+    transport.emitForTest({ type: 'sync.finished' })
+    await vi.waitFor(() => expect(store.channels.length).toBeGreaterThan(0))
+    expect(store.loadingChannels).toBe(false)
+  })
+
+  it('settles on a real empty catalog after conversation sync finishes', async () => {
+    const transport = new MockChannelTransport()
+    vi.spyOn(transport, 'listChannels').mockResolvedValue({
+      items: [],
+      nextOffset: 0,
+      hasMore: false,
+    })
+    const store = useChannelsStore()
+    store.configure(transport)
+    await store.connect()
+    expect(store.loadingChannels).toBe(true)
+
+    transport.emitForTest({ type: 'sync.finished' })
+
+    await vi.waitFor(() => expect(store.loadingChannels).toBe(false))
+    expect(store.channels).toEqual([])
+
+    await store.connect()
+    expect(store.loadingChannels).toBe(false)
+  })
+
   it('loads normalized messages and marks an explicit selection read', async () => {
     const { store, transport } = await connectedStore()
     const markRead = vi.spyOn(transport, 'markRead')

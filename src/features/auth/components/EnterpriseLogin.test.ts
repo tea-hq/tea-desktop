@@ -5,12 +5,17 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
+import type { CenterAuthErrorCode, CenterAuthPhase } from '../contracts'
 import EnterpriseLogin from './EnterpriseLogin.vue'
 
-function mountLogin(phase: 'signedOut' | 'browserPending' | 'recoveryRequired', pending: boolean) {
+function mountLogin(
+  phase: CenterAuthPhase,
+  pending: boolean,
+  errorCode: CenterAuthErrorCode | null = null,
+) {
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   return mount(EnterpriseLogin, {
-    props: { domain: 'example.test', phase, pending, errorCode: null },
+    props: { domain: 'example.test', phase, pending, errorCode },
     global: { plugins: [i18n] },
   })
 }
@@ -36,5 +41,12 @@ describe('EnterpriseLogin', () => {
     const wrapper = mountLogin('recoveryRequired', false)
 
     expect(wrapper.get('button[type="submit"]').text()).toContain('Sign in again')
+  })
+
+  it('renders the localized authorization-denied message', () => {
+    const wrapper = mountLogin('recoveryRequired', false, 'authorizationDenied')
+
+    expect(wrapper.text()).toContain('This device is no longer authorized. Sign in again.')
+    expect(wrapper.text()).not.toContain('auth.errors.authorizationDenied')
   })
 })

@@ -288,6 +288,23 @@ describe('YunxinWebChannelTransport', () => {
     expect(sdk.destroy).toHaveBeenCalledTimes(1)
   })
 
+  it('uses the conversation sync lifecycle as the channel catalog boundary', async () => {
+    const { sdk, login, conversation } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+
+    login.emit('onDataSync', 1, 3)
+    expect(events.some((event) => event.type === 'sync.finished')).toBe(false)
+
+    conversation.emit('onSyncStarted')
+    conversation.emit('onSyncFinished')
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(['sync.started', 'sync.finished']),
+    )
+  })
+
   it('maps provider message lifecycle events into serializable events', async () => {
     const { sdk, message } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
