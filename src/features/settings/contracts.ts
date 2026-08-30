@@ -4,6 +4,7 @@ export interface AppSettings {
   locale: LocalePreference
   conversationDefaults: {
     runtimeId: string
+    model: string | null
   }
   layout: {
     leftSidebarOpen: boolean
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   locale: 'system',
   conversationDefaults: {
     runtimeId: 'external.claude',
+    model: null,
   },
   layout: {
     leftSidebarOpen: true,

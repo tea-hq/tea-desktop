@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RuntimeDescriptor } from './contracts'
-import { mergeModelOptions, runtimeModelOptions } from './modelOptions'
+import { mergeModelOptions, resolveModelSelection, runtimeModelOptions } from './modelOptions'
 
 const claude: RuntimeDescriptor = {
   id: 'external.claude',
@@ -57,9 +57,44 @@ describe('runtimeModelOptions', () => {
         ],
       ),
     ).toEqual([
-      { value: 'default', labelKey: 'composer.model.configured' },
       { value: 'model-a', label: 'Runtime A' },
       { value: 'model-b', label: 'Provider B' },
     ])
+  })
+
+  it('keeps the configured fallback when there are no concrete models', () => {
+    expect(
+      mergeModelOptions([{ value: 'default', labelKey: 'composer.model.configured' }], []),
+    ).toEqual([{ value: 'default', labelKey: 'composer.model.configured' }])
+  })
+})
+
+describe('resolveModelSelection', () => {
+  it('keeps the configured provider/model when it is available', () => {
+    expect(
+      resolveModelSelection(
+        [
+          { value: 'default', labelKey: 'composer.model.configured' },
+          { value: 'provider/model-a', label: 'Provider A' },
+        ],
+        'provider/model-a',
+      ),
+    ).toBe('provider/model-a')
+  })
+
+  it('falls back to the first available option', () => {
+    expect(
+      resolveModelSelection(
+        [
+          { value: 'provider/model-a', label: 'Provider A', unavailable: true },
+          { value: 'provider/model-b', label: 'Provider B' },
+        ],
+        'provider/missing',
+      ),
+    ).toBe('provider/model-b')
+  })
+
+  it('uses the configured fallback when the list is empty', () => {
+    expect(resolveModelSelection([], null)).toBe('default')
   })
 })

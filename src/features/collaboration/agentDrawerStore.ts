@@ -180,7 +180,7 @@ function createDraft(runtimeId: string | null): AgentDrawerDraft {
   return {
     runtimeId,
     model: 'default',
-    permissionMode: 'readOnly' as PermissionMode,
+    permissionMode: 'default' as PermissionMode,
     roleId: null,
     text: '',
     attachments: [],

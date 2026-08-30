@@ -44,7 +44,7 @@ import {
   type AcpMcpAttachmentFactoryPort,
 } from './mcpAttachmentFactory'
 import type { LaunchAcpAgentOptions } from './process'
-import { AcpSessionActor } from './session'
+import { AcpSessionActor, type AcpSessionScheduler } from './session'
 
 const ACP_BASE_CAPABILITIES = ['approval', 'cancel', 'events', 'prompt', 'subject'] as const
 const ACP_READY_CAPABILITIES = [
@@ -54,15 +54,14 @@ const ACP_READY_CAPABILITIES = [
   'snapshot',
 ] as const
 const MAX_WORKSPACE_PATH_CHARS = 4096
+const DEFAULT_RESTORE_TIMEOUT_MS = 30_000
 const DEFAULT_SUBJECT_TIMEOUT_MS = 60_000
 const MAX_PENDING_SUBJECT_GENERATIONS = 4
 
-export interface AcpRuntimeScheduler {
-  setTimeout(callback: () => void, delayMs: number): unknown
-  clearTimeout(handle: unknown): void
-}
+export type AcpRuntimeScheduler = AcpSessionScheduler
 
 export interface AcpConversationRuntimeOptions {
+  restoreTimeoutMs?: number
   subjectTimeoutMs?: number
   scheduler?: AcpRuntimeScheduler
   status?: RuntimeStatus
@@ -95,6 +94,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
   private readonly configuredToolScopes = new Set<string>()
   private readonly pendingSubjectGenerations = new Map<string, PendingSubjectGeneration>()
   private readonly subjectTimeoutMs: number
+  private readonly restoreTimeoutMs: number
   private readonly scheduler: AcpRuntimeScheduler
   private readonly status: RuntimeStatus
   private nextSubjectId = 1
@@ -122,6 +122,11 @@ export class AcpConversationRuntime implements ConversationRuntime {
       options.subjectTimeoutMs,
       DEFAULT_SUBJECT_TIMEOUT_MS,
       'ACP subject timeout',
+    )
+    this.restoreTimeoutMs = positiveInteger(
+      options.restoreTimeoutMs,
+      DEFAULT_RESTORE_TIMEOUT_MS,
+      'ACP restore timeout',
     )
     this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER
     this.status = options.status ?? 'unavailable'
@@ -314,7 +319,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
         undefined,
         mcpBinding,
       )
-      await actor.restoreSession(binding.nativeSessionId)
+      await actor.restoreSession(binding.nativeSessionId, this.restoreTimeoutMs, this.scheduler)
       if (this.shutdownPromise) {
         await actor.shutdown()
         throw new ConversationRuntimeError(

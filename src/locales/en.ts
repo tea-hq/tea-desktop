@@ -430,6 +430,10 @@ export default {
       title: 'Default Agent',
       description: 'Used when you start a new conversation.',
     },
+    defaultModel: {
+      title: 'Default model',
+      description: 'Used when you start a new conversation or switch Agents.',
+    },
   },
   sidebar: {
     title: 'Conversations',

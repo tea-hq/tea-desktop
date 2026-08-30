@@ -24,5 +24,19 @@ export function mergeModelOptions(...groups: readonly ModelOption[][]): ModelOpt
       merged.push({ ...option })
     }
   }
-  return merged.length > 0 ? merged : [{ ...DEFAULT_OPTION }]
+  const concrete = merged.filter((option) => !isConfiguredOption(option))
+  return concrete.length > 0 ? concrete : [{ ...DEFAULT_OPTION }]
+}
+
+function isConfiguredOption(option: ModelOption): boolean {
+  return option.value === DEFAULT_OPTION.value && option.labelKey === DEFAULT_OPTION.labelKey
+}
+
+export function resolveModelSelection(
+  options: readonly ModelOption[],
+  preferredModel: string | null | undefined,
+): string {
+  const preferred = options.find((option) => option.value === preferredModel && !option.unavailable)
+  if (preferred) return preferred.value
+  return options.find((option) => !option.unavailable)?.value ?? DEFAULT_OPTION.value
 }

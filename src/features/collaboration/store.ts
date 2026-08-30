@@ -10,6 +10,7 @@ import type {
   ConversationSummary,
   ConversationTurn,
   ConversationUiError,
+  ModelOption,
   PermissionMode,
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
@@ -24,6 +25,7 @@ import {
   setApprovalResolving,
 } from '@/features/conversation/timelineReducer'
 import { ConversationCollaborationClient } from '@/infrastructure/collaboration/ConversationCollaborationClient'
+import { resolveModelSelection } from '@/features/conversation/modelOptions'
 import { readyRuntimeId, resolvePreferredRuntimeId } from '@/features/conversation/runtimeSelection'
 import type {
   ChannelBinding,
@@ -56,8 +58,10 @@ export const useCollaborationStore = defineStore('collaboration', () => {
   const sending = ref(false)
   const error = ref<ConversationUiError | null>(null)
   const selectedRuntimeId = ref<string | null>(null)
+  const defaultModel = ref<string | null>(null)
   const selectedModel = ref('default')
-  const permissionMode = ref<PermissionMode>('readOnly')
+  const permissionMode = ref<PermissionMode>('default')
+  const availableModelOptions = ref<ModelOption[]>([])
   const userDefaultRuntimeId = ref<string | null>(null)
   let unsubscribeEvents: (() => void) | null = null
   let unsubscribeUpdates: (() => void) | null = null
@@ -71,7 +75,10 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       conversations.value.find((value) => value.conversationId === conversationId.value) ?? null,
   )
   const activeRuntime = computed(
-    () => runtimes.value.find((value) => value.id === activeConversation.value?.runtimeId) ?? null,
+    () =>
+      runtimes.value.find(
+        (value) => value.id === (activeConversation.value?.runtimeId ?? selectedRuntimeId.value),
+      ) ?? null,
   )
   const isStreaming = computed(() => {
     const status = turns.value.at(-1)?.status
@@ -133,7 +140,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     clearSelection()
     selectedRuntimeId.value = selected
     if (activeBinding.value) drawer.updateDraft(activeBinding.value, { runtimeId: selected })
-    selectedModel.value = 'default'
+    selectedModel.value = resolveCurrentModel()
     error.value = null
     chooserOpen.value = false
   }
@@ -210,8 +217,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     }
     clearSelection()
     selectedRuntimeId.value = selected
-    selectedModel.value = 'default'
-    permissionMode.value = 'readOnly'
+    selectedModel.value = resolveCurrentModel()
+    permissionMode.value = 'default'
     drawer.prepare(binding, selected)
     drawer.updateDraft(binding, {
       runtimeId: selected,
@@ -281,12 +288,24 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       )
         return false
       applyDetail(detail, history.items)
+      selectedModel.value = resolveCurrentModel()
+      permissionMode.value = 'default'
+      if (activeBinding.value)
+        drawer.updateDraft(activeBinding.value, {
+          runtimeId: selectedRuntimeId.value,
+          model: selectedModel.value,
+          permissionMode: permissionMode.value,
+        })
       if (activeBinding.value) drawer.selectConversation(activeBinding.value, id)
       ready = true
       buffered.forEach(handleEvent)
       return true
     } catch (cause) {
-      if (token === selectionToken) error.value = runtimeError(cause)
+      if (token === selectionToken) {
+        selectedModel.value = resolveCurrentModel()
+        permissionMode.value = 'default'
+        error.value = runtimeError(cause)
+      }
       return false
     } finally {
       if (token === selectionToken) loading.value = false
@@ -663,6 +682,34 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     userDefaultRuntimeId.value = runtimeId
   }
 
+  function setDefaultModel(model: string | null): void {
+    defaultModel.value = model
+    if (!conversationId.value) syncModelSelection()
+  }
+
+  function setAvailableModelOptions(options: readonly ModelOption[]): void {
+    availableModelOptions.value = options.map((option) => ({ ...option }))
+    selectedModel.value = resolveModelSelection(
+      availableModelOptions.value,
+      defaultModel.value ?? selectedModel.value,
+    )
+    if (activeBinding.value) drawer.updateDraft(activeBinding.value, { model: selectedModel.value })
+  }
+
+  function selectModel(model: string): void {
+    selectedModel.value = model
+    defaultModel.value = model
+  }
+
+  function resolveCurrentModel(): string {
+    return resolveModelSelection(availableModelOptions.value, defaultModel.value)
+  }
+
+  function syncModelSelection(): void {
+    selectedModel.value = resolveCurrentModel()
+    if (activeBinding.value) drawer.updateDraft(activeBinding.value, { model: selectedModel.value })
+  }
+
   function disposeSubscriptions(): void {
     unsubscribeEvents?.()
     unsubscribeEvents = null
@@ -689,7 +736,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     error.value = null
     selectedRuntimeId.value = null
     selectedModel.value = 'default'
-    permissionMode.value = 'readOnly'
+    permissionMode.value = 'default'
+    availableModelOptions.value = []
     userDefaultRuntimeId.value = null
   }
 
@@ -723,6 +771,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     sending,
     error,
     selectedRuntimeId,
+    defaultModel,
     selectedModel,
     permissionMode,
     userDefaultRuntimeId,
@@ -736,6 +785,9 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     createConversationForMessage,
     selectRuntime,
     setDefaultRuntimeId,
+    setDefaultModel,
+    setAvailableModelOptions,
+    selectModel,
     selectConversation,
     renameConversation,
     archiveConversation,

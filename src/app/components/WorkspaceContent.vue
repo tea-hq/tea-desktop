@@ -13,6 +13,7 @@ const {
   centerAuth,
   settings,
   conversation,
+  conversationModelOptions,
   profile,
   directory,
   directoryActionError,
@@ -59,12 +60,15 @@ const {
     <SettingsPage
       :locale-preference="settings.settings.locale"
       :default-runtime-id="settings.defaultRuntimeId"
+      :default-model="settings.defaultModel"
+      :model-options="conversationModelOptions"
       :runtimes="conversation.runtimes"
       :saving="settings.saving"
       :error="settings.error"
       @close="selectWorkspace(previousMode)"
       @update-locale="settings.setLocalePreference($event)"
       @update-default-runtime="settings.setDefaultRuntime($event)"
+      @update-default-model="settings.setDefaultModel($event)"
     />
   </main>
 </template>

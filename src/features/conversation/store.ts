@@ -24,7 +24,7 @@ import {
   setApprovalFailed,
   setApprovalResolving,
 } from './timelineReducer'
-import { runtimeModelOptions } from './modelOptions'
+import { resolveModelSelection, runtimeModelOptions } from './modelOptions'
 import { readyRuntimeId, resolvePreferredRuntimeId } from './runtimeSelection'
 
 const DEFAULT_RUNTIME_ID = 'external.claude'
@@ -36,6 +36,7 @@ export const useConversationStore = defineStore('conversation', () => {
   const conversations = ref<ConversationSummary[]>([])
   const catalogFilter = ref<ConversationScopeFilter>({ kind: 'all' })
   const defaultRuntimeId = ref(DEFAULT_RUNTIME_ID)
+  const defaultModel = ref<string | null>(null)
   const activeRuntimeId = ref<string | null>(null)
   const selectedModel = ref('default')
   const permissionMode = ref<PermissionMode>('default')
@@ -55,6 +56,7 @@ export const useConversationStore = defineStore('conversation', () => {
   const historyHasMore = ref(false)
   const nextCursor = ref<string | null>(null)
   const hasMore = ref(false)
+  const availableModelOptions = ref<ModelOption[]>([])
 
   let client: ConversationClient | null = null
   let unsubscribe: (() => void) | null = null
@@ -198,7 +200,7 @@ export const useConversationStore = defineStore('conversation', () => {
     const selected = readyRuntimeId(runtimes.value, id)
     if (!canSelectRuntime.value || !selected || selected === activeRuntimeId.value) return
     activeRuntimeId.value = selected
-    selectedModel.value = 'default'
+    selectedModel.value = resolveCurrentModel()
     cleanupSubscription()
     conversationId.value = null
     turns.value = []
@@ -206,6 +208,24 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function setDefaultRuntimeId(id: string): void {
     defaultRuntimeId.value = id
+  }
+
+  function setDefaultModel(model: string | null): void {
+    defaultModel.value = model
+    if (conversationId.value === null) selectedModel.value = resolveCurrentModel()
+  }
+
+  function setAvailableModelOptions(options: readonly ModelOption[]): void {
+    availableModelOptions.value = options.map((option) => ({ ...option }))
+    selectedModel.value = resolveModelSelection(
+      availableModelOptions.value,
+      defaultModel.value ?? selectedModel.value,
+    )
+  }
+
+  function selectModel(model: string): void {
+    selectedModel.value = model
+    defaultModel.value = model
   }
 
   async function setCatalogFilter(filter: ConversationScopeFilter): Promise<void> {
@@ -231,7 +251,7 @@ export const useConversationStore = defineStore('conversation', () => {
     historyNextCursor.value = null
     historyHasMore.value = false
     activeRuntimeId.value = nextRuntimeId
-    selectedModel.value = 'default'
+    selectedModel.value = resolveCurrentModel()
     permissionMode.value = 'default'
     creationIdempotencyKey = crypto.randomUUID()
     if (!nextRuntimeId) error.value = localizedError('errors.noRuntimeSelected')
@@ -274,7 +294,7 @@ export const useConversationStore = defineStore('conversation', () => {
         return
       conversationId.value = id
       activeRuntimeId.value = detail.summary.runtimeId
-      selectedModel.value = 'default'
+      selectedModel.value = resolveCurrentModel()
       permissionMode.value = 'default'
       turns.value = structuredClone(page.items)
       historyNextCursor.value = page.nextCursor
@@ -286,6 +306,8 @@ export const useConversationStore = defineStore('conversation', () => {
       if (token !== selectionToken) return
       conversationId.value = id
       activeRuntimeId.value = summary.runtimeId
+      selectedModel.value = resolveCurrentModel()
+      permissionMode.value = 'default'
       historyError.value = runtimeError(cause)
       snapshotReady = true
       for (const event of bufferedEvents) handleEvent(event)
@@ -454,6 +476,7 @@ export const useConversationStore = defineStore('conversation', () => {
     historyHasMore.value = false
     nextCursor.value = null
     hasMore.value = false
+    availableModelOptions.value = []
     listInitialized = false
     creationIdempotencyKey = crypto.randomUUID()
     if (configured && activeConversationId && shouldCancel) {
@@ -556,17 +579,25 @@ export const useConversationStore = defineStore('conversation', () => {
     return resolvePreferredRuntimeId(runtimes.value, defaultRuntimeId.value)
   }
 
+  function resolveCurrentModel(): string {
+    return resolveModelSelection(availableModelOptions.value, defaultModel.value)
+  }
+
   return {
     runtimes,
     conversations,
     catalogFilter,
     defaultRuntimeId,
+    defaultModel,
     activeRuntime,
     activeConversation,
     activeRuntimeId,
     selectedModel,
     permissionMode,
     modelOptions,
+    setDefaultModel,
+    setAvailableModelOptions,
+    selectModel,
     conversationId,
     turns,
     loading,

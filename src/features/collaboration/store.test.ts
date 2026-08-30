@@ -114,6 +114,7 @@ describe('useCollaborationStore', () => {
     const drawer = useAgentDrawerStore()
 
     expect(drawer.activeState?.draft.runtimeId).toBe('external.codex')
+    expect(drawer.activeState?.draft.permissionMode).toBe('default')
 
     drawer.updateDraft(store.activeBinding!, { runtimeId: 'external.explicit' })
     await store.bindChannel('another-channel')
@@ -178,6 +179,22 @@ describe('useCollaborationStore', () => {
 
     expect(store.selectedRuntimeId).toBe('external.codex')
     expect(useAgentDrawerStore().activeState?.draft.runtimeId).toBe('external.codex')
+  })
+
+  it('uses the remembered model and default permission for a new drawer session', async () => {
+    const { store } = await setup()
+    store.setAvailableModelOptions([
+      { value: 'provider/model-a', label: 'Model A' },
+      { value: 'provider/model-b', label: 'Model B' },
+    ])
+    store.setDefaultModel('provider/model-b')
+
+    await store.createConversation()
+
+    expect(store.selectedModel).toBe('provider/model-b')
+    expect(store.permissionMode).toBe('default')
+    expect(useAgentDrawerStore().activeState?.draft.model).toBe('provider/model-b')
+    expect(useAgentDrawerStore().activeState?.draft.permissionMode).toBe('default')
   })
 
   it('waits for a shared channel list before selecting a collaboration session', async () => {

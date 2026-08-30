@@ -116,6 +116,15 @@ export function useWorkspaceRuntime(
   )
 
   watch(
+    () => settings.defaultModel,
+    (model) => {
+      conversation.setDefaultModel(model)
+      collaboration.setDefaultModel(model)
+    },
+    { immediate: true },
+  )
+
+  watch(
     () => [managedRuntime.imReady, managedRuntime.state.generation] as const,
     ([ready]) => {
       void Promise.all([conversation.loadRuntimes(), collaboration.loadRuntimes()]).catch(
@@ -178,6 +187,8 @@ export function useWorkspaceRuntime(
     if (!isCurrent()) return
     conversation.setDefaultRuntimeId(settings.defaultRuntimeId)
     collaboration.setDefaultRuntimeId(settings.defaultRuntimeId)
+    conversation.setDefaultModel(settings.defaultModel)
+    collaboration.setDefaultModel(settings.defaultModel)
     await Promise.all([
       conversation.loadRuntimes(),
       conversation.initializeConversationList(),

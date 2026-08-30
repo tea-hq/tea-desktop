@@ -23,6 +23,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const leftSidebarOpen = computed(() => settings.value.layout.leftSidebarOpen)
   const agentDrawerOpen = computed(() => settings.value.layout.agentDrawerOpen)
   const defaultRuntimeId = computed(() => settings.value.conversationDefaults.runtimeId)
+  const defaultModel = computed(() => settings.value.conversationDefaults.model ?? null)
 
   function configure(nextClient: SettingsClient): void {
     client = nextClient
@@ -56,7 +57,14 @@ export const useSettingsStore = defineStore('settings', () => {
   async function setDefaultRuntime(runtimeId: string): Promise<void> {
     await updateSettings((current) => ({
       ...current,
-      conversationDefaults: { runtimeId },
+      conversationDefaults: { ...current.conversationDefaults, runtimeId },
+    }))
+  }
+
+  async function setDefaultModel(model: string | null): Promise<void> {
+    await updateSettings((current) => ({
+      ...current,
+      conversationDefaults: { ...current.conversationDefaults, model },
     }))
   }
 
@@ -143,10 +151,12 @@ export const useSettingsStore = defineStore('settings', () => {
     leftSidebarOpen,
     agentDrawerOpen,
     defaultRuntimeId,
+    defaultModel,
     configure,
     initialize,
     setLocalePreference,
     setDefaultRuntime,
+    setDefaultModel,
     toggleLeftSidebar,
     openAgentDrawer,
     closeAgentDrawer,

@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AgentRoleOption, ModelOption } from '@/features/conversation/contracts'
 import { mergeModelOptions, runtimeModelOptions } from '@/features/conversation/modelOptions'
@@ -98,6 +98,13 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
       managedRuntime.modelOptions,
     ),
   )
+
+  watch(conversationModelOptions, (options) => conversation.setAvailableModelOptions(options), {
+    immediate: true,
+  })
+  watch(collaborationModelOptions, (options) => collaboration.setAvailableModelOptions(options), {
+    immediate: true,
+  })
 
   return {
     roleOptions,

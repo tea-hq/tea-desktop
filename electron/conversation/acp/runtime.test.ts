@@ -862,6 +862,46 @@ describe('AcpConversationRuntime', () => {
     )
   })
 
+  it('times out a restore that never completes and closes its resources', async () => {
+    vi.useFakeTimers()
+    try {
+      const loadRequested = deferred<void>()
+      const harness = createHarness(1, {
+        initialization: { supportsLoadSession: true },
+        runtimeOptions: { restoreTimeoutMs: 1_000 },
+        request: (method) => {
+          if (method === 'session/load') {
+            loadRequested.resolve(undefined)
+            return new Promise(() => undefined)
+          }
+          if (method === 'session/close') return Promise.resolve({})
+          return Promise.reject(new Error(`unexpected ACP request: ${method}`))
+        },
+      })
+      const restoration = harness.runtime.restoreConversation(
+        'conversation-1',
+        conversationBinding(1),
+      )
+      await loadRequested.promise
+
+      const rejection = expect(restoration).rejects.toMatchObject({
+        code: 'connectionFailed',
+        message: 'ACP session restore timed out: conversation-1',
+        retryable: true,
+      })
+      await vi.advanceTimersByTimeAsync(1_000)
+      await rejection
+
+      expect(harness.protocolClose).toHaveBeenCalledOnce()
+      expect(harness.processClose).toHaveBeenCalledOnce()
+      await expect(harness.runtime.loadSnapshot('conversation-1')).rejects.toMatchObject({
+        code: 'unknownConversation',
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each([1, 2] as const)(
     'restores V%s through session/resume without claiming complete history',
     async (version) => {

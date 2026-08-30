@@ -30,6 +30,7 @@ const {
   selectCollaborationPermission,
   selectCollaborationRole,
   applyCollaborationRolePrompt,
+  sendCollaborationMessage,
 } = useTeaDesktopAppContext()
 
 function handleChannelSelect(channelRef: ChannelRef): void {
@@ -115,7 +116,7 @@ function handleLoadMoreChannels(): void {
     @update-attachments="
       agentDrawer.updateDraft(collaboration.activeBinding!, { attachments: $event })
     "
-    @send="collaboration.sendMessage($event.text)"
+    @send="sendCollaborationMessage($event.text)"
     @stop="collaboration.cancel()"
     @back="agentDrawer.back(collaboration.activeBinding!)"
     @expand="expandCollaboration"

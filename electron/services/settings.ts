@@ -34,13 +34,14 @@ export class ElectronSettingsService {
       return this.recoverCorrupt('schemaVersion is missing or invalid')
     }
 
-    if (!isAppSettings(stored.settings)) return this.recoverCorrupt('settings payload is invalid')
-    return structuredClone(stored.settings)
+    const settings = normalizeAppSettings(stored.settings)
+    if (!settings) return this.recoverCorrupt('settings payload is invalid')
+    return settings
   }
 
   async update(settings: unknown): Promise<AppSettings> {
-    if (!isAppSettings(settings)) throw serviceError('invalidRequest', false)
-    const value = structuredClone(settings)
+    const value = normalizeAppSettings(settings)
+    if (!value) throw serviceError('invalidRequest', false)
     const parent = path.dirname(this.filePath)
     await fs.mkdir(parent, { recursive: true }).catch(() => {
       throw storageError('creating settings directory')
@@ -71,26 +72,45 @@ export class ElectronSettingsService {
 export function defaultSettings(): AppSettings {
   return {
     locale: 'system',
-    conversationDefaults: { runtimeId: 'external.claude' },
+    conversationDefaults: { runtimeId: 'external.claude', model: null },
     layout: { leftSidebarOpen: true, agentDrawerOpen: false },
   }
 }
 
-function isAppSettings(value: unknown): value is AppSettings {
-  if (!isRecord(value)) return false
+function normalizeAppSettings(value: unknown): AppSettings | null {
+  if (!isRecord(value)) return null
   const locale = value.locale
   const defaults = value.conversationDefaults
   const layout = value.layout
-  return (
-    (locale === 'system' || locale === 'en' || locale === 'zh-CN') &&
-    isRecord(defaults) &&
-    typeof defaults.runtimeId === 'string' &&
-    defaults.runtimeId.trim().length > 0 &&
-    defaults.runtimeId.length <= 256 &&
-    isRecord(layout) &&
-    typeof layout.leftSidebarOpen === 'boolean' &&
-    typeof layout.agentDrawerOpen === 'boolean'
+  if (
+    !(locale === 'system' || locale === 'en' || locale === 'zh-CN') ||
+    !isRecord(defaults) ||
+    typeof defaults.runtimeId !== 'string' ||
+    defaults.runtimeId.trim().length === 0 ||
+    defaults.runtimeId.length > 256 ||
+    !isRecord(layout) ||
+    typeof layout.leftSidebarOpen !== 'boolean' ||
+    typeof layout.agentDrawerOpen !== 'boolean'
   )
+    return null
+  const model = defaults.model
+  if (
+    model !== undefined &&
+    model !== null &&
+    (typeof model !== 'string' || model.trim().length === 0 || model.length > 512)
+  )
+    return null
+  return {
+    locale,
+    conversationDefaults: {
+      runtimeId: defaults.runtimeId,
+      model: typeof model === 'string' ? model : null,
+    },
+    layout: {
+      leftSidebarOpen: layout.leftSidebarOpen,
+      agentDrawerOpen: layout.agentDrawerOpen,
+    },
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -23,13 +23,33 @@ describe('ElectronSettingsService', () => {
     const service = new ElectronSettingsService(filePath)
     const settings = {
       locale: 'zh-CN' as const,
-      conversationDefaults: { runtimeId: 'external.codex' },
+      conversationDefaults: { runtimeId: 'external.codex', model: 'provider/model-a' },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
 
     await expect(service.update(settings)).resolves.toEqual(settings)
     await expect(service.load()).resolves.toEqual(settings)
     await expect(readFile(filePath, 'utf8')).resolves.toContain('"schemaVersion": 1')
+  })
+
+  it('normalizes settings written before the default model was added', async () => {
+    const filePath = await settingsPath()
+    await writeFile(
+      filePath,
+      JSON.stringify({
+        schemaVersion: 1,
+        settings: {
+          locale: 'en',
+          conversationDefaults: { runtimeId: 'external.claude' },
+          layout: { leftSidebarOpen: true, agentDrawerOpen: false },
+        },
+      }),
+    )
+    const service = new ElectronSettingsService(filePath)
+
+    await expect(service.load()).resolves.toMatchObject({
+      conversationDefaults: { runtimeId: 'external.claude', model: null },
+    })
   })
 
   it('rejects unsupported schemas without silently downgrading them', async () => {

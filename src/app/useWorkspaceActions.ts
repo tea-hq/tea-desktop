@@ -60,6 +60,9 @@ export function useWorkspaceActions(
         status.accountRef === summary.channelBinding.accountRef &&
         environment.transport.descriptor().id === summary.channelBinding.transportId
       ) {
+        // Switch surfaces before restoring the ACP session so the user sees
+        // the collaboration loading state while the Agent process starts.
+        ui.collaborationWorkspace.value = true
         try {
           await channels.selectChannel(summary.channelBinding.channelRef)
         } catch {
@@ -67,7 +70,6 @@ export function useWorkspaceActions(
         }
         await collaboration.bindChannel(summary.channelBinding.channelRef)
         await collaboration.selectConversation(id)
-        ui.collaborationWorkspace.value = true
         return
       }
     }
@@ -144,7 +146,8 @@ export function useWorkspaceActions(
   }
 
   function selectCollaborationModel(value: string): void {
-    collaboration.selectedModel = value
+    collaboration.selectModel(value)
+    void settings.setDefaultModel(value)
     if (collaboration.activeBinding)
       agentDrawer.updateDraft(collaboration.activeBinding, { model: value })
   }
@@ -162,7 +165,8 @@ export function useWorkspaceActions(
   }
 
   function selectConversationModel(value: string): void {
-    conversation.selectedModel = value
+    conversation.selectModel(value)
+    void settings.setDefaultModel(value)
   }
 
   function selectConversationPermission(value: PermissionMode): void {
@@ -217,6 +221,7 @@ export function useWorkspaceActions(
     text: string
     attachments: ComposerAttachment[]
   }): Promise<void> {
+    void settings.setDefaultModel(conversation.selectedModel)
     await conversation.sendMessage(payload.text, payload.attachments)
     if (conversation.conversationId && !conversation.error) {
       ui.localComposerText.value = ''
@@ -228,8 +233,15 @@ export function useWorkspaceActions(
     text: string
     attachments: ComposerAttachment[]
   }): Promise<void> {
-    if (ui.collaborationWorkspace.value) await collaboration.sendMessage(payload.text)
-    else await handleSend(payload)
+    if (ui.collaborationWorkspace.value) {
+      void settings.setDefaultModel(collaboration.selectedModel)
+      await collaboration.sendMessage(payload.text)
+    } else await handleSend(payload)
+  }
+
+  async function sendCollaborationMessage(text: string): Promise<void> {
+    void settings.setDefaultModel(collaboration.selectedModel)
+    await collaboration.sendMessage(text)
   }
 
   async function openDraftEditor(payload: {
@@ -277,6 +289,7 @@ export function useWorkspaceActions(
     resolveActiveApproval,
     logout,
     sendFromFullSurface,
+    sendCollaborationMessage,
     openDraftEditor,
     saveDialogDraft,
     deliverDialogDraft,

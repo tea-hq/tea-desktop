@@ -456,6 +456,26 @@ describe('useConversationStore', () => {
     expect(store.defaultRuntimeId).toBe('external.codex')
   })
 
+  it('uses the remembered model or the first available model for a new conversation', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([runtime])
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+    store.setAvailableModelOptions([
+      { value: 'provider/model-a', label: 'Model A' },
+      { value: 'provider/model-b', label: 'Model B' },
+    ])
+    store.setDefaultModel('provider/model-b')
+
+    expect(store.startNewConversation()).toBe(true)
+    expect(store.selectedModel).toBe('provider/model-b')
+
+    store.setDefaultModel('provider/missing')
+    store.startNewConversation()
+    expect(store.selectedModel).toBe('provider/model-a')
+  })
+
   it('creates a conversation and sends a message', async () => {
     const fake = new FakeClient()
     fake.setRuntimes([runtime])

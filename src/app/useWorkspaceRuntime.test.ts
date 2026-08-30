@@ -154,10 +154,12 @@ function createStores(
     ...runtimeStore,
     initializeConversationList: vi.fn(async () => undefined),
     setDefaultRuntimeId: vi.fn(),
+    setDefaultModel: vi.fn(),
   }
   const collaboration = {
     ...runtimeStore,
     selectedRuntimeId: null,
+    setDefaultModel: vi.fn(),
   }
   return {
     centerAuth: centerAuth as never,
@@ -168,6 +170,7 @@ function createStores(
     agentDrawer: {} as never,
     settings: {
       defaultRuntimeId: 'external.test',
+      defaultModel: null,
       configure: vi.fn(),
       initialize: vi.fn(async () => undefined),
     } as never,

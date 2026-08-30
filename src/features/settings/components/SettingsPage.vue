@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { TeaButton, TeaIconButton, TeaSelect } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 
-import type { RuntimeDescriptor } from '@/features/conversation/contracts'
+import type { ModelOption, RuntimeDescriptor } from '@/features/conversation/contracts'
 import type { LocalePreference } from '../contracts'
 
-defineProps<{
+const props = defineProps<{
   localePreference: LocalePreference
   defaultRuntimeId: string
+  defaultModel: string | null
   runtimes: RuntimeDescriptor[]
+  modelOptions: ModelOption[]
   saving: boolean
   error: string | null
 }>()
@@ -17,6 +20,7 @@ const emit = defineEmits<{
   close: []
   updateLocale: [locale: LocalePreference]
   updateDefaultRuntime: [runtimeId: string]
+  updateDefaultModel: [model: string]
 }>()
 
 const { t } = useI18n()
@@ -31,6 +35,20 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
     label: `${runtime.displayName} · ${t(`composer.status.${runtime.status}`)}`,
     disabled: runtime.status !== 'ready',
   }))
+const modelOptions = computed(() =>
+  props.modelOptions.map((option) => ({
+    value: option.value,
+    label: option.label ?? (option.labelKey ? t(option.labelKey) : option.value),
+    disabled: option.unavailable,
+  })),
+)
+const effectiveDefaultModel = computed(
+  () =>
+    modelOptions.value.find((option) => option.value === props.defaultModel && !option.disabled)
+      ?.value ??
+    modelOptions.value.find((option) => !option.disabled)?.value ??
+    null,
+)
 </script>
 
 <template>
@@ -98,6 +116,26 @@ const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
             :label="t('settings.defaultAgent.title')"
             :disabled="saving || runtimes.every((runtime) => runtime.status !== 'ready')"
             @update:model-value="$event && emit('updateDefaultRuntime', String($event))"
+          />
+        </div>
+      </section>
+
+      <section class="mt-12">
+        <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
+          <div>
+            <h2 class="text-base font-semibold text-fg">
+              {{ t('settings.defaultModel.title') }}
+            </h2>
+            <p class="mt-1 text-sm leading-5 text-dim">
+              {{ t('settings.defaultModel.description') }}
+            </p>
+          </div>
+          <TeaSelect
+            :model-value="effectiveDefaultModel"
+            :options="modelOptions"
+            :label="t('settings.defaultModel.title')"
+            :disabled="saving || modelOptions.every((option) => option.disabled)"
+            @update:model-value="$event && emit('updateDefaultModel', String($event))"
           />
         </div>
       </section>

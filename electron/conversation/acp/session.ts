@@ -36,6 +36,16 @@ import { AcpSessionConfiguration } from './sessionConfiguration'
 type SessionLifecycle =
   'new' | 'creating' | 'restoring' | 'active' | 'failed' | 'closing' | 'closed'
 
+export interface AcpSessionScheduler {
+  setTimeout(callback: () => void, delayMs: number): unknown
+  clearTimeout(handle: unknown): void
+}
+
+const DEFAULT_SESSION_SCHEDULER: AcpSessionScheduler = {
+  setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+}
+
 export class AcpSessionActor {
   private readonly projector: AcpEventProjector
   private readonly permissions: AcpPermissionCoordinator
@@ -103,7 +113,11 @@ export class AcpSessionActor {
     }
   }
 
-  async restoreSession(sessionId: string): Promise<void> {
+  async restoreSession(
+    sessionId: string,
+    timeoutMs: number,
+    scheduler: AcpSessionScheduler = DEFAULT_SESSION_SCHEDULER,
+  ): Promise<void> {
     if (this.lifecycle !== 'new') {
       throw new ConversationRuntimeError('invalidState', 'ACP session restore already started')
     }
@@ -120,7 +134,12 @@ export class AcpSessionActor {
       ) {
         const collector = new AcpV1ReplayCollector(this.conversationId, sessionId)
         this.replayCollector = collector
-        const response = await this.requestLoadSession(sessionId)
+        const response = await withRestoreTimeout(
+          this.requestLoadSession(sessionId),
+          timeoutMs,
+          this.conversationId,
+          scheduler,
+        )
         this.configuration.acceptSessionResponse(response)
         if (this.restoreFailure) throw this.restoreFailure
         const replay = collector.finish()
@@ -134,7 +153,12 @@ export class AcpSessionActor {
             'ACP Agent does not support restoring the recorded session',
           )
         }
-        const response = await this.requestResumeSession(sessionId)
+        const response = await withRestoreTimeout(
+          this.requestResumeSession(sessionId),
+          timeoutMs,
+          this.conversationId,
+          scheduler,
+        )
         this.configuration.acceptSessionResponse(response)
         if (this.restoreFailure) throw this.restoreFailure
       }
@@ -577,6 +601,34 @@ function wrongMcpWireVersion(): ConversationRuntimeError {
 
 function wrongRestoreWireVersion(): ConversationRuntimeError {
   return new ConversationRuntimeError('invalidState', 'ACP session/load requires wire version 1')
+}
+
+async function withRestoreTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  conversationId: string,
+  scheduler: AcpSessionScheduler,
+): Promise<T> {
+  let timer: unknown
+  const timeout = new Promise<never>((_resolve, reject) => {
+    const handle = scheduler.setTimeout(
+      () =>
+        reject(
+          new ConversationRuntimeError(
+            'connectionFailed',
+            `ACP session restore timed out: ${conversationId}`,
+            true,
+          ),
+        ),
+      timeoutMs,
+    )
+    timer = handle
+  })
+  try {
+    return await Promise.race([operation, timeout])
+  } finally {
+    if (timer !== undefined) scheduler.clearTimeout(timer)
+  }
 }
 
 function failureFrom(cause: unknown): ConversationFailure {

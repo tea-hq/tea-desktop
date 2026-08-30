@@ -29,7 +29,7 @@ describe('useSettingsStore', () => {
     const client = new FakeSettingsClient()
     client.saved = {
       locale: 'zh-CN',
-      conversationDefaults: { runtimeId: 'external.claude' },
+      conversationDefaults: { runtimeId: 'external.claude', model: null },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
     const store = useSettingsStore()
@@ -66,10 +66,12 @@ describe('useSettingsStore', () => {
     await store.initialize()
 
     await store.setLocalePreference('en')
+    await store.setDefaultModel('provider/model-a')
     await store.setDefaultRuntime('external.codex')
 
     expect(client.saved.locale).toBe('en')
     expect(client.saved.conversationDefaults.runtimeId).toBe('external.codex')
+    expect(client.saved.conversationDefaults.model).toBe('provider/model-a')
   })
 
   it('rolls back the latest optimistic update when persistence fails', async () => {

@@ -414,6 +414,10 @@ export default {
       title: '默认 Agent',
       description: '新建会话时优先使用该 Agent。',
     },
+    defaultModel: {
+      title: '默认模型',
+      description: '新建会话或切换 Agent 时优先使用该模型。',
+    },
   },
   sidebar: {
     title: '会话',
