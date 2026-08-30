@@ -39,6 +39,7 @@ class FakeClient {
   createCalls = 0
   sendCalls = 0
   cancelCalls = 0
+  listRequests: ListConversationsRequest[] = []
   approvalCalls: Array<{ conversationId: string; approvalId: string; decision: ApprovalDecision }> =
     []
   approvalError: Error | null = null
@@ -53,7 +54,8 @@ class FakeClient {
     return structuredClone(this.runtimes)
   }
 
-  async listConversations(_request: ListConversationsRequest): Promise<ConversationPage> {
+  async listConversations(request: ListConversationsRequest): Promise<ConversationPage> {
+    this.listRequests.push(structuredClone(request))
     return structuredClone(this.pages.shift() ?? { items: [], nextCursor: null, hasMore: false })
   }
 
@@ -232,6 +234,30 @@ describe('useConversationStore', () => {
     await store.loadMoreConversations()
     expect(store.conversations.map((item) => item.conversationId)).toEqual(['newer', 'older'])
     expect(store.hasMore).toBe(false)
+  })
+
+  it('sends a cloneable filter across the conversation client boundary', async () => {
+    const fake = new FakeClient()
+    fake.pages = [{ items: [], nextCursor: null, hasMore: false }]
+    const store = useConversationStore()
+    store.configure(fake)
+
+    await store.initializeConversationList()
+    await store.setCatalogFilter({
+      kind: 'binding',
+      binding: { transportId: 'yunxin.web', accountRef: 'account-1', channelRef: 'channel-1' },
+    })
+
+    expect(fake.listRequests).toEqual([
+      { limit: 30, filter: { kind: 'all' } },
+      {
+        limit: 30,
+        filter: {
+          kind: 'binding',
+          binding: { transportId: 'yunxin.web', accountRef: 'account-1', channelRef: 'channel-1' },
+        },
+      },
+    ])
   })
 
   it('loads a selected conversation snapshot and merges catalog updates', async () => {

@@ -150,7 +150,7 @@ export const useConversationStore = defineStore('conversation', () => {
     try {
       const page = await configured.listConversations({
         limit: PAGE_LIMIT,
-        filter: catalogFilter.value,
+        filter: cloneConversationScopeFilter(catalogFilter.value),
       })
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = uniqueSorted(page.items)
@@ -183,7 +183,7 @@ export const useConversationStore = defineStore('conversation', () => {
       const page = await configured.listConversations({
         cursor,
         limit: PAGE_LIMIT,
-        filter: catalogFilter.value,
+        filter: cloneConversationScopeFilter(catalogFilter.value),
       })
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = uniqueSorted([...conversations.value, ...page.items])
@@ -648,6 +648,13 @@ function matchesFilter(summary: ConversationSummary, filter: ConversationScopeFi
     binding.accountRef === filter.binding.accountRef &&
     binding.channelRef === filter.binding.channelRef
   )
+}
+
+function cloneConversationScopeFilter(filter: ConversationScopeFilter): ConversationScopeFilter {
+  if (filter.kind === 'binding') {
+    return { kind: 'binding', binding: { ...filter.binding } }
+  }
+  return { kind: filter.kind }
 }
 
 function uniqueSorted(items: ConversationSummary[]): ConversationSummary[] {
