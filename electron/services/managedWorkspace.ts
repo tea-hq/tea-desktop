@@ -12,6 +12,27 @@ export interface ManagedImCredentials {
 
 export type ManagedWorkspaceStateEmitter = (state: ManagedWorkspaceState) => void
 
+export interface RuntimeModel {
+  id: string
+  displayName: string
+}
+
+export interface RuntimeModelProvider {
+  status: 'ready' | 'disabled' | 'unavailable'
+  errorCode?: string
+  id: string
+  kind: string
+  displayName: string
+  baseUrl: string
+  apiKey?: string
+  models: RuntimeModel[]
+}
+
+type ModelDiscoveryFetch = typeof fetch
+
+const MODEL_DISCOVERY_MAX_BYTES = 512 * 1024
+const MODEL_DISCOVERY_TIMEOUT_MS = 5_000
+
 export class ElectronManagedWorkspaceService {
   private state: ManagedWorkspaceState = {
     generation: 0,
@@ -50,18 +71,23 @@ export class ElectronManagedWorkspaceService {
     })
     try {
       const configuration = (await this.auth.runtimeConfiguration()) as RuntimeConfiguration
-      const providers = configuration.modelProviders.map<ManagedModelProviderState>((value) => ({
-        id: value.id,
-        kind: value.kind,
-        displayName: value.displayName,
-        status: value.status,
-        ...(value.errorCode ? { errorCode: value.errorCode } : {}),
-        models: value.models.map((model) => ({
-          id: model.id,
-          displayName: model.displayName,
-          selectionValue: `${value.id}/${model.id}`,
-        })),
-      }))
+      const providers = await Promise.all(
+        configuration.modelProviders.map(async (value) => {
+          const models = await mergeProviderModels(value)
+          return {
+            id: value.id,
+            kind: value.kind,
+            displayName: value.displayName,
+            status: value.status,
+            ...(value.errorCode ? { errorCode: value.errorCode } : {}),
+            models: models.map((model) => ({
+              id: model.id,
+              displayName: model.displayName,
+              selectionValue: `${value.id}/${model.id}`,
+            })),
+          } satisfies ManagedModelProviderState
+        }),
+      )
       this.imCredentials =
         configuration.im?.status === 'ready' &&
         configuration.im.appKey &&
@@ -125,16 +151,165 @@ interface RuntimeConfiguration {
     account: string
     token: string
   } | null
-  modelProviders: Array<{
-    status: 'ready' | 'disabled' | 'unavailable'
-    errorCode?: string
-    id: string
-    kind: string
-    displayName: string
-    baseUrl: string
-    apiKey: string
-    models: Array<{ id: string; displayName: string }>
-  }>
+  modelProviders: RuntimeModelProvider[]
+}
+
+async function mergeProviderModels(provider: RuntimeModelProvider): Promise<RuntimeModel[]> {
+  const configured = normalizeModels(provider.models)
+  const discovered = await discoverProviderModels(provider)
+  const models = [...configured]
+  const ids = new Set(configured.map((model) => model.id))
+  for (const model of discovered) {
+    if (!ids.has(model.id)) {
+      ids.add(model.id)
+      models.push(model)
+    }
+  }
+  return models
+}
+
+export async function discoverProviderModels(
+  provider: RuntimeModelProvider,
+  fetchImpl: ModelDiscoveryFetch = fetch,
+): Promise<RuntimeModel[]> {
+  if (provider.status !== 'ready' || !provider.apiKey?.trim()) return []
+  const request = modelDiscoveryRequest(provider)
+  if (!request) return []
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), MODEL_DISCOVERY_TIMEOUT_MS)
+  try {
+    const response = await fetchImpl(request.url, {
+      method: 'GET',
+      headers: request.headers,
+      signal: controller.signal,
+      redirect: 'error',
+    })
+    if (!response.ok) return []
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > MODEL_DISCOVERY_MAX_BYTES) return []
+    const parsed: unknown = bytes.byteLength
+      ? JSON.parse(Buffer.from(bytes).toString('utf8'))
+      : null
+    return parseDiscoveredModels(parsed, request.format)
+  } catch {
+    return []
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function modelDiscoveryRequest(
+  provider: RuntimeModelProvider,
+): { url: string; headers: Record<string, string>; format: 'openai' | 'gemini' } | null {
+  const apiKey = provider.apiKey?.trim()
+  if (!apiKey) return null
+  const kind = provider.kind.trim().toLocaleLowerCase('en')
+  const isGemini =
+    kind === 'gemini' ||
+    kind === 'google' ||
+    kind === 'google_gemini' ||
+    kind === 'google-gemini' ||
+    kind === 'google_generative_ai' ||
+    kind === 'google-generative-ai'
+  const isOpenAiCompatible =
+    kind === 'openai' || kind === 'openai_compatible' || kind === 'openai-compatible'
+  const isAnthropic = kind === 'anthropic'
+  if (!isGemini && !isOpenAiCompatible && !isAnthropic) return null
+
+  let base: URL
+  try {
+    base = new URL(provider.baseUrl)
+  } catch {
+    return null
+  }
+  if (
+    !base.hostname ||
+    base.username ||
+    base.password ||
+    base.search ||
+    base.hash ||
+    (base.protocol !== 'https:' && !(base.protocol === 'http:' && isLoopback(base.hostname)))
+  ) {
+    return null
+  }
+  const path = base.pathname.replace(/\/+$/, '')
+  base.pathname = path || '/'
+  const alreadyModels = path.endsWith('/models')
+  if (!alreadyModels) {
+    const version = isGemini
+      ? path.endsWith('/v1beta')
+        ? ''
+        : '/v1beta'
+      : path.endsWith('/v1') || path.endsWith('/v1beta')
+        ? ''
+        : '/v1'
+    base.pathname = `${path}${version}/models` || '/models'
+  }
+  return {
+    url: base.toString(),
+    headers: isGemini
+      ? { 'x-goog-api-key': apiKey }
+      : isAnthropic
+        ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }
+        : { authorization: `Bearer ${apiKey}` },
+    format: isGemini ? 'gemini' : 'openai',
+  }
+}
+
+function parseDiscoveredModels(value: unknown, format: 'openai' | 'gemini'): RuntimeModel[] {
+  if (!isRecord(value)) return []
+  const candidates = value[format === 'gemini' ? 'models' : 'data']
+  if (!Array.isArray(candidates)) return []
+  const models: RuntimeModel[] = []
+  const ids = new Set<string>()
+  for (const candidate of candidates) {
+    if (!isRecord(candidate)) continue
+    const rawId = format === 'gemini' ? candidate.name : candidate.id
+    if (typeof rawId !== 'string') continue
+    const id = format === 'gemini' ? rawId.replace(/^models\//, '') : rawId
+    const displayName = firstText(candidate.displayName, candidate.display_name, id)
+    if (!validModelText(id) || !validModelText(displayName) || ids.has(id)) continue
+    ids.add(id)
+    models.push({ id, displayName })
+  }
+  return models
+}
+
+function normalizeModels(values: RuntimeModel[]): RuntimeModel[] {
+  const models: RuntimeModel[] = []
+  const ids = new Set<string>()
+  for (const value of values) {
+    const id = typeof value.id === 'string' ? value.id.trim() : ''
+    const displayName =
+      typeof value.displayName === 'string' && value.displayName.trim() !== ''
+        ? value.displayName.trim()
+        : id
+    if (!validModelText(id) || !validModelText(displayName) || ids.has(id)) continue
+    ids.add(id)
+    models.push({ id, displayName })
+  }
+  return models
+}
+
+function validModelText(value: string): boolean {
+  return value.length > 0 && value.length <= 256 && !/[\u0000-\u001f\u007f]/.test(value)
+}
+
+function firstText(...values: unknown[]): string {
+  return (
+    values
+      .find((value): value is string => typeof value === 'string' && value.trim() !== '')
+      ?.trim() ?? ''
+  )
+}
+
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function errorCode(error: unknown): string {

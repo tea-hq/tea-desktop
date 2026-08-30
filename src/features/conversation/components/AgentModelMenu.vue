@@ -322,6 +322,7 @@ onBeforeUnmount(() => {
   display: grid;
   position: fixed;
   grid-template-columns: minmax(10rem, 12rem) minmax(15rem, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   width: min(31rem, calc(100vw - 1rem));
   max-height: min(22rem, calc(100vh - 1rem));
   overflow: hidden;
@@ -380,7 +381,9 @@ onBeforeUnmount(() => {
 
 .agent-model-menu__options {
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.5rem;
 }
 
@@ -405,6 +408,7 @@ onBeforeUnmount(() => {
   padding: 0 0.625rem;
   color: var(--tea-dim);
   font-size: 0.8125rem;
+  line-height: 1.25;
   text-align: left;
   transition:
     background-color 150ms ease,

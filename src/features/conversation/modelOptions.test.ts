@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RuntimeDescriptor } from './contracts'
-import { runtimeModelOptions } from './modelOptions'
+import { mergeModelOptions, runtimeModelOptions } from './modelOptions'
 
 const claude: RuntimeDescriptor = {
   id: 'external.claude',
@@ -42,5 +42,24 @@ describe('runtimeModelOptions', () => {
         ],
       }),
     ).toEqual([{ value: 'claude-sonnet-5', label: 'Sonnet 5', source: 'runtime' }])
+  })
+
+  it('merges model catalogs without duplicating values', () => {
+    expect(
+      mergeModelOptions(
+        [
+          { value: 'default', labelKey: 'composer.model.configured' },
+          { value: 'model-a', label: 'Runtime A' },
+        ],
+        [
+          { value: 'model-a', label: 'Provider A' },
+          { value: 'model-b', label: 'Provider B' },
+        ],
+      ),
+    ).toEqual([
+      { value: 'default', labelKey: 'composer.model.configured' },
+      { value: 'model-a', label: 'Runtime A' },
+      { value: 'model-b', label: 'Provider B' },
+    ])
   })
 })

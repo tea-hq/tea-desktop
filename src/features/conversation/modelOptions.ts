@@ -13,3 +13,16 @@ export function runtimeModelOptions(runtime: RuntimeDescriptor | null): ModelOpt
     source: model.source,
   }))
 }
+
+export function mergeModelOptions(...groups: readonly ModelOption[][]): ModelOption[] {
+  const seen = new Set<string>()
+  const merged: ModelOption[] = []
+  for (const group of groups) {
+    for (const option of group) {
+      if (seen.has(option.value)) continue
+      seen.add(option.value)
+      merged.push({ ...option })
+    }
+  }
+  return merged.length > 0 ? merged : [{ ...DEFAULT_OPTION }]
+}

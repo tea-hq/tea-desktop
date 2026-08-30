@@ -1,12 +1,12 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AgentRoleOption, ModelOption } from '@/features/conversation/contracts'
-import { runtimeModelOptions } from '@/features/conversation/modelOptions'
+import { mergeModelOptions, runtimeModelOptions } from '@/features/conversation/modelOptions'
 import type { TeaDesktopStores } from './desktopAppDependencies'
 import type { WorkspaceUiState } from './desktopAppState'
 
 export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiState) {
-  const { conversation, channels, collaboration, agentDrawer, agentRoles } = stores
+  const { conversation, channels, collaboration, agentDrawer, agentRoles, managedRuntime } = stores
   const { t } = useI18n()
 
   const roleOptions = computed<AgentRoleOption[]>(() =>
@@ -89,8 +89,14 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
       active.channelBinding.channelRef === binding.channelRef,
     )
   })
+  const conversationModelOptions = computed<ModelOption[]>(() =>
+    mergeModelOptions(conversation.modelOptions, managedRuntime.modelOptions),
+  )
   const collaborationModelOptions = computed<ModelOption[]>(() =>
-    runtimeModelOptions(collaboration.activeRuntime),
+    mergeModelOptions(
+      runtimeModelOptions(collaboration.activeRuntime),
+      managedRuntime.modelOptions,
+    ),
   )
 
   return {
@@ -105,6 +111,7 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
     dialogDelivery,
     recentCollaborationConversations,
     currentChannelSessionAvailable,
+    conversationModelOptions,
     collaborationModelOptions,
   }
 }

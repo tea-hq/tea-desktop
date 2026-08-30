@@ -25,6 +25,22 @@ function mountMenu() {
   })
 }
 
+function mountLongMenu() {
+  return mount(AgentModelMenu, {
+    props: {
+      modelValue: 'model-1',
+      options: Array.from({ length: 30 }, (_, index) => ({
+        value: `model-${index + 1}`,
+        label: index === 29 ? 'gpt-image-2' : `Model ${index + 1}`,
+      })),
+      label: 'Select model',
+    },
+    global: {
+      plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+    },
+  })
+}
+
 let mountedMenu: ReturnType<typeof mountMenu> | null = null
 
 afterEach(() => {
@@ -86,5 +102,17 @@ describe('AgentModelMenu', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('select-effort')).toEqual([['ultra']])
     expect(wrapper.get('[role="combobox"]').text()).toContain('Ultra')
+  })
+
+  it('keeps long model lists in the scrollable options column', async () => {
+    const wrapper = (mountedMenu = mountLongMenu())
+
+    await wrapper.get('[role="combobox"]').trigger('click')
+
+    const menu = document.body.querySelector('[role="menu"]')!
+    const optionsPanel = menu.querySelector('.agent-model-menu__options')!
+    expect(optionsPanel.classList.contains('agent-model-menu__options')).toBe(true)
+    expect(optionsPanel.querySelectorAll('[role="menuitemradio"]')).toHaveLength(30)
+    expect(optionsPanel.textContent).toContain('gpt-image-2')
   })
 })

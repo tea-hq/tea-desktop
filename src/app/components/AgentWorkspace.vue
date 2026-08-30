@@ -15,6 +15,7 @@ const {
   selectedRoleId,
   fullComposerText,
   fullComposerAttachments,
+  conversationModelOptions,
   collaborationModelOptions,
   errorText,
   sendFromFullSurface,
@@ -89,9 +90,7 @@ const { t } = useI18n()
       :runtime-id="
         collaborationWorkspace ? collaboration.selectedRuntimeId : conversation.activeRuntimeId
       "
-      :model-options="
-        collaborationWorkspace ? collaborationModelOptions : conversation.modelOptions
-      "
+      :model-options="collaborationWorkspace ? collaborationModelOptions : conversationModelOptions"
       :model="collaborationWorkspace ? collaboration.selectedModel : conversation.selectedModel"
       :permission-mode="
         collaborationWorkspace ? collaboration.permissionMode : conversation.permissionMode
