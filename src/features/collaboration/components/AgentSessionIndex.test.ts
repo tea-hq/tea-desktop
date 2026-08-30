@@ -96,4 +96,13 @@ describe('AgentSessionIndex', () => {
     await wrapper.get('.session-row').trigger('click')
     expect(wrapper.emitted('select')).toEqual([['conversation-9']])
   })
+
+  it('shows opening feedback while keeping existing sessions visible', () => {
+    const wrapper = mountIndex({ loading: true })
+
+    const status = wrapper.get('[role="status"][aria-busy="true"]')
+    expect(status.text()).toContain('Opening session…')
+    expect(wrapper.findAll('.session-row')).toHaveLength(8)
+    expect(wrapper.find('.session-row').attributes('disabled')).toBeDefined()
+  })
 })

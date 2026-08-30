@@ -61,6 +61,7 @@ const { t } = useI18n()
   <TeaDrawer
     :open="open"
     :title="t('channels.collaboration.title')"
+    appearance="quiet"
     :close-label="t('common.close')"
     @close="emit('close')"
   >

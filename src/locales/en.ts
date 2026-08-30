@@ -321,6 +321,7 @@ export default {
       allSessions: 'All sessions',
       newSession: 'New session',
       loadingSessions: 'Loading sessions',
+      openingSession: 'Opening session…',
       defaultLabel: 'Default',
       viewAllSessions: 'View all sessions',
       searchSessions: 'Search sessions',

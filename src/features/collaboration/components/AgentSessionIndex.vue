@@ -40,7 +40,7 @@ const visible = computed(() => {
 </script>
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div v-if="conversations.length > 0" class="shrink-0 border-b border-line px-4 py-3">
+    <div v-if="conversations.length > 0" class="shrink-0 bg-panel px-4 py-3">
       <div class="flex items-center justify-between gap-3">
         <h3 class="min-w-0 truncate text-sm font-semibold text-fg">
           {{
@@ -119,23 +119,41 @@ const visible = computed(() => {
       @create-with-runtime="emit('createWithRuntime', $event)"
     />
     <template v-else>
-      <div
-        v-if="mode === 'all' && visible.length === 0"
-        class="flex flex-1 flex-col items-center justify-center px-8 py-8 text-center text-dim"
-        role="status"
-      >
-        <span class="i-mdi-magnify mb-2 size-6 text-subtle" aria-hidden="true" />
-        <p class="text-sm">{{ t('channels.collaboration.noMatchingSessions') }}</p>
+      <div class="relative flex min-h-0 flex-1 flex-col">
+        <div
+          v-if="mode === 'all' && visible.length === 0"
+          class="flex flex-1 flex-col items-center justify-center px-8 py-8 text-center text-dim"
+          role="status"
+        >
+          <span class="i-mdi-magnify mb-2 size-6 text-subtle" aria-hidden="true" />
+          <p class="text-sm">{{ t('channels.collaboration.noMatchingSessions') }}</p>
+        </div>
+        <AgentSessionList
+          v-else
+          :conversations="visible"
+          :runtimes="runtimes"
+          :loading="loading"
+          :has-more="hasMore"
+          @select="emit('select', $event)"
+          @load-more="emit('loadMore')"
+        />
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center bg-canvas/80"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          :aria-label="t('channels.collaboration.openingSession')"
+        >
+          <div class="flex items-center gap-2 px-4 py-3 text-sm text-dim">
+            <span
+              class="i-mdi-loading size-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            <span>{{ t('channels.collaboration.openingSession') }}</span>
+          </div>
+        </div>
       </div>
-      <AgentSessionList
-        v-else
-        :conversations="visible"
-        :runtimes="runtimes"
-        :loading="loading"
-        :has-more="hasMore"
-        @select="emit('select', $event)"
-        @load-more="emit('loadMore')"
-      />
     </template>
   </div>
 </template>

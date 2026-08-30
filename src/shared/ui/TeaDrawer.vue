@@ -7,9 +7,15 @@ const props = withDefaults(
     title: string
     dismissable?: boolean
     width?: 'default' | 'wide'
+    appearance?: 'default' | 'quiet'
     closeLabel?: string
   }>(),
-  { dismissable: true, width: 'default', closeLabel: 'Close' },
+  {
+    dismissable: true,
+    width: 'default',
+    appearance: 'default',
+    closeLabel: 'Close',
+  },
 )
 const emit = defineEmits<{ close: [] }>()
 const panel = ref<HTMLElement | null>(null)
@@ -89,13 +95,17 @@ onBeforeUnmount(() => {
         aria-modal="true"
         tabindex="-1"
         :class="[
-          'absolute inset-y-0 right-0 flex w-full max-w-[92vw] flex-col border-l border-line bg-raised text-fg outline-none',
+          'absolute inset-y-0 right-0 flex w-full max-w-[92vw] flex-col bg-raised text-fg outline-none',
+          appearance === 'quiet' ? 'border-l-0' : 'border-l border-line',
           width === 'wide' ? 'max-w-2xl' : 'max-w-lg',
         ]"
         @click.stop
       >
         <header
-          class="flex shrink-0 items-center justify-between gap-4 border-b border-line px-5 py-4"
+          :class="[
+            'flex shrink-0 items-center justify-between gap-4 px-5 py-4',
+            appearance === 'quiet' ? 'bg-raised' : 'border-b border-line',
+          ]"
         >
           <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ title }}</h2>
           <button

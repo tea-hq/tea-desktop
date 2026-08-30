@@ -207,6 +207,28 @@ describe('Tea primitives', () => {
     expect(drawer.emitted('close')).toHaveLength(1)
   })
 
+  it('supports a quiet drawer surface without changing the default treatment', () => {
+    const defaultWrapper = mountTea(TeaDrawer, {
+      props: { open: true, title: 'Agent' },
+    })
+    const defaultDialog = Array.from(document.body.querySelectorAll('[role="dialog"]')).at(-1)!
+    const defaultHeader = defaultDialog.querySelector('header')!
+    expect(defaultDialog.className).toContain('border-l')
+    expect(defaultHeader.className).toContain('border-b')
+    defaultWrapper.unmount()
+
+    const wrapper = mountTea(TeaDrawer, {
+      props: { open: true, title: 'Agent', appearance: 'quiet' },
+    })
+    const dialog = Array.from(document.body.querySelectorAll('[role="dialog"]')).at(-1)!
+    const header = dialog.querySelector('header')!
+
+    expect(dialog.className).toContain('border-l-0')
+    expect(header.className).toContain('bg-raised')
+    expect(header.className).not.toContain('border-b')
+    wrapper.unmount()
+  })
+
   it('renders tabs with keyboard semantics and controlled selection', async () => {
     const wrapper = mountTea(TeaTabs, {
       props: {

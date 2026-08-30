@@ -307,6 +307,7 @@ export default {
       allSessions: '全部会话',
       newSession: '新建会话',
       loadingSessions: '正在加载会话',
+      openingSession: '正在打开会话…',
       defaultLabel: '默认',
       viewAllSessions: '查看全部会话',
       searchSessions: '搜索会话',
