@@ -245,6 +245,7 @@ export interface ConversationSummary {
   conversationId: string
   runtimeId: string
   workspaceId: string
+  workingDirectory?: string
   title?: string
   lastMessagePreview?: string
   createdAt: number
@@ -297,6 +298,7 @@ export interface CreateConversationResponse {
 export interface CreateConversationOptions {
   idempotencyKey: string
   model?: string
+  workingDirectory?: string
   channelBinding?: ChannelBinding
   hostTools?: HostToolDefinition[]
 }

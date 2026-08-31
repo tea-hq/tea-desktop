@@ -2,18 +2,24 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { MainDatabaseError } from './database'
 
-export const CONVERSATION_CATALOG_SCHEMA_VERSION = 1
+export const CONVERSATION_CATALOG_SCHEMA_VERSION = 2
 
 export function migrateConversationCatalog(database: DatabaseSync): void {
   const row = database.prepare('PRAGMA user_version').get()
   const version = readUserVersion(row)
   if (version === CONVERSATION_CATALOG_SCHEMA_VERSION) return
+  if (version === 1) {
+    if (!hasUserTables(database)) throw unsupportedSchema(version)
+    database.exec(`
+      BEGIN IMMEDIATE;
+      ALTER TABLE runtime_conversations ADD COLUMN working_directory TEXT;
+      PRAGMA user_version = 2;
+      COMMIT;
+    `)
+    return
+  }
   if (version !== 0 || hasUserTables(database)) {
-    throw new MainDatabaseError(
-      'unsupportedSchema',
-      `conversation catalog schema version is unsupported: ${version}`,
-      false,
-    )
+    throw unsupportedSchema(version)
   }
 
   database.exec(`
@@ -23,6 +29,7 @@ export function migrateConversationCatalog(database: DatabaseSync): void {
       runtime_id TEXT NOT NULL,
       native_session_id TEXT NOT NULL,
       workspace_id TEXT NOT NULL,
+      working_directory TEXT,
       idempotency_key TEXT NOT NULL UNIQUE,
       binding_json TEXT NOT NULL,
       title TEXT,
@@ -116,9 +123,17 @@ export function migrateConversationCatalog(database: DatabaseSync): void {
     ) STRICT;
     CREATE INDEX channel_deliveries_draft_idx
       ON channel_deliveries(draft_id, updated_at DESC, delivery_id DESC);
-    PRAGMA user_version = 1;
+    PRAGMA user_version = 2;
     COMMIT;
   `)
+}
+
+function unsupportedSchema(version: number): MainDatabaseError {
+  return new MainDatabaseError(
+    'unsupportedSchema',
+    `conversation catalog schema version is unsupported: ${version}`,
+    false,
+  )
 }
 
 function readUserVersion(value: unknown): number {

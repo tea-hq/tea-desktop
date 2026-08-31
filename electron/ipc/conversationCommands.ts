@@ -50,6 +50,10 @@ export function createConversationCommandHandlers(
         runtimeId: readString(args.runtimeId, 'runtimeId'),
         idempotencyKey: readString(args.idempotencyKey, 'idempotencyKey'),
         model: args.model === undefined ? undefined : readString(args.model, 'model'),
+        workingDirectory:
+          args.workingDirectory === undefined
+            ? undefined
+            : readString(args.workingDirectory, 'workingDirectory'),
         channelBinding:
           args.channelBinding === undefined
             ? undefined

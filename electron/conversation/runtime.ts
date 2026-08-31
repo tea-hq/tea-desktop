@@ -94,6 +94,8 @@ export interface RuntimeProviderConfiguration {
 export interface RuntimeConversationCreateOptions {
   model: string
   provider?: RuntimeProviderConfiguration
+  /** Optional per-conversation ACP cwd; omitted means the runtime default. */
+  workspacePath?: string
 }
 
 export interface RuntimeConversationCommand {

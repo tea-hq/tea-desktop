@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 
 import type {
   ApprovalDecision,
@@ -46,6 +47,7 @@ const MAX_IDEMPOTENCY_KEY_CHARS = 128
 const MAX_HOST_TOOLS = 128
 const MAX_PREVIEW_CHARS = 160
 const MAX_FALLBACK_TITLE_CHARS = 50
+const MAX_WORKING_DIRECTORY_CHARS = 4096
 
 export type RuntimeConversationServiceErrorCode =
   'invalidRequest' | 'runtimeUnavailable' | 'shutDown' | 'unknownConversation'
@@ -101,6 +103,7 @@ export interface CreateRuntimeConversationRequest {
   workspaceId: string
   idempotencyKey: string
   model?: string
+  workingDirectory?: string
   channelBinding?: ChannelBinding
   hostTools?: RuntimeHostToolReference[]
 }
@@ -471,7 +474,7 @@ export class RuntimeConversationService {
         'runtimeId' | 'workspaceId' | 'idempotencyKey' | 'model'
       >
     > &
-      Pick<CreateRuntimeConversationRequest, 'channelBinding'> & {
+      Pick<CreateRuntimeConversationRequest, 'workingDirectory' | 'channelBinding'> & {
         hostTools: RuntimeHostToolReference[]
       },
   ): Promise<RuntimeConversationResult> {
@@ -493,7 +496,10 @@ export class RuntimeConversationService {
       )
       assertExactHostTools(request.hostTools, definitions)
       await runtime.configureHostTools(conversationId, definitions)
-      const created = await runtime.createConversation(conversationId, runtimeModel)
+      const created = await runtime.createConversation(conversationId, {
+        ...runtimeModel,
+        ...(request.workingDirectory ? { workspacePath: request.workingDirectory } : {}),
+      })
       handle = {
         ...created,
         binding: withRuntimeConversationSelection(created.binding, modelSelection(request.model)),
@@ -503,6 +509,7 @@ export class RuntimeConversationService {
         conversationId,
         runtimeId: request.runtimeId,
         workspaceId: request.workspaceId,
+        ...(request.workingDirectory ? { workingDirectory: request.workingDirectory } : {}),
         createdAt: timestamp,
         updatedAt: timestamp,
         ...(request.channelBinding
@@ -726,7 +733,7 @@ export class RuntimeConversationService {
 function validateCreateRequest(request: CreateRuntimeConversationRequest): Required<
   Pick<CreateRuntimeConversationRequest, 'runtimeId' | 'workspaceId' | 'idempotencyKey' | 'model'>
 > &
-  Pick<CreateRuntimeConversationRequest, 'channelBinding'> & {
+  Pick<CreateRuntimeConversationRequest, 'workingDirectory' | 'channelBinding'> & {
     hostTools: RuntimeHostToolReference[]
   } {
   requireText(request.runtimeId, MAX_ID_CHARS)
@@ -738,6 +745,7 @@ function validateCreateRequest(request: CreateRuntimeConversationRequest): Requi
   }
   const model = request.model ?? 'default'
   requireText(model, MAX_ID_CHARS)
+  const workingDirectory = validateWorkingDirectory(request.workingDirectory)
   if (request.channelBinding) {
     requireText(request.channelBinding.transportId, MAX_ID_CHARS)
     requireText(request.channelBinding.accountRef, MAX_ID_CHARS)
@@ -758,6 +766,7 @@ function validateCreateRequest(request: CreateRuntimeConversationRequest): Requi
     workspaceId: request.workspaceId,
     idempotencyKey: request.idempotencyKey,
     model,
+    ...(workingDirectory ? { workingDirectory } : {}),
     ...(request.channelBinding ? { channelBinding: structuredClone(request.channelBinding) } : {}),
     hostTools,
   }
@@ -770,6 +779,7 @@ function assertSameCreation(
   if (
     record.summary.runtimeId !== request.runtimeId ||
     record.summary.workspaceId !== request.workspaceId ||
+    record.summary.workingDirectory !== request.workingDirectory ||
     !sameCreationSelection(record.binding.selection, modelSelection(request.model)) ||
     !sameChannelBinding(record.summary.channelBinding, request.channelBinding) ||
     !sameHostTools(record.binding.hostTools, request.hostTools)
@@ -816,6 +826,7 @@ function creationFingerprint(request: ReturnType<typeof validateCreateRequest>):
     runtimeId: request.runtimeId,
     workspaceId: request.workspaceId,
     model: request.model,
+    workingDirectory: request.workingDirectory ?? null,
     channelBinding: request.channelBinding ?? null,
     hostTools: request.hostTools.map(({ name, version }) => ({ name, version })),
   })
@@ -927,6 +938,22 @@ function requireText(value: unknown, maxChars: number): asserts value is string 
   ) {
     throw invalidRequest('runtime conversation request is invalid')
   }
+}
+
+function validateWorkingDirectory(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  if (
+    typeof value !== 'string' ||
+    value.length > MAX_WORKING_DIRECTORY_CHARS ||
+    value.trim().length === 0 ||
+    value.includes('\0') ||
+    value.includes('\r') ||
+    value.includes('\n') ||
+    !path.isAbsolute(value)
+  ) {
+    throw invalidRequest('working directory must be an absolute path')
+  }
+  return value.trim()
 }
 
 function requireConversationText(value: unknown): string {

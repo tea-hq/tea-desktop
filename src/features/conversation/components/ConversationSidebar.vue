@@ -34,14 +34,25 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 
-const conversationGroups = computed(() => {
-  const groups = new Map<string, ConversationSummary[]>()
+const groupedConversations = computed(() => {
+  const projects = new Map<string, ConversationSummary[]>()
+  const recent: ConversationSummary[] = []
   for (const conversation of props.conversations) {
-    const group = groups.get(conversation.workspaceId)
+    if (!conversation.workingDirectory) {
+      recent.push(conversation)
+      continue
+    }
+    const group = projects.get(conversation.workingDirectory)
     if (group) group.push(conversation)
-    else groups.set(conversation.workspaceId, [conversation])
+    else projects.set(conversation.workingDirectory, [conversation])
   }
-  return Array.from(groups, ([workspaceId, conversations]) => ({ workspaceId, conversations }))
+  return {
+    recent,
+    projects: Array.from(projects, ([workingDirectory, conversations]) => ({
+      workingDirectory,
+      conversations,
+    })),
+  }
 })
 
 function runtimeName(runtimeId: string): string {
@@ -49,14 +60,12 @@ function runtimeName(runtimeId: string): string {
 }
 
 function conversationTitle(conversation: ConversationSummary): string {
-  return conversation.title || t('sidebar.untitled')
+  return conversation.title || conversation.lastMessagePreview || t('sidebar.untitled')
 }
 
-function workspaceTitle(workspaceId: string): string {
-  if (!workspaceId || workspaceId === 'desktop-workspace' || workspaceId === 'e2e') {
-    return t('sidebar.workspace')
-  }
-  return workspaceId
+function projectName(workingDirectory: string): string {
+  const normalized = workingDirectory.replace(/[\\/]+$/u, '')
+  return normalized ? normalized.split(/[\\/]/u).at(-1) || normalized : workingDirectory
 }
 
 function errorText(error: ConversationUiError): string {
@@ -131,27 +140,20 @@ function handleScroll(event: Event): void {
       <p v-else-if="conversations.length === 0" class="px-3 py-6 text-center text-sm text-subtle">
         {{ t('sidebar.empty') }}
       </p>
-      <section
-        v-for="(group, groupIndex) in conversationGroups"
-        :key="group.workspaceId"
-        class="workspace-group"
-        :aria-labelledby="`conversation-workspace-${groupIndex}`"
-      >
+      <section v-if="groupedConversations.recent.length" class="workspace-group">
         <div class="workspace-group__header">
-          <span class="i-mdi-folder-outline size-3.5" aria-hidden="true" />
-          <span :id="`conversation-workspace-${groupIndex}`" class="truncate">
-            {{ workspaceTitle(group.workspaceId) }}
-          </span>
-          <span class="workspace-group__count">{{ group.conversations.length }}</span>
+          <span class="i-mdi-clock-outline size-3.5" aria-hidden="true" />
+          <span class="truncate">{{ t('sidebar.recentConversations') }}</span>
+          <span class="workspace-group__count">{{ groupedConversations.recent.length }}</span>
         </div>
         <div class="workspace-group__items">
           <TeaButton
-            v-for="(conv, conversationIndex) in group.conversations"
+            v-for="(conv, conversationIndex) in groupedConversations.recent"
             :key="conv.conversationId"
             appearance="ghost"
             class="conversation-row group flex min-h-9 w-full animate-fade-slide items-center justify-start gap-2 px-2 text-left"
             :class="conv.conversationId === activeId ? 'bg-panel' : 'hover:bg-hover'"
-            :style="{ animationDelay: `${(groupIndex * 4 + conversationIndex) * 30}ms` }"
+            :style="{ animationDelay: `${conversationIndex * 30}ms` }"
             :aria-label="conversationTitle(conv)"
             :title="conversationTitle(conv)"
             @click="emit('select', conv.conversationId)"
@@ -174,6 +176,65 @@ function handleScroll(event: Event): void {
               aria-hidden="true"
             />
           </TeaButton>
+        </div>
+      </section>
+      <section
+        v-if="groupedConversations.projects.length"
+        class="workspace-group workspace-group--projects"
+      >
+        <div class="workspace-group__header">
+          <span class="i-mdi-folder-multiple-outline size-3.5" aria-hidden="true" />
+          <span class="truncate">{{ t('sidebar.projects') }}</span>
+          <span class="workspace-group__count">{{ groupedConversations.projects.length }}</span>
+        </div>
+        <div class="workspace-projects">
+          <section
+            v-for="(project, projectIndex) in groupedConversations.projects"
+            :key="project.workingDirectory"
+            class="workspace-project"
+            :aria-labelledby="`conversation-project-${projectIndex}`"
+          >
+            <div class="workspace-project__header" :title="project.workingDirectory">
+              <span class="i-mdi-folder-outline size-3.5" aria-hidden="true" />
+              <span :id="`conversation-project-${projectIndex}`" class="truncate">
+                {{ projectName(project.workingDirectory) }}
+              </span>
+              <span class="workspace-group__count">{{ project.conversations.length }}</span>
+            </div>
+            <div class="workspace-group__items">
+              <TeaButton
+                v-for="(conv, conversationIndex) in project.conversations"
+                :key="conv.conversationId"
+                appearance="ghost"
+                class="conversation-row group flex min-h-9 w-full animate-fade-slide items-center justify-start gap-2 px-2 text-left"
+                :class="conv.conversationId === activeId ? 'bg-panel' : 'hover:bg-hover'"
+                :style="{ animationDelay: `${(projectIndex * 4 + conversationIndex) * 30}ms` }"
+                :aria-label="conversationTitle(conv)"
+                :title="conversationTitle(conv)"
+                @click="emit('select', conv.conversationId)"
+              >
+                <RuntimeIcon
+                  size="small"
+                  class="conversation-row__runtime transition-colors duration-150"
+                  :class="
+                    conv.conversationId === activeId
+                      ? 'text-fg'
+                      : 'text-subtle group-hover:text-dim'
+                  "
+                  :runtime-id="conv.runtimeId"
+                  :label="runtimeName(conv.runtimeId)"
+                />
+                <span class="min-w-0 flex-1 truncate text-sm font-medium leading-5 text-fg">
+                  {{ conversationTitle(conv) }}
+                </span>
+                <span
+                  v-if="conv.channelBinding"
+                  class="i-mdi-pound size-3 shrink-0 text-subtle"
+                  aria-hidden="true"
+                />
+              </TeaButton>
+            </div>
+          </section>
         </div>
       </section>
       <div
@@ -277,6 +338,32 @@ function handleScroll(event: Event): void {
   flex-direction: column;
   gap: 0.125rem;
   padding-left: 0.375rem;
+}
+
+.workspace-group--projects {
+  margin-top: 1rem;
+}
+
+.workspace-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.workspace-project {
+  padding-left: 0.375rem;
+}
+
+.workspace-project__header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  padding-inline: 0.5rem;
+  color: var(--tea-dim);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .conversation-row {

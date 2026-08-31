@@ -24,6 +24,7 @@ export interface CreateConversationCommand {
   runtimeId: string
   idempotencyKey: string
   model?: string
+  workingDirectory?: string
   channelBinding?: ChannelBinding
   hostTools: RuntimeHostToolReference[]
 }
@@ -98,6 +99,9 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
       workspaceId: this.workspaceId,
       idempotencyKey: request.idempotencyKey,
       ...(request.model === undefined ? {} : { model: request.model }),
+      ...(request.workingDirectory === undefined
+        ? {}
+        : { workingDirectory: request.workingDirectory }),
       channelBinding: request.channelBinding,
       hostTools: request.hostTools,
     })

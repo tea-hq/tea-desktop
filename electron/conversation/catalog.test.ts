@@ -50,6 +50,17 @@ describe('ConversationCatalog', () => {
     expect(JSON.stringify(persisted)).not.toContain('credential-value')
   })
 
+  it('round-trips an optional working directory and keeps it absent for default sessions', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create(record('default', 100))
+    catalog.create(record('project', 101, { workingDirectory: '/projects/tea' }))
+
+    expect(catalog.get('default')?.summary.workingDirectory).toBeUndefined()
+    expect(catalog.get('project')?.summary.workingDirectory).toBe('/projects/tea')
+    catalog.close()
+  })
+
   it('enforces unique conversation and idempotency identities', async () => {
     const catalog = new ConversationCatalog(await catalogPath())
     await catalog.initialize()
@@ -375,6 +386,7 @@ function record(
   options: {
     channelBinding?: ConversationCatalogRecord['summary']['channelBinding']
     hostTools?: ConversationCatalogRecord['binding']['hostTools']
+    workingDirectory?: string
   } = {},
 ): ConversationCatalogRecord {
   const nativeSessionId = `session:${conversationId}`
@@ -384,6 +396,7 @@ function record(
       conversationId,
       runtimeId,
       workspaceId: 'workspace-1',
+      ...(options.workingDirectory ? { workingDirectory: options.workingDirectory } : {}),
       createdAt: 100,
       updatedAt,
       ...(options.channelBinding ? { channelBinding: options.channelBinding } : {}),
@@ -401,7 +414,7 @@ function record(
         version: '1.0.0',
         integrity: 'sha512-synthetic',
       },
-      workspacePath: '/workspace',
+      workspacePath: options.workingDirectory ?? '/workspace',
       hostTools: options.hostTools ?? [],
     },
   }

@@ -2,7 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ComposerProfile } from '@/app/composerProfiles'
-import { TeaIconButton, TeaMenuSelect, TeaTextarea } from '@/shared/ui'
+import { TeaIconButton, TeaInput, TeaMenuSelect, TeaTextarea } from '@/shared/ui'
 import ChannelSourceTray from '@/features/collaboration/components/ChannelSourceTray.vue'
 import type { ChannelSourceInput } from '@/types/channelCollaboration'
 import type {
@@ -19,6 +19,8 @@ const props = defineProps<{
   centered?: boolean
   text: string
   attachments: ComposerAttachment[]
+  workingDirectory?: string | null
+  newConversation?: boolean
   sources?: ChannelSourceInput[]
   runtimes: RuntimeDescriptor[]
   runtimeId: string | null
@@ -31,6 +33,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:text': [value: string]
   'update:attachments': [value: ComposerAttachment[]]
+  'update:workingDirectory': [value: string | null]
   selectRuntime: [value: string]
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
@@ -128,6 +131,25 @@ defineExpose({ focus })
           </button>
         </div>
       </div>
+      <div v-if="newConversation && profile.id === 'full'" class="working-directory-control">
+        <span class="i-mdi-folder-outline size-4 text-subtle" aria-hidden="true" />
+        <TeaInput
+          class="working-directory-control__input"
+          size="small"
+          :model-value="workingDirectory ?? ''"
+          :placeholder="t('composer.workingDirectoryPlaceholder')"
+          :label="t('composer.workingDirectory')"
+          :disabled="disabled || streaming"
+          @update:model-value="emit('update:workingDirectory', $event)"
+        />
+        <TeaIconButton
+          v-if="workingDirectory"
+          size="small"
+          :label="t('composer.clearWorkingDirectory')"
+          icon="i-mdi-close"
+          @click="emit('update:workingDirectory', null)"
+        />
+      </div>
       <div class="composer-shell" :class="profile.compact ? 'composer-shell--compact' : ''">
         <TeaTextarea
           data-agent-composer
@@ -224,6 +246,30 @@ defineExpose({ focus })
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
   padding: 0.75rem;
+}
+.working-directory-control {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--tea-line-soft);
+  border-radius: var(--tea-radius-inline);
+  background: var(--tea-panel);
+  padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+}
+.working-directory-control :deep(.working-directory-control__input) {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tea-fg);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.working-directory-control :deep(.working-directory-control__input::placeholder) {
+  color: var(--tea-subtle);
 }
 .composer-input {
   min-height: 4.5rem;

@@ -59,6 +59,8 @@ const { t } = useI18n()
     <AgentConversationSurface
       v-model:text="fullComposerText"
       v-model:attachments="fullComposerAttachments"
+      :working-directory="conversation.workingDirectory"
+      :new-conversation="!collaborationWorkspace && !conversation.conversationId"
       :profile="fullAgentProfile"
       :title="
         collaborationWorkspace
@@ -111,6 +113,7 @@ const { t } = useI18n()
       @select-runtime="selectActiveRuntime"
       @select-model="selectActiveModel"
       @select-permission="selectActivePermission"
+      @update:working-directory="conversation.setWorkingDirectory($event)"
       @select-role="selectRole"
       @apply-role-prompt="applyActiveRolePrompt"
       @resolve-approval="resolveActiveApproval"

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
+import path from 'node:path'
 
 import type {
   ConversationPage,
@@ -42,6 +43,7 @@ const MAX_IDEMPOTENCY_KEY_CHARS = 128
 const MAX_TITLE_CHARS = 256
 const MAX_PREVIEW_CHARS = 1_000
 const MAX_BINDING_BYTES = 64 * 1024
+const MAX_WORKING_DIRECTORY_CHARS = 4096
 const MAX_CURSOR_CHARS = 2_048
 const MAX_FAILURE_CODE_CHARS = 128
 const MAX_DRAFT_CONTENT_CHARS = 8_000
@@ -113,12 +115,12 @@ export class ConversationCatalog {
           .prepare(
             `
             INSERT INTO runtime_conversations (
-              conversation_id, runtime_id, native_session_id, workspace_id,
+              conversation_id, runtime_id, native_session_id, workspace_id, working_directory,
               idempotency_key, binding_json, title, last_message_preview,
               created_at, updated_at, archived_at, channel_transport_id,
               channel_account_ref, channel_ref, last_restore_failure_code,
               last_restore_failed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT DO NOTHING
           `,
           )
@@ -127,6 +129,7 @@ export class ConversationCatalog {
             value.summary.runtimeId,
             value.nativeSessionId,
             value.summary.workspaceId,
+            value.summary.workingDirectory ?? null,
             value.idempotencyKey,
             bindingJson,
             value.summary.title ?? null,
@@ -932,7 +935,7 @@ export class ConversationCatalog {
 }
 
 const SELECT_COLUMNS = `
-  SELECT conversation_id, runtime_id, native_session_id, workspace_id,
+  SELECT conversation_id, runtime_id, native_session_id, workspace_id, working_directory,
     idempotency_key, binding_json, title, last_message_preview, created_at,
     updated_at, archived_at, channel_transport_id, channel_account_ref,
     channel_ref, last_restore_failure_code, last_restore_failed_at
@@ -949,6 +952,7 @@ function validateRecord(value: ConversationCatalogRecord): ConversationCatalogRe
   requireText(summary.conversationId, MAX_ID_CHARS)
   requireText(summary.runtimeId, MAX_ID_CHARS)
   requireText(summary.workspaceId, MAX_ID_CHARS)
+  if (summary.workingDirectory !== undefined) validateWorkingDirectory(summary.workingDirectory)
   requireText(value.nativeSessionId, MAX_ID_CHARS)
   validateIdempotencyKey(value.idempotencyKey)
   validateTimestamp(summary.createdAt)
@@ -968,7 +972,8 @@ function validateRecord(value: ConversationCatalogRecord): ConversationCatalogRe
   }
   if (
     binding.runtimeId !== summary.runtimeId ||
-    binding.nativeSessionId !== value.nativeSessionId
+    binding.nativeSessionId !== value.nativeSessionId ||
+    (summary.workingDirectory !== undefined && binding.workspacePath !== summary.workingDirectory)
   ) {
     throw invalidRequest()
   }
@@ -982,6 +987,29 @@ function validateRecord(value: ConversationCatalogRecord): ConversationCatalogRe
     binding,
     ...(failure ? { lastRestoreFailure: failure } : {}),
   })
+}
+
+function validateWorkingDirectory(value: unknown): asserts value is string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_WORKING_DIRECTORY_CHARS ||
+    value.includes('\0') ||
+    value.includes('\r') ||
+    value.includes('\n') ||
+    !path.isAbsolute(value)
+  ) {
+    throw invalidRequest()
+  }
+}
+
+function requireStoredWorkingDirectory(value: unknown): string {
+  try {
+    validateWorkingDirectory(value)
+    return value
+  } catch {
+    throw corruptCatalog()
+  }
 }
 
 function decodeRow(value: unknown): ConversationCatalogRecord {
@@ -1012,6 +1040,9 @@ function decodeRow(value: unknown): ConversationCatalogRecord {
       conversationId: requireStoredText(value.conversation_id, MAX_ID_CHARS),
       runtimeId: requireStoredText(value.runtime_id, MAX_ID_CHARS),
       workspaceId: requireStoredText(value.workspace_id, MAX_ID_CHARS),
+      ...(value.working_directory === null
+        ? {}
+        : { workingDirectory: requireStoredWorkingDirectory(value.working_directory) }),
       createdAt: requireStoredTimestamp(value.created_at),
       updatedAt: requireStoredTimestamp(value.updated_at),
       ...(value.title === null ? {} : { title: requireStoredText(value.title, MAX_TITLE_CHARS) }),

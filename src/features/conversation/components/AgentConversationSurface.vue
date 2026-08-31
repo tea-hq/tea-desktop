@@ -34,6 +34,8 @@ const props = defineProps<{
   error?: string | null
   text: string
   attachments: ComposerAttachment[]
+  workingDirectory?: string | null
+  newConversation?: boolean
   sources?: ChannelSourceInput[]
   runtimes: RuntimeDescriptor[]
   runtimeId: string | null
@@ -69,6 +71,7 @@ const emit = defineEmits<{
   createDraft: [payload: { turnIndex: number; blockId: string; content: string }]
   'update:text': [value: string]
   'update:attachments': [value: ComposerAttachment[]]
+  'update:workingDirectory': [value: string | null]
   selectRuntime: [value: string]
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
@@ -118,6 +121,8 @@ const emit = defineEmits<{
       :centered="centeredEmpty"
       :text="text"
       :attachments="attachments"
+      :working-directory="workingDirectory"
+      :new-conversation="newConversation"
       :sources="sources"
       :runtimes="runtimes"
       :runtime-id="runtimeId"
@@ -128,6 +133,7 @@ const emit = defineEmits<{
       :streaming="streaming"
       @update:text="emit('update:text', $event)"
       @update:attachments="emit('update:attachments', $event)"
+      @update:working-directory="emit('update:workingDirectory', $event)"
       @select-runtime="emit('selectRuntime', $event)"
       @select-model="emit('selectModel', $event)"
       @select-permission="emit('selectPermission', $event)"

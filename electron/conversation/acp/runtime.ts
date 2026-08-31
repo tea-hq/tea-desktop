@@ -12,6 +12,7 @@ import type {
 } from '../../../src/features/conversation/contracts'
 import {
   ConversationRuntimeError,
+  parseRuntimeConversationBinding,
   type ConversationEventListener,
   type ConversationRuntime,
   type RuntimeConversationBinding,
@@ -176,6 +177,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
     conversationId: string,
     options: RuntimeConversationCreateOptions,
   ): Promise<RuntimeConversationHandle> {
+    const workspacePath = resolveWorkspacePath(this.workspacePath, options.workspacePath)
     this.listeners.set(conversationId, new Set())
     let actor: AcpSessionActor | undefined
     let connection: AcpAgentConnection | undefined
@@ -189,7 +191,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
       connection = await this.connectionFactory.connect(
         this.definition,
         {
-          cwd: this.workspacePath,
+          cwd: workspacePath,
           injectedEnvironment: acpProviderEnvironment(this.definition, options),
         },
         handlers,
@@ -204,7 +206,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
           : undefined
       actor = new AcpSessionActor(
         conversationId,
-        this.workspacePath,
+        workspacePath,
         connection,
         this.definition.sessionConfiguration,
         (event) => this.emit(event),
@@ -225,7 +227,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
         runtimeId: this.definition.runtimeId,
         nativeSessionId,
         binding: createAcpConversationBinding(
-          { definition: this.definition, workspacePath: this.workspacePath, hostTools },
+          { definition: this.definition, workspacePath, hostTools },
           nativeSessionId,
           connection.protocol.wireVersion,
         ),
@@ -245,6 +247,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
     binding: RuntimeConversationBinding,
     options: RuntimeConversationCreateOptions = { model: 'default' },
   ): Promise<RuntimeConversationHandle> {
+    const bindingPath = parseRuntimeConversationBinding(binding).workspacePath
     this.assertActive()
     if (!conversationId.trim()) {
       throw new ConversationRuntimeError('invalidState', 'conversation id must not be empty')
@@ -265,7 +268,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
       hostTools = scope?.definitions() ?? []
       validated = validateAcpConversationBinding(binding, {
         definition: this.definition,
-        workspacePath: this.workspacePath,
+        workspacePath: bindingPath,
         hostTools,
       })
     } catch (cause) {
@@ -316,7 +319,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
       connection = await this.connectionFactory.connect(
         this.definition,
         {
-          cwd: this.workspacePath,
+          cwd: binding.workspacePath,
           injectedEnvironment: acpProviderEnvironment(this.definition, options),
         },
         handlers,
@@ -334,7 +337,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
           : undefined
       actor = new AcpSessionActor(
         conversationId,
-        this.workspacePath,
+        binding.workspacePath,
         connection,
         this.definition.sessionConfiguration,
         (event) => this.emit(event),
@@ -680,6 +683,23 @@ function runtimeConnectionError(cause: unknown): ConversationRuntimeError {
   return new ConversationRuntimeError('connectionFailed', 'ACP Agent connection failed', true, {
     cause,
   })
+}
+
+function resolveWorkspacePath(defaultPath: string, requestedPath?: string): string {
+  const value = requestedPath ?? defaultPath
+  if (
+    !path.isAbsolute(value) ||
+    value.length > MAX_WORKSPACE_PATH_CHARS ||
+    value.includes('\0') ||
+    value.includes('\r') ||
+    value.includes('\n')
+  ) {
+    throw new ConversationRuntimeError(
+      'invalidConfiguration',
+      'ACP conversation workspace path must be an absolute path',
+    )
+  }
+  return value
 }
 
 interface PendingSubjectGeneration {

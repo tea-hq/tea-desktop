@@ -21,12 +21,17 @@ const alternateRuntime: RuntimeDescriptor = {
   displayName: 'Codex',
 }
 
-function summary(conversationId: string, workspaceId: string): ConversationSummary {
+function summary(
+  conversationId: string,
+  workspaceId: string,
+  workingDirectory?: string,
+): ConversationSummary {
   return {
     conversationId,
     workspaceId,
     runtimeId: runtime.id,
     title: conversationId,
+    ...(workingDirectory ? { workingDirectory } : {}),
     createdAt: 1,
     updatedAt: 1,
   }
@@ -51,15 +56,16 @@ function mountSidebar(conversations: ConversationSummary[]) {
 }
 
 describe('ConversationSidebar', () => {
-  it('groups sessions by workspace and keeps new conversation icon-only', async () => {
+  it('separates recent sessions from project sessions and keeps new conversation icon-only', async () => {
     const wrapper = mountSidebar([
       summary('Alpha review', 'workspace-alpha'),
-      summary('Alpha build', 'workspace-alpha'),
-      summary('Beta review', 'workspace-beta'),
+      summary('Alpha build', 'workspace-alpha', '/projects/alpha'),
+      summary('Beta review', 'workspace-beta', '/projects/beta'),
     ])
 
     expect(wrapper.findAll('.workspace-group')).toHaveLength(2)
-    expect(wrapper.findAll('.workspace-group__items')).toHaveLength(2)
+    expect(wrapper.findAll('.workspace-group__items')).toHaveLength(3)
+    expect(wrapper.findAll('.workspace-project')).toHaveLength(2)
     expect(wrapper.findAll('.conversation-row')).toHaveLength(3)
 
     const newButton = wrapper.get('button[aria-label="New Conversation"]')

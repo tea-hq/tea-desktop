@@ -115,6 +115,42 @@ describe('RuntimeConversationService', () => {
     await service.shutdown()
   })
 
+  it('passes and persists an optional working directory for a new conversation', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    const runtime = fakeRuntime()
+    const service = createService(catalog, runtime.value, resolver(), () => 'conversation-1')
+    await service.initialize()
+
+    const created = await service.createConversation({
+      ...createRequest(),
+      workingDirectory: '/projects/tea',
+    })
+
+    expect(runtime.createConversation).toHaveBeenCalledWith('conversation-1', {
+      model: 'default',
+      workspacePath: '/projects/tea',
+    })
+    expect(created.summary.workingDirectory).toBe('/projects/tea')
+    expect(catalog.get('conversation-1')?.summary.workingDirectory).toBe('/projects/tea')
+    await service.shutdown()
+  })
+
+  it.each(['relative/path', '/bad\0path', '/bad\npath', `/${'x'.repeat(4097)}`])(
+    'rejects an invalid working directory before runtime creation: %s',
+    async (workingDirectory) => {
+      const catalog = new ConversationCatalog(await catalogPath())
+      const runtime = fakeRuntime()
+      const service = createService(catalog, runtime.value, resolver(), () => 'conversation-1')
+      await service.initialize()
+
+      await expect(
+        service.createConversation({ ...createRequest(), workingDirectory }),
+      ).rejects.toMatchObject({ code: 'invalidRequest' })
+      expect(runtime.createConversation).not.toHaveBeenCalled()
+      await service.shutdown()
+    },
+  )
+
   it('resolves the persisted provider selection before restoring a session', async () => {
     const catalog = new ConversationCatalog(await catalogPath())
     await catalog.initialize()
@@ -602,10 +638,16 @@ function fakeRuntime(
       configured.set(conversationId, structuredClone(definitions))
     },
   )
-  const createConversation = vi.fn(async (conversationId: string) => {
-    await options.createGate
-    return runtimeHandle(conversationId, configured.get(conversationId) ?? [])
-  })
+  const createConversation = vi.fn(
+    async (conversationId: string, runtimeOptions?: { workspacePath?: string }) => {
+      await options.createGate
+      return runtimeHandle(
+        conversationId,
+        configured.get(conversationId) ?? [],
+        runtimeOptions?.workspacePath,
+      )
+    },
+  )
   const restoreConversation = vi.fn(
     async (conversationId: string, binding: RuntimeConversationBinding) => {
       if (options.restoreFailure) throw options.restoreFailure
@@ -664,7 +706,11 @@ function fakeRuntime(
   }
 }
 
-function runtimeHandle(conversationId: string, hostTools: HostToolDefinition[]) {
+function runtimeHandle(
+  conversationId: string,
+  hostTools: HostToolDefinition[],
+  workspacePath = '/workspace',
+) {
   const nativeSessionId = `session:${conversationId}`
   const binding: RuntimeConversationBinding = {
     schemaVersion: 1,
@@ -677,7 +723,7 @@ function runtimeHandle(conversationId: string, hostTools: HostToolDefinition[]) 
       version: '1.0.0',
       integrity: 'sha512-synthetic',
     },
-    workspacePath: '/workspace',
+    workspacePath,
     hostTools: hostTools.map(({ name, version }) => ({ name, version })),
   }
   return {

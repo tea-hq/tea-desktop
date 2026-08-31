@@ -39,6 +39,7 @@ export const useConversationStore = defineStore('conversation', () => {
   const defaultModel = ref<string | null>(null)
   const activeRuntimeId = ref<string | null>(null)
   const selectedModel = ref('default')
+  const workingDirectory = ref<string | null>(null)
   const permissionMode = ref<PermissionMode>('default')
   const conversationId = ref<string | null>(null)
   const turns = ref<ConversationTurn[]>([])
@@ -228,6 +229,11 @@ export const useConversationStore = defineStore('conversation', () => {
     defaultModel.value = model
   }
 
+  function setWorkingDirectory(value: string | null): void {
+    const normalized = value?.trim() ?? ''
+    workingDirectory.value = normalized || null
+  }
+
   async function setCatalogFilter(filter: ConversationScopeFilter): Promise<void> {
     if (filter.kind === catalogFilter.value.kind) return
     catalogFilter.value = filter
@@ -251,6 +257,7 @@ export const useConversationStore = defineStore('conversation', () => {
     historyNextCursor.value = null
     historyHasMore.value = false
     activeRuntimeId.value = nextRuntimeId
+    workingDirectory.value = null
     selectedModel.value = resolveCurrentModel()
     permissionMode.value = 'default'
     creationIdempotencyKey = crypto.randomUUID()
@@ -294,6 +301,7 @@ export const useConversationStore = defineStore('conversation', () => {
         return
       conversationId.value = id
       activeRuntimeId.value = detail.summary.runtimeId
+      workingDirectory.value = detail.summary.workingDirectory ?? null
       selectedModel.value = resolveCurrentModel()
       permissionMode.value = 'default'
       turns.value = structuredClone(page.items)
@@ -306,6 +314,7 @@ export const useConversationStore = defineStore('conversation', () => {
       if (token !== selectionToken) return
       conversationId.value = id
       activeRuntimeId.value = summary.runtimeId
+      workingDirectory.value = summary.workingDirectory ?? null
       selectedModel.value = resolveCurrentModel()
       permissionMode.value = 'default'
       historyError.value = runtimeError(cause)
@@ -365,6 +374,7 @@ export const useConversationStore = defineStore('conversation', () => {
       const result = await configured.createConversation(activeRuntimeId.value, {
         idempotencyKey: creationIdempotencyKey,
         model: selectedModel.value,
+        ...(workingDirectory.value ? { workingDirectory: workingDirectory.value } : {}),
       })
       if (generation !== lifecycleGeneration || client !== configured) return
       selectionToken++
@@ -461,6 +471,7 @@ export const useConversationStore = defineStore('conversation', () => {
     catalogFilter.value = { kind: 'all' }
     activeRuntimeId.value = null
     selectedModel.value = 'default'
+    workingDirectory.value = null
     permissionMode.value = 'default'
     conversationId.value = null
     turns.value = []
@@ -594,11 +605,13 @@ export const useConversationStore = defineStore('conversation', () => {
     activeConversation,
     activeRuntimeId,
     selectedModel,
+    workingDirectory,
     permissionMode,
     modelOptions,
     setDefaultModel,
     setAvailableModelOptions,
     selectModel,
+    setWorkingDirectory,
     conversationId,
     turns,
     loading,

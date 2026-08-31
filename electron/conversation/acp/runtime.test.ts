@@ -165,6 +165,25 @@ describe('AcpConversationRuntime', () => {
     )
   })
 
+  it('passes a per-conversation workspace to the Agent process and ACP session', async () => {
+    const harness = createHarness(2)
+
+    await harness.runtime.createConversation('conversation-1', {
+      model: 'default',
+      workspacePath: '/projects/tea',
+    })
+
+    expect(harness.connect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ cwd: '/projects/tea' }),
+      expect.anything(),
+    )
+    expect(harness.request).toHaveBeenCalledWith('session/new', {
+      cwd: '/projects/tea',
+      mcpServers: [],
+    })
+  })
+
   it('injects provider routing before restoring a session', async () => {
     const harness = createHarness(2, {
       initialization: { supportsResumeSession: true },
@@ -1001,9 +1020,16 @@ describe('AcpConversationRuntime', () => {
     },
   )
 
-  it('rejects an incompatible binding before launching an Agent process', async () => {
+  it('restores a binding with its recorded per-conversation workspace', async () => {
     const hostTools = createHostToolsDependencies(1)
-    const harness = createHarness(1, hostTools)
+    const harness = createHarness(1, {
+      ...hostTools,
+      initialization: { supportsLoadSession: false, supportsResumeSession: true },
+      request: (method) => {
+        if (method === 'session/resume' || method === 'session/close') return Promise.resolve({})
+        return Promise.reject(new Error(`unexpected ACP request: ${method}`))
+      },
+    })
     await harness.runtime.configureHostTools('conversation-1', [HOST_TOOL])
     const binding = conversationBinding(1, 'session-restored', [HOST_TOOL])
     const changed = structuredClone(binding)
@@ -1011,9 +1037,15 @@ describe('AcpConversationRuntime', () => {
 
     await expect(
       harness.runtime.restoreConversation('conversation-1', changed),
-    ).rejects.toMatchObject({ code: 'invalidConfiguration' })
-    expect(harness.connect).not.toHaveBeenCalled()
-    expect(hostTools.broker.removeConversation).toHaveBeenCalledWith('conversation-1')
+    ).resolves.toMatchObject({
+      nativeSessionId: 'session-restored',
+    })
+    expect(harness.connect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ cwd: '/other' }),
+      expect.anything(),
+      1,
+    )
   })
 
   it('rejects restore when neither load nor resume is advertised and closes resources', async () => {

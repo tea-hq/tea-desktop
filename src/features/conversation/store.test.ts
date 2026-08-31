@@ -9,6 +9,7 @@ import type {
   ConversationPage,
   ConversationSummary,
   ConversationTurn,
+  CreateConversationOptions,
   HostToolCall,
   HostToolResult,
   ListConversationsRequest,
@@ -37,6 +38,7 @@ class FakeClient {
   getConversationCalls: string[] = []
   subscriptionCalls: string[] = []
   createCalls = 0
+  lastCreateOptions: CreateConversationOptions | null = null
   sendCalls = 0
   cancelCalls = 0
   listRequests: ListConversationsRequest[] = []
@@ -75,8 +77,9 @@ class FakeClient {
     return structuredClone(result ?? { items: [], nextCursor: null, hasMore: false, startIndex: 0 })
   }
 
-  async createConversation(runtimeId: string) {
+  async createConversation(runtimeId: string, options: CreateConversationOptions) {
     this.createCalls++
+    this.lastCreateOptions = structuredClone(options)
     const handle = { conversationId: `conv-${this.createCalls}`, runtimeId }
     return {
       handle,
@@ -536,6 +539,23 @@ describe('useConversationStore', () => {
 
     expect(store.conversationId).toBe('conv-1')
     expect(store.conversations).toEqual([])
+  })
+
+  it('sends the selected working directory only when creating a new conversation', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([runtime])
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+    store.setWorkingDirectory('/projects/tea')
+
+    await store.createConversation()
+
+    expect(fake.lastCreateOptions).toEqual(
+      expect.objectContaining({ workingDirectory: '/projects/tea' }),
+    )
+    store.startNewConversation()
+    expect(store.workingDirectory).toBeNull()
   })
 
   it('appends assistant text from streaming events', async () => {
