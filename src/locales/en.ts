@@ -477,6 +477,24 @@ export default {
     thought: 'Agent thought',
     showThought: 'Show thought details',
     hideThought: 'Hide thought details',
+    taskNotification: {
+      title: 'Background task notification',
+      expand: 'Show task notification details',
+      collapse: 'Hide task notification details',
+      fields: {
+        taskId: 'Task ID',
+        toolUseId: 'Tool use ID',
+        outputFile: 'Output file',
+        status: 'Status',
+        summary: 'Summary',
+      },
+      status: {
+        completed: 'Completed',
+        failed: 'Failed',
+        stopped: 'Stopped',
+        unknown: 'Task update',
+      },
+    },
     status: {
       sending: 'Starting',
       running: 'Working',

@@ -461,6 +461,24 @@ export default {
     thought: 'Agent 思考',
     showThought: '展开思考详情',
     hideThought: '收起思考详情',
+    taskNotification: {
+      title: '后台任务通知',
+      expand: '展开任务通知详情',
+      collapse: '收起任务通知详情',
+      fields: {
+        taskId: '任务 ID',
+        toolUseId: '工具调用 ID',
+        outputFile: '输出文件',
+        status: '状态',
+        summary: '摘要',
+      },
+      status: {
+        completed: '已完成',
+        failed: '失败',
+        stopped: '已停止',
+        unknown: '任务更新',
+      },
+    },
     status: {
       sending: '正在启动',
       running: '正在处理',

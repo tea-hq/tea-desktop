@@ -9,6 +9,8 @@ import MarkdownContent from '../../../shared/ui/MarkdownContent.vue'
 import ConversationFailureTip from './ConversationFailureTip.vue'
 import AgentActivityGroup from './AgentActivityGroup.vue'
 import AgentWorkingIndicator from './AgentWorkingIndicator.vue'
+import TaskNotificationFold from './TaskNotificationFold.vue'
+import { parseTaskNotification } from '../taskNotification'
 
 const props = defineProps<{
   turn: ConversationTurn
@@ -30,6 +32,7 @@ const turnStatusIcon = computed(() => {
 })
 const turnStatusLabel = computed(() => t(`messages.status.${props.turn.status}`))
 const showTurnStatus = computed(() => ['failed', 'cancelled'].includes(props.turn.status))
+const taskNotification = computed(() => parseTaskNotification(props.turn.user.text))
 
 type ActivityBlock = Extract<ConversationTurnBlock, { kind: 'agentThought' | 'toolCall' }>
 type TurnSegment =
@@ -70,7 +73,8 @@ const workingLabel = computed(() => {
 
 <template>
   <article class="conversation-turn w-full animate-fade-slide" :data-turn-id="turn.id">
-    <div class="flex justify-end">
+    <TaskNotificationFold v-if="taskNotification" :notification="taskNotification" />
+    <div v-else class="flex justify-end">
       <div
         class="conversation-user max-w-[88%] px-3.5 py-2.5 text-sm leading-6 text-fg sm:max-w-[82%]"
       >
