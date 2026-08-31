@@ -64,6 +64,7 @@ export function useWorkspaceActions(
 
   async function handleSelect(id: string): Promise<void> {
     ui.activeMode.value = 'agent'
+    conversation.markConversationSeen(id)
     const summary = conversation.conversations.find((value) => value.conversationId === id)
     const environment = runtime.channelEnvironment.value
     if (summary?.channelBinding && environment) {
@@ -82,11 +83,13 @@ export function useWorkspaceActions(
         }
         await collaboration.bindChannel(summary.channelBinding.channelRef)
         await collaboration.selectConversation(id)
+        conversation.markConversationSeen(id)
         return
       }
     }
     ui.collaborationWorkspace.value = false
     await conversation.selectConversation(id)
+    conversation.markConversationSeen(id)
   }
 
   function selectWorkspace(mode: WorkspaceMode): void {

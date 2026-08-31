@@ -99,4 +99,27 @@ describe('ConversationSidebar', () => {
 
     expect(wrapper.emitted('newWithRuntime')).toEqual([['external.codex']])
   })
+
+  it('shows running and completed activity state for inactive sessions', () => {
+    const wrapper = mount(ConversationSidebar, {
+      props: {
+        conversations: [summary('running', 'workspace-running'), summary('done', 'workspace-done')],
+        activeId: 'running',
+        runtimes: [runtime],
+        loading: false,
+        loadingMore: false,
+        error: null,
+        hasMore: false,
+        filter: { kind: 'all' },
+        runningConversationIds: new Set(['running']),
+        completedConversationIds: new Set(['done']),
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.find('.conversation-activity-indicator--running').exists()).toBe(true)
+    expect(wrapper.find('.conversation-activity-indicator--completed').exists()).toBe(true)
+  })
 })

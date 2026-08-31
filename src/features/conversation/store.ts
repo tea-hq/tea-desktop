@@ -58,10 +58,13 @@ export const useConversationStore = defineStore('conversation', () => {
   const nextCursor = ref<string | null>(null)
   const hasMore = ref(false)
   const availableModelOptions = ref<ModelOption[]>([])
+  const runningConversationIds = ref<Set<string>>(new Set())
+  const completedConversationIds = ref<Set<string>>(new Set())
 
   let client: ConversationClient | null = null
   let unsubscribe: (() => void) | null = null
   let unsubscribeUpdates: (() => void) | null = null
+  let unsubscribeAllEvents: (() => void) | null = null
   let listInitialized = false
   let selectionToken = 0
   let lifecycleGeneration = 0
@@ -109,7 +112,15 @@ export const useConversationStore = defineStore('conversation', () => {
     lifecycleGeneration += 1
     const generation = lifecycleGeneration
     client = nextClient
+    runningConversationIds.value = new Set()
+    completedConversationIds.value = new Set()
     unsubscribeUpdates?.()
+    unsubscribeAllEvents?.()
+    unsubscribeAllEvents = nextClient.subscribeToAllEvents((event) => {
+      if (generation === lifecycleGeneration && client === nextClient) {
+        trackConversationActivity(event)
+      }
+    })
     unsubscribeUpdates = client.subscribeToConversationUpdates((summary) => {
       if (generation === lifecycleGeneration && client === nextClient) mergeSummary(summary)
     })
@@ -266,6 +277,7 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   async function selectConversation(id: string): Promise<void> {
+    clearCompletedConversation(id)
     if (id === conversationId.value) return
     const configured = client
     if (!configured) {
@@ -300,6 +312,7 @@ export const useConversationStore = defineStore('conversation', () => {
       if (token !== selectionToken || generation !== lifecycleGeneration || client !== configured)
         return
       conversationId.value = id
+      clearCompletedConversation(id)
       activeRuntimeId.value = detail.summary.runtimeId
       workingDirectory.value = detail.summary.workingDirectory ?? null
       selectedModel.value = resolveCurrentModel()
@@ -313,6 +326,7 @@ export const useConversationStore = defineStore('conversation', () => {
     } catch (cause) {
       if (token !== selectionToken) return
       conversationId.value = id
+      clearCompletedConversation(id)
       activeRuntimeId.value = summary.runtimeId
       workingDirectory.value = summary.workingDirectory ?? null
       selectedModel.value = resolveCurrentModel()
@@ -454,6 +468,7 @@ export const useConversationStore = defineStore('conversation', () => {
     if (generation !== lifecycleGeneration || client !== configured) return
     const turn = turns.value.at(-1)
     if (turn) updateTurn(turn.id, cancelConversationTurn)
+    clearConversationActivity(currentId)
   }
 
   async function dispose(): Promise<void> {
@@ -465,6 +480,8 @@ export const useConversationStore = defineStore('conversation', () => {
     cleanupSubscription()
     unsubscribeUpdates?.()
     unsubscribeUpdates = null
+    unsubscribeAllEvents?.()
+    unsubscribeAllEvents = null
     client = null
     runtimes.value = []
     conversations.value = []
@@ -489,6 +506,8 @@ export const useConversationStore = defineStore('conversation', () => {
     nextCursor.value = null
     hasMore.value = false
     availableModelOptions.value = []
+    runningConversationIds.value = new Set()
+    completedConversationIds.value = new Set()
     listInitialized = false
     creationIdempotencyKey = crypto.randomUUID()
     if (configured && activeConversationId && shouldCancel) {
@@ -541,6 +560,7 @@ export const useConversationStore = defineStore('conversation', () => {
       await configured.archiveConversation(id)
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = conversations.value.filter((item) => item.conversationId !== id)
+      clearConversationActivity(id)
       if (conversationId.value === id) startNewConversation()
     } catch (cause) {
       if (generation === lifecycleGeneration) listError.value = runtimeError(cause)
@@ -555,6 +575,7 @@ export const useConversationStore = defineStore('conversation', () => {
       await configured.deleteConversation(id)
       if (generation !== lifecycleGeneration || client !== configured) return
       conversations.value = conversations.value.filter((item) => item.conversationId !== id)
+      clearConversationActivity(id)
       if (conversationId.value === id) startNewConversation()
     } catch (cause) {
       if (generation === lifecycleGeneration) listError.value = runtimeError(cause)
@@ -566,6 +587,43 @@ export const useConversationStore = defineStore('conversation', () => {
     const turn = turns.value.at(-1)
     if (!turn || (turn.status !== 'sending' && turn.status !== 'running')) return
     updateTurn(turn.id, (current) => reduceConversationTurn(current, event))
+  }
+
+  function trackConversationActivity(event: ConversationEvent): void {
+    const running = new Set(runningConversationIds.value)
+    const completed = new Set(completedConversationIds.value)
+    if (event.event.type === 'runStarted') {
+      running.add(event.conversationId)
+      completed.delete(event.conversationId)
+    } else if (event.event.type === 'runFinished' || event.event.type === 'runFailed') {
+      running.delete(event.conversationId)
+      if (event.conversationId === conversationId.value) completed.delete(event.conversationId)
+      else completed.add(event.conversationId)
+    } else {
+      return
+    }
+    runningConversationIds.value = running
+    completedConversationIds.value = completed
+  }
+
+  function clearCompletedConversation(id: string): void {
+    if (!completedConversationIds.value.has(id)) return
+    const completed = new Set(completedConversationIds.value)
+    completed.delete(id)
+    completedConversationIds.value = completed
+  }
+
+  function markConversationSeen(id: string): void {
+    clearCompletedConversation(id)
+  }
+
+  function clearConversationActivity(id: string): void {
+    const running = new Set(runningConversationIds.value)
+    const completed = new Set(completedConversationIds.value)
+    running.delete(id)
+    completed.delete(id)
+    runningConversationIds.value = running
+    completedConversationIds.value = completed
   }
 
   function mergeSummary(summary: ConversationSummary): void {
@@ -628,6 +686,8 @@ export const useConversationStore = defineStore('conversation', () => {
     nextCursor,
     hasMore,
     isStreaming,
+    runningConversationIds,
+    completedConversationIds,
     canSend,
     canSelectRuntime,
     hasConversations,
@@ -640,6 +700,7 @@ export const useConversationStore = defineStore('conversation', () => {
     setCatalogFilter,
     startNewConversation,
     selectConversation,
+    markConversationSeen,
     loadOlderHistory,
     createConversation,
     sendMessage,

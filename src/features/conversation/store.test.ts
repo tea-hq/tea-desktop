@@ -31,6 +31,7 @@ const runtime: RuntimeDescriptor = {
 class FakeClient {
   private runtimes: RuntimeDescriptor[] = []
   private handlers: Map<string, Set<(e: ConversationEvent) => void>> = new Map()
+  private allEventHandlers = new Set<(e: ConversationEvent) => void>()
   private updateHandlers = new Set<(summary: ConversationSummary) => void>()
   pages: ConversationPage[] = []
   detailPromises = new Map<string, Promise<ConversationDetail>>()
@@ -157,6 +158,11 @@ class FakeClient {
     return () => set!.delete(handler)
   }
 
+  subscribeToAllEvents(handler: (event: ConversationEvent) => void): () => void {
+    this.allEventHandlers.add(handler)
+    return () => this.allEventHandlers.delete(handler)
+  }
+
   async subscribeToHostToolCalls(
     _conversationId: string,
     _handler: (call: HostToolCall) => void,
@@ -170,6 +176,7 @@ class FakeClient {
   }
 
   emit(conversationId: string, event: ConversationEvent): void {
+    for (const handler of this.allEventHandlers) handler(event)
     const set = this.handlers.get(conversationId)
     if (set) for (const h of set) h(event)
   }
@@ -619,6 +626,39 @@ describe('useConversationStore', () => {
       retryable: true,
     })
     expect(store.turns[0].blocks.some((block) => block.kind === 'assistantText')).toBe(false)
+  })
+
+  it('tracks background activity and clears the completion dot when selected', async () => {
+    const fake = new FakeClient()
+    fake.pages = [
+      {
+        items: [summaryFor('background', 2), summaryFor('active', 1)],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ]
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.initializeConversationList()
+
+    fake.emit('background', {
+      conversationId: 'background',
+      sequence: 1,
+      event: { type: 'runStarted' },
+    })
+    expect(store.runningConversationIds.has('background')).toBe(true)
+    expect(store.completedConversationIds.has('background')).toBe(false)
+
+    fake.emit('background', {
+      conversationId: 'background',
+      sequence: 2,
+      event: { type: 'runFinished' },
+    })
+    expect(store.runningConversationIds.has('background')).toBe(false)
+    expect(store.completedConversationIds.has('background')).toBe(true)
+
+    await store.selectConversation('background')
+    expect(store.completedConversationIds.has('background')).toBe(false)
   })
 
   it('keeps partial assistant text before appending a failure tip', async () => {

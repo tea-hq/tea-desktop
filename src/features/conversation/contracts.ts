@@ -343,6 +343,7 @@ export interface ConversationClient {
     conversationId: string,
     handler: (event: ConversationEvent) => void,
   ): Promise<() => void>
+  subscribeToAllEvents(handler: (event: ConversationEvent) => void): () => void
   subscribeToHostToolCalls(
     conversationId: string,
     handler: (call: HostToolCall) => void,

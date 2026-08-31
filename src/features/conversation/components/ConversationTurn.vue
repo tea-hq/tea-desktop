@@ -2,13 +2,13 @@
 import { TeaButton } from '@/shared/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ApprovalDecision, ConversationTurn } from '../contracts'
+import type { ApprovalDecision, ConversationTurn, ConversationTurnBlock } from '../contracts'
 import type { ChannelSource } from '@/types/channelCollaboration'
 import ChannelSourceCard from '@/features/collaboration/components/ChannelSourceCard.vue'
 import MarkdownContent from '../../../shared/ui/MarkdownContent.vue'
-import AgentThoughtBlock from './AgentThoughtBlock.vue'
 import ConversationFailureTip from './ConversationFailureTip.vue'
-import ToolCallBlock from './ToolCallBlock.vue'
+import AgentActivityGroup from './AgentActivityGroup.vue'
+import AgentWorkingIndicator from './AgentWorkingIndicator.vue'
 
 const props = defineProps<{
   turn: ConversationTurn
@@ -29,16 +29,43 @@ const turnStatusIcon = computed(() => {
   return 'i-mdi-loading'
 })
 const turnStatusLabel = computed(() => t(`messages.status.${props.turn.status}`))
-const showTurnStatus = computed(() =>
-  ['sending', 'running', 'failed', 'cancelled'].includes(props.turn.status),
-)
+const showTurnStatus = computed(() => ['failed', 'cancelled'].includes(props.turn.status))
 
-function showWaitingIndicator(): boolean {
-  return (
-    props.turn.status === 'sending' ||
-    (props.turn.status === 'running' && props.turn.blocks.length === 0)
-  )
-}
+type ActivityBlock = Extract<ConversationTurnBlock, { kind: 'agentThought' | 'toolCall' }>
+type TurnSegment =
+  | { kind: 'assistantText'; block: Extract<ConversationTurnBlock, { kind: 'assistantText' }> }
+  | { kind: 'activity'; blocks: ActivityBlock[] }
+  | { kind: 'failure'; block: Extract<ConversationTurnBlock, { kind: 'failureTip' }> }
+
+const segments = computed<TurnSegment[]>(() => {
+  const result: TurnSegment[] = []
+  for (const block of props.turn.blocks) {
+    if (block.kind === 'assistantText') {
+      result.push({ kind: 'assistantText', block })
+      continue
+    }
+    if (block.kind === 'agentThought' || block.kind === 'toolCall') {
+      const previous = result.at(-1)
+      if (previous?.kind === 'activity') previous.blocks.push(block)
+      else result.push({ kind: 'activity', blocks: [block] })
+      continue
+    }
+    result.push({ kind: 'failure', block })
+  }
+  return result
+})
+
+const showWorkingIndicator = computed(
+  () =>
+    (props.turn.status === 'sending' || props.turn.status === 'running') &&
+    !props.turn.blocks.some((block) => block.kind === 'assistantText' && block.text.trim()),
+)
+const workingLabel = computed(() => {
+  const last = props.turn.blocks.at(-1)
+  if (last?.kind === 'toolCall') return t('messages.workingWithTool', { name: last.name })
+  if (last?.kind === 'agentThought') return t('messages.thinking')
+  return t('messages.working')
+})
 </script>
 
 <template>
@@ -88,23 +115,31 @@ function showWaitingIndicator(): boolean {
         <span>{{ turnStatusLabel }}</span>
       </div>
 
-      <template v-for="block in turn.blocks" :key="block.id">
+      <template
+        v-for="segment in segments"
+        :key="segment.kind === 'activity' ? segment.blocks[0].id : segment.block.id"
+      >
         <div
-          v-if="block.kind === 'assistantText'"
+          v-if="segment.kind === 'assistantText'"
           class="conversation-response group/response"
-          :data-sequence="block.sequence"
+          :data-sequence="segment.block.sequence"
         >
-          <MarkdownContent :source="block.text" :streaming="block.streaming" />
+          <MarkdownContent :source="segment.block.text" :streaming="segment.block.streaming" />
           <TeaButton
-            v-if="collaboration && !draftExists && turn.status === 'completed' && !block.streaming"
+            v-if="
+              collaboration &&
+              !draftExists &&
+              turn.status === 'completed' &&
+              !segment.block.streaming
+            "
             appearance="ghost"
             size="small"
             class="mt-2 opacity-0 transition-opacity group-hover/response:opacity-100 focus:opacity-100"
             @click="
               emit('createDraft', {
                 turnIndex: turnIndex ?? 0,
-                blockId: block.id,
-                content: block.text,
+                blockId: segment.block.id,
+                content: segment.block.text,
               })
             "
           >
@@ -113,29 +148,20 @@ function showWaitingIndicator(): boolean {
           </TeaButton>
         </div>
 
-        <AgentThoughtBlock v-else-if="block.kind === 'agentThought'" :thought="block" />
-
-        <ToolCallBlock
-          v-else-if="block.kind === 'toolCall'"
-          :tool="block"
-          :data-sequence="block.sequence"
+        <AgentActivityGroup
+          v-else-if="segment.kind === 'activity'"
+          :blocks="segment.blocks"
           @resolve-approval="emit('resolveApproval', $event)"
         />
 
-        <ConversationFailureTip v-else :failure="block.failure" :data-sequence="block.sequence" />
+        <ConversationFailureTip
+          v-else
+          :failure="segment.block.failure"
+          :data-sequence="segment.block.sequence"
+        />
       </template>
 
-      <span v-if="showWaitingIndicator()" class="inline-flex gap-1.5 py-1" aria-hidden="true">
-        <span class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse" />
-        <span
-          class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse"
-          style="animation-delay: 150ms"
-        />
-        <span
-          class="h-1.5 w-1.5 rounded-full bg-muted animate-pulse"
-          style="animation-delay: 300ms"
-        />
-      </span>
+      <AgentWorkingIndicator v-if="showWorkingIndicator" :label="workingLabel" />
     </div>
   </article>
 </template>

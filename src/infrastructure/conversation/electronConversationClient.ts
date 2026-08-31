@@ -164,6 +164,10 @@ export class ElectronConversationClient implements ConversationClient {
     return unlisten
   }
 
+  subscribeToAllEvents(handler: (event: ConversationEvent) => void): () => void {
+    return subscribe('conversation:event', handler)
+  }
+
   async subscribeToHostToolCalls(
     conversationId: string,
     handler: (call: HostToolCall) => void,
@@ -205,6 +209,7 @@ export class FakeConversationClient implements ConversationClient {
   private _runtimes: RuntimeDescriptor[] = []
   private _callCount = 0
   private _eventHandlers: Map<string, Set<(e: ConversationEvent) => void>> = new Map()
+  private _allEventHandlers = new Set<(e: ConversationEvent) => void>()
   private _summaries: ConversationSummary[] = []
   private _updateHandlers = new Set<(summary: ConversationSummary) => void>()
   private _turns = new Map<string, ConversationTurn[]>()
@@ -513,6 +518,11 @@ export class FakeConversationClient implements ConversationClient {
     }
   }
 
+  subscribeToAllEvents(handler: (event: ConversationEvent) => void): () => void {
+    this._allEventHandlers.add(handler)
+    return () => this._allEventHandlers.delete(handler)
+  }
+
   async subscribeToHostToolCalls(
     _conversationId: string,
     _handler: (call: HostToolCall) => void,
@@ -526,6 +536,7 @@ export class FakeConversationClient implements ConversationClient {
   }
 
   emitEvent(conversationId: string, event: ConversationEvent): void {
+    for (const handler of this._allEventHandlers) handler(event)
     const handlers = this._eventHandlers.get(conversationId)
     if (handlers) {
       for (const h of handlers) h(event)

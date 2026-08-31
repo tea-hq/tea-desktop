@@ -107,6 +107,33 @@ describe('ElectronConversationClient collaboration mapping', () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
+  it('forwards every conversation event through the global activity subscription', async () => {
+    const dispose = vi.fn()
+    let receive: ((event: { payload: ConversationEvent }) => void) | undefined
+    listenMock.mockImplementationOnce(async (_event, listener) => {
+      receive = listener
+      return dispose
+    })
+    const client = new ElectronConversationClient()
+    const events: ConversationEvent[] = []
+    const unsubscribe = client.subscribeToAllEvents((event) => events.push(event))
+
+    receive?.({
+      payload: { conversationId: 'conversation-2', sequence: 1, event: { type: 'runStarted' } },
+    })
+    receive?.({
+      payload: { conversationId: 'conversation-1', sequence: 2, event: { type: 'runFinished' } },
+    })
+    unsubscribe()
+    await Promise.resolve()
+
+    expect(events.map((event) => event.conversationId)).toEqual([
+      'conversation-2',
+      'conversation-1',
+    ])
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
   it('preserves typed command failures for the feature store', async () => {
     invokeMock.mockRejectedValueOnce({ code: 'runtimeUnavailable', retryable: true })
     const client = new ElectronConversationClient()

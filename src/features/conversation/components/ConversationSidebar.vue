@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { TeaButton, TeaIconButton } from '@/shared/ui'
 
 import RuntimeIcon from '../../../shared/ui/RuntimeIcon.vue'
+import ConversationActivityIndicator from './ConversationActivityIndicator.vue'
 import type {
   ConversationScopeFilter,
   ConversationSummary,
@@ -22,6 +23,8 @@ const props = defineProps<{
   error: ConversationUiError | null
   hasMore: boolean
   filter: ConversationScopeFilter
+  runningConversationIds?: ReadonlySet<string>
+  completedConversationIds?: ReadonlySet<string>
 }>()
 
 const emit = defineEmits<{
@@ -70,6 +73,14 @@ function projectName(workingDirectory: string): string {
 
 function errorText(error: ConversationUiError): string {
   return error.kind === 'localized' ? t(error.key, error.params ?? {}) : error.message
+}
+
+function isRunning(id: string): boolean {
+  return props.runningConversationIds?.has(id) ?? false
+}
+
+function isCompleted(id: string): boolean {
+  return id !== props.activeId && (props.completedConversationIds?.has(id) ?? false)
 }
 
 function handleScroll(event: Event): void {
@@ -175,6 +186,10 @@ function handleScroll(event: Event): void {
               class="i-mdi-pound size-3 shrink-0 text-subtle"
               aria-hidden="true"
             />
+            <ConversationActivityIndicator
+              :running="isRunning(conv.conversationId)"
+              :completed="isCompleted(conv.conversationId)"
+            />
           </TeaButton>
         </div>
       </section>
@@ -231,6 +246,10 @@ function handleScroll(event: Event): void {
                   v-if="conv.channelBinding"
                   class="i-mdi-pound size-3 shrink-0 text-subtle"
                   aria-hidden="true"
+                />
+                <ConversationActivityIndicator
+                  :running="isRunning(conv.conversationId)"
+                  :completed="isCompleted(conv.conversationId)"
                 />
               </TeaButton>
             </div>

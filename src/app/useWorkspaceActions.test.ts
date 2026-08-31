@@ -32,6 +32,7 @@ describe('useWorkspaceActions', () => {
       conversation: {
         conversations: [summary],
         selectConversation: vi.fn(),
+        markConversationSeen: vi.fn(),
       },
       channels: { selectChannel },
       collaboration: { bindChannel, selectConversation },
@@ -64,6 +65,7 @@ describe('useWorkspaceActions', () => {
       conversation: {
         conversations: [summary],
         selectConversation: vi.fn(),
+        markConversationSeen: vi.fn(),
       },
       channels: { selectChannel: vi.fn().mockResolvedValue(undefined) },
       collaboration: {
