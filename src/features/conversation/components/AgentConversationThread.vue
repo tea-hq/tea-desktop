@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaEmptyState, TeaMessageBar } from '@/shared/ui'
 import type { ApprovalDecision, ConversationTurn } from '../contracts'
@@ -8,7 +8,7 @@ import type { ConversationTurnContext } from '@/types/channelCollaboration'
 import ConversationTurnView from './ConversationTurn.vue'
 import AgentRolePickerCard from './AgentRolePickerCard.vue'
 
-defineProps<{
+const props = defineProps<{
   turns: ConversationTurn[]
   roles?: AgentRoleOption[]
   runtimeId?: string | null
@@ -32,14 +32,72 @@ const emit = defineEmits<{
 }>()
 const container = ref<HTMLElement | null>(null)
 const { t } = useI18n()
+type ScrollSnapshot = { scrollHeight: number; scrollTop: number; turnCount: number }
 
-async function loadOlder(): Promise<void> {
+const pendingOlderScroll = ref<ScrollSnapshot | null>(null)
+let pendingInitialScroll = false
+
+function scrollToBottom(): void {
   const element = container.value
-  const previousHeight = element?.scrollHeight ?? 0
-  const previousTop = element?.scrollTop ?? 0
+  if (element) element.scrollTop = element.scrollHeight
+}
+
+watch(
+  () =>
+    [
+      props.turns.length,
+      props.turns[0]?.id ?? null,
+      Boolean(props.loading),
+      Boolean(props.loadingOlder),
+    ] as const,
+  async ([turnCount, firstTurnId, isLoading, isLoadingOlder], previous) => {
+    const previousLoading = previous?.[2] ?? false
+
+    if (isLoading) {
+      if (!previousLoading) {
+        pendingInitialScroll = true
+        pendingOlderScroll.value = null
+      }
+      return
+    }
+
+    if (pendingOlderScroll.value && !isLoadingOlder) {
+      const snapshot = pendingOlderScroll.value
+      pendingOlderScroll.value = null
+      if (turnCount <= snapshot.turnCount) return
+      await nextTick()
+      const element = container.value
+      if (element)
+        element.scrollTop = snapshot.scrollTop + element.scrollHeight - snapshot.scrollHeight
+      return
+    }
+
+    if (isLoadingOlder || turnCount === 0) return
+
+    const shouldScrollInitialHistory =
+      pendingInitialScroll ||
+      (!previous && turnCount > 0) ||
+      (previous?.[0] === 0 && turnCount > 0) ||
+      (previous?.[1] !== firstTurnId && turnCount > 0)
+    if (!shouldScrollInitialHistory) return
+
+    pendingInitialScroll = false
+    await nextTick()
+    scrollToBottom()
+  },
+  { immediate: true },
+)
+
+function loadOlder(): void {
+  const element = container.value
+  pendingOlderScroll.value = element
+    ? {
+        scrollHeight: element.scrollHeight,
+        scrollTop: element.scrollTop,
+        turnCount: props.turns.length,
+      }
+    : null
   emit('loadOlder')
-  await nextTick()
-  if (element) element.scrollTop = previousTop + element.scrollHeight - previousHeight
 }
 </script>
 

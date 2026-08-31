@@ -6,7 +6,11 @@ import {
   type SendMessageRequest,
   type SendMessageResult,
 } from '@/features/channels/contracts'
-import type { RuntimeDescriptor, SendMessageOptions } from '@/features/conversation/contracts'
+import type {
+  ConversationDetail,
+  RuntimeDescriptor,
+  SendMessageOptions,
+} from '@/features/conversation/contracts'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
 import { FakeConversationClient } from '@/infrastructure/conversation/electronConversationClient'
 import { useAgentDrawerStore } from './agentDrawerStore'
@@ -239,6 +243,48 @@ describe('useCollaborationStore', () => {
 
     expect(await store.selectConversation(local.handle.conversationId)).toBe(false)
     expect(store.error).toEqual({ kind: 'localized', key: 'errors.conversationUnavailable' })
+  })
+
+  it('clears the previous history before a collaboration session finishes loading', async () => {
+    const { store, client } = await setup()
+    const binding = { ...store.activeBinding! }
+    const oldConversation = await client.createConversation(runtime.id, {
+      idempotencyKey: 'old-collaboration-history',
+      channelBinding: binding,
+      hostTools: [],
+    })
+    const newConversation = await client.createConversation(runtime.id, {
+      idempotencyKey: 'new-collaboration-history',
+      channelBinding: binding,
+      hostTools: [],
+    })
+    await client.sendMessage(oldConversation.handle.conversationId, 'Old history', {
+      model: 'default',
+      permissionMode: 'default',
+    })
+    await store.selectConversation(oldConversation.handle.conversationId)
+    expect(store.turns).toHaveLength(1)
+
+    let resolveNew!: (detail: ConversationDetail) => void
+    vi.spyOn(client, 'getConversation').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveNew = resolve
+        }),
+    )
+    const selection = store.selectConversation(newConversation.handle.conversationId)
+    expect(store.conversationId).toBe(newConversation.handle.conversationId)
+    expect(store.turns).toEqual([])
+    expect(store.loading).toBe(true)
+
+    await Promise.resolve()
+    resolveNew({
+      summary: newConversation.summary!,
+      collaboration: { turnContexts: [], drafts: [], deliveries: [] },
+    })
+    await selection
+
+    expect(store.loading).toBe(false)
   })
 
   it('rejects an unavailable Agent without falling back', async () => {

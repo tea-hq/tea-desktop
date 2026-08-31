@@ -48,7 +48,26 @@ describe('ConversationTurn', () => {
     const wrapper = mountTurn(turn('Please inspect the build output.'))
 
     expect(wrapper.find('.conversation-user').exists()).toBe(true)
+    expect(wrapper.find('.conversation-response__content').exists()).toBe(false)
     expect(wrapper.find('[data-testid="task-notification-fold"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Please inspect the build output.')
+  })
+
+  it('scopes compact reply typography to assistant content', () => {
+    const value = turn('Please inspect the build output.')
+    value.blocks = [
+      {
+        kind: 'assistantText',
+        id: 'reply-1',
+        sequence: 2,
+        text: 'The build output is clean.',
+        streaming: false,
+      },
+    ]
+
+    const wrapper = mountTurn(value)
+
+    expect(wrapper.find('.conversation-response__content').exists()).toBe(true)
+    expect(wrapper.get('.conversation-user').classes()).toContain('text-sm')
   })
 })

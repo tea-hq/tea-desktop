@@ -241,8 +241,7 @@ defineExpose({ focus })
 
 <style scoped>
 .agent-composer {
-  border-top: 1px solid var(--tea-line-soft);
-  background: var(--tea-panel);
+  background: var(--tea-canvas);
 }
 .agent-composer--centered {
   padding-block: 0.75rem 1.5rem;
@@ -263,8 +262,10 @@ defineExpose({ focus })
   align-items: center;
   gap: 0.375rem;
   min-height: 2rem;
-  margin-bottom: 0.5rem;
-  padding-inline: 0.125rem;
+  margin: 0 1.5rem -0.75rem;
+  padding: 0.5rem 0.75rem 1rem;
+  border-radius: var(--tea-radius-card) var(--tea-radius-card) 0 0;
+  background: var(--tea-panel);
 }
 .agent-context-controls :deep(.agent-context-pill),
 .agent-context-controls :deep(.tea-menu-select__trigger) {
@@ -402,6 +403,9 @@ defineExpose({ focus })
   }
   .composer-shell {
     padding: 0.625rem;
+  }
+  .agent-context-controls {
+    margin-inline: 0.5rem;
   }
   .composer-toolbar-actions {
     flex: 1 1 100%;

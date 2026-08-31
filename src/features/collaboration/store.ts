@@ -258,6 +258,10 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     const generation = lifecycleGeneration
     const token = ++selectionToken
     disposeSubscriptions()
+    conversationId.value = id
+    selectedRuntimeId.value = summary.runtimeId
+    turns.value = []
+    collaboration.value = emptyCollaboration()
     loading.value = true
     error.value = null
     const buffered: ConversationEvent[] = []
@@ -615,6 +619,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     conversationId.value = null
     turns.value = []
     collaboration.value = emptyCollaboration()
+    loading.value = false
   }
 
   async function createConversationOnFirstSend(binding: ChannelBinding): Promise<string | null> {

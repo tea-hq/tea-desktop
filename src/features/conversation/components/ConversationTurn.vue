@@ -128,7 +128,11 @@ const workingLabel = computed(() => {
           class="conversation-response group/response"
           :data-sequence="segment.block.sequence"
         >
-          <MarkdownContent :source="segment.block.text" :streaming="segment.block.streaming" />
+          <MarkdownContent
+            class="conversation-response__content"
+            :source="segment.block.text"
+            :streaming="segment.block.streaming"
+          />
           <TeaButton
             v-if="
               collaboration &&
@@ -183,6 +187,11 @@ const workingLabel = computed(() => {
 .conversation-blocks,
 .conversation-response {
   min-width: 0;
+}
+
+.conversation-response :deep(.conversation-response__content) {
+  font-size: 12.8px;
+  line-height: 1.7;
 }
 
 .turn-status {

@@ -290,6 +290,45 @@ describe('useConversationStore', () => {
     expect(store.activeConversation?.title).toBe('Restored title')
   })
 
+  it('clears the previous history before a new conversation finishes loading', async () => {
+    const fake = new FakeClient()
+    fake.pages = [
+      {
+        items: [summaryFor('old', 1), summaryFor('new', 2)],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ]
+    fake.historyPages.set('old', [
+      { items: [completedTurn('old-turn')], nextCursor: null, hasMore: false, startIndex: 0 },
+    ])
+    fake.historyPages.set('new', [
+      { items: [completedTurn('new-turn')], nextCursor: null, hasMore: false, startIndex: 0 },
+    ])
+    let resolveNew!: (detail: ConversationDetail) => void
+    fake.detailPromises.set(
+      'new',
+      new Promise((resolve) => {
+        resolveNew = resolve
+      }),
+    )
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.initializeConversationList()
+    await store.selectConversation('old')
+
+    const selection = store.selectConversation('new')
+    expect(store.conversationId).toBe('new')
+    expect(store.turns).toEqual([])
+    expect(store.historyLoading).toBe(true)
+
+    resolveNew({ summary: summaryFor('new', 2), collaboration: emptyCollaboration() })
+    await selection
+
+    expect(store.turns.map((turn) => turn.id)).toEqual(['new-turn'])
+    expect(store.historyLoading).toBe(false)
+  })
+
   it('loads newest history then prepends an older page chronologically', async () => {
     const fake = new FakeClient()
     fake.pages = [{ items: [summaryFor('saved', 1)], nextCursor: null, hasMore: false }]

@@ -263,6 +263,8 @@ export const useConversationStore = defineStore('conversation', () => {
     conversationId.value = null
     turns.value = []
     error.value = null
+    historyLoading.value = false
+    historyLoadingMore.value = false
     historyError.value = null
     historyPageError.value = null
     historyNextCursor.value = null
@@ -290,21 +292,30 @@ export const useConversationStore = defineStore('conversation', () => {
 
     const token = ++selectionToken
     cleanupSubscription()
+    conversationId.value = id
+    activeRuntimeId.value = summary.runtimeId
+    workingDirectory.value = summary.workingDirectory ?? null
+    turns.value = []
+    error.value = null
+    historyLoading.value = true
+    historyLoadingMore.value = false
+    historyError.value = null
+    historyPageError.value = null
+    historyNextCursor.value = null
+    historyHasMore.value = false
     const bufferedEvents: ConversationEvent[] = []
     let snapshotReady = false
-    const selectedSubscription = await configured.subscribeToEvents(id, (event) => {
-      if (token !== selectionToken) return
-      if (!snapshotReady) bufferedEvents.push(event)
-      else handleEvent(event)
-    })
-    if (token !== selectionToken || generation !== lifecycleGeneration || client !== configured) {
-      selectedSubscription()
-      return
-    }
-    unsubscribe = selectedSubscription
-    historyLoading.value = true
-    historyError.value = null
     try {
+      const selectedSubscription = await configured.subscribeToEvents(id, (event) => {
+        if (token !== selectionToken) return
+        if (!snapshotReady) bufferedEvents.push(event)
+        else handleEvent(event)
+      })
+      if (token !== selectionToken || generation !== lifecycleGeneration || client !== configured) {
+        selectedSubscription()
+        return
+      }
+      unsubscribe = selectedSubscription
       const [detail, page] = await Promise.all([
         configured.getConversation(id),
         configured.loadConversationHistory({ conversationId: id, limit: HISTORY_PAGE_LIMIT }),
