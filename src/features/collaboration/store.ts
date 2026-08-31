@@ -347,6 +347,11 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     }
   }
 
+  function removeConversationFromIndex(id: string): void {
+    conversations.value = conversations.value.filter((value) => value.conversationId !== id)
+    if (conversationId.value === id) clearSelection()
+  }
+
   function stageMessage(message: Message, options: { openChooser?: boolean } = {}): void {
     if (!activeBinding.value || message.ref.channelRef !== activeBinding.value.channelRef) return
     const source = messageToChannelSource(message)
@@ -797,6 +802,7 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     selectConversation,
     renameConversation,
     archiveConversation,
+    removeConversationFromIndex,
     stageMessage,
     removeStagedSource,
     sendMessage,

@@ -565,6 +565,58 @@ describe('AcpConversationRuntime', () => {
   })
 
   it.each([1, 2] as const)(
+    'deletes an active V%s session without substituting close',
+    async (version) => {
+      const harness = createHarness(version, {
+        initialization: { supportsDeleteSession: true },
+      })
+      const handle = await harness.runtime.createConversation('conversation-1')
+
+      await harness.runtime.deleteConversation('conversation-1', handle.binding)
+
+      expect(harness.request).toHaveBeenCalledWith('session/delete', { sessionId: 'session-1' })
+      expect(harness.request).not.toHaveBeenCalledWith('session/close', expect.anything())
+      expect(harness.protocolClose).toHaveBeenCalledOnce()
+      expect(harness.processClose).toHaveBeenCalledOnce()
+      await expect(harness.runtime.loadSnapshot('conversation-1')).rejects.toMatchObject({
+        code: 'unknownConversation',
+      })
+    },
+  )
+
+  it('deletes an inactive session over its recorded wire version without restoring it', async () => {
+    const harness = createHarness(2, {
+      initialization: { supportsDeleteSession: true },
+    })
+    const handle = await harness.runtime.createConversation('conversation-1')
+    await harness.runtime.closeConversation('conversation-1')
+    harness.request.mockClear()
+    harness.connect.mockClear()
+
+    await harness.runtime.deleteConversation('conversation-1', handle.binding)
+
+    expect(harness.connect).toHaveBeenCalledOnce()
+    expect(harness.connect.mock.calls[0][3]).toBe(2)
+    expect(harness.request).toHaveBeenCalledWith('session/delete', { sessionId: 'session-1' })
+    expect(harness.request).not.toHaveBeenCalledWith('session/load', expect.anything())
+    expect(harness.request).not.toHaveBeenCalledWith('session/resume', expect.anything())
+  })
+
+  it('keeps an active session when the Agent does not advertise deletion', async () => {
+    const harness = createHarness(1)
+    const handle = await harness.runtime.createConversation('conversation-1')
+
+    await expect(
+      harness.runtime.deleteConversation('conversation-1', handle.binding),
+    ).rejects.toMatchObject({
+      code: 'unsupportedCapability',
+    })
+    await expect(harness.runtime.loadSnapshot('conversation-1')).resolves.toMatchObject({
+      conversationId: 'conversation-1',
+    })
+  })
+
+  it.each([1, 2] as const)(
     'attaches one immutable HostTool scope to the V%s session/new request',
     async (version) => {
       const hostTools = createHostToolsDependencies(version)
@@ -1182,6 +1234,7 @@ function createHarness(
     if (dependencies.request) return dependencies.request(method, params)
     if (method === 'session/prompt')
       return version === 1 ? prompt.promise : Promise.resolve({} satisfies acpV2.PromptResponse)
+    if (method === 'session/delete') return Promise.resolve({})
     if (method === 'session/close') return Promise.resolve({})
     return Promise.reject(new Error(`unexpected ACP request: ${method}`))
   })
@@ -1193,6 +1246,8 @@ function createHarness(
       protocolVersion: version,
       supportsLoadSession: false,
       supportsResumeSession: version === 2,
+      supportsDeleteSession: false,
+      supportsCloseSession: true,
       ...dependencies.initialization,
     },
     connection: {} as never,

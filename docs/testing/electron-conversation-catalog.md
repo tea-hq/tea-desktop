@@ -14,28 +14,32 @@ scope and must not appear in the file.
 
 ## Automated Coverage
 
-| Boundary | Scenario                                   | Expected result                                      |
-| -------- | ------------------------------------------ | ---------------------------------------------------- |
-| Schema   | Empty database                             | Strict version-1 schema is created transactionally   |
-| Schema   | Unsupported `user_version`                 | Startup fails and the file remains unchanged         |
-| Codec    | Malformed binding JSON                     | Typed `corruptCatalog`; no partial identity returned |
-| Catalog  | Duplicate conversation or idempotency id   | Typed conflict; existing row remains intact          |
-| Catalog  | Equal timestamps                           | `conversation_id DESC` is the stable tie-breaker     |
-| Catalog  | Opaque cursor and Channel filters          | Keyset page contains no offset-based duplicates      |
-| Catalog  | Restore failure marker                     | Only bounded code/time are stored and can be cleared |
-| Catalog  | Explicit empty Channel selection           | One durable context row with zero sources            |
-| Catalog  | Repeated selected or tool evidence         | Per-turn message identity is deduplicated            |
-| Catalog  | Reopen Channel-bound conversation          | Context order and next turn index remain stable      |
-| Runtime  | Catalog write fails after session creation | Only the new conversation is closed                  |
-| Runtime  | Concurrent identical creates               | One runtime session and one catalog row              |
-| Runtime  | Same key with changed identity             | Rejected before runtime creation                     |
-| Runtime  | Cold restore                               | Exact binding and HostTool references are delegated  |
-| Runtime  | Creation HostTool reference                | Main definition replaces all renderer-owned schema   |
-| Runtime  | Unknown creation HostTool                  | Fails before runtime configuration or session create |
-| Runtime  | HostTool resolver changes a revision       | Restore fails before Agent startup                   |
-| Runtime  | `session/resume`-capable binding           | Recovery is allowed without requiring load/history   |
-| Runtime  | Resume followed by a Channel turn          | Catalog allocates the next index without a snapshot  |
-| Shutdown | App exits                                  | Runtime registry and SQLite connection close once    |
+| Boundary | Scenario                                   | Expected result                                       |
+| -------- | ------------------------------------------ | ----------------------------------------------------- |
+| Schema   | Empty database                             | Strict version-1 schema is created transactionally    |
+| Schema   | Unsupported `user_version`                 | Startup fails and the file remains unchanged          |
+| Codec    | Malformed binding JSON                     | Typed `corruptCatalog`; no partial identity returned  |
+| Catalog  | Duplicate conversation or idempotency id   | Typed conflict; existing row remains intact           |
+| Catalog  | Equal timestamps                           | `conversation_id DESC` is the stable tie-breaker      |
+| Catalog  | Opaque cursor and Channel filters          | Keyset page contains no offset-based duplicates       |
+| Catalog  | Restore failure marker                     | Only bounded code/time are stored and can be cleared  |
+| Catalog  | Explicit empty Channel selection           | One durable context row with zero sources             |
+| Catalog  | Repeated selected or tool evidence         | Per-turn message identity is deduplicated             |
+| Catalog  | Reopen Channel-bound conversation          | Context order and next turn index remain stable       |
+| Runtime  | Catalog write fails after session creation | Only the new conversation is closed                   |
+| Runtime  | Concurrent identical creates               | One runtime session and one catalog row               |
+| Runtime  | Same key with changed identity             | Rejected before runtime creation                      |
+| Runtime  | Cold restore                               | Exact binding and HostTool references are delegated   |
+| Runtime  | Creation HostTool reference                | Main definition replaces all renderer-owned schema    |
+| Runtime  | Unknown creation HostTool                  | Fails before runtime configuration or session create  |
+| Runtime  | HostTool resolver changes a revision       | Restore fails before Agent startup                    |
+| Runtime  | `session/resume`-capable binding           | Recovery is allowed without requiring load/history    |
+| Runtime  | Resume followed by a Channel turn          | Catalog allocates the next index without a snapshot   |
+| Runtime  | Active Agent deletion                      | `session/delete` completes before local cleanup       |
+| Runtime  | Inactive Agent deletion                    | Exact persisted wire version is used; no restore call |
+| Runtime  | Agent deletion failure                     | Catalog row remains for a later retry                 |
+| Runtime  | Local archive                              | `archived_at` changes without ACP deletion            |
+| Shutdown | App exits                                  | Runtime registry and SQLite connection close once     |
 
 ## Failure And Recovery
 

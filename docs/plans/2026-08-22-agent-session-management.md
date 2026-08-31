@@ -4,9 +4,9 @@
 
 **Goal:** Add safe UI management for Channel-bound Agent sessions, including rename and archive actions.
 
-**Architecture:** Reuse the existing `ConversationClient` rename/archive ports and keep session facts in the conversation catalog. The collaboration store owns selection cleanup and list projection; the chooser renders inline rename and archive actions. Permanent deletion remains unavailable until the runtime can delete canonical history.
+**Architecture:** Reuse the existing `ConversationClient` rename/archive/delete ports and keep session facts in the conversation catalog. The collaboration store owns selection cleanup and list projection; the chooser and Agent workspace render session actions. Permanent deletion is delegated to the runtime and only removes the catalog row after canonical Agent deletion succeeds.
 
-**Tech Stack:** Vue 3, Pinia, TypeScript, Tauri IPC, vue-i18n, Vitest.
+**Tech Stack:** Vue 3, Pinia, TypeScript, Electron IPC, vue-i18n, Vitest.
 
 ---
 

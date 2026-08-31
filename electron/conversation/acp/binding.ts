@@ -19,6 +19,8 @@ export interface AcpBindingContext {
   definition: AcpAgentDefinition
   workspacePath: string
   hostTools: readonly HostToolDefinition[]
+  /** Deletion only needs binding identity; it must not resolve HostTools. */
+  validateHostTools?: boolean
 }
 
 export interface AcpConversationBinding extends RuntimeConversationBinding {
@@ -116,24 +118,27 @@ export function validateAcpConversationBinding(
     throw invalidBinding()
   }
 
-  if (
-    !Array.isArray(value.hostTools) ||
-    value.hostTools.length > MAX_HOST_TOOLS ||
-    value.hostTools.length !== context.hostTools.length
-  ) {
+  if (!Array.isArray(value.hostTools) || value.hostTools.length > MAX_HOST_TOOLS) {
+    throw invalidBinding()
+  }
+  const validateHostTools = context.validateHostTools ?? true
+  if (validateHostTools && value.hostTools.length !== context.hostTools.length) {
     throw invalidBinding()
   }
   const expectedTools = context.hostTools[Symbol.iterator]()
   const hostTools = value.hostTools.map((candidate) => {
-    const expected = expectedTools.next().value
+    const expected = validateHostTools ? expectedTools.next().value : undefined
     if (
-      !expected ||
       !isRecord(candidate) ||
       !hasExactKeys(candidate, HOST_TOOL_KEYS) ||
-      candidate.name !== expected.name ||
-      candidate.version !== expected.version ||
       !validText(candidate.name, MAX_ID_CHARS) ||
       !validText(candidate.version, MAX_ID_CHARS)
+    ) {
+      throw invalidBinding()
+    }
+    if (
+      validateHostTools &&
+      (!expected || candidate.name !== expected.name || candidate.version !== expected.version)
     ) {
       throw invalidBinding()
     }

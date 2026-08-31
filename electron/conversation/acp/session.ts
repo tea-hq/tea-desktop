@@ -89,6 +89,10 @@ export class AcpSessionActor {
     )
   }
 
+  get nativeSessionId(): string {
+    return this.requireSessionId()
+  }
+
   async createSession(): Promise<string> {
     if (this.lifecycle !== 'new') {
       throw new ConversationRuntimeError('invalidState', 'ACP session creation already started')
@@ -292,6 +296,44 @@ export class AcpSessionActor {
       failure: { code: 'cancelled', retryable: false },
     })
     await notification.catch(() => undefined)
+  }
+
+  async deleteSession(): Promise<void> {
+    this.assertActive()
+    if (!this.connection.protocol.initialization.supportsDeleteSession) {
+      throw unsupportedCapability('delete')
+    }
+
+    const sessionId = this.requireSessionId()
+    let primary: unknown
+    try {
+      await this.cancel()
+      if (this.connection.protocol.wireVersion === 1) {
+        await this.connection.protocol.context.request(acpV1.methods.agent.session.delete, {
+          sessionId,
+        })
+      } else {
+        await this.connection.protocol.context.request(acpV2.methods.agent.session.delete, {
+          sessionId,
+        })
+      }
+    } catch (cause) {
+      primary = cause
+    }
+
+    this.lifecycle = 'closing'
+    this.permissions.cancelAll()
+    let cleanup: unknown
+    try {
+      await this.closeResources()
+    } catch (cause) {
+      cleanup = cause
+    }
+    this.lifecycle = 'closed'
+
+    if (primary && cleanup) throw preserveDeleteError(primary, cleanup)
+    if (primary) throw primary
+    if (cleanup) throw cleanup
   }
 
   shutdown(): Promise<void> {
@@ -515,7 +557,8 @@ export class AcpSessionActor {
       })
     }
     this.permissions.cancelAll()
-    if (wasActive && this.sessionId) this.requestSessionClose(this.sessionId)
+    if (wasActive && this.sessionId && this.connection.protocol.initialization.supportsCloseSession)
+      this.requestSessionClose(this.sessionId)
     await this.closeResources()
     this.lifecycle = 'closed'
   }
@@ -590,6 +633,15 @@ export class AcpSessionActor {
       )
     }
   }
+}
+
+function preserveDeleteError(primary: unknown, cleanup: unknown): unknown {
+  if (primary instanceof ConversationRuntimeError) {
+    return new ConversationRuntimeError(primary.code, primary.message, primary.retryable, {
+      cause: new AggregateError([primary, cleanup], 'ACP session deletion cleanup failed'),
+    })
+  }
+  return new AggregateError([primary, cleanup], 'ACP session deletion cleanup failed')
 }
 
 function wrongMcpWireVersion(): ConversationRuntimeError {

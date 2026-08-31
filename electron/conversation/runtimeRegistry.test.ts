@@ -53,6 +53,7 @@ function runtime(id: string, shutdown: () => Promise<void> = vi.fn(async () => u
     createConversation: vi.fn(),
     restoreConversation: vi.fn(),
     closeConversation: vi.fn(),
+    deleteConversation: vi.fn(),
     configureHostTools: vi.fn(),
     loadSnapshot: vi.fn(),
     loadHistory: vi.fn(),

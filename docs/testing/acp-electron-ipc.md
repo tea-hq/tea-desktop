@@ -10,23 +10,25 @@ a network, or package Electron.
 
 ## Automated Coverage
 
-| Boundary        | Scenario                     | Expected result                                                 |
-| --------------- | ---------------------------- | --------------------------------------------------------------- |
-| Catalog         | Draft create/update/restart  | Current version and content persist against a real turn         |
-| Catalog         | Delivery retry/restart       | One delivery per draft version; state and sent ref persist      |
-| Catalog         | Invalid delivery transition  | Pending-to-sent and sent-to-failed are rejected                 |
-| Service         | Runtime event relay          | Ordered event is cloned and relayed once                        |
-| Service         | Delete active conversation   | Runtime closes, subscription disposes, then catalog row deletes |
-| Adapter         | Runtime create result        | Main workspace is supplied; durable binding is omitted          |
-| IPC handler     | Missing versus empty sources | Missing remains missing; explicit `[]` remains explicit         |
-| IPC handler     | Malformed array              | Stable invalid-request rejection before delegation              |
-| IPC handler     | HostTool schema/extra fields | Rejected; only exact name/version references cross preload      |
-| IPC result      | Typed service failure        | `code` and `retryable` survive the invoke boundary              |
-| IPC result      | Unknown failure              | Renderer receives `internal` without raw diagnostic text        |
-| Events          | Missing/destroyed window     | Event is dropped without changing service state                 |
-| Preload         | Allowlist and disposal       | Only known events register; exact listener is removed           |
-| Renderer client | Conversation filtering       | Other conversation events are ignored                           |
-| Collaboration   | First Channel create         | Channel history HostTool is fixed in creation options           |
+| Boundary        | Scenario                     | Expected result                                                                |
+| --------------- | ---------------------------- | ------------------------------------------------------------------------------ |
+| Catalog         | Draft create/update/restart  | Current version and content persist against a real turn                        |
+| Catalog         | Delivery retry/restart       | One delivery per draft version; state and sent ref persist                     |
+| Catalog         | Invalid delivery transition  | Pending-to-sent and sent-to-failed are rejected                                |
+| Service         | Runtime event relay          | Ordered event is cloned and relayed once                                       |
+| Service         | Delete active conversation   | Runtime invokes `session/delete`, disposes resources, then catalog row deletes |
+| Service         | Delete inactive conversation | Runtime reconnects with the persisted ACP wire version; no load/resume is sent |
+| Service         | Agent delete failure         | Catalog row remains available for retry                                        |
+| Adapter         | Runtime create result        | Main workspace is supplied; durable binding is omitted                         |
+| IPC handler     | Missing versus empty sources | Missing remains missing; explicit `[]` remains explicit                        |
+| IPC handler     | Malformed array              | Stable invalid-request rejection before delegation                             |
+| IPC handler     | HostTool schema/extra fields | Rejected; only exact name/version references cross preload                     |
+| IPC result      | Typed service failure        | `code` and `retryable` survive the invoke boundary                             |
+| IPC result      | Unknown failure              | Renderer receives `internal` without raw diagnostic text                       |
+| Events          | Missing/destroyed window     | Event is dropped without changing service state                                |
+| Preload         | Allowlist and disposal       | Only known events register; exact listener is removed                          |
+| Renderer client | Conversation filtering       | Other conversation events are ignored                                          |
+| Collaboration   | First Channel create         | Channel history HostTool is fixed in creation options                          |
 
 ## Verification
 

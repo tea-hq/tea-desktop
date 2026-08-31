@@ -118,6 +118,11 @@ export interface ConversationRuntime {
     options?: RuntimeConversationCreateOptions,
   ): Promise<RuntimeConversationHandle>
   closeConversation(conversationId: string): Promise<void>
+  deleteConversation(
+    conversationId: string,
+    binding: RuntimeConversationBinding,
+    options?: RuntimeConversationCreateOptions,
+  ): Promise<void>
   configureHostTools(conversationId: string, definitions: HostToolDefinition[]): Promise<void>
   loadSnapshot(conversationId: string): Promise<RuntimeConversationSnapshot>
   loadHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage>

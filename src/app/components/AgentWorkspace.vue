@@ -25,6 +25,8 @@ const {
   handleNewWithRuntime,
   selectNewConversationProject,
   handleSelect,
+  archiveConversation,
+  deleteConversation,
   openDraftEditor,
   selectRole,
   selectActiveRuntime,
@@ -54,6 +56,8 @@ const { t } = useI18n()
     @new="handleNew"
     @new-with-runtime="handleNewWithRuntime"
     @select="handleSelect"
+    @archive="archiveConversation"
+    @delete="deleteConversation"
     @load-more="conversation.loadMoreConversations()"
     @retry="conversation.initializeConversationList(true)"
     @filter="conversation.setCatalogFilter($event)"

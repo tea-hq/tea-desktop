@@ -132,20 +132,37 @@ describe('AcpConnectionFactory', () => {
     expect(
       normalizeAcpRecoveryCapabilities(1, {
         loadSession: true,
-        sessionCapabilities: { resume: {} },
+        sessionCapabilities: { resume: {}, delete: {}, close: {} },
       }),
-    ).toEqual({ supportsLoadSession: true, supportsResumeSession: true })
+    ).toEqual({
+      supportsLoadSession: true,
+      supportsResumeSession: true,
+      supportsDeleteSession: true,
+      supportsCloseSession: true,
+    })
     expect(normalizeAcpRecoveryCapabilities(1, {})).toEqual({
       supportsLoadSession: false,
       supportsResumeSession: false,
+      supportsDeleteSession: false,
+      supportsCloseSession: false,
     })
     expect(normalizeAcpRecoveryCapabilities(2, { session: {} })).toEqual({
       supportsLoadSession: false,
       supportsResumeSession: true,
+      supportsDeleteSession: false,
+      supportsCloseSession: true,
+    })
+    expect(normalizeAcpRecoveryCapabilities(2, { session: { delete: {} } })).toEqual({
+      supportsLoadSession: false,
+      supportsResumeSession: true,
+      supportsDeleteSession: true,
+      supportsCloseSession: true,
     })
     expect(normalizeAcpRecoveryCapabilities(2, {})).toEqual({
       supportsLoadSession: false,
       supportsResumeSession: false,
+      supportsDeleteSession: false,
+      supportsCloseSession: false,
     })
   })
 
@@ -264,16 +281,31 @@ function fakeProcess(artifact: ResolvedAcpAgentArtifact): AcpProcess {
 }
 
 function fakeProtocol(version: 1 | 2): AcpProtocolConnection {
-  return {
-    wireVersion: version,
-    initialization: {
-      protocolVersion: version,
-      supportsLoadSession: false,
-      supportsResumeSession: false,
-    },
+  const capabilities = {
+    supportsLoadSession: false,
+    supportsResumeSession: false,
+    supportsDeleteSession: false,
+    supportsCloseSession: false,
+  }
+  const shared = {
     connection: {} as never,
     context: {} as never,
-    closed: new Promise(() => undefined),
+    closed: new Promise<void>(() => undefined),
     close: vi.fn(),
-  } as AcpProtocolConnection
+  }
+  if (version === 1) {
+    return {
+      wireVersion: 1,
+      initialization: { protocolVersion: 1, ...capabilities },
+      ...shared,
+    }
+  }
+  return {
+    wireVersion: 2,
+    initialization: {
+      protocolVersion: 2,
+      ...capabilities,
+    },
+    ...shared,
+  }
 }

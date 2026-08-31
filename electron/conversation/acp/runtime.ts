@@ -1,5 +1,8 @@
 import path from 'node:path'
 
+import * as acpV1 from '@agentclientprotocol/sdk'
+import * as acpV2 from '@agentclientprotocol/sdk/experimental/v2'
+
 import type {
   ApprovalDecision,
   ConversationEvent,
@@ -13,6 +16,7 @@ import type {
 import {
   ConversationRuntimeError,
   parseRuntimeConversationBinding,
+  unsupportedCapability,
   type ConversationEventListener,
   type ConversationRuntime,
   type RuntimeConversationBinding,
@@ -393,6 +397,58 @@ export class AcpConversationRuntime implements ConversationRuntime {
     await this.closeConversationResources(conversationId)
   }
 
+  async deleteConversation(
+    conversationId: string,
+    binding: RuntimeConversationBinding,
+    options: RuntimeConversationCreateOptions = { model: 'default' },
+  ): Promise<void> {
+    this.assertActive()
+    if (!conversationId.trim()) {
+      throw new ConversationRuntimeError('invalidState', 'conversation id must not be empty')
+    }
+
+    const parsed = parseRuntimeConversationBinding(binding)
+    const validated = validateAcpConversationBinding(parsed, {
+      definition: this.definition,
+      workspacePath: parsed.workspacePath,
+      hostTools: [],
+      validateHostTools: false,
+    })
+    await this.pendingCreations.get(conversationId)?.catch(() => undefined)
+
+    const session = this.sessions.get(conversationId)
+    if (session) {
+      if (session.nativeSessionId !== validated.nativeSessionId) {
+        throw new ConversationRuntimeError(
+          'invalidConfiguration',
+          'ACP active session does not match the recorded binding',
+        )
+      }
+      let primary: unknown
+      try {
+        await session.deleteSession()
+      } catch (cause) {
+        primary = cause
+      }
+      if (primary instanceof ConversationRuntimeError && primary.code === 'unsupportedCapability') {
+        throw primary
+      }
+      let cleanup: unknown
+      try {
+        await this.closeConversationResources(conversationId)
+      } catch (cause) {
+        cleanup = cause
+      }
+      if (primary && cleanup) throw preserveRuntimeError(primary, cleanup)
+      if (primary) throw runtimeConnectionError(primary)
+      if (cleanup) throw runtimeConnectionError(cleanup)
+      return
+    }
+
+    await this.deleteInactiveConversation(validated, options)
+    this.removeConfiguredToolScope(conversationId)
+  }
+
   async loadSnapshot(conversationId: string): Promise<RuntimeConversationSnapshot> {
     this.assertActive()
     return this.requireSession(conversationId).snapshot()
@@ -632,6 +688,55 @@ export class AcpConversationRuntime implements ConversationRuntime {
     }
   }
 
+  private async deleteInactiveConversation(
+    binding: AcpConversationBinding,
+    options: RuntimeConversationCreateOptions,
+  ): Promise<void> {
+    let connection: AcpAgentConnection | undefined
+    let primary: unknown
+    try {
+      connection = await this.connectionFactory.connect(
+        this.definition,
+        {
+          cwd: binding.workspacePath,
+          injectedEnvironment: acpProviderEnvironment(this.definition, options),
+        },
+        undefined,
+        binding.protocol.version,
+      )
+      if (connection.protocol.wireVersion !== binding.protocol.version) {
+        throw new ConversationRuntimeError(
+          'invalidConfiguration',
+          'ACP deletion connection used the wrong wire version',
+        )
+      }
+      if (!connection.protocol.initialization.supportsDeleteSession) {
+        throw unsupportedCapability('delete')
+      }
+      if (connection.protocol.wireVersion === 1) {
+        await connection.protocol.context.request(acpV1.methods.agent.session.delete, {
+          sessionId: binding.nativeSessionId,
+        })
+      } else {
+        await connection.protocol.context.request(acpV2.methods.agent.session.delete, {
+          sessionId: binding.nativeSessionId,
+        })
+      }
+    } catch (cause) {
+      primary = cause
+    }
+
+    let cleanup: unknown
+    try {
+      await connection?.close()
+    } catch (cause) {
+      cleanup = cause
+    }
+    if (primary && cleanup) throw preserveRuntimeError(primary, cleanup)
+    if (primary) throw runtimeConnectionError(primary)
+    if (cleanup) throw runtimeConnectionError(cleanup)
+  }
+
   private assertActive(): void {
     if (this.shutdownPromise) {
       throw new ConversationRuntimeError('shutDown', 'ACP conversation runtime has shut down')
@@ -682,6 +787,13 @@ function runtimeConnectionError(cause: unknown): ConversationRuntimeError {
   }
   return new ConversationRuntimeError('connectionFailed', 'ACP Agent connection failed', true, {
     cause,
+  })
+}
+
+function preserveRuntimeError(primary: unknown, cleanup: unknown): unknown {
+  const normalized = runtimeConnectionError(primary)
+  return new ConversationRuntimeError(normalized.code, normalized.message, normalized.retryable, {
+    cause: new AggregateError([primary, cleanup], 'ACP conversation deletion cleanup failed'),
   })
 }
 

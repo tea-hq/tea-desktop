@@ -92,6 +92,32 @@ export function useWorkspaceActions(
     conversation.markConversationSeen(id)
   }
 
+  async function archiveConversation(id: string): Promise<void> {
+    const isCollaborationConversation = collaboration.conversations.some(
+      (value) => value.conversationId === id,
+    )
+    await conversation.archiveConversation(id)
+    if (
+      isCollaborationConversation &&
+      !conversation.conversations.some((value) => value.conversationId === id)
+    ) {
+      collaboration.removeConversationFromIndex(id)
+    }
+  }
+
+  async function deleteConversation(id: string): Promise<void> {
+    const isCollaborationConversation = collaboration.conversations.some(
+      (value) => value.conversationId === id,
+    )
+    await conversation.deleteConversation(id)
+    if (
+      isCollaborationConversation &&
+      !conversation.conversations.some((value) => value.conversationId === id)
+    ) {
+      collaboration.removeConversationFromIndex(id)
+    }
+  }
+
   function selectWorkspace(mode: WorkspaceMode): void {
     if (mode === 'directory') {
       ui.activeMode.value = mode
@@ -285,6 +311,8 @@ export function useWorkspaceActions(
     handleNewWithRuntime,
     selectNewConversationProject,
     handleSelect,
+    archiveConversation,
+    deleteConversation,
     selectRole,
     applyActiveRolePrompt,
     applyCollaborationRolePrompt,

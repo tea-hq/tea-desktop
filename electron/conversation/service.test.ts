@@ -262,12 +262,37 @@ describe('RuntimeConversationService', () => {
     ])
     expect(updatedIds).toEqual(['conversation-1'])
     await service.remove('conversation-1')
+    expect(runtime.deleteConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.objectContaining({ nativeSessionId: 'session:conversation-1' }),
+      { model: 'default' },
+    )
+    expect(catalog.get('conversation-1')).toBeNull()
     runtime.emit({
       conversationId: 'conversation-1',
       sequence: 2,
       event: { type: 'runFinished' },
     })
     expect(conversationEvents).toHaveLength(1)
+    await service.shutdown()
+  })
+
+  it('keeps the catalog row when Agent deletion fails', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    const failure = new ConversationRuntimeError(
+      'unsupportedCapability',
+      'runtime capability is not supported: delete',
+    )
+    const runtime = fakeRuntime({ deleteFailure: failure })
+    const service = createService(catalog, runtime.value, resolver(), () => 'conversation-1')
+    await service.initialize()
+    await service.createConversation(createRequest())
+
+    await expect(service.remove('conversation-1')).rejects.toMatchObject({
+      code: 'unsupportedCapability',
+    })
+    expect(catalog.get('conversation-1')).not.toBeNull()
+    expect(runtime.closeConversation).not.toHaveBeenCalled()
     await service.shutdown()
   })
 
@@ -627,6 +652,7 @@ function fakeRuntime(
     status?: 'ready' | 'unavailable'
     capabilities?: RuntimeCapability[]
     sendFailure?: unknown
+    deleteFailure?: unknown
     subjectPromise?: Promise<string>
     historyPage?: ConversationHistoryPage
   } = {},
@@ -662,6 +688,10 @@ function fakeRuntime(
   const closeConversation = vi.fn(async (conversationId: string) => {
     configured.delete(conversationId)
   })
+  const deleteConversation = vi.fn(async (conversationId: string) => {
+    if (options.deleteFailure) throw options.deleteFailure
+    configured.delete(conversationId)
+  })
   const shutdown = vi.fn(async () => undefined)
   const loadSnapshot = vi.fn()
   const generateSubject = vi.fn(async () => options.subjectPromise ?? 'Generated subject')
@@ -679,6 +709,7 @@ function fakeRuntime(
     createConversation,
     restoreConversation,
     closeConversation,
+    deleteConversation,
     configureHostTools,
     loadSnapshot,
     loadHistory: vi.fn(async () => structuredClone(options.historyPage ?? historyPage('Prompt'))),
@@ -698,6 +729,7 @@ function fakeRuntime(
     createConversation,
     restoreConversation,
     closeConversation,
+    deleteConversation,
     loadSnapshot,
     generateSubject,
     sendMessage,

@@ -2,6 +2,7 @@
 
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
@@ -73,8 +74,9 @@ describe('ConversationSidebar', () => {
     expect(wrapper.findAll('.conversation-row__context')).toHaveLength(3)
     expect(wrapper.findAll('.conversation-row__runtime')).toHaveLength(3)
     expect(wrapper.findAll('.conversation-row.min-h-9')).toHaveLength(3)
-    expect(wrapper.findAll('.conversation-row--recent.pl-9')).toHaveLength(1)
-    expect(wrapper.findAll('.conversation-row--project.pl-9')).toHaveLength(2)
+    expect(wrapper.findAll('.conversation-row--recent')).toHaveLength(1)
+    expect(wrapper.findAll('.conversation-row--project')).toHaveLength(2)
+    expect(wrapper.findAll('.conversation-row__select.px-2')).toHaveLength(0)
 
     const newButton = wrapper.get('button[aria-label="New Conversation"]')
     expect(newButton.text()).toBe('')
@@ -129,6 +131,48 @@ describe('ConversationSidebar', () => {
 
     expect(wrapper.find('.conversation-activity-indicator--running').exists()).toBe(true)
     expect(wrapper.find('.conversation-activity-indicator--completed').exists()).toBe(true)
+  })
+
+  it('offers archive and delete actions from each conversation item', async () => {
+    const wrapper = mountSidebar([summary('Archive me', 'workspace-archive')])
+
+    await wrapper.get('button[aria-label="Conversation actions"]').trigger('click')
+    const archive = wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text() === 'Archive conversation')
+    const remove = wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text() === 'Delete conversation')
+    expect(archive).toBeDefined()
+    expect(remove).toBeDefined()
+
+    await archive!.trigger('click')
+    const dialog = document.body.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Archive "Archive me"?')
+    const confirm = [...(dialog?.querySelectorAll('button') ?? [])].find(
+      (button) => button.textContent === 'Archive',
+    )
+    confirm?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.emitted('archive')).toEqual([['Archive me']])
+  })
+
+  it('keeps channel metadata in one fixed context slot', () => {
+    const wrapper = mountSidebar([
+      {
+        ...summary('Channel session', 'workspace-channel'),
+        channelBinding: {
+          transportId: 'fixture.im',
+          accountRef: 'account-1',
+          channelRef: 'product',
+        },
+      },
+    ])
+
+    const context = wrapper.get('.conversation-row__context')
+    expect(context.classes()).toContain('conversation-row__context--channel')
+    expect(context.find('.conversation-row__runtime').exists()).toBe(true)
+    expect(context.find('.conversation-row__channel').exists()).toBe(true)
   })
 
   it('highlights exactly the active session across sidebar groups', async () => {

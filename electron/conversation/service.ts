@@ -455,9 +455,12 @@ export class RuntimeConversationService {
     const record = this.catalog.get(conversationId)
     if (!record) throw unknownConversation(conversationId)
     await this.pendingRestores.get(conversationId)?.catch(() => undefined)
-    const active = this.activeHandles.has(conversationId)
-    if (active)
-      await this.runtimes.require(record.summary.runtimeId).closeConversation(conversationId)
+    const runtime = this.runtimes.require(record.summary.runtimeId)
+    await runtime.deleteConversation(
+      conversationId,
+      record.binding,
+      this.resolveRuntimeSelection(record.binding.selection),
+    )
     this.forgetActiveConversation(conversationId)
     this.catalog.remove(conversationId)
   }

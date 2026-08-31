@@ -23,6 +23,8 @@ export interface AcpInitialization {
   capabilities?: unknown
   supportsLoadSession: boolean
   supportsResumeSession: boolean
+  supportsDeleteSession: boolean
+  supportsCloseSession: boolean
 }
 
 export type AcpSessionUpdateNotification =
@@ -291,9 +293,17 @@ export class AcpConnectionFactory {
 export function normalizeAcpRecoveryCapabilities(
   wireVersion: AcpWireVersion,
   capabilities: unknown,
-): Pick<AcpInitialization, 'supportsLoadSession' | 'supportsResumeSession'> {
+): Pick<
+  AcpInitialization,
+  'supportsLoadSession' | 'supportsResumeSession' | 'supportsDeleteSession' | 'supportsCloseSession'
+> {
   if (!isRecord(capabilities)) {
-    return { supportsLoadSession: false, supportsResumeSession: false }
+    return {
+      supportsLoadSession: false,
+      supportsResumeSession: false,
+      supportsDeleteSession: false,
+      supportsCloseSession: false,
+    }
   }
   if (wireVersion === 1) {
     const sessionCapabilities = isRecord(capabilities.sessionCapabilities)
@@ -303,11 +313,21 @@ export function normalizeAcpRecoveryCapabilities(
       supportsLoadSession: capabilities.loadSession === true,
       supportsResumeSession:
         sessionCapabilities !== undefined && isRecord(sessionCapabilities.resume),
+      supportsDeleteSession:
+        sessionCapabilities !== undefined && isRecord(sessionCapabilities.delete),
+      supportsCloseSession:
+        sessionCapabilities !== undefined && isRecord(sessionCapabilities.close),
     }
   }
+  const sessionCapabilities = isRecord(capabilities.session) ? capabilities.session : undefined
   return {
     supportsLoadSession: false,
-    supportsResumeSession: isRecord(capabilities.session),
+    supportsResumeSession: sessionCapabilities !== undefined,
+    supportsDeleteSession:
+      sessionCapabilities !== undefined && isRecord(sessionCapabilities.delete),
+    // V2's session capability object advertises the baseline session lifecycle,
+    // including close, even though close has no separate capability member.
+    supportsCloseSession: sessionCapabilities !== undefined,
   }
 }
 

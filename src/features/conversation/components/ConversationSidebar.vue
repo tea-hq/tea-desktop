@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
-import { TeaButton, TeaIconButton } from '@/shared/ui'
+import { TeaButton, TeaDialog, TeaIconButton } from '@/shared/ui'
 
-import RuntimeIcon from '../../../shared/ui/RuntimeIcon.vue'
-import ConversationActivityIndicator from './ConversationActivityIndicator.vue'
+import ConversationSidebarItem from './ConversationSidebarItem.vue'
 import type {
   ConversationScopeFilter,
   ConversationSummary,
@@ -34,11 +33,14 @@ const emit = defineEmits<{
   loadMore: []
   retry: []
   filter: [filter: ConversationScopeFilter]
+  archive: [id: string]
+  delete: [id: string]
 }>()
 const { t } = useI18n()
 const recentExpanded = ref(true)
 const projectsExpanded = ref(true)
 const collapsedProjects = ref(new Set<string>())
+const pendingAction = ref<{ type: 'archive' | 'delete'; id: string; title: string } | null>(null)
 
 const groupedConversations = computed(() => {
   const projects = new Map<string, ConversationSummary[]>()
@@ -102,6 +104,22 @@ function handleScroll(event: Event): void {
   if (target.scrollHeight - target.scrollTop - target.clientHeight < 80 && props.hasMore) {
     emit('loadMore')
   }
+}
+
+function requestAction(type: 'archive' | 'delete', conversation: ConversationSummary): void {
+  pendingAction.value = {
+    type,
+    id: conversation.conversationId,
+    title: conversationTitle(conversation),
+  }
+}
+
+function confirmAction(): void {
+  const action = pendingAction.value
+  if (!action) return
+  pendingAction.value = null
+  if (action.type === 'archive') emit('archive', action.id)
+  else emit('delete', action.id)
 }
 </script>
 
@@ -186,43 +204,20 @@ function handleScroll(event: Event): void {
           />
         </button>
         <div v-if="recentExpanded" class="workspace-group__items">
-          <TeaButton
+          <ConversationSidebarItem
             v-for="(conv, conversationIndex) in groupedConversations.recent"
             :key="conv.conversationId"
-            appearance="ghost"
-            class="conversation-row conversation-row--recent group flex min-h-9 w-full animate-fade-slide items-center justify-start gap-2 pl-9 pr-4 text-left"
-            :class="
-              conv.conversationId === activeId ? 'conversation-row--active' : 'hover:bg-hover'
-            "
-            :style="{ animationDelay: `${conversationIndex * 30}ms` }"
-            :aria-label="conversationTitle(conv)"
-            :aria-current="conv.conversationId === activeId ? 'page' : undefined"
-            :title="conversationTitle(conv)"
-            @click="emit('select', conv.conversationId)"
-          >
-            <span
-              class="conversation-row__title min-w-0 flex-1 truncate text-sm font-normal leading-5 text-dim"
-            >
-              {{ conversationTitle(conv) }}
-            </span>
-            <span class="conversation-row__context">
-              <RuntimeIcon
-                size="small"
-                class="conversation-row__runtime text-subtle"
-                :runtime-id="conv.runtimeId"
-                :label="runtimeName(conv.runtimeId)"
-              />
-              <span
-                v-if="conv.channelBinding"
-                class="i-mdi-pound size-3 shrink-0 text-subtle"
-                aria-hidden="true"
-              />
-            </span>
-            <ConversationActivityIndicator
-              :running="isRunning(conv.conversationId)"
-              :completed="isCompleted(conv.conversationId)"
-            />
-          </TeaButton>
+            :conversation="conv"
+            :runtime-label="runtimeName(conv.runtimeId)"
+            :active="conv.conversationId === activeId"
+            :running="isRunning(conv.conversationId)"
+            :completed="isCompleted(conv.conversationId)"
+            :animation-delay="`${conversationIndex * 30}ms`"
+            :disabled="loading"
+            @select="emit('select', $event)"
+            @archive="requestAction('archive', conv)"
+            @delete="requestAction('delete', conv)"
+          />
         </div>
       </section>
       <section
@@ -268,43 +263,21 @@ function handleScroll(event: Event): void {
               :id="`conversation-project-items-${projectIndex}`"
               class="workspace-group__items"
             >
-              <TeaButton
+              <ConversationSidebarItem
                 v-for="(conv, conversationIndex) in project.conversations"
                 :key="conv.conversationId"
-                appearance="ghost"
-                class="conversation-row conversation-row--project group flex min-h-9 w-full animate-fade-slide items-center justify-start gap-2 pl-9 pr-4 text-left"
-                :class="
-                  conv.conversationId === activeId ? 'conversation-row--active' : 'hover:bg-hover'
-                "
-                :style="{ animationDelay: `${(projectIndex * 4 + conversationIndex) * 30}ms` }"
-                :aria-label="conversationTitle(conv)"
-                :aria-current="conv.conversationId === activeId ? 'page' : undefined"
-                :title="conversationTitle(conv)"
-                @click="emit('select', conv.conversationId)"
-              >
-                <span
-                  class="conversation-row__title min-w-0 flex-1 truncate text-[0.8125rem] font-normal leading-5 text-dim"
-                >
-                  {{ conversationTitle(conv) }}
-                </span>
-                <span class="conversation-row__context">
-                  <RuntimeIcon
-                    size="small"
-                    class="conversation-row__runtime text-subtle"
-                    :runtime-id="conv.runtimeId"
-                    :label="runtimeName(conv.runtimeId)"
-                  />
-                  <span
-                    v-if="conv.channelBinding"
-                    class="i-mdi-pound size-3 shrink-0 text-subtle"
-                    aria-hidden="true"
-                  />
-                </span>
-                <ConversationActivityIndicator
-                  :running="isRunning(conv.conversationId)"
-                  :completed="isCompleted(conv.conversationId)"
-                />
-              </TeaButton>
+                :conversation="conv"
+                :runtime-label="runtimeName(conv.runtimeId)"
+                :active="conv.conversationId === activeId"
+                :running="isRunning(conv.conversationId)"
+                :completed="isCompleted(conv.conversationId)"
+                project
+                :animation-delay="`${(projectIndex * 4 + conversationIndex) * 30}ms`"
+                :disabled="loading"
+                @select="emit('select', $event)"
+                @archive="requestAction('archive', conv)"
+                @delete="requestAction('delete', conv)"
+              />
             </div>
           </section>
         </div>
@@ -318,6 +291,42 @@ function handleScroll(event: Event): void {
       </div>
     </div>
   </aside>
+  <TeaDialog
+    :open="pendingAction !== null"
+    :title="
+      pendingAction?.type === 'delete'
+        ? t('sidebar.deleteConversation')
+        : t('sidebar.archiveConversation')
+    "
+    :dismissable="true"
+    :close-label="t('common.close')"
+    width="small"
+    @close="pendingAction = null"
+  >
+    <p class="text-sm leading-6 text-dim">
+      {{
+        pendingAction?.type === 'delete'
+          ? t('sidebar.deleteConfirm', { title: pendingAction.title })
+          : t('sidebar.archiveConfirm', { title: pendingAction?.title ?? '' })
+      }}
+    </p>
+    <template #footer>
+      <TeaButton appearance="ghost" size="small" @click="pendingAction = null">
+        {{ t('sidebar.cancelAction') }}
+      </TeaButton>
+      <TeaButton
+        :appearance="pendingAction?.type === 'delete' ? 'danger' : 'primary'"
+        size="small"
+        @click="confirmAction"
+      >
+        {{
+          pendingAction?.type === 'delete'
+            ? t('sidebar.confirmDelete')
+            : t('sidebar.confirmArchive')
+        }}
+      </TeaButton>
+    </template>
+  </TeaDialog>
 </template>
 
 <style scoped>
@@ -440,48 +449,5 @@ function handleScroll(event: Event): void {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25;
-}
-
-.conversation-row {
-  width: calc(100% - 1rem);
-  min-height: 2.25rem;
-  margin-inline: 0.5rem;
-  padding-inline: 1rem;
-  border-radius: var(--tea-radius-control);
-}
-
-.conversation-row--project {
-  padding-left: 1.75rem;
-  padding-right: 1rem;
-}
-
-.conversation-row--recent {
-  padding-left: 1.75rem;
-  padding-right: 1rem;
-}
-
-.conversation-row--active,
-.conversation-row--active:hover {
-  background: var(--tea-canvas);
-}
-
-.conversation-row--active .conversation-row__title {
-  color: var(--tea-fg);
-}
-
-.conversation-row__context {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.conversation-row__runtime {
-  display: none;
-}
-
-.conversation-row:hover .conversation-row__runtime,
-.conversation-row:focus-visible .conversation-row__runtime {
-  display: inline-flex;
 }
 </style>

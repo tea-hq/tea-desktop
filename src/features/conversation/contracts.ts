@@ -1,7 +1,15 @@
 export type RuntimeKind = 'externalCli'
 
 export type RuntimeCapability =
-  'approval' | 'cancel' | 'events' | 'history' | 'hostTools' | 'prompt' | 'snapshot' | 'subject'
+  | 'approval'
+  | 'cancel'
+  | 'delete'
+  | 'events'
+  | 'history'
+  | 'hostTools'
+  | 'prompt'
+  | 'snapshot'
+  | 'subject'
 
 export type ConversationJson =
   string | number | boolean | null | ConversationJson[] | { [key: string]: ConversationJson }
