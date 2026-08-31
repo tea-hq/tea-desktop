@@ -69,7 +69,16 @@ describe('ConversationSidebar', () => {
     expect(wrapper.findAll('.workspace-project')).toHaveLength(2)
     expect(wrapper.findAll('.conversation-row')).toHaveLength(3)
     expect(wrapper.findAll('.workspace-group__count')).toHaveLength(0)
+    expect(wrapper.findAll('.workspace-group__label')).toHaveLength(2)
+    expect(wrapper.findAll('.workspace-group__label').map((label) => label.text())).toEqual([
+      'Projects',
+      'Recent conversations',
+    ])
     expect(wrapper.findAll('.workspace-group__header .workspace-group__chevron')).toHaveLength(2)
+    expect(wrapper.find('.workspace-group__header .i-mdi-clock-outline').exists()).toBe(false)
+    expect(wrapper.find('.workspace-group__header .i-mdi-folder-multiple-outline').exists()).toBe(
+      false,
+    )
     expect(wrapper.findAll('.workspace-project__header .workspace-group__chevron')).toHaveLength(0)
     expect(wrapper.findAll('.conversation-row__context')).toHaveLength(3)
     expect(wrapper.findAll('.conversation-row__runtime')).toHaveLength(3)
@@ -110,6 +119,22 @@ describe('ConversationSidebar', () => {
     expect(wrapper.emitted('newWithRuntime')).toEqual([['external.codex']])
   })
 
+  it('quick-creates project and recent conversations with distinct directory context', async () => {
+    const wrapper = mountSidebar([
+      summary('Recent', 'workspace-recent'),
+      summary('Project', 'workspace-project', '/projects/alpha'),
+    ])
+
+    const projectToggle = wrapper.get('.workspace-project__header')
+    await wrapper.get('button[aria-label="New conversation in alpha"]').trigger('click')
+    expect(projectToggle.attributes('aria-expanded')).toBe('true')
+
+    const recentToggle = wrapper.findAll('.workspace-group__header')[1]!
+    await wrapper.get('button[aria-label="New conversation without a project"]').trigger('click')
+    expect(recentToggle.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.emitted('quickCreate')).toEqual([['/projects/alpha'], [null]])
+  })
+
   it('shows running and completed activity state for inactive sessions', () => {
     const wrapper = mount(ConversationSidebar, {
       props: {
@@ -133,20 +158,14 @@ describe('ConversationSidebar', () => {
     expect(wrapper.find('.conversation-activity-indicator--completed').exists()).toBe(true)
   })
 
-  it('offers archive and delete actions from each conversation item', async () => {
+  it('offers only archive from each conversation item', async () => {
     const wrapper = mountSidebar([summary('Archive me', 'workspace-archive')])
 
     await wrapper.get('button[aria-label="Conversation actions"]').trigger('click')
-    const archive = wrapper
-      .findAll('[role="menuitem"]')
-      .find((item) => item.text() === 'Archive conversation')
-    const remove = wrapper
-      .findAll('[role="menuitem"]')
-      .find((item) => item.text() === 'Delete conversation')
-    expect(archive).toBeDefined()
-    expect(remove).toBeDefined()
+    const menuItems = wrapper.findAll('[role="menuitem"]')
+    expect(menuItems.map((item) => item.text())).toEqual(['Archive conversation'])
 
-    await archive!.trigger('click')
+    await menuItems[0]!.trigger('click')
     const dialog = document.body.querySelector('[role="dialog"]')
     expect(dialog?.textContent).toContain('Archive "Archive me"?')
     const confirm = [...(dialog?.querySelectorAll('button') ?? [])].find(
@@ -157,7 +176,7 @@ describe('ConversationSidebar', () => {
     expect(wrapper.emitted('archive')).toEqual([['Archive me']])
   })
 
-  it('keeps channel metadata in one fixed context slot', () => {
+  it('swaps channel metadata and actions in one fixed action slot', () => {
     const wrapper = mountSidebar([
       {
         ...summary('Channel session', 'workspace-channel'),
@@ -170,9 +189,12 @@ describe('ConversationSidebar', () => {
     ])
 
     const context = wrapper.get('.conversation-row__context')
-    expect(context.classes()).toContain('conversation-row__context--channel')
     expect(context.find('.conversation-row__runtime').exists()).toBe(true)
-    expect(context.find('.conversation-row__channel').exists()).toBe(true)
+    expect(context.find('.conversation-row__channel').exists()).toBe(false)
+
+    const actionSlot = wrapper.get('.conversation-row__action-slot')
+    expect(actionSlot.find('.conversation-row__channel').exists()).toBe(true)
+    expect(actionSlot.find('.conversation-row__menu').exists()).toBe(true)
   })
 
   it('highlights exactly the active session across sidebar groups', async () => {
@@ -182,18 +204,18 @@ describe('ConversationSidebar', () => {
     ])
 
     let rows = wrapper.findAll('.conversation-row')
-    expect(rows[0]?.classes()).toContain('conversation-row--active')
-    expect(rows[0]?.attributes('aria-current')).toBe('page')
-    expect(rows[1]?.classes()).not.toContain('conversation-row--active')
-    expect(rows[1]?.attributes('aria-current')).toBeUndefined()
-
-    await wrapper.setProps({ activeId: 'Project' })
-    rows = wrapper.findAll('.conversation-row')
     expect(rows[0]?.classes()).not.toContain('conversation-row--active')
     expect(rows[0]?.attributes('aria-current')).toBeUndefined()
     expect(rows[1]?.classes()).toContain('conversation-row--active')
     expect(rows[1]?.attributes('aria-current')).toBe('page')
-    expect(rows[1]?.classes()).toContain('rounded-control')
+
+    await wrapper.setProps({ activeId: 'Project' })
+    rows = wrapper.findAll('.conversation-row')
+    expect(rows[0]?.classes()).toContain('conversation-row--active')
+    expect(rows[0]?.attributes('aria-current')).toBe('page')
+    expect(rows[1]?.classes()).not.toContain('conversation-row--active')
+    expect(rows[1]?.attributes('aria-current')).toBeUndefined()
+    expect(rows[0]?.classes()).toContain('rounded-control')
   })
 
   it('collapses recent, projects, and individual project sessions', async () => {
@@ -210,13 +232,13 @@ describe('ConversationSidebar', () => {
 
     await groupHeaders[0]!.trigger('click')
     expect(groupHeaders[0]?.attributes('aria-expanded')).toBe('false')
-    expect(wrapper.findAll('.conversation-row')).toHaveLength(2)
+    expect(wrapper.findAll('.conversation-row')).toHaveLength(1)
 
     await groupHeaders[1]!.trigger('click')
     expect(groupHeaders[1]?.attributes('aria-expanded')).toBe('false')
     expect(wrapper.findAll('.conversation-row')).toHaveLength(0)
 
-    await groupHeaders[1]!.trigger('click')
+    await groupHeaders[0]!.trigger('click')
     const projectHeaders = wrapper.findAll('.workspace-project__header')
     expect(projectHeaders).toHaveLength(2)
     expect(projectHeaders[0]?.attributes('aria-expanded')).toBe('true')

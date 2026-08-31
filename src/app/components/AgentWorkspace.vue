@@ -23,10 +23,10 @@ const {
   applyActiveRolePrompt,
   handleNew,
   handleNewWithRuntime,
+  handleQuickCreate,
   selectNewConversationProject,
   handleSelect,
   archiveConversation,
-  deleteConversation,
   openDraftEditor,
   selectRole,
   selectActiveRuntime,
@@ -55,9 +55,9 @@ const { t } = useI18n()
     :completed-conversation-ids="conversation.completedConversationIds"
     @new="handleNew"
     @new-with-runtime="handleNewWithRuntime"
+    @quick-create="handleQuickCreate"
     @select="handleSelect"
     @archive="archiveConversation"
-    @delete="deleteConversation"
     @load-more="conversation.loadMoreConversations()"
     @retry="conversation.initializeConversationList(true)"
     @filter="conversation.setCatalogFilter($event)"

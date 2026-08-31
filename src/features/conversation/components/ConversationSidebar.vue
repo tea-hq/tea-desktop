@@ -34,13 +34,13 @@ const emit = defineEmits<{
   retry: []
   filter: [filter: ConversationScopeFilter]
   archive: [id: string]
-  delete: [id: string]
+  quickCreate: [workingDirectory: string | null]
 }>()
 const { t } = useI18n()
 const recentExpanded = ref(true)
 const projectsExpanded = ref(true)
 const collapsedProjects = ref(new Set<string>())
-const pendingAction = ref<{ type: 'archive' | 'delete'; id: string; title: string } | null>(null)
+const pendingAction = ref<{ id: string; title: string } | null>(null)
 
 const groupedConversations = computed(() => {
   const projects = new Map<string, ConversationSummary[]>()
@@ -106,9 +106,8 @@ function handleScroll(event: Event): void {
   }
 }
 
-function requestAction(type: 'archive' | 'delete', conversation: ConversationSummary): void {
+function requestArchive(conversation: ConversationSummary): void {
   pendingAction.value = {
-    type,
     id: conversation.conversationId,
     title: conversationTitle(conversation),
   }
@@ -118,8 +117,7 @@ function confirmAction(): void {
   const action = pendingAction.value
   if (!action) return
   pendingAction.value = null
-  if (action.type === 'archive') emit('archive', action.id)
-  else emit('delete', action.id)
+  emit('archive', action.id)
 }
 </script>
 
@@ -188,50 +186,14 @@ function confirmAction(): void {
       <p v-else-if="conversations.length === 0" class="px-3 py-6 text-center text-sm text-subtle">
         {{ t('sidebar.empty') }}
       </p>
-      <section v-if="groupedConversations.recent.length" class="workspace-group">
-        <button
-          type="button"
-          class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
-          :aria-expanded="recentExpanded"
-          @click="recentExpanded = !recentExpanded"
-        >
-          <span class="i-mdi-clock-outline size-3.5" aria-hidden="true" />
-          <span class="truncate">{{ t('sidebar.recentConversations') }}</span>
-          <span
-            class="workspace-group__chevron i-mdi-chevron-down size-3.5 shrink-0 transition-transform motion-reduce:transition-none"
-            :class="{ '-rotate-90': !recentExpanded }"
-            aria-hidden="true"
-          />
-        </button>
-        <div v-if="recentExpanded" class="workspace-group__items">
-          <ConversationSidebarItem
-            v-for="(conv, conversationIndex) in groupedConversations.recent"
-            :key="conv.conversationId"
-            :conversation="conv"
-            :runtime-label="runtimeName(conv.runtimeId)"
-            :active="conv.conversationId === activeId"
-            :running="isRunning(conv.conversationId)"
-            :completed="isCompleted(conv.conversationId)"
-            :animation-delay="`${conversationIndex * 30}ms`"
-            :disabled="loading"
-            @select="emit('select', $event)"
-            @archive="requestAction('archive', conv)"
-            @delete="requestAction('delete', conv)"
-          />
-        </div>
-      </section>
-      <section
-        v-if="groupedConversations.projects.length"
-        class="workspace-group workspace-group--projects"
-      >
+      <section v-if="groupedConversations.projects.length" class="workspace-group">
         <button
           type="button"
           class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
           :aria-expanded="projectsExpanded"
           @click="projectsExpanded = !projectsExpanded"
         >
-          <span class="i-mdi-folder-multiple-outline size-3.5" aria-hidden="true" />
-          <span class="truncate">{{ t('sidebar.projects') }}</span>
+          <span class="workspace-group__label truncate">{{ t('sidebar.projects') }}</span>
           <span
             class="workspace-group__chevron i-mdi-chevron-down size-3.5 shrink-0 transition-transform motion-reduce:transition-none"
             :class="{ '-rotate-90': !projectsExpanded }"
@@ -245,19 +207,33 @@ function confirmAction(): void {
             class="workspace-project"
             :aria-labelledby="`conversation-project-${projectIndex}`"
           >
-            <button
-              type="button"
-              class="workspace-project__header w-full cursor-pointer text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
-              :title="project.workingDirectory"
-              :aria-expanded="isProjectExpanded(project.workingDirectory)"
-              :aria-controls="`conversation-project-items-${projectIndex}`"
-              @click="toggleProject(project.workingDirectory)"
-            >
-              <span class="i-mdi-folder-outline size-3.5" aria-hidden="true" />
-              <span :id="`conversation-project-${projectIndex}`" class="truncate">
-                {{ projectName(project.workingDirectory) }}
-              </span>
-            </button>
+            <div class="workspace-project__heading">
+              <button
+                type="button"
+                class="workspace-project__header w-full cursor-pointer text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
+                :title="project.workingDirectory"
+                :aria-expanded="isProjectExpanded(project.workingDirectory)"
+                :aria-controls="`conversation-project-items-${projectIndex}`"
+                @click="toggleProject(project.workingDirectory)"
+              >
+                <span class="i-mdi-folder-outline size-3.5" aria-hidden="true" />
+                <span :id="`conversation-project-${projectIndex}`" class="truncate">
+                  {{ projectName(project.workingDirectory) }}
+                </span>
+              </button>
+              <TeaIconButton
+                size="small"
+                icon="i-mdi-square-edit-outline"
+                class="workspace-quick-create"
+                :label="
+                  t('sidebar.quickCreateProject', {
+                    project: projectName(project.workingDirectory),
+                  })
+                "
+                :disabled="loading"
+                @click="emit('quickCreate', project.workingDirectory)"
+              />
+            </div>
             <div
               v-if="isProjectExpanded(project.workingDirectory)"
               :id="`conversation-project-items-${projectIndex}`"
@@ -275,11 +251,55 @@ function confirmAction(): void {
                 :animation-delay="`${(projectIndex * 4 + conversationIndex) * 30}ms`"
                 :disabled="loading"
                 @select="emit('select', $event)"
-                @archive="requestAction('archive', conv)"
-                @delete="requestAction('delete', conv)"
+                @archive="requestArchive(conv)"
               />
             </div>
           </section>
+        </div>
+      </section>
+      <section
+        v-if="groupedConversations.recent.length"
+        class="workspace-group workspace-group--recent"
+      >
+        <div class="workspace-group__heading">
+          <button
+            type="button"
+            class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
+            :aria-expanded="recentExpanded"
+            @click="recentExpanded = !recentExpanded"
+          >
+            <span class="workspace-group__label truncate">
+              {{ t('sidebar.recentConversations') }}
+            </span>
+            <span
+              class="workspace-group__chevron i-mdi-chevron-down size-3.5 shrink-0 transition-transform motion-reduce:transition-none"
+              :class="{ '-rotate-90': !recentExpanded }"
+              aria-hidden="true"
+            />
+          </button>
+          <TeaIconButton
+            size="small"
+            icon="i-mdi-square-edit-outline"
+            class="workspace-quick-create"
+            :label="t('sidebar.quickCreateRecent')"
+            :disabled="loading"
+            @click="emit('quickCreate', null)"
+          />
+        </div>
+        <div v-if="recentExpanded" class="workspace-group__items">
+          <ConversationSidebarItem
+            v-for="(conv, conversationIndex) in groupedConversations.recent"
+            :key="conv.conversationId"
+            :conversation="conv"
+            :runtime-label="runtimeName(conv.runtimeId)"
+            :active="conv.conversationId === activeId"
+            :running="isRunning(conv.conversationId)"
+            :completed="isCompleted(conv.conversationId)"
+            :animation-delay="`${conversationIndex * 30}ms`"
+            :disabled="loading"
+            @select="emit('select', $event)"
+            @archive="requestArchive(conv)"
+          />
         </div>
       </section>
       <div
@@ -293,37 +313,21 @@ function confirmAction(): void {
   </aside>
   <TeaDialog
     :open="pendingAction !== null"
-    :title="
-      pendingAction?.type === 'delete'
-        ? t('sidebar.deleteConversation')
-        : t('sidebar.archiveConversation')
-    "
+    :title="t('sidebar.archiveConversation')"
     :dismissable="true"
     :close-label="t('common.close')"
     width="small"
     @close="pendingAction = null"
   >
     <p class="text-sm leading-6 text-dim">
-      {{
-        pendingAction?.type === 'delete'
-          ? t('sidebar.deleteConfirm', { title: pendingAction.title })
-          : t('sidebar.archiveConfirm', { title: pendingAction?.title ?? '' })
-      }}
+      {{ t('sidebar.archiveConfirm', { title: pendingAction?.title ?? '' }) }}
     </p>
     <template #footer>
       <TeaButton appearance="ghost" size="small" @click="pendingAction = null">
         {{ t('sidebar.cancelAction') }}
       </TeaButton>
-      <TeaButton
-        :appearance="pendingAction?.type === 'delete' ? 'danger' : 'primary'"
-        size="small"
-        @click="confirmAction"
-      >
-        {{
-          pendingAction?.type === 'delete'
-            ? t('sidebar.confirmDelete')
-            : t('sidebar.confirmArchive')
-        }}
+      <TeaButton appearance="primary" size="small" @click="confirmAction">
+        {{ t('sidebar.confirmArchive') }}
       </TeaButton>
     </template>
   </TeaDialog>
@@ -398,21 +402,43 @@ function confirmAction(): void {
 .workspace-group__header {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.25rem;
   min-height: 2.25rem;
   padding-inline: 1rem;
-  color: var(--tea-dim);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1.25;
-  text-transform: uppercase;
+  color: var(--tea-disabled);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.workspace-group__header:hover,
+.workspace-group__header:focus-visible {
+  color: var(--tea-subtle);
+}
+
+.workspace-group__heading,
+.workspace-project__heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--tea-radius-control);
+  transition: background-color 150ms ease;
+}
+
+.workspace-group__heading:hover,
+.workspace-group__heading:focus-within,
+.workspace-project__heading:hover,
+.workspace-project__heading:focus-within {
+  background: var(--tea-hover);
+}
+
+.workspace-group__label {
+  min-width: 0;
 }
 
 .workspace-group__chevron {
-  margin-left: auto;
-  color: var(--tea-subtle);
-  opacity: 0.65;
+  color: currentcolor;
+  opacity: 0.7;
   transition:
     opacity 150ms ease,
     transform 150ms ease;
@@ -429,7 +455,7 @@ function confirmAction(): void {
   gap: 0.125rem;
 }
 
-.workspace-group--projects {
+.workspace-group--recent {
   margin-top: 1rem;
 }
 
@@ -444,10 +470,34 @@ function confirmAction(): void {
   align-items: center;
   gap: 0.375rem;
   min-height: 2.25rem;
-  padding-inline: 1rem;
-  color: var(--tea-fg);
+  padding-inline: 1rem 3rem;
+  color: var(--tea-dim);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25;
+}
+
+.workspace-quick-create {
+  position: absolute;
+  inset-block: 0;
+  right: 0.5rem;
+  margin-block: auto;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.workspace-group__heading:hover .workspace-quick-create,
+.workspace-group__heading:focus-within .workspace-quick-create,
+.workspace-project__heading:hover .workspace-quick-create,
+.workspace-project__heading:focus-within .workspace-quick-create {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-group__heading,
+  .workspace-project__heading,
+  .workspace-quick-create {
+    transition: none;
+  }
 }
 </style>

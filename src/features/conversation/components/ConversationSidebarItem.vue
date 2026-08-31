@@ -29,7 +29,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   select: [id: string]
   archive: [id: string]
-  delete: [id: string]
 }>()
 const { t } = useI18n()
 
@@ -42,17 +41,10 @@ const menuItems = computed<TeaMenuItem[]>(() => [
     label: t('sidebar.archiveConversation'),
     icon: 'i-mdi-archive-outline',
   },
-  { value: 'separator', label: '', separator: true },
-  {
-    value: 'delete',
-    label: t('sidebar.deleteConversation'),
-    icon: 'i-mdi-delete-outline',
-  },
 ])
 
 function selectAction(value: string): void {
   if (value === 'archive') emit('archive', props.conversation.conversationId)
-  if (value === 'delete') emit('delete', props.conversation.conversationId)
 }
 </script>
 
@@ -79,33 +71,34 @@ function selectAction(value: string): void {
       <span class="conversation-row__title min-w-0 flex-1 truncate font-normal leading-5 text-dim">
         {{ title }}
       </span>
-      <span
-        class="conversation-row__context"
-        :class="{ 'conversation-row__context--channel': conversation.channelBinding }"
-      >
+      <span class="conversation-row__context">
         <RuntimeIcon
           size="small"
           class="conversation-row__runtime text-subtle"
           :runtime-id="conversation.runtimeId"
           :label="runtimeLabel"
         />
-        <span
-          v-if="conversation.channelBinding"
-          class="conversation-row__channel i-mdi-pound size-3 shrink-0 text-subtle"
-          aria-hidden="true"
-        />
       </span>
       <ConversationActivityIndicator :running="running" :completed="completed" />
     </TeaButton>
-    <TeaIconMenu
-      size="small"
-      :items="menuItems"
-      :label="t('sidebar.conversationActions')"
-      :menu-label="title"
-      :disabled="disabled"
-      class="conversation-row__menu shrink-0 opacity-0 transition-opacity motion-reduce:transition-none"
-      @select="selectAction"
-    />
+    <span class="conversation-row__action-slot">
+      <span
+        v-if="conversation.channelBinding"
+        class="conversation-row__channel text-subtle"
+        aria-hidden="true"
+      >
+        <span class="i-mdi-pound size-3" />
+      </span>
+      <TeaIconMenu
+        size="small"
+        :items="menuItems"
+        :label="t('sidebar.conversationActions')"
+        :menu-label="title"
+        :disabled="disabled"
+        class="conversation-row__menu"
+        @select="selectAction"
+      />
+    </span>
   </div>
 </template>
 
@@ -163,10 +156,6 @@ function selectAction(value: string): void {
   justify-content: center;
 }
 
-.conversation-row__context--channel {
-  display: inline-flex;
-}
-
 .conversation-row__runtime {
   display: none;
 }
@@ -181,13 +170,41 @@ function selectAction(value: string): void {
   display: inline-flex;
 }
 
+.conversation-row__action-slot {
+  position: relative;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 1.75rem;
+}
+
+.conversation-row__channel,
+.conversation-row__menu {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms ease;
+}
+
+.conversation-row__channel {
+  pointer-events: none;
+  opacity: 1;
+}
+
+.conversation-row__menu {
+  opacity: 0;
+}
+
 .conversation-row:hover .conversation-row__channel,
-.conversation-row:has(:focus-visible) .conversation-row__channel {
-  display: none;
+.conversation-row:has(:focus-visible) .conversation-row__channel,
+.conversation-row:has(.conversation-row__menu [aria-expanded='true']) .conversation-row__channel {
+  opacity: 0;
 }
 
 .conversation-row:hover .conversation-row__menu,
-.conversation-row:has(:focus-visible) .conversation-row__menu {
+.conversation-row:has(:focus-visible) .conversation-row__menu,
+.conversation-row:has(.conversation-row__menu [aria-expanded='true']) .conversation-row__menu {
   opacity: 1;
 }
 
@@ -197,6 +214,11 @@ function selectAction(value: string): void {
 
 @media (prefers-reduced-motion: reduce) {
   .conversation-row {
+    transition: none;
+  }
+
+  .conversation-row__channel,
+  .conversation-row__menu {
     transition: none;
   }
 }

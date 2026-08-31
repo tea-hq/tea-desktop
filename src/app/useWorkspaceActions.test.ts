@@ -126,4 +126,30 @@ describe('useWorkspaceActions', () => {
     expect(selectDirectory).toHaveBeenCalledOnce()
     expect(setWorkingDirectory).toHaveBeenCalledWith('/work/tea')
   })
+
+  it('quick-creates drafts with only the requested working-directory difference', () => {
+    const startNewConversation = vi.fn()
+    const setWorkingDirectory = vi.fn()
+    const stores = {
+      conversation: { startNewConversation, setWorkingDirectory },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.collaborationWorkspace.value = true
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    actions.handleQuickCreate('/work/tea')
+    actions.handleQuickCreate(null)
+
+    expect(startNewConversation).toHaveBeenCalledTimes(2)
+    expect(setWorkingDirectory.mock.calls).toEqual([['/work/tea'], [null]])
+    expect(startNewConversation.mock.invocationCallOrder[0]).toBeLessThan(
+      setWorkingDirectory.mock.invocationCallOrder[0]!,
+    )
+    expect(startNewConversation.mock.invocationCallOrder[1]).toBeLessThan(
+      setWorkingDirectory.mock.invocationCallOrder[1]!,
+    )
+    expect(ui.activeMode.value).toBe('agent')
+    expect(ui.collaborationWorkspace.value).toBe(false)
+  })
 })

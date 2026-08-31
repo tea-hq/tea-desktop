@@ -29,6 +29,11 @@ export function useWorkspaceActions(
     handleNewWithRuntime()
   }
 
+  function handleQuickCreate(workingDirectory: string | null): void {
+    handleNew()
+    conversation.setWorkingDirectory(workingDirectory)
+  }
+
   async function selectNewConversationProject(): Promise<void> {
     if (!workspaceClient) return
     try {
@@ -97,19 +102,6 @@ export function useWorkspaceActions(
       (value) => value.conversationId === id,
     )
     await conversation.archiveConversation(id)
-    if (
-      isCollaborationConversation &&
-      !conversation.conversations.some((value) => value.conversationId === id)
-    ) {
-      collaboration.removeConversationFromIndex(id)
-    }
-  }
-
-  async function deleteConversation(id: string): Promise<void> {
-    const isCollaborationConversation = collaboration.conversations.some(
-      (value) => value.conversationId === id,
-    )
-    await conversation.deleteConversation(id)
     if (
       isCollaborationConversation &&
       !conversation.conversations.some((value) => value.conversationId === id)
@@ -309,10 +301,10 @@ export function useWorkspaceActions(
   return {
     handleNew,
     handleNewWithRuntime,
+    handleQuickCreate,
     selectNewConversationProject,
     handleSelect,
     archiveConversation,
-    deleteConversation,
     selectRole,
     applyActiveRolePrompt,
     applyCollaborationRolePrompt,
