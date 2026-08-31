@@ -88,9 +88,11 @@ describe('AgentConversationSurface', () => {
     expect(composer.props()).toMatchObject({ text: 'Review this', runtimeId: 'external.claude' })
     composer.vm.$emit('update:text', 'Updated')
     composer.vm.$emit('send', { text: 'Updated', attachments: [] })
+    composer.vm.$emit('new-project')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('update:text')).toEqual([['Updated']])
     expect(wrapper.emitted('send')).toEqual([[{ text: 'Updated', attachments: [] }]])
+    expect(wrapper.emitted('new-project')).toHaveLength(1)
   })
 })

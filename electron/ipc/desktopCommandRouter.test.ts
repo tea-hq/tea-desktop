@@ -11,6 +11,7 @@ function emptyServices(): DesktopCommandServices {
     credentials: {} as never,
     pluginProcesses: {} as never,
     channel: {} as never,
+    selectDirectory: vi.fn(async () => null),
   }
 }
 
@@ -58,5 +59,14 @@ describe('createDesktopCommandRouter', () => {
 
     expect(order).toEqual(['process', 'catalog'])
     expect(services.catalog.setPluginEnabled).toHaveBeenCalledWith('calendar', false)
+  })
+
+  it('returns the selected directory from the native picker command', async () => {
+    const services = emptyServices()
+    services.selectDirectory = vi.fn(async () => '/work/tea')
+    const route = createDesktopCommandRouter(services)
+
+    await expect(route('select_directory', undefined)).resolves.toBe('/work/tea')
+    expect(services.selectDirectory).toHaveBeenCalledOnce()
   })
 })

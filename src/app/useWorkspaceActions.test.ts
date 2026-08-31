@@ -108,4 +108,20 @@ describe('useWorkspaceActions', () => {
     expect(selectModel).toHaveBeenCalledWith('provider/model-a')
     expect(setDefaultModel).toHaveBeenCalledWith('provider/model-a')
   })
+
+  it('applies a directory selected by the native project picker', async () => {
+    const setWorkingDirectory = vi.fn()
+    const selectDirectory = vi.fn(async () => '/work/tea')
+    const stores = {
+      conversation: { setWorkingDirectory },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    const actions = useWorkspaceActions(stores, ui, runtime, { selectDirectory })
+
+    await actions.selectNewConversationProject()
+
+    expect(selectDirectory).toHaveBeenCalledOnce()
+    expect(setWorkingDirectory).toHaveBeenCalledWith('/work/tea')
+  })
 })

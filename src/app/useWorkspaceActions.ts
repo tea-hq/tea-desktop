@@ -9,11 +9,13 @@ import { logoutWorkspace } from './logoutWorkspace'
 import type { TeaDesktopStores } from './desktopAppDependencies'
 import type { WorkspaceUiState } from './desktopAppState'
 import type { WorkspaceRuntime } from './useWorkspaceRuntime'
+import type { WorkspaceClient } from '@/infrastructure/workspace/electronWorkspaceClient'
 
 export function useWorkspaceActions(
   stores: TeaDesktopStores,
   ui: WorkspaceUiState,
   runtime: WorkspaceRuntime,
+  workspaceClient?: WorkspaceClient,
 ) {
   const { conversation, channels, collaboration, agentDrawer, settings, centerAuth } = stores
 
@@ -25,6 +27,16 @@ export function useWorkspaceActions(
 
   function handleNew(): void {
     handleNewWithRuntime()
+  }
+
+  async function selectNewConversationProject(): Promise<void> {
+    if (!workspaceClient) return
+    try {
+      const directory = await workspaceClient.selectDirectory()
+      if (directory) conversation.setWorkingDirectory(directory)
+    } catch {
+      // A cancelled or unavailable native picker leaves the draft unchanged.
+    }
   }
 
   function selectRole(roleId: string | null): void {
@@ -268,6 +280,7 @@ export function useWorkspaceActions(
   return {
     handleNew,
     handleNewWithRuntime,
+    selectNewConversationProject,
     handleSelect,
     selectRole,
     applyActiveRolePrompt,

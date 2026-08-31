@@ -42,6 +42,7 @@ export const DESKTOP_COMMANDS = [
   'delete_conversation',
   'get_settings',
   'update_settings',
+  'select_directory',
   'get_channel_descriptor',
   'get_channel_status',
   'get_channel_self_profile',

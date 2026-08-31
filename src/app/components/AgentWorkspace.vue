@@ -16,12 +16,14 @@ const {
   fullComposerText,
   fullComposerAttachments,
   conversationModelOptions,
+  conversationProjectDirectories,
   collaborationModelOptions,
   errorText,
   sendFromFullSurface,
   applyActiveRolePrompt,
   handleNew,
   handleNewWithRuntime,
+  selectNewConversationProject,
   handleSelect,
   openDraftEditor,
   selectRole,
@@ -60,6 +62,7 @@ const { t } = useI18n()
       v-model:text="fullComposerText"
       v-model:attachments="fullComposerAttachments"
       :working-directory="conversation.workingDirectory"
+      :project-directories="conversationProjectDirectories"
       :new-conversation="!collaborationWorkspace && !conversation.conversationId"
       :profile="fullAgentProfile"
       :title="
@@ -114,6 +117,7 @@ const { t } = useI18n()
       @select-model="selectActiveModel"
       @select-permission="selectActivePermission"
       @update:working-directory="conversation.setWorkingDirectory($event)"
+      @new-project="selectNewConversationProject"
       @select-role="selectRole"
       @apply-role-prompt="applyActiveRolePrompt"
       @resolve-approval="resolveActiveApproval"

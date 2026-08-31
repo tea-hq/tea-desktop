@@ -8,6 +8,7 @@ const props = withDefaults(
     modelValue: T | null
     options: TeaSelectOption<T>[]
     label: string
+    icon?: string
     placeholder?: string
     disabled?: boolean
     invalid?: boolean
@@ -16,6 +17,7 @@ const props = withDefaults(
   }>(),
   {
     placeholder: '',
+    icon: '',
     disabled: false,
     invalid: false,
     size: 'default',
@@ -97,6 +99,7 @@ function hide(): void {
       @pointerdown.stop
       @keydown="handleKeydown"
     >
+      <span v-if="icon" :class="[icon, 'size-4 shrink-0 text-subtle']" aria-hidden="true" />
       <span class="min-w-0 flex-1 truncate">
         {{ selectedOption?.label ?? placeholder }}
       </span>

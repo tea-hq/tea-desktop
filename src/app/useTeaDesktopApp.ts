@@ -10,6 +10,7 @@ import { useCenterAuthStore } from '@/features/auth/store'
 import { useManagedConfigStore } from '@/features/managed-config/store'
 import { useManagedRuntimeStore } from '@/features/managed-runtime/store'
 import { getDefaultConversationClient } from '@/infrastructure/conversation/electronConversationClient'
+import { ElectronWorkspaceClient } from '@/infrastructure/workspace/electronWorkspaceClient'
 import { WorkspaceLifecycle } from './workspaceLifecycle'
 import type { TeaDesktopStores } from './desktopAppDependencies'
 import { createWorkspaceUiState } from './desktopAppState'
@@ -33,10 +34,11 @@ export function useTeaDesktopApp() {
   }
   const ui = createWorkspaceUiState()
   const conversationClient = getDefaultConversationClient()
+  const workspaceClient = new ElectronWorkspaceClient()
   const workspaceLifecycle = new WorkspaceLifecycle()
   const runtime = useWorkspaceRuntime(stores, ui, conversationClient, workspaceLifecycle)
   const viewModel = useWorkspaceViewModel(stores, ui)
-  const actions = useWorkspaceActions(stores, ui, runtime)
+  const actions = useWorkspaceActions(stores, ui, runtime, workspaceClient)
 
   return {
     ...stores,

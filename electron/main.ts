@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import type { DesktopCommandRouter } from './ipc/commandRouter'
@@ -102,6 +102,15 @@ async function bootstrap(): Promise<void> {
     credentials,
     pluginProcesses,
     channel,
+    selectDirectory: async () => {
+      const options: OpenDialogOptions = {
+        properties: ['openDirectory', 'createDirectory'],
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options)
+      return result.canceled ? null : (result.filePaths[0] ?? null)
+    },
   }
   registerIpc(
     createDesktopCommandRouter(services, {

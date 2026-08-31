@@ -12,6 +12,7 @@ export interface WorkspaceCommandServices {
   centerAuth: ElectronCenterAuthService
   managedWorkspace: ElectronManagedWorkspaceService
   settings: ElectronSettingsService
+  selectDirectory: () => Promise<string | null>
 }
 
 export interface WorkspaceCommandOptions {
@@ -52,6 +53,7 @@ export function createWorkspaceCommandHandlers(
     get_managed_im_credentials: () => services.managedWorkspace.getImCredentials(),
     get_settings: () => services.settings.load(),
     update_settings: (args) => services.settings.update(args.settings),
+    select_directory: () => services.selectDirectory(),
   } satisfies Partial<DesktopCommandHandlers>)
 }
 

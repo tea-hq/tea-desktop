@@ -92,6 +92,14 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
   const conversationModelOptions = computed<ModelOption[]>(() =>
     mergeModelOptions(conversation.modelOptions, managedRuntime.modelOptions),
   )
+  const conversationProjectDirectories = computed(() => {
+    const unique = new Set<string>()
+    for (const item of conversation.conversations) {
+      const directory = item.workingDirectory?.trim()
+      if (directory) unique.add(directory)
+    }
+    return [...unique]
+  })
   const collaborationModelOptions = computed<ModelOption[]>(() =>
     mergeModelOptions(
       runtimeModelOptions(collaboration.activeRuntime),
@@ -120,5 +128,6 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
     currentChannelSessionAvailable,
     conversationModelOptions,
     collaborationModelOptions,
+    conversationProjectDirectories,
   }
 }
