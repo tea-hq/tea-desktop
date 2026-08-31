@@ -255,8 +255,8 @@ export function useWorkspaceActions(
     attachments: ComposerAttachment[]
   }): Promise<void> {
     void settings.setDefaultModel(conversation.selectedModel)
-    await conversation.sendMessage(payload.text, payload.attachments)
-    if (conversation.conversationId && !conversation.error) {
+    const accepted = await conversation.sendMessage(payload.text, payload.attachments)
+    if (accepted) {
       ui.localComposerText.value = ''
       ui.localComposerAttachments.value = []
     }

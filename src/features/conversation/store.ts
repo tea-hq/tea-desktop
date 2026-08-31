@@ -427,13 +427,16 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  async function sendMessage(text: string, attachments: ComposerAttachment[] = []): Promise<void> {
+  async function sendMessage(
+    text: string,
+    attachments: ComposerAttachment[] = [],
+  ): Promise<boolean> {
     const configured = client
     if (configured && !conversationId.value) await createConversation()
     const currentId = conversationId.value
     if (!configured || !currentId) {
       error.value = localizedError('errors.noActiveConversation')
-      return
+      return false
     }
     const generation = lifecycleGeneration
     const turnId = crypto.randomUUID()
@@ -446,23 +449,24 @@ export const useConversationStore = defineStore('conversation', () => {
     )
     turns.value = [...turns.value, turn]
     error.value = null
-    try {
-      await configured.sendMessage(currentId, text, {
+    void configured
+      .sendMessage(currentId, text, {
         model: selectedModel.value,
         permissionMode: permissionMode.value,
       })
-    } catch (cause) {
-      if (generation !== lifecycleGeneration || client !== configured) return
-      const message = cause instanceof Error ? cause.message : String(cause)
-      updateTurn(turnId, (current) =>
-        failConversationTurn(current, {
-          code: 'internal',
-          message,
-          retryable: false,
-        }),
-      )
-      error.value = runtimeError(cause)
-    }
+      .catch((cause) => {
+        if (generation !== lifecycleGeneration || client !== configured) return
+        const message = cause instanceof Error ? cause.message : String(cause)
+        updateTurn(turnId, (current) =>
+          failConversationTurn(current, {
+            code: 'internal',
+            message,
+            retryable: false,
+          }),
+        )
+        error.value = runtimeError(cause)
+      })
+    return true
   }
 
   async function cancelConversation(): Promise<void> {

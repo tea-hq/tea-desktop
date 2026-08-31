@@ -48,6 +48,8 @@ class FakeClient {
   approvalError: Error | null = null
   lastSendOptions: SendMessageOptions | null = null
   createSummary: ConversationSummary | null | undefined
+  sendCompletion: Promise<void> | null = null
+  sendStarted: (() => void) | null = null
 
   setRuntimes(r: RuntimeDescriptor[]): void {
     this.runtimes = r
@@ -127,6 +129,8 @@ class FakeClient {
   ): Promise<void> {
     this.sendCalls++
     this.lastSendOptions = options
+    this.sendStarted?.()
+    await this.sendCompletion
   }
 
   async cancelConversation(_conversationId: string): Promise<void> {
@@ -571,6 +575,30 @@ describe('useConversationStore', () => {
       model: 'sonnet',
       permissionMode: 'fullAccess',
     })
+  })
+
+  it('accepts a first message without waiting for the runtime turn to finish', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([runtime])
+    let finishSend!: () => void
+    let markSendStarted!: () => void
+    fake.sendCompletion = new Promise<void>((resolve) => (finishSend = resolve))
+    const sendStarted = new Promise<void>((resolve) => (markSendStarted = resolve))
+    fake.sendStarted = markSendStarted
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+
+    const acceptance = store.sendMessage('Hello')
+    await sendStarted
+    const accepted = await acceptance
+
+    expect(accepted).toBe(true)
+    expect(store.conversationId).toBe('conv-1')
+    expect(store.turns[0]?.user.text).toBe('Hello')
+
+    finishSend()
+    await Promise.resolve()
   })
 
   it('does not invent a sidebar record when the backend returns no summary', async () => {

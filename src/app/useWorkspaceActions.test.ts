@@ -152,4 +152,53 @@ describe('useWorkspaceActions', () => {
     expect(ui.activeMode.value).toBe('agent')
     expect(ui.collaborationWorkspace.value).toBe(false)
   })
+
+  it('clears the local composer when the conversation accepts the message', async () => {
+    const sendMessage = vi.fn().mockResolvedValue(true)
+    const stores = {
+      conversation: { selectedModel: 'default', sendMessage },
+      settings: { setDefaultModel: vi.fn() },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.localComposerText.value = 'Inspect the workspace'
+    ui.localComposerAttachments.value = [{ id: 'brief', name: 'brief.md', size: 1024 }]
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    await actions.sendFromFullSurface({
+      text: ui.localComposerText.value,
+      attachments: ui.localComposerAttachments.value,
+    })
+
+    expect(sendMessage).toHaveBeenCalledWith('Inspect the workspace', [
+      { id: 'brief', name: 'brief.md', size: 1024 },
+    ])
+    expect(ui.localComposerText.value).toBe('')
+    expect(ui.localComposerAttachments.value).toEqual([])
+  })
+
+  it('preserves the local composer when the conversation rejects the message', async () => {
+    const stores = {
+      conversation: {
+        selectedModel: 'default',
+        sendMessage: vi.fn().mockResolvedValue(false),
+      },
+      settings: { setDefaultModel: vi.fn() },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.localComposerText.value = 'Inspect the workspace'
+    ui.localComposerAttachments.value = [{ id: 'brief', name: 'brief.md', size: 1024 }]
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    await actions.sendFromFullSurface({
+      text: ui.localComposerText.value,
+      attachments: ui.localComposerAttachments.value,
+    })
+
+    expect(ui.localComposerText.value).toBe('Inspect the workspace')
+    expect(ui.localComposerAttachments.value).toEqual([
+      { id: 'brief', name: 'brief.md', size: 1024 },
+    ])
+  })
 })
