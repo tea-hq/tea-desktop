@@ -75,20 +75,22 @@ function handleScroll(event: Event): void {
   <aside class="hidden h-full w-[288px] flex-col border-r border-line-soft bg-panel sm:flex">
     <header class="conversation-sidebar__header">
       <h2 class="conversation-sidebar__title">{{ t('sidebar.title') }}</h2>
-      <TeaIconButton
-        size="small"
-        :label="t('sidebar.newConversation')"
-        icon="i-mdi-plus"
-        @click="emit('new')"
-      />
-      <AgentRuntimeMenu
-        v-if="runtimes.length > 1"
-        :runtimes="runtimes"
-        :default-runtime-id="defaultRuntimeId"
-        :label="t('channels.collaboration.chooseOtherAgent')"
-        :menu-label="t('channels.collaboration.chooseAgent')"
-        @select="emit('newWithRuntime', $event)"
-      />
+      <div class="conversation-sidebar__actions">
+        <TeaIconButton
+          size="small"
+          :label="t('sidebar.newConversation')"
+          icon="i-mdi-plus"
+          @click="emit('new')"
+        />
+        <AgentRuntimeMenu
+          v-if="runtimes.length > 1"
+          :runtimes="runtimes"
+          :default-runtime-id="defaultRuntimeId"
+          :label="t('channels.collaboration.chooseOtherAgent')"
+          :menu-label="t('channels.collaboration.chooseAgent')"
+          @select="emit('newWithRuntime', $event)"
+        />
+      </div>
     </header>
     <nav class="conversation-filters" :aria-label="t('sidebar.filterLabel')">
       <div class="conversation-filters__list" role="tablist">
@@ -192,6 +194,14 @@ function handleScroll(event: Event): void {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 0.875rem 0.5rem;
+}
+
+.conversation-sidebar__actions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .conversation-sidebar__title {

@@ -3,6 +3,7 @@ import type {
   ManagedWorkspaceState,
 } from '../../src/features/managed-runtime/contracts'
 import type { ElectronCenterAuthService } from './centerAuth'
+import type { RuntimeProviderConfiguration } from '../conversation/runtime'
 
 export interface ManagedImCredentials {
   appKey: string
@@ -25,7 +26,8 @@ export interface RuntimeModelProvider {
   displayName: string
   baseUrl: string
   apiKey?: string
-  models: RuntimeModel[]
+  /** Server configuration may omit the catalog; the endpoint is authoritative when available. */
+  models?: RuntimeModel[]
 }
 
 type ModelDiscoveryFetch = typeof fetch
@@ -40,6 +42,10 @@ export class ElectronManagedWorkspaceService {
     modelProviders: [],
   }
   private imCredentials: ManagedImCredentials | null = null
+  private modelProviderConfigurations = new Map<
+    string,
+    RuntimeModelProvider & { models: RuntimeModel[] }
+  >()
 
   constructor(
     private readonly auth: ElectronCenterAuthService,
@@ -54,6 +60,7 @@ export class ElectronManagedWorkspaceService {
     const auth = this.auth.stateValue()
     if (!auth.bootstrap || (auth.phase !== 'authenticated' && auth.phase !== 'offlineCached')) {
       this.imCredentials = null
+      this.modelProviderConfigurations.clear()
       this.setState({
         phase: 'inactive',
         tenantId: undefined,
@@ -71,22 +78,26 @@ export class ElectronManagedWorkspaceService {
     })
     try {
       const configuration = (await this.auth.runtimeConfiguration()) as RuntimeConfiguration
-      const providers = await Promise.all(
-        configuration.modelProviders.map(async (value) => {
-          const models = await mergeProviderModels(value)
-          return {
-            id: value.id,
-            kind: value.kind,
-            displayName: value.displayName,
-            status: value.status,
-            ...(value.errorCode ? { errorCode: value.errorCode } : {}),
-            models: models.map((model) => ({
-              id: model.id,
-              displayName: model.displayName,
-              selectionValue: `${value.id}/${model.id}`,
-            })),
-          } satisfies ManagedModelProviderState
-        }),
+      const resolvedProviders = await Promise.all(
+        configuration.modelProviders.map(async (value) => ({
+          value,
+          models: await mergeProviderModels(value),
+        })),
+      )
+      const providers = resolvedProviders.map(({ value, models }) => ({
+        id: value.id,
+        kind: value.kind,
+        displayName: value.displayName,
+        status: value.status,
+        ...(value.errorCode ? { errorCode: value.errorCode } : {}),
+        models: models.map((model) => ({
+          id: model.id,
+          displayName: model.displayName,
+          selectionValue: `${value.id}/${model.id}`,
+        })),
+      })) satisfies ManagedModelProviderState[]
+      this.modelProviderConfigurations = new Map(
+        resolvedProviders.map(({ value, models }) => [value.id, { ...value, models }]),
       )
       this.imCredentials =
         configuration.im?.status === 'ready' &&
@@ -115,6 +126,7 @@ export class ElectronManagedWorkspaceService {
       return this.stateValue()
     } catch (error) {
       this.imCredentials = null
+      this.modelProviderConfigurations.clear()
       const code = errorCode(error)
       this.setState({
         phase: code === 'centerUnavailable' ? 'offline' : 'failed',
@@ -128,6 +140,26 @@ export class ElectronManagedWorkspaceService {
     if (!this.imCredentials || this.state.im?.status !== 'ready')
       throw serviceError('imRuntimeUnavailable', false)
     return structuredClone(this.imCredentials)
+  }
+
+  resolveModelProvider(providerId: string, modelId: string): RuntimeProviderConfiguration | null {
+    const provider = this.modelProviderConfigurations.get(providerId)
+    if (
+      !provider ||
+      provider.status !== 'ready' ||
+      !provider.apiKey?.trim() ||
+      !provider.models.some((model) => model.id === modelId)
+    )
+      return null
+    return {
+      providerId: provider.id,
+      kind: provider.kind,
+      displayName: provider.displayName,
+      baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey,
+      modelId,
+      modelIds: provider.models.map((model) => model.id),
+    }
   }
 
   private setState(update: Partial<ManagedWorkspaceState>): void {
@@ -155,7 +187,7 @@ interface RuntimeConfiguration {
 }
 
 async function mergeProviderModels(provider: RuntimeModelProvider): Promise<RuntimeModel[]> {
-  const configured = normalizeModels(provider.models)
+  const configured = normalizeModels(provider.models ?? [])
   const discovered = await discoverProviderModels(provider)
   const models = [...configured]
   const ids = new Set(configured.map((model) => model.id))

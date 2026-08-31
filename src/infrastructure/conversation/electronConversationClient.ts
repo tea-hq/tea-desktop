@@ -55,6 +55,7 @@ export class ElectronConversationClient implements ConversationClient {
     return invoke<CreateConversationResponse>('create_conversation', {
       runtimeId,
       idempotencyKey: options.idempotencyKey,
+      ...(options.model === undefined ? {} : { model: options.model }),
       channelBinding: options?.channelBinding,
       hostTools: (options?.hostTools ?? []).map(({ name, version }) => ({ name, version })),
     })

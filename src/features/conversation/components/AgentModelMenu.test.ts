@@ -115,4 +115,29 @@ describe('AgentModelMenu', () => {
     expect(optionsPanel.querySelectorAll('[role="menuitemradio"]')).toHaveLength(30)
     expect(optionsPanel.textContent).toContain('gpt-image-2')
   })
+
+  it('keeps the selected model and effort labels fully readable in the trigger', () => {
+    const wrapper = (mountedMenu = mount(AgentModelMenu, {
+      props: {
+        modelValue: 'claude-sonnet-4-very-long-display-name',
+        options: [
+          {
+            value: 'claude-sonnet-4-very-long-display-name',
+            label: 'Claude Sonnet 4 Very Long Display Name',
+          },
+        ],
+        label: 'Select model',
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    }))
+
+    expect(wrapper.get('.agent-model-menu__model').text()).toBe(
+      'Claude Sonnet 4 Very Long Display Name',
+    )
+    expect(wrapper.get('.agent-model-menu__effort').text()).toBe('Extra High')
+    expect(wrapper.get('.agent-model-menu__model').classes()).not.toContain('truncate')
+    expect(wrapper.get('.agent-model-menu__effort').classes()).not.toContain('truncate')
+  })
 })

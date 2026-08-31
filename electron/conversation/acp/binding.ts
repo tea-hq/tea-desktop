@@ -5,6 +5,7 @@ import {
   ConversationRuntimeError,
   parseRuntimeConversationBinding,
   type RuntimeConversationBinding,
+  type RuntimeConversationSelection,
 } from '../runtime'
 import type { AcpAgentDefinition, AcpWireVersion } from './agentDefinition'
 
@@ -63,7 +64,8 @@ export function validateAcpConversationBinding(
   context: AcpBindingContext,
 ): AcpConversationBinding {
   value = parseRuntimeConversationBinding(value)
-  if (!isRecord(value) || !hasExactKeys(value, ROOT_KEYS)) throw invalidBinding()
+  if (!isRecord(value) || !hasExactKeys(value, ROOT_KEYS, OPTIONAL_ROOT_KEYS))
+    throw invalidBinding()
   if (
     value.schemaVersion !== BINDING_SCHEMA_VERSION ||
     value.runtimeId !== context.definition.runtimeId ||
@@ -142,6 +144,9 @@ export function validateAcpConversationBinding(
     schemaVersion: 1,
     runtimeId: value.runtimeId,
     nativeSessionId: value.nativeSessionId,
+    ...(value.selection
+      ? { selection: structuredClone(value.selection as RuntimeConversationSelection) }
+      : {}),
     implementation: {
       kind: 'acp',
       id: implementation.id as string,
@@ -168,14 +173,24 @@ const ROOT_KEYS = [
   'workspacePath',
   'hostTools',
 ] as const
+const OPTIONAL_ROOT_KEYS = ['selection'] as const
 const IMPLEMENTATION_KEYS = ['kind', 'id', 'revision'] as const
 const PROTOCOL_KEYS = ['name', 'version'] as const
 const ARTIFACT_KEYS = ['packageName', 'version', 'integrity'] as const
 const HOST_TOOL_KEYS = ['name', 'version'] as const
 
-function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+function hasExactKeys(
+  value: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): boolean {
   const keys = Object.keys(value)
-  return keys.length === expected.length && expected.every((key) => keys.includes(key))
+  return (
+    keys.length >= required.length &&
+    keys.length <= required.length + optional.length &&
+    required.every((key) => keys.includes(key)) &&
+    keys.every((key) => required.includes(key) || optional.includes(key))
+  )
 }
 
 function validText(value: unknown, maxChars: number): value is string {

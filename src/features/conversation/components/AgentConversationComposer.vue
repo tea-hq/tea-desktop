@@ -16,6 +16,7 @@ import AgentModelMenu from './AgentModelMenu.vue'
 
 const props = defineProps<{
   profile: ComposerProfile
+  centered?: boolean
   text: string
   attachments: ComposerAttachment[]
   sources?: ChannelSourceInput[]
@@ -103,7 +104,10 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <footer class="agent-composer shrink-0 px-3 py-3 sm:px-5 sm:py-4">
+  <footer
+    class="agent-composer shrink-0 px-3 py-3 sm:px-5 sm:py-4"
+    :class="centered ? 'agent-composer--centered' : ''"
+  >
     <div class="mx-auto w-full max-w-3xl">
       <ChannelSourceTray
         v-if="profile.showSources"
@@ -207,6 +211,13 @@ defineExpose({ focus })
 .agent-composer {
   border-top: 1px solid var(--tea-line-soft);
   background: var(--tea-panel);
+}
+.agent-composer--centered {
+  padding-block: 0.75rem 1.5rem;
+}
+.agent-composer--centered .composer-shell {
+  border-color: var(--tea-line);
+  padding: 1rem;
 }
 .composer-shell {
   border: 1px solid var(--tea-line-soft);
@@ -312,7 +323,7 @@ defineExpose({ focus })
   max-width: 10rem;
 }
 .composer-menu-select--model {
-  max-width: 13rem;
+  max-width: 24rem;
 }
 .composer-menu-select--permission {
   max-width: 9rem;
@@ -338,8 +349,16 @@ defineExpose({ focus })
   .agent-composer {
     padding: 0.625rem 0.75rem;
   }
+  .agent-composer--centered {
+    padding-block: 0.5rem 1rem;
+  }
   .composer-shell {
     padding: 0.625rem;
+  }
+  .composer-toolbar-actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    margin-left: 0;
   }
   .composer-toolbar-controls {
     flex-basis: 100%;
@@ -347,6 +366,9 @@ defineExpose({ focus })
   .composer-menu-select {
     flex: 1 1 0;
     max-width: none;
+  }
+  .composer-menu-select--model {
+    flex: 1 1 auto;
   }
 }
 

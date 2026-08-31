@@ -179,16 +179,14 @@ onBeforeUnmount(() => {
       :aria-label="label"
       :aria-expanded="open"
       :disabled="disabled"
-      class="agent-model-menu__trigger inline-flex min-h-8 min-w-0 max-w-[13rem] items-center gap-1 rounded-control border border-transparent bg-transparent px-2 text-left text-sm text-dim outline-none transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus disabled:cursor-not-allowed disabled:text-disabled motion-reduce:transition-none"
+      class="agent-model-menu__trigger inline-flex min-h-8 min-w-0 items-center gap-1 rounded-control border border-transparent bg-transparent px-2 text-left text-sm text-dim outline-none transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus disabled:cursor-not-allowed disabled:text-disabled motion-reduce:transition-none"
       @click="toggleMenu"
       @pointerdown.stop
       @keydown="handleTriggerKeydown"
     >
-      <span class="agent-model-menu__model min-w-0 truncate">{{ selectedModelLabel }}</span>
+      <span class="agent-model-menu__model min-w-0">{{ selectedModelLabel }}</span>
       <span class="agent-model-menu__separator shrink-0 text-subtle" aria-hidden="true">·</span>
-      <span class="agent-model-menu__effort min-w-0 truncate text-subtle">{{
-        selectedEffortLabel
-      }}</span>
+      <span class="agent-model-menu__effort min-w-0 text-subtle">{{ selectedEffortLabel }}</span>
       <span class="i-mdi-chevron-up-down size-4 shrink-0 text-subtle" aria-hidden="true" />
     </TeaButton>
 
@@ -311,11 +309,20 @@ onBeforeUnmount(() => {
 }
 
 .agent-model-menu__trigger {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .agent-model-menu__model {
   font-weight: 500;
+}
+
+.agent-model-menu__model,
+.agent-model-menu__effort {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .agent-model-menu__panel {

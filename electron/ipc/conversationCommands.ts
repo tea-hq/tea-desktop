@@ -49,6 +49,7 @@ export function createConversationCommandHandlers(
       conversation.createConversation({
         runtimeId: readString(args.runtimeId, 'runtimeId'),
         idempotencyKey: readString(args.idempotencyKey, 'idempotencyKey'),
+        model: args.model === undefined ? undefined : readString(args.model, 'model'),
         channelBinding:
           args.channelBinding === undefined
             ? undefined

@@ -136,6 +136,73 @@ describe('AcpConversationRuntime', () => {
     ])
   })
 
+  it('injects provider routing before creating a session', async () => {
+    const harness = createHarness(1)
+
+    await harness.runtime.createConversation('conversation-1', {
+      model: 'gpt-5.6-luna',
+      provider: {
+        providerId: 'tokbox',
+        kind: 'openai_compatible',
+        displayName: 'Tokbox',
+        baseUrl: 'https://models.example.test/v1',
+        apiKey: 'provider-secret',
+        modelId: 'gpt-5.6-luna',
+        modelIds: ['gpt-5.6-luna'],
+      },
+    })
+
+    expect(harness.connect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        cwd: '/workspace',
+        injectedEnvironment: expect.objectContaining({
+          CLAUDE_MODEL_CONFIG: JSON.stringify({ availableModels: ['gpt-5.6-luna'] }),
+          ANTHROPIC_BASE_URL: 'https://models.example.test/v1',
+        }),
+      }),
+      expect.anything(),
+    )
+  })
+
+  it('injects provider routing before restoring a session', async () => {
+    const harness = createHarness(2, {
+      initialization: { supportsResumeSession: true },
+      request: (method) => {
+        if (method === 'session/resume' || method === 'session/close') return Promise.resolve({})
+        return Promise.reject(new Error(`unexpected ACP request: ${method}`))
+      },
+    })
+    const binding = conversationBinding(2)
+    binding.selection = { providerId: 'tokbox', modelId: 'gpt-5.6-luna' }
+
+    await harness.runtime.restoreConversation('conversation-1', binding, {
+      model: 'gpt-5.6-luna',
+      provider: {
+        providerId: 'tokbox',
+        kind: 'openai_compatible',
+        displayName: 'Tokbox',
+        baseUrl: 'https://models.example.test/v1',
+        apiKey: 'provider-secret',
+        modelId: 'gpt-5.6-luna',
+        modelIds: ['gpt-5.6-luna'],
+      },
+    })
+
+    expect(harness.connect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        cwd: '/workspace',
+        injectedEnvironment: expect.objectContaining({
+          CLAUDE_MODEL_CONFIG: JSON.stringify({ availableModels: ['gpt-5.6-luna'] }),
+          ANTHROPIC_BASE_URL: 'https://models.example.test/v1',
+        }),
+      }),
+      expect.anything(),
+      2,
+    )
+  })
+
   it('fails a turn once when an update belongs to another session', async () => {
     const harness = createHarness(1)
     await harness.runtime.createConversation('conversation-1')

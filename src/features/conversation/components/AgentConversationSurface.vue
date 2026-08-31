@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ComposerProfile } from '@/app/composerProfiles'
 import type { ChannelSourceInput, ConversationTurnContext } from '@/types/channelCollaboration'
 import type {
@@ -17,7 +17,7 @@ import AgentConversationThread from './AgentConversationThread.vue'
 
 const composer = ref<InstanceType<typeof AgentConversationComposer> | null>(null)
 
-defineProps<{
+const props = defineProps<{
   profile: ComposerProfile
   title: string
   subtitle?: string
@@ -45,6 +45,14 @@ defineProps<{
   disabled?: boolean
   streaming?: boolean
 }>()
+const centeredEmpty = computed(
+  () =>
+    props.profile.id === 'full' &&
+    props.turns.length === 0 &&
+    !props.loading &&
+    !props.streaming &&
+    !props.error,
+)
 function focusComposer(): void {
   composer.value?.focus()
 }
@@ -70,7 +78,10 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 min-w-0 flex-col">
+  <section
+    class="agent-conversation-surface flex h-full min-h-0 min-w-0 flex-col"
+    :class="centeredEmpty ? 'agent-conversation-surface--empty' : ''"
+  >
     <AgentConversationHeader
       :title="title"
       :subtitle="subtitle"
@@ -81,6 +92,7 @@ const emit = defineEmits<{
       @expand="emit('expand')"
     />
     <AgentConversationThread
+      v-if="!centeredEmpty"
       :turns="turns"
       :roles="roles"
       :runtime-id="runtimeId"
@@ -103,6 +115,7 @@ const emit = defineEmits<{
     <AgentConversationComposer
       ref="composer"
       :profile="profile"
+      :centered="centeredEmpty"
       :text="text"
       :attachments="attachments"
       :sources="sources"
@@ -124,3 +137,13 @@ const emit = defineEmits<{
     />
   </section>
 </template>
+
+<style scoped>
+.agent-conversation-surface--empty :deep(.agent-composer) {
+  flex: 0 1 auto;
+  width: 100%;
+  margin-block: auto;
+  border-top: 0;
+  background: var(--tea-canvas);
+}
+</style>

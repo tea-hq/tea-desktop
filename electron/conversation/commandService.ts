@@ -23,6 +23,7 @@ import type { RuntimeConversationService, RuntimeHostToolReference } from './ser
 export interface CreateConversationCommand {
   runtimeId: string
   idempotencyKey: string
+  model?: string
   channelBinding?: ChannelBinding
   hostTools: RuntimeHostToolReference[]
 }
@@ -96,6 +97,7 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
       runtimeId: request.runtimeId,
       workspaceId: this.workspaceId,
       idempotencyKey: request.idempotencyKey,
+      ...(request.model === undefined ? {} : { model: request.model }),
       channelBinding: request.channelBinding,
       hostTools: request.hostTools,
     })

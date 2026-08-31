@@ -364,6 +364,7 @@ export const useConversationStore = defineStore('conversation', () => {
     try {
       const result = await configured.createConversation(activeRuntimeId.value, {
         idempotencyKey: creationIdempotencyKey,
+        model: selectedModel.value,
       })
       if (generation !== lifecycleGeneration || client !== configured) return
       selectionToken++

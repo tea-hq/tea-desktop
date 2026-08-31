@@ -16,6 +16,7 @@ import {
   type ConversationRuntime,
   type RuntimeConversationBinding,
   type RuntimeConversationCommand,
+  type RuntimeConversationCreateOptions,
   type RuntimeConversationHandle,
   type RuntimeConversationSnapshot,
 } from '../runtime'
@@ -45,6 +46,7 @@ import {
 } from './mcpAttachmentFactory'
 import type { LaunchAcpAgentOptions } from './process'
 import { AcpSessionActor, type AcpSessionScheduler } from './session'
+import { acpProviderEnvironment } from './providerEnvironment'
 
 const ACP_BASE_CAPABILITIES = ['approval', 'cancel', 'events', 'prompt', 'subject'] as const
 const ACP_READY_CAPABILITIES = [
@@ -144,7 +146,10 @@ export class AcpConversationRuntime implements ConversationRuntime {
     }
   }
 
-  async createConversation(conversationId: string): Promise<RuntimeConversationHandle> {
+  async createConversation(
+    conversationId: string,
+    options: RuntimeConversationCreateOptions = { model: 'default' },
+  ): Promise<RuntimeConversationHandle> {
     this.assertActive()
     if (!conversationId.trim()) {
       throw new ConversationRuntimeError('invalidState', 'conversation id must not be empty')
@@ -156,7 +161,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
       )
     }
 
-    const creation = this.createConversationOnce(conversationId)
+    const creation = this.createConversationOnce(conversationId, options)
     this.pendingCreations.set(conversationId, creation)
     try {
       return await creation
@@ -167,7 +172,10 @@ export class AcpConversationRuntime implements ConversationRuntime {
     }
   }
 
-  private async createConversationOnce(conversationId: string): Promise<RuntimeConversationHandle> {
+  private async createConversationOnce(
+    conversationId: string,
+    options: RuntimeConversationCreateOptions,
+  ): Promise<RuntimeConversationHandle> {
     this.listeners.set(conversationId, new Set())
     let actor: AcpSessionActor | undefined
     let connection: AcpAgentConnection | undefined
@@ -180,7 +188,10 @@ export class AcpConversationRuntime implements ConversationRuntime {
     try {
       connection = await this.connectionFactory.connect(
         this.definition,
-        { cwd: this.workspacePath },
+        {
+          cwd: this.workspacePath,
+          injectedEnvironment: acpProviderEnvironment(this.definition, options),
+        },
         handlers,
       )
       const scope = this.configuredToolScopes.has(conversationId)
@@ -232,6 +243,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
   async restoreConversation(
     conversationId: string,
     binding: RuntimeConversationBinding,
+    options: RuntimeConversationCreateOptions = { model: 'default' },
   ): Promise<RuntimeConversationHandle> {
     this.assertActive()
     if (!conversationId.trim()) {
@@ -267,7 +279,13 @@ export class AcpConversationRuntime implements ConversationRuntime {
       }
       throw runtimeConnectionError(cause)
     }
-    const restoration = this.restoreConversationOnce(conversationId, validated, scope, hostTools)
+    const restoration = this.restoreConversationOnce(
+      conversationId,
+      validated,
+      scope,
+      hostTools,
+      options,
+    )
     this.pendingCreations.set(conversationId, restoration)
     try {
       return await restoration
@@ -283,6 +301,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
     binding: AcpConversationBinding,
     scope: ConversationToolScope | undefined,
     hostTools: HostToolDefinition[],
+    options: RuntimeConversationCreateOptions,
   ): Promise<RuntimeConversationHandle> {
     this.listeners.set(conversationId, new Set())
     let actor: AcpSessionActor | undefined
@@ -296,7 +315,10 @@ export class AcpConversationRuntime implements ConversationRuntime {
     try {
       connection = await this.connectionFactory.connect(
         this.definition,
-        { cwd: this.workspacePath },
+        {
+          cwd: this.workspacePath,
+          injectedEnvironment: acpProviderEnvironment(this.definition, options),
+        },
         handlers,
         binding.protocol.version,
       )

@@ -296,6 +296,7 @@ export interface CreateConversationResponse {
 
 export interface CreateConversationOptions {
   idempotencyKey: string
+  model?: string
   channelBinding?: ChannelBinding
   hostTools?: HostToolDefinition[]
 }

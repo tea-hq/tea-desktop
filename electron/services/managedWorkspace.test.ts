@@ -71,6 +71,32 @@ describe('discoverProviderModels', () => {
     ])
   })
 
+  it('loads Anthropic models from v1', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input)).toBe('https://api.anthropic.com/v1/models')
+      expect(init?.headers).toEqual({
+        'x-api-key': 'anthropic-key',
+        'anthropic-version': '2023-06-01',
+      })
+      return jsonResponse({ data: [{ id: 'claude-sonnet', display_name: 'Claude Sonnet' }] })
+    })
+
+    await expect(
+      discoverProviderModels(
+        {
+          id: 'anthropic',
+          kind: 'anthropic',
+          displayName: 'Anthropic',
+          status: 'ready',
+          baseUrl: 'https://api.anthropic.com',
+          apiKey: 'anthropic-key',
+          models: [],
+        },
+        fetchImpl,
+      ),
+    ).resolves.toEqual([{ id: 'claude-sonnet', displayName: 'Claude Sonnet' }])
+  })
+
   it('silently ignores an unavailable provider endpoint', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error('provider unavailable')
@@ -112,6 +138,57 @@ describe('discoverProviderModels', () => {
 })
 
 describe('ElectronManagedWorkspaceService', () => {
+  it('discovers models when the server omits its configured catalog', async () => {
+    const runtimeConfiguration = vi.fn(async () => ({
+      schemaVersion: 1,
+      revision: 4,
+      im: null,
+      modelProviders: [
+        {
+          id: 'provider',
+          kind: 'openai_compatible',
+          displayName: 'Provider',
+          status: 'ready' as const,
+          baseUrl: 'https://models.example.test/v1',
+          apiKey: 'provider-key',
+        },
+      ],
+    }))
+    const auth = {
+      stateValue: () => ({
+        phase: 'authenticated',
+        bootstrap: {
+          tenant: { id: 'tenant', domain: 'example.test', displayName: 'Example' },
+          user: { id: 'user' },
+        },
+      }),
+      runtimeConfiguration,
+    }
+    const service = new ElectronManagedWorkspaceService(auth as never, () => undefined)
+    const fetchImpl = vi.fn(async () => jsonResponse({ data: [{ id: 'model-a' }] }))
+    vi.stubGlobal('fetch', fetchImpl)
+
+    await expect(service.refresh()).resolves.toMatchObject({
+      modelProviders: [
+        {
+          id: 'provider',
+          models: [{ id: 'model-a', selectionValue: 'provider/model-a' }],
+        },
+      ],
+    })
+    expect(service.resolveModelProvider('provider', 'model-a')).toEqual({
+      providerId: 'provider',
+      kind: 'openai_compatible',
+      displayName: 'Provider',
+      baseUrl: 'https://models.example.test/v1',
+      apiKey: 'provider-key',
+      modelId: 'model-a',
+      modelIds: ['model-a'],
+    })
+    expect(JSON.stringify(service.stateValue())).not.toContain('provider-key')
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
   it('merges discovered models after server configured models', async () => {
     const runtimeConfiguration = vi.fn(async () => ({
       schemaVersion: 1,
@@ -162,6 +239,101 @@ describe('ElectronManagedWorkspaceService', () => {
       ],
     })
     expect(states).toHaveLength(2)
+  })
+
+  it('keeps configured models when discovery fails', async () => {
+    const runtimeConfiguration = vi.fn(async () => ({
+      schemaVersion: 1,
+      revision: 4,
+      im: null,
+      modelProviders: [
+        {
+          id: 'provider',
+          kind: 'openai_compatible',
+          displayName: 'Provider',
+          status: 'ready' as const,
+          baseUrl: 'https://models.example.test/v1',
+          apiKey: 'provider-key',
+          models: [{ id: 'configured-model', displayName: 'Configured model' }],
+        },
+      ],
+    }))
+    const auth = {
+      stateValue: () => ({
+        phase: 'authenticated',
+        bootstrap: {
+          tenant: { id: 'tenant', domain: 'example.test', displayName: 'Example' },
+          user: { id: 'user' },
+        },
+      }),
+      runtimeConfiguration,
+    }
+    const service = new ElectronManagedWorkspaceService(auth as never, () => undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('provider unavailable')
+      }),
+    )
+
+    await expect(service.refresh()).resolves.toMatchObject({
+      modelProviders: [
+        {
+          models: [
+            {
+              id: 'configured-model',
+              selectionValue: 'provider/configured-model',
+            },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('keeps identical model ids distinct across providers', async () => {
+    const runtimeConfiguration = vi.fn(async () => ({
+      schemaVersion: 1,
+      revision: 5,
+      im: null,
+      modelProviders: [
+        {
+          id: 'primary',
+          kind: 'openai_compatible',
+          displayName: 'Primary',
+          status: 'ready' as const,
+          baseUrl: 'https://primary.example.test/v1',
+          apiKey: 'primary-key',
+          models: [{ id: 'shared-model', displayName: 'Shared model' }],
+        },
+        {
+          id: 'backup',
+          kind: 'openai_compatible',
+          displayName: 'Backup',
+          status: 'ready' as const,
+          baseUrl: 'https://backup.example.test/v1',
+          apiKey: 'backup-key',
+          models: [{ id: 'shared-model', displayName: 'Shared model' }],
+        },
+      ],
+    }))
+    const auth = {
+      stateValue: () => ({
+        phase: 'authenticated',
+        bootstrap: {
+          tenant: { id: 'tenant', domain: 'example.test', displayName: 'Example' },
+          user: { id: 'user' },
+        },
+      }),
+      runtimeConfiguration,
+    }
+    const service = new ElectronManagedWorkspaceService(auth as never, () => undefined)
+
+    await expect(service.refresh()).resolves.toMatchObject({
+      modelProviders: [
+        { models: [{ selectionValue: 'primary/shared-model' }] },
+        { models: [{ selectionValue: 'backup/shared-model' }] },
+      ],
+    })
   })
 })
 

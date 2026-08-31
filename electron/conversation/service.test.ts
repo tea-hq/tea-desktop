@@ -21,11 +21,13 @@ import {
   type ConversationRuntime,
   type RuntimeConversationBinding,
   type RuntimeConversationCommand,
+  type RuntimeProviderConfiguration,
 } from './runtime'
 import { ConversationRuntimeRegistry } from './runtimeRegistry'
 import {
   RuntimeConversationService,
   type RuntimeConversationCatalogPort,
+  type RuntimeModelProviderResolver,
   type RuntimeHostToolResolver,
 } from './service'
 
@@ -72,6 +74,124 @@ describe('RuntimeConversationService', () => {
       idempotencyKey: 'create:one',
       binding: { hostTools: [{ name: HOST_TOOL.name, version: HOST_TOOL.version }] },
     })
+    await service.shutdown()
+  })
+
+  it('resolves a provider-qualified model before creating the runtime session', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    const runtime = fakeRuntime()
+    const provider: RuntimeProviderConfiguration = {
+      providerId: 'tokbox',
+      kind: 'openai_compatible',
+      displayName: 'Tokbox',
+      baseUrl: 'https://models.example.test/v1',
+      apiKey: 'secret-key',
+      modelId: 'gpt-5.6-luna',
+      modelIds: ['gpt-5.6-luna'],
+    }
+    const modelProviders: RuntimeModelProviderResolver = {
+      resolve: vi.fn((providerId, modelId) =>
+        providerId === provider.providerId && modelId === provider.modelId ? provider : null,
+      ),
+    }
+    const service = new RuntimeConversationService(
+      catalog,
+      new ConversationRuntimeRegistry([runtime.value]),
+      resolver(),
+      () => 'conversation-1',
+      () => 500,
+      undefined,
+      {},
+      modelProviders,
+    )
+    await service.initialize()
+
+    await service.createConversation({ ...createRequest(), model: 'tokbox/gpt-5.6-luna' })
+
+    expect(runtime.createConversation).toHaveBeenCalledWith('conversation-1', {
+      model: 'gpt-5.6-luna',
+      provider,
+    })
+    await service.shutdown()
+  })
+
+  it('resolves the persisted provider selection before restoring a session', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    const existing = catalogRecord()
+    existing.binding.selection = { providerId: 'tokbox', modelId: 'gpt-5.6-luna' }
+    catalog.create(existing)
+    const runtime = fakeRuntime()
+    const provider: RuntimeProviderConfiguration = {
+      providerId: 'tokbox',
+      kind: 'openai_compatible',
+      displayName: 'Tokbox',
+      baseUrl: 'https://models.example.test/v1',
+      apiKey: 'secret-key',
+      modelId: 'gpt-5.6-luna',
+      modelIds: ['gpt-5.6-luna'],
+    }
+    const service = new RuntimeConversationService(
+      catalog,
+      new ConversationRuntimeRegistry([runtime.value]),
+      resolver(),
+      () => 'unused',
+      () => 500,
+      undefined,
+      {},
+      {
+        resolve: vi.fn(() => provider),
+      },
+    )
+    await service.initialize()
+
+    await service.restoreConversation('conversation-1')
+
+    expect(runtime.restoreConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.objectContaining({ selection: { providerId: 'tokbox', modelId: 'gpt-5.6-luna' } }),
+      { model: 'gpt-5.6-luna', provider },
+    )
+    await service.shutdown()
+  })
+
+  it('rejects switching providers on an active conversation before sending', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    const runtime = fakeRuntime()
+    const provider = (providerId: string): RuntimeProviderConfiguration => ({
+      providerId,
+      kind: 'openai_compatible',
+      displayName: providerId,
+      baseUrl: `https://${providerId}.example.test/v1`,
+      apiKey: `${providerId}-key`,
+      modelId: 'gpt-5.6-luna',
+      modelIds: ['gpt-5.6-luna'],
+    })
+    const service = new RuntimeConversationService(
+      catalog,
+      new ConversationRuntimeRegistry([runtime.value]),
+      resolver(),
+      () => 'conversation-1',
+      () => 500,
+      undefined,
+      {},
+      {
+        resolve: vi.fn((providerId) => provider(providerId)),
+      },
+    )
+    await service.initialize()
+    await service.createConversation({ ...createRequest(), model: 'tokbox/gpt-5.6-luna' })
+
+    await expect(
+      service.sendMessage('conversation-1', 'Hello', {
+        model: 'backup/gpt-5.6-luna',
+        permissionMode: 'default',
+      }),
+    ).rejects.toMatchObject({
+      code: 'invalidRequest',
+      message: 'model provider cannot change for an active conversation',
+    })
+    expect(runtime.sendMessage).not.toHaveBeenCalled()
     await service.shutdown()
   })
 
@@ -195,6 +315,7 @@ describe('RuntimeConversationService', () => {
     expect(secondRuntime.restoreConversation).toHaveBeenCalledWith(
       'conversation-1',
       created.handle.binding,
+      { model: 'default' },
     )
     await second.shutdown()
   })

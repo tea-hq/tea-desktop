@@ -47,6 +47,8 @@ export interface RuntimeConversationBinding {
   schemaVersion: 1
   runtimeId: string
   nativeSessionId: string
+  /** Non-secret model routing needed to recreate a provider-backed session. */
+  selection?: RuntimeConversationSelection
   implementation: {
     kind: string
     id: string
@@ -68,9 +70,30 @@ export interface RuntimeConversationBinding {
   }>
 }
 
+export interface RuntimeConversationSelection {
+  modelId: string
+  providerId?: string
+}
+
 export interface RuntimeConversationHandle extends ConversationHandle {
   nativeSessionId: string
   binding: RuntimeConversationBinding
+}
+
+/** Main-process-only routing data for a provider-qualified model selection. */
+export interface RuntimeProviderConfiguration {
+  providerId: string
+  kind: string
+  displayName: string
+  baseUrl: string
+  apiKey: string
+  modelId: string
+  modelIds: string[]
+}
+
+export interface RuntimeConversationCreateOptions {
+  model: string
+  provider?: RuntimeProviderConfiguration
 }
 
 export interface RuntimeConversationCommand {
@@ -83,10 +106,14 @@ export type ConversationEventListener = (event: ConversationEvent) => void
 
 export interface ConversationRuntime {
   descriptor(): RuntimeDescriptor
-  createConversation(conversationId: string): Promise<RuntimeConversationHandle>
+  createConversation(
+    conversationId: string,
+    options?: RuntimeConversationCreateOptions,
+  ): Promise<RuntimeConversationHandle>
   restoreConversation(
     conversationId: string,
     binding: RuntimeConversationBinding,
+    options?: RuntimeConversationCreateOptions,
   ): Promise<RuntimeConversationHandle>
   closeConversation(conversationId: string): Promise<void>
   configureHostTools(conversationId: string, definitions: HostToolDefinition[]): Promise<void>
@@ -114,6 +141,7 @@ const BINDING_ROOT_KEYS = [
   'workspacePath',
   'hostTools',
 ] as const
+const BINDING_OPTIONAL_ROOT_KEYS = ['selection'] as const
 const BINDING_IMPLEMENTATION_KEYS = ['kind', 'id', 'revision'] as const
 const BINDING_PROTOCOL_KEYS = ['name', 'version'] as const
 const BINDING_ARTIFACT_KEYS = ['packageName', 'version', 'integrity'] as const
@@ -123,7 +151,9 @@ const MAX_BINDING_PATH_CHARS = 4096
 const MAX_BINDING_HOST_TOOLS = 128
 
 export function parseRuntimeConversationBinding(value: unknown): RuntimeConversationBinding {
-  if (!isRecord(value) || !hasExactKeys(value, BINDING_ROOT_KEYS)) throw invalidBinding()
+  if (!isRecord(value) || !hasExactKeys(value, BINDING_ROOT_KEYS, BINDING_OPTIONAL_ROOT_KEYS)) {
+    throw invalidBinding()
+  }
   if (
     value.schemaVersion !== 1 ||
     !validBindingText(value.runtimeId) ||
@@ -160,6 +190,8 @@ export function parseRuntimeConversationBinding(value: unknown): RuntimeConversa
   if (!Array.isArray(value.hostTools) || value.hostTools.length > MAX_BINDING_HOST_TOOLS) {
     throw invalidBinding()
   }
+  const selection =
+    value.selection === undefined ? undefined : parseRuntimeConversationSelection(value.selection)
   const seenHostTools = new Set<string>()
   const hostTools = value.hostTools.map((candidate) => {
     if (
@@ -180,6 +212,7 @@ export function parseRuntimeConversationBinding(value: unknown): RuntimeConversa
     schemaVersion: 1,
     runtimeId: value.runtimeId,
     nativeSessionId: value.nativeSessionId,
+    ...(selection ? { selection } : {}),
     implementation: {
       kind: implementation.kind,
       id: implementation.id,
@@ -201,6 +234,20 @@ export function unsupportedCapability(capability: RuntimeCapability): Conversati
     'unsupportedCapability',
     `runtime capability is not supported: ${capability}`,
   )
+}
+
+function parseRuntimeConversationSelection(value: unknown): RuntimeConversationSelection {
+  if (!isRecord(value) || !hasExactKeys(value, ['modelId'], ['providerId'])) {
+    throw invalidBinding()
+  }
+  if (!validBindingText(value.modelId)) throw invalidBinding()
+  if (value.providerId !== undefined && !validBindingText(value.providerId)) {
+    throw invalidBinding()
+  }
+  return {
+    modelId: value.modelId,
+    ...(value.providerId === undefined ? {} : { providerId: value.providerId }),
+  }
 }
 
 function invalidBinding(): ConversationRuntimeError {
@@ -230,9 +277,18 @@ function validBindingPath(value: unknown): value is string {
   )
 }
 
-function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+function hasExactKeys(
+  value: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): boolean {
   const keys = Object.keys(value)
-  return keys.length === expected.length && expected.every((key) => keys.includes(key))
+  return (
+    keys.length >= required.length &&
+    keys.length <= required.length + optional.length &&
+    required.every((key) => keys.includes(key)) &&
+    keys.every((key) => required.includes(key) || optional.includes(key))
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

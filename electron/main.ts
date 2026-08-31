@@ -63,6 +63,9 @@ async function bootstrap(): Promise<void> {
     path.join(app.getPath('userData'), 'center-auth.json'),
     (state) => events.publish('center-auth-state-changed', state),
   )
+  const managedWorkspace = new ElectronManagedWorkspaceService(centerAuth, (state) =>
+    events.publish('managed-workspace-state-changed', state),
+  )
   conversationHost = await createElectronConversationHost({
     catalogPath: path.join(app.getPath('userData'), 'conversation-catalog.sqlite3'),
     workspaceId: 'desktop-workspace',
@@ -73,10 +76,10 @@ async function bootstrap(): Promise<void> {
       conversationUpdated: (summary) => events.publish('conversation:updated', summary),
       hostToolCall: (call) => events.publish('conversation:host-tool-call', call),
     },
+    modelProviderResolver: {
+      resolve: (providerId, modelId) => managedWorkspace.resolveModelProvider(providerId, modelId),
+    },
   })
-  const managedWorkspace = new ElectronManagedWorkspaceService(centerAuth, (state) =>
-    events.publish('managed-workspace-state-changed', state),
-  )
   const catalog = new ElectronCatalogService(
     path.join(app.getPath('userData'), 'catalog.json'),
     centerAuth,
@@ -106,8 +109,9 @@ async function bootstrap(): Promise<void> {
     }),
   )
 
-  await Promise.all([centerAuth.initialize(), catalog.initialize(), conversationHost.initialize()])
+  await centerAuth.initialize()
   await managedWorkspace.refresh().catch(() => undefined)
+  await Promise.all([catalog.initialize(), conversationHost.initialize()])
   createWindow()
 }
 

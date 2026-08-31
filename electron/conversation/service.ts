@@ -32,7 +32,11 @@ import {
 import {
   ConversationRuntimeError,
   type ConversationRuntime,
+  type RuntimeConversationBinding,
+  type RuntimeConversationCreateOptions,
   type RuntimeConversationHandle,
+  type RuntimeConversationSelection,
+  type RuntimeProviderConfiguration,
 } from './runtime'
 import type { ConversationRuntimeRegistry } from './runtimeRegistry'
 import { buildChannelPrompt, MAX_VISIBLE_TEXT_CHARS } from './collaboration'
@@ -67,6 +71,10 @@ export interface RuntimeHostToolResolver {
   resolve(references: readonly RuntimeHostToolReference[]): Promise<HostToolDefinition[]>
 }
 
+export interface RuntimeModelProviderResolver {
+  resolve(providerId: string, modelId: string): RuntimeProviderConfiguration | null
+}
+
 export interface RuntimeHostToolResultResolver {
   resolve(result: HostToolResult): void
 }
@@ -92,6 +100,7 @@ export interface CreateRuntimeConversationRequest {
   runtimeId: string
   workspaceId: string
   idempotencyKey: string
+  model?: string
   channelBinding?: ChannelBinding
   hostTools?: RuntimeHostToolReference[]
 }
@@ -172,6 +181,7 @@ export class RuntimeConversationService {
     private readonly now: () => number = Date.now,
     private readonly hostToolResults?: RuntimeHostToolResultResolver,
     private readonly events: RuntimeConversationServiceEvents = {},
+    private readonly modelProviders?: RuntimeModelProviderResolver,
   ) {}
 
   async initialize(): Promise<void> {
@@ -311,6 +321,7 @@ export class RuntimeConversationService {
     }
     await this.activateRecord(record)
     const runtime = this.runtimes.require(record.summary.runtimeId)
+    const runtimeModel = this.resolveConversationModel(record.binding.selection, options.model)
     const createdAt = this.timestamp()
     const context = record.summary.channelBinding
       ? this.catalog.createTurnContext(conversationId, visibleText, sources!, createdAt)
@@ -323,7 +334,7 @@ export class RuntimeConversationService {
         conversationId,
         text: runtimeText,
         options: {
-          model: options.model,
+          model: runtimeModel,
           permissionMode: options.permissionMode,
         },
       })
@@ -455,7 +466,10 @@ export class RuntimeConversationService {
 
   private async createConversationOnce(
     request: Required<
-      Pick<CreateRuntimeConversationRequest, 'runtimeId' | 'workspaceId' | 'idempotencyKey'>
+      Pick<
+        CreateRuntimeConversationRequest,
+        'runtimeId' | 'workspaceId' | 'idempotencyKey' | 'model'
+      >
     > &
       Pick<CreateRuntimeConversationRequest, 'channelBinding'> & {
         hostTools: RuntimeHostToolReference[]
@@ -471,6 +485,7 @@ export class RuntimeConversationService {
     const runtime = this.requireReadyRuntime(request.runtimeId)
     const conversationId = this.createConversationId()
     requireText(conversationId, MAX_ID_CHARS)
+    const runtimeModel = this.resolveRuntimeModel(request.model)
     let handle: RuntimeConversationHandle | undefined
     try {
       const definitions = await this.hostTools.resolve(
@@ -478,7 +493,11 @@ export class RuntimeConversationService {
       )
       assertExactHostTools(request.hostTools, definitions)
       await runtime.configureHostTools(conversationId, definitions)
-      handle = await runtime.createConversation(conversationId)
+      const created = await runtime.createConversation(conversationId, runtimeModel)
+      handle = {
+        ...created,
+        binding: withRuntimeConversationSelection(created.binding, modelSelection(request.model)),
+      }
       const timestamp = this.timestamp()
       const summary: ConversationSummary = {
         conversationId,
@@ -535,7 +554,11 @@ export class RuntimeConversationService {
       definitions = await this.hostTools.resolve(structuredClone(record.binding.hostTools))
       assertExactHostTools(record.binding.hostTools, definitions)
       await runtime.configureHostTools(conversationId, definitions)
-      const handle = await runtime.restoreConversation(conversationId, record.binding)
+      const handle = await runtime.restoreConversation(
+        conversationId,
+        record.binding,
+        this.resolveRuntimeSelection(record.binding.selection),
+      )
       this.catalog.clearRestoreFailure(conversationId)
       this.rememberActiveConversation(runtime, handle)
       return handle
@@ -556,6 +579,42 @@ export class RuntimeConversationService {
     const runtime = this.runtimes.require(runtimeId)
     this.assertRuntimeReady(runtime, runtimeId)
     return runtime
+  }
+
+  private resolveRuntimeModel(model: string): RuntimeConversationCreateOptions {
+    return this.resolveRuntimeSelection(modelSelection(model))
+  }
+
+  private resolveRuntimeSelection(
+    selection: RuntimeConversationSelection | undefined,
+  ): RuntimeConversationCreateOptions {
+    if (!selection) return { model: 'default' }
+    if (!selection.providerId) return { model: selection.modelId }
+    const provider = this.modelProviders?.resolve(selection.providerId, selection.modelId)
+    if (!provider) {
+      throw invalidRequest(`model provider is not configured: ${selection.providerId}`)
+    }
+    return { model: selection.modelId, provider }
+  }
+
+  private resolveConversationModel(
+    recorded: RuntimeConversationSelection | undefined,
+    requestedModel: string,
+  ): string {
+    const requested = modelSelection(requestedModel)
+    if (!recorded) return requested.modelId
+
+    if (requestedModel === 'default') {
+      return recorded.modelId
+    }
+    if (recorded.providerId) {
+      if (requested.providerId !== recorded.providerId) {
+        throw invalidRequest('model provider cannot change for an active conversation')
+      }
+    } else if (requested.providerId) {
+      throw invalidRequest('model provider cannot change for an active conversation')
+    }
+    return requested.modelId
   }
 
   private assertRuntimeReady(runtime: ConversationRuntime, runtimeId: string): void {
@@ -665,7 +724,7 @@ export class RuntimeConversationService {
 }
 
 function validateCreateRequest(request: CreateRuntimeConversationRequest): Required<
-  Pick<CreateRuntimeConversationRequest, 'runtimeId' | 'workspaceId' | 'idempotencyKey'>
+  Pick<CreateRuntimeConversationRequest, 'runtimeId' | 'workspaceId' | 'idempotencyKey' | 'model'>
 > &
   Pick<CreateRuntimeConversationRequest, 'channelBinding'> & {
     hostTools: RuntimeHostToolReference[]
@@ -677,6 +736,8 @@ function validateCreateRequest(request: CreateRuntimeConversationRequest): Requi
   ) {
     throw invalidRequest('idempotency key is invalid')
   }
+  const model = request.model ?? 'default'
+  requireText(model, MAX_ID_CHARS)
   if (request.channelBinding) {
     requireText(request.channelBinding.transportId, MAX_ID_CHARS)
     requireText(request.channelBinding.accountRef, MAX_ID_CHARS)
@@ -696,6 +757,7 @@ function validateCreateRequest(request: CreateRuntimeConversationRequest): Requi
     runtimeId: request.runtimeId,
     workspaceId: request.workspaceId,
     idempotencyKey: request.idempotencyKey,
+    model,
     ...(request.channelBinding ? { channelBinding: structuredClone(request.channelBinding) } : {}),
     hostTools,
   }
@@ -708,6 +770,7 @@ function assertSameCreation(
   if (
     record.summary.runtimeId !== request.runtimeId ||
     record.summary.workspaceId !== request.workspaceId ||
+    !sameCreationSelection(record.binding.selection, modelSelection(request.model)) ||
     !sameChannelBinding(record.summary.channelBinding, request.channelBinding) ||
     !sameHostTools(record.binding.hostTools, request.hostTools)
   ) {
@@ -752,6 +815,7 @@ function creationFingerprint(request: ReturnType<typeof validateCreateRequest>):
   return JSON.stringify({
     runtimeId: request.runtimeId,
     workspaceId: request.workspaceId,
+    model: request.model,
     channelBinding: request.channelBinding ?? null,
     hostTools: request.hostTools.map(({ name, version }) => ({ name, version })),
   })
@@ -826,6 +890,30 @@ function boundedFailureCode(value: unknown): string {
 
 function hostToolKey(value: RuntimeHostToolReference): string {
   return `${value.name}\u0000${value.version}`
+}
+
+function modelSelection(model: string): RuntimeConversationSelection {
+  const separator = model.indexOf('/')
+  if (separator <= 0 || separator === model.length - 1) return { modelId: model }
+  return { providerId: model.slice(0, separator), modelId: model.slice(separator + 1) }
+}
+
+function withRuntimeConversationSelection(
+  binding: RuntimeConversationBinding,
+  selection: RuntimeConversationSelection,
+): RuntimeConversationBinding {
+  return {
+    ...structuredClone(binding),
+    selection: structuredClone(selection),
+  }
+}
+
+function sameCreationSelection(
+  recorded: RuntimeConversationSelection | undefined,
+  requested: RuntimeConversationSelection,
+): boolean {
+  if (!recorded) return requested.modelId === 'default' && requested.providerId === undefined
+  return recorded.modelId === requested.modelId && recorded.providerId === requested.providerId
 }
 
 function requireText(value: unknown, maxChars: number): asserts value is string {

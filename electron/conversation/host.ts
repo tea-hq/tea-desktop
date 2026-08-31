@@ -11,6 +11,7 @@ import { ConversationRuntimeError } from './runtime'
 import {
   RuntimeConversationService,
   type RuntimeConversationServiceEvents,
+  type RuntimeModelProviderResolver,
   type RuntimeHostToolReference,
   type RuntimeHostToolResolver,
 } from './service'
@@ -29,6 +30,7 @@ export interface ElectronConversationHostOptions {
   hostTools: readonly HostToolDefinition[]
   events: ElectronConversationHostEvents
   registry?: AcpRuntimeRegistryOptions
+  modelProviderResolver?: RuntimeModelProviderResolver
 }
 
 export class RuntimeHostToolCatalog implements RuntimeHostToolResolver {
@@ -111,6 +113,7 @@ export async function createElectronConversationHost(
       undefined,
       toolBroker,
       serviceEvents,
+      options.modelProviderResolver,
     )
     return new ElectronConversationHost(service, toolBroker, options.workspaceId)
   } catch (cause) {
