@@ -42,4 +42,13 @@ describe('WorkspaceRail', () => {
 
     expect(wrapper.get('[data-testid="workspace-profile"]').attributes('aria-pressed')).toBe('true')
   })
+
+  it('exposes exactly one selected workspace', () => {
+    const wrapper = mountRail()
+    const selected = wrapper.findAll('button[aria-pressed="true"]')
+
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.attributes('aria-label')).toBe('Channels')
+    expect(selected[0]?.classes()).toContain('workspace-rail__button')
+  })
 })
