@@ -76,7 +76,7 @@ const workingLabel = computed(() => {
     <TaskNotificationFold v-if="taskNotification" :notification="taskNotification" />
     <div v-else class="flex justify-end">
       <div
-        class="conversation-user max-w-[88%] px-3.5 py-2.5 text-sm leading-6 text-fg sm:max-w-[82%]"
+        class="conversation-user max-w-[90%] rounded-card border border-line-soft bg-panel px-4 py-3 text-sm leading-6 text-fg sm:max-w-[82%]"
       >
         <div v-if="turn.user.attachments.length" class="mb-2 flex flex-wrap justify-end gap-1.5">
           <span
@@ -180,8 +180,7 @@ const workingLabel = computed(() => {
 }
 
 .conversation-user {
-  border-radius: 10px;
-  background: var(--tea-panel);
+  overflow-wrap: anywhere;
 }
 
 .conversation-blocks,
@@ -190,8 +189,8 @@ const workingLabel = computed(() => {
 }
 
 .conversation-response :deep(.conversation-response__content) {
-  font-size: 12.8px;
-  line-height: 1.7;
+  font-size: 0.9375rem;
+  line-height: 1.65;
 }
 
 .turn-status {

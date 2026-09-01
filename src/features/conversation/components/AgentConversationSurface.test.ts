@@ -52,7 +52,7 @@ describe('AgentConversationSurface', () => {
     ).toBe('Claude Code')
     expect(
       mountSurface(drawerAgentProfile).getComponent(AgentConversationHeader).props('runtimeLabel'),
-    ).toBe('Claude Code')
+    ).toBe('')
   })
 
   it('centers the full workspace composer while an idle conversation is empty', () => {
@@ -65,8 +65,11 @@ describe('AgentConversationSurface', () => {
 
   it('keeps the drawer composer in the standard thread layout', () => {
     const wrapper = mountSurface(drawerAgentProfile)
+    const header = wrapper.getComponent(AgentConversationHeader)
 
     expect(wrapper.classes()).not.toContain('agent-conversation-surface--empty')
+    expect(header.props('compact')).toBe(true)
+    expect(header.props('subtitle')).toBe('')
     expect(wrapper.getComponent(AgentConversationComposer).props('centered')).toBe(false)
     expect(wrapper.findComponent(AgentConversationThread).exists()).toBe(true)
   })
@@ -94,5 +97,14 @@ describe('AgentConversationSurface', () => {
     expect(wrapper.emitted('update:text')).toEqual([['Updated']])
     expect(wrapper.emitted('send')).toEqual([[{ text: 'Updated', attachments: [] }]])
     expect(wrapper.emitted('new-project')).toHaveLength(1)
+  })
+
+  it('forwards the compact drawer close intent', async () => {
+    const wrapper = mountSurface(drawerAgentProfile)
+
+    wrapper.getComponent(AgentConversationHeader).vm.$emit('close')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
   })
 })

@@ -58,7 +58,6 @@ const activeState: AgentDrawerChannelState = {
       ><div class="h-[760px] w-[1100px]">
         <AgentDrawer
           open
-          channel-name="Product"
           :state="emptyState"
           :conversations="[]"
           :turns="[]"
@@ -71,7 +70,6 @@ const activeState: AgentDrawerChannelState = {
       ><div class="h-[760px] w-[1100px]">
         <AgentDrawer
           open
-          channel-name="Product"
           :state="emptyState"
           :conversations="conversations"
           :turns="[]"
@@ -84,7 +82,6 @@ const activeState: AgentDrawerChannelState = {
       ><div class="h-[760px] w-[1100px]">
         <AgentDrawer
           open
-          channel-name="Product"
           :state="activeState"
           :conversations="conversations"
           :turns="[]"

@@ -370,7 +370,6 @@ function deliverDraft(): void {
       />
       <AgentDrawer
         :open="drawerOpen"
-        channel-name="Product design"
         :state="drawerState"
         :conversations="visibleConversations"
         :turns="turns"

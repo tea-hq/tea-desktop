@@ -207,7 +207,7 @@ describe('Tea primitives', () => {
     expect(drawer.emitted('close')).toHaveLength(1)
   })
 
-  it('supports a quiet drawer surface without changing the default treatment', () => {
+  it('supports a quiet drawer surface with a structural header rule', () => {
     const defaultWrapper = mountTea(TeaDrawer, {
       props: { open: true, title: 'Agent' },
     })
@@ -225,7 +225,61 @@ describe('Tea primitives', () => {
 
     expect(dialog.className).toContain('border-l-0')
     expect(header.className).toContain('bg-raised')
-    expect(header.className).not.toContain('border-b')
+    expect(header.className).toContain('border-b')
+    wrapper.unmount()
+  })
+
+  it('keeps a headerless drawer labelled for assistive technology', () => {
+    const wrapper = mountTea(TeaDrawer, {
+      props: { open: true, title: 'Agent collaboration', showHeader: false },
+    })
+    const dialog = Array.from(document.body.querySelectorAll('[role="dialog"]')).at(-1)!
+    const titleId = dialog.getAttribute('aria-labelledby')!
+
+    expect(dialog.querySelector('header')).toBeNull()
+    expect(dialog.querySelector(`#${titleId}`)?.textContent).toBe('Agent collaboration')
+    expect(dialog.querySelector(`#${titleId}`)?.classList).toContain('sr-only')
+    wrapper.unmount()
+  })
+
+  it('resizes a drawer with pointer and keyboard controls within its bounds', async () => {
+    const wrapper = mountTea(TeaDrawer, {
+      props: {
+        open: true,
+        title: 'Agent',
+        resizable: true,
+        defaultWidth: 520,
+        minWidth: 400,
+        maxWidth: 700,
+        resizeLabel: 'Resize Agent drawer',
+      },
+    })
+    const dialog = Array.from(document.body.querySelectorAll('[role="dialog"]')).at(-1)!
+    const handle = dialog.querySelector('[role="separator"]') as HTMLElement
+
+    expect(dialog.getAttribute('style')).toContain('width: 520px')
+    expect(handle.getAttribute('aria-valuenow')).toBe('520')
+
+    await handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(dialog.getAttribute('style')).toContain('width: 536px')
+    await handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(dialog.getAttribute('style')).toContain('width: 400px')
+    await handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(dialog.getAttribute('style')).toContain('width: 700px')
+
+    const pointer = (target: EventTarget, type: string, values: Record<string, number>) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        button: values.button ?? 0,
+        clientX: values.clientX ?? 0,
+      })
+      target.dispatchEvent(event)
+    }
+    pointer(handle, 'pointerdown', { button: 0, clientX: 100, pointerId: 1 })
+    pointer(window, 'pointermove', { clientX: 180 })
+    await wrapper.vm.$nextTick()
+    expect(dialog.getAttribute('style')).toContain('width: 620px')
+    pointer(window, 'pointerup', {})
     wrapper.unmount()
   })
 
@@ -243,6 +297,10 @@ describe('Tea primitives', () => {
     })
 
     expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Conversation views')
+    expect(wrapper.get('[role="tablist"]').classes()).toContain('nav-pill-group')
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').classes()).toContain(
+      'nav-pill-group__item',
+    )
     await wrapper
       .findAll('[role="tab"]')
       .find((tab) => tab.text() === 'All')!

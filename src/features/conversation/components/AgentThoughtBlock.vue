@@ -6,8 +6,9 @@ import { TeaIconButton } from '@/shared/ui'
 import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 import type { AgentThoughtBlock as AgentThoughtBlockModel } from '../contracts'
 
-defineProps<{
+const props = defineProps<{
   thought: AgentThoughtBlockModel
+  presentation?: 'default' | 'activity'
 }>()
 
 const { t } = useI18n()
@@ -15,17 +16,27 @@ const detailsOpen = ref(false)
 const detailLabel = computed(() =>
   detailsOpen.value ? t('messages.hideThought') : t('messages.showThought'),
 )
+const activityLabel = computed(() => {
+  const text = props.thought.text.replace(/\s+/g, ' ').trim()
+  return text || t('messages.thought')
+})
 </script>
 
 <template>
-  <section class="agent-thought w-full text-sm text-dim" :data-sequence="thought.sequence">
+  <section
+    class="agent-thought w-full text-sm text-dim"
+    :class="presentation === 'activity' ? 'agent-thought--activity' : ''"
+    :data-sequence="thought.sequence"
+  >
     <div class="agent-thought__heading">
       <span
         class="agent-thought__icon i-mdi-lightbulb-outline"
         :class="thought.streaming ? 'animate-pulse' : ''"
         aria-hidden="true"
       />
-      <span class="agent-thought__label">{{ t('messages.thought') }}</span>
+      <span class="agent-thought__label">
+        {{ presentation === 'activity' ? activityLabel : t('messages.thought') }}
+      </span>
       <span v-if="thought.streaming" class="agent-thought__status">
         {{ t('messages.status.running') }}
       </span>
@@ -61,15 +72,15 @@ const detailLabel = computed(() =>
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.5rem;
   color: var(--tea-subtle);
   font-size: 0.75rem;
   line-height: 1.4;
 }
 
 .agent-thought__icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   flex: 0 0 auto;
   margin-top: 0.125rem;
 }
@@ -85,6 +96,11 @@ const detailLabel = computed(() =>
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-thought--activity .agent-thought__label {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .agent-thought__disclosure {
@@ -120,5 +136,9 @@ const detailLabel = computed(() =>
   border-left: 1px solid var(--tea-line);
   background: var(--tea-panel);
   overflow-wrap: anywhere;
+}
+
+.agent-thought--activity {
+  padding: 0.125rem 0;
 }
 </style>

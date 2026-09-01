@@ -40,7 +40,7 @@ function handleKeydown(event: KeyboardEvent, value: string): void {
 
 <template>
   <div>
-    <div class="flex gap-1 border-b border-line-soft" role="tablist" :aria-label="label">
+    <div class="nav-pill-group" role="tablist" :aria-label="label">
       <button
         v-for="tab in tabs"
         :id="`${tabId}-${tab.value}`"
@@ -51,8 +51,7 @@ function handleKeydown(event: KeyboardEvent, value: string): void {
         :aria-controls="`${tabId}-panel-${tab.value}`"
         :tabindex="modelValue === tab.value ? 0 : -1"
         :disabled="tab.disabled"
-        class="min-h-9 border-b-2 border-transparent px-3 text-sm font-medium text-dim transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
-        :class="modelValue === tab.value ? 'border-accent text-fg' : ''"
+        class="nav-pill-group__item"
         @click="select(tab.value)"
         @keydown="handleKeydown($event, tab.value)"
       >

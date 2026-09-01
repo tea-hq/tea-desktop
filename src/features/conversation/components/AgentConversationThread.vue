@@ -102,7 +102,10 @@ function loadOlder(): void {
 </script>
 
 <template>
-  <div ref="container" class="agent-thread min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
+  <div
+    ref="container"
+    class="agent-thread min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-7 sm:py-7"
+  >
     <AgentRolePickerCard
       :roles="roles ?? []"
       :runtime-id="runtimeId ?? null"
@@ -153,6 +156,8 @@ function loadOlder(): void {
 <style scoped>
 .agent-thread {
   background: var(--tea-canvas);
+  overscroll-behavior: contain;
+  scroll-padding-block: 1rem;
 }
 
 .conversation-turns {

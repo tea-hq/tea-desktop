@@ -241,6 +241,7 @@ defineExpose({ focus })
 
 <style scoped>
 .agent-composer {
+  border-top: 1px solid var(--tea-line-soft);
   background: var(--tea-canvas);
 }
 .agent-composer__content {
@@ -258,6 +259,10 @@ defineExpose({ focus })
   border-radius: var(--tea-radius-card);
   background: var(--tea-canvas);
   padding: 0.75rem;
+  transition: border-color 150ms ease;
+}
+.composer-shell:focus-within {
+  border-color: var(--tea-line-strong);
 }
 .agent-context-controls {
   display: flex;

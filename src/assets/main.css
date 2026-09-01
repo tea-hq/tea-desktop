@@ -132,6 +132,60 @@ textarea {
   letter-spacing: 0;
 }
 
+/* Shared segmented navigation treatment from DESIGN.md's nav-pill-group. */
+.nav-pill-group {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.125rem;
+  overflow-x: auto;
+  border-radius: var(--tea-radius-pill);
+  background: var(--tea-panel);
+  padding: 6px;
+}
+
+.nav-pill-group__item {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 2rem;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--tea-radius-pill);
+  padding: 0.5rem 0.75rem;
+  color: var(--tea-dim);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.nav-pill-group__item:hover {
+  color: var(--tea-fg);
+}
+
+.nav-pill-group__item[aria-selected='true'],
+.nav-pill-group__item[aria-checked='true'] {
+  border-color: var(--tea-line-soft);
+  background: var(--tea-canvas);
+  color: var(--tea-fg);
+}
+
+.nav-pill-group__item:focus-visible {
+  outline: 2px solid var(--tea-focus);
+  outline-offset: 1px;
+}
+
+.nav-pill-group__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 ::selection {
   color: var(--tea-canvas);
   background: var(--tea-fg);
@@ -202,5 +256,9 @@ input {
 
   .animate-fade-slide {
     animation: none;
+  }
+
+  .nav-pill-group__item {
+    transition: none;
   }
 }

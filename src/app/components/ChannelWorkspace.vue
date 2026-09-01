@@ -93,7 +93,6 @@ function handleLoadMoreChannels(): void {
   <AgentDrawer
     v-if="channels.activeChannel && activeAgentDrawerState"
     :open="settings.agentDrawerOpen"
-    :channel-name="channels.activeChannel.name"
     :state="activeAgentDrawerState"
     :conversations="collaboration.conversations"
     :runtimes="collaboration.runtimes"

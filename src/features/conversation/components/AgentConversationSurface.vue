@@ -25,6 +25,7 @@ const props = defineProps<{
   runtimeLabel?: string
   backLabel?: string
   expandLabel?: string
+  closeLabel?: string
   turns: ConversationTurn[]
   turnContexts?: ConversationTurnContext[]
   draftBlockIds?: string[]
@@ -63,6 +64,7 @@ function focusComposer(): void {
 }
 defineExpose({ focusComposer })
 const emit = defineEmits<{
+  close: []
   back: []
   expand: []
   loadOlder: []
@@ -92,10 +94,13 @@ const emit = defineEmits<{
   >
     <AgentConversationHeader
       :title="title"
-      :subtitle="subtitle"
+      :subtitle="profile.id === 'drawer' ? '' : subtitle"
       :runtime-label="profile.showHeaderRuntime ? runtimeLabel : ''"
       :back-label="backLabel"
       :expand-label="expandLabel"
+      :close-label="closeLabel"
+      :compact="profile.id === 'drawer'"
+      @close="emit('close')"
       @back="emit('back')"
       @expand="emit('expand')"
     />

@@ -75,6 +75,11 @@ describe('ConversationSidebar', () => {
       'Recent conversations',
     ])
     expect(wrapper.findAll('.workspace-group__header .workspace-group__chevron')).toHaveLength(2)
+    expect(wrapper.get('.conversation-filters__list').classes()).toContain('nav-pill-group')
+    expect(wrapper.findAll('.conversation-filter.nav-pill-group__item')).toHaveLength(3)
+    expect(wrapper.get('.conversation-filter[aria-selected="true"]').classes()).toContain(
+      'nav-pill-group__item',
+    )
     expect(wrapper.find('.workspace-group__header .i-mdi-clock-outline').exists()).toBe(false)
     expect(wrapper.find('.workspace-group__header .i-mdi-folder-multiple-outline').exists()).toBe(
       false,
@@ -156,6 +161,19 @@ describe('ConversationSidebar', () => {
 
     expect(wrapper.find('.conversation-activity-indicator--running').exists()).toBe(true)
     expect(wrapper.find('.conversation-activity-indicator--completed').exists()).toBe(true)
+    expect(
+      wrapper
+        .find('.conversation-row__activity .conversation-activity-indicator--running')
+        .exists(),
+    ).toBe(true)
+    expect(
+      wrapper
+        .find('.conversation-row__activity .conversation-activity-indicator--completed')
+        .exists(),
+    ).toBe(true)
+    expect(
+      wrapper.find('.conversation-row__select .conversation-activity-indicator').exists(),
+    ).toBe(false)
   })
 
   it('offers only archive from each conversation item', async () => {

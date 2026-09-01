@@ -17,7 +17,6 @@ import AgentSessionDetail from './AgentSessionDetail.vue'
 import AgentSessionIndex from './AgentSessionIndex.vue'
 defineProps<{
   open: boolean
-  channelName: string
   state: AgentDrawerChannelState
   conversations: ConversationSummary[]
   turns: ConversationTurn[]
@@ -62,7 +61,13 @@ const { t } = useI18n()
     :open="open"
     :title="t('channels.collaboration.title')"
     appearance="quiet"
+    resizable
+    :default-width="560"
+    :min-width="360"
+    :max-width="760"
+    :show-header="state.phase === 'index'"
     :close-label="t('common.close')"
+    :resize-label="t('channels.collaboration.resizeDrawer')"
     @close="emit('close')"
   >
     <AgentSessionIndex
@@ -84,7 +89,6 @@ const { t } = useI18n()
     />
     <AgentSessionDetail
       v-else
-      :channel-name="channelName"
       :title="
         state.phase === 'preparing' || state.phase === 'creating'
           ? t('channels.collaboration.newSession')
@@ -107,6 +111,7 @@ const { t } = useI18n()
       :sending="sending"
       :streaming="streaming"
       :error="error"
+      @close="emit('close')"
       @back="emit('back')"
       @expand="emit('expand')"
       @send="emit('send', $event)"

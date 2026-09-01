@@ -6,7 +6,7 @@ defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 <template>
-  <div class="inline-flex rounded-pill bg-panel p-1" role="radiogroup">
+  <div class="nav-pill-group" role="radiogroup">
     <button
       v-for="option in options"
       :key="option.value"
@@ -14,8 +14,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
       role="radio"
       :aria-checked="modelValue === option.value"
       :disabled="option.disabled"
-      class="rounded-control px-3 py-1.5 text-sm font-medium text-dim transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none"
-      :class="modelValue === option.value ? 'bg-canvas text-fg' : ''"
+      class="nav-pill-group__item"
       @click="emit('update:modelValue', option.value)"
     >
       {{ option.label }}

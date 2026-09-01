@@ -21,7 +21,6 @@ const runtime: RuntimeDescriptor = {
 function mountDetail() {
   return shallowMount(AgentSessionDetail, {
     props: {
-      channelName: 'Product',
       title: 'Plan',
       turns: [],
       collaboration: { turnContexts: [], drafts: [], deliveries: [] },
@@ -43,19 +42,20 @@ describe('AgentSessionDetail', () => {
     const surface = mountDetail().getComponent(AgentConversationSurface)
     expect(surface.props('profile')).toBe(drawerAgentProfile)
     expect(surface.props()).toMatchObject({
-      subtitle: 'Product',
-      runtimeLabel: 'Claude Code',
       backLabel: 'Back to sessions',
+      closeLabel: 'Close',
     })
   })
 
   it('forwards navigation and conversation intents', async () => {
     const wrapper = mountDetail()
     const surface = wrapper.getComponent(AgentConversationSurface)
+    surface.vm.$emit('close')
     surface.vm.$emit('back')
     surface.vm.$emit('expand')
     surface.vm.$emit('send', { text: 'Ship it', attachments: [] })
     await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('back')).toHaveLength(1)
     expect(wrapper.emitted('expand')).toHaveLength(1)
     expect(wrapper.emitted('send')).toEqual([[{ text: 'Ship it', attachments: [] }]])

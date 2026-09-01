@@ -5,10 +5,12 @@ import { TeaIconButton } from '@/shared/ui'
 import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 
 import type { ApprovalDecision, ToolCallBlock } from '../contracts'
+import { activityDescription, iconForTool } from '../activityPresentation'
 import ApprovalPrompt from './ApprovalPrompt.vue'
 
 const props = defineProps<{
   tool: ToolCallBlock
+  presentation?: 'default' | 'activity'
 }>()
 
 const emit = defineEmits<{
@@ -20,19 +22,21 @@ const detailsOpen = ref(false)
 const hasArguments = computed(() => props.tool.arguments !== undefined)
 const hasMessage = computed(() => Boolean(props.tool.message?.trim()))
 const hasDetails = computed(() => hasArguments.value || hasMessage.value)
-const activityIcon = computed(() => {
-  const name = props.tool.name.toLowerCase()
-  if (/(browser|web|url|page)/.test(name)) return 'i-mdi-web'
-  if (/(edit|write|patch|update|delete)/.test(name)) return 'i-mdi-file-edit-outline'
-  if (/(read|file|workspace|path)/.test(name)) return 'i-mdi-file-document-outline'
-  if (/(terminal|command|shell|exec|run)/.test(name)) return 'i-mdi-console-line'
-  if (/(search|find|grep|query)/.test(name)) return 'i-mdi-magnify'
-  return 'i-mdi-wrench-outline'
-})
+const activityIcon = computed(() => iconForTool(props.tool.name))
 const activityIconClass = computed(() => [
   activityIcon.value,
   props.tool.status === 'running' || props.tool.status === 'requested' ? 'animate-pulse' : '',
 ])
+const activityLabel = computed(() => {
+  const description = activityDescription(props.tool)
+  if (description.message) return description.message
+  if (description.subject) {
+    return t(`messages.activityActions.${description.category}`, {
+      target: description.subject,
+    })
+  }
+  return t('messages.activityToolFallback', { name: props.tool.name })
+})
 const detailLabel = computed(() =>
   detailsOpen.value ? t('tools.hideDetails') : t('tools.showDetails'),
 )
@@ -41,15 +45,26 @@ const detailLabel = computed(() =>
 <template>
   <section
     class="tool-event w-full text-sm text-dim"
-    :class="`tool-event--${tool.status}`"
+    :class="[
+      `tool-event--${tool.status}`,
+      presentation === 'activity' ? 'tool-event--activity' : '',
+    ]"
     :data-tool-call-id="tool.id"
   >
     <div class="tool-event__row">
       <span class="tool-event__icon" :class="activityIconClass" aria-hidden="true" />
       <div class="tool-event__copy">
         <div class="tool-event__heading">
-          <code class="tool-event__name">{{ tool.name }}</code>
-          <span class="tool-event__status">{{ t(`tools.status.${tool.status}`) }}</span>
+          <template v-if="presentation === 'activity'">
+            <span class="tool-event__description">{{ activityLabel }}</span>
+            <span v-if="tool.status !== 'completed'" class="tool-event__status">
+              {{ t(`tools.status.${tool.status}`) }}
+            </span>
+          </template>
+          <template v-else>
+            <code class="tool-event__name">{{ tool.name }}</code>
+            <span class="tool-event__status">{{ t(`tools.status.${tool.status}`) }}</span>
+          </template>
         </div>
       </div>
       <TeaIconButton
@@ -138,6 +153,25 @@ const detailLabel = computed(() =>
   color: var(--tea-subtle);
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+.tool-event__description {
+  min-width: 0;
+  color: var(--tea-dim);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.tool-event--activity {
+  padding: 0.125rem 0;
+}
+
+.tool-event--activity .tool-event__heading {
+  white-space: normal;
+}
+
+.tool-event--activity .tool-event__icon {
+  color: var(--tea-subtle);
 }
 
 .tool-event__disclosure {

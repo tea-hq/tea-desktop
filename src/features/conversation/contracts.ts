@@ -18,6 +18,7 @@ export interface HostToolDefinition {
   name: string
   version: string
   description: string
+  iconUrl?: string
   inputSchema: { [key: string]: ConversationJson }
   outputSchema: { [key: string]: ConversationJson }
 }

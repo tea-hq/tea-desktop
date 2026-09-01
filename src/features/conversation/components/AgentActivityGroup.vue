@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { TeaIconButton } from '@/shared/ui'
 import type { ApprovalDecision, ConversationTurnBlock } from '../contracts'
+import { classifyToolName } from '../activityPresentation'
 import AgentThoughtBlock from './AgentThoughtBlock.vue'
 import ToolCallBlock from './ToolCallBlock.vue'
 
@@ -23,7 +24,22 @@ const hasApproval = computed(() =>
   props.blocks.some((block) => block.kind === 'toolCall' && block.approval),
 )
 const expanded = computed(() => detailsOpen.value || hasApproval.value)
-const summary = computed(() => t('messages.activitySummary', { count: props.blocks.length }))
+const summary = computed(() => {
+  const recentBlocks = props.blocks.slice(-4)
+  const executionBlocks = recentBlocks.filter((block) => block.kind === 'toolCall')
+  const summaryBlocks = executionBlocks.length ? executionBlocks : recentBlocks
+  const categories = summaryBlocks.map((block) =>
+    block.kind === 'agentThought' ? 'thought' : classifyToolName(block.name),
+  )
+  const labels = [...new Set(categories)].map((category) =>
+    t(`messages.activityCategories.${category}`),
+  )
+  const summaryText = labels.join(t('messages.activitySeparator'))
+  const omittedCount = props.blocks.length - recentBlocks.length
+  return omittedCount > 0
+    ? t('messages.activitySummaryOverflow', { summary: summaryText, count: omittedCount })
+    : t('messages.activitySummary', { summary: summaryText })
+})
 const detailLabel = computed(() =>
   expanded.value ? t('messages.hideActivity') : t('messages.showActivity'),
 )
@@ -57,10 +73,15 @@ watch(hasApproval, (value) => {
 
     <div v-if="expanded" class="agent-activity__details">
       <template v-for="block in blocks" :key="block.id">
-        <AgentThoughtBlock v-if="block.kind === 'agentThought'" :thought="block" />
+        <AgentThoughtBlock
+          v-if="block.kind === 'agentThought'"
+          :thought="block"
+          presentation="activity"
+        />
         <ToolCallBlock
           v-else
           :tool="block"
+          presentation="activity"
           :data-sequence="block.sequence"
           @resolve-approval="emit('resolveApproval', $event)"
         />
@@ -79,7 +100,7 @@ watch(hasApproval, (value) => {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.5rem;
   min-height: 1.75rem;
   color: var(--tea-subtle);
   font-size: 0.75rem;
@@ -87,8 +108,8 @@ watch(hasApproval, (value) => {
 }
 
 .agent-activity__icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   flex: 0 0 auto;
 }
 
@@ -124,9 +145,7 @@ watch(hasApproval, (value) => {
 .agent-activity__details {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin: 0.25rem 0 0 1.25rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--tea-line);
+  gap: 0.125rem;
+  margin-top: 0.25rem;
 }
 </style>

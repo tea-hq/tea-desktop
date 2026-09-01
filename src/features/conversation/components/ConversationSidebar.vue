@@ -123,7 +123,7 @@ function confirmAction(): void {
 
 <template>
   <aside
-    class="conversation-sidebar hidden h-full w-[288px] flex-col border-r border-line bg-panel sm:flex"
+    class="conversation-sidebar hidden h-full w-[288px] flex-col border-r border-line-soft bg-canvas sm:flex"
   >
     <header class="conversation-sidebar__header">
       <h2 class="conversation-sidebar__title">{{ t('sidebar.title') }}</h2>
@@ -145,7 +145,7 @@ function confirmAction(): void {
       </div>
     </header>
     <nav class="conversation-filters" :aria-label="t('sidebar.filterLabel')">
-      <div class="conversation-filters__list" role="tablist">
+      <div class="conversation-filters__list nav-pill-group" role="tablist">
         <TeaButton
           v-for="kind in ['all', 'local', 'channel'] as const"
           :key="kind"
@@ -153,7 +153,7 @@ function confirmAction(): void {
           size="small"
           role="tab"
           :aria-selected="filter.kind === kind"
-          class="conversation-filter"
+          class="conversation-filter nav-pill-group__item"
           :class="filter.kind === kind ? 'conversation-filter--active text-fg' : 'text-subtle'"
           @click="emit('filter', { kind })"
         >
@@ -163,7 +163,7 @@ function confirmAction(): void {
     </nav>
 
     <div
-      class="conversation-sidebar__scroll flex-1 overflow-y-auto bg-panel pb-3 pt-2"
+      class="conversation-sidebar__scroll flex-1 overflow-y-auto bg-canvas pb-3 pt-2"
       @scroll.passive="handleScroll"
     >
       <div
@@ -343,7 +343,7 @@ function confirmAction(): void {
 }
 
 .conversation-sidebar__scroll {
-  background: var(--tea-panel);
+  background: var(--tea-canvas);
 }
 
 .conversation-sidebar__actions {
@@ -363,32 +363,17 @@ function confirmAction(): void {
 }
 
 .conversation-filters {
-  padding-inline: 0.75rem;
+  padding: 0.25rem 0.75rem 0.625rem;
 }
 
 .conversation-filters__list {
   display: grid;
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-bottom: 1px solid var(--tea-line-soft);
 }
 
 .conversation-filter {
-  position: relative;
-  min-width: 0;
-  min-height: 2.25rem;
-  border-radius: 0;
-  padding-inline: 0.5rem;
-  font-size: 0.75rem;
-}
-
-.conversation-filter--active::after {
-  position: absolute;
-  right: 0.75rem;
-  bottom: -1px;
-  left: 0.75rem;
-  height: 1px;
-  background: var(--tea-fg);
-  content: '';
+  width: 100%;
 }
 
 .workspace-group {

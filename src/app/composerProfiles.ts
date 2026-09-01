@@ -19,7 +19,7 @@ export const fullAgentProfile = Object.freeze<ComposerProfile>({
 export const drawerAgentProfile = Object.freeze<ComposerProfile>({
   id: 'drawer',
   compact: true,
-  showHeaderRuntime: true,
+  showHeaderRuntime: false,
   showRuntimeSelect: false,
   showSources: true,
   maxAttachments: 8,

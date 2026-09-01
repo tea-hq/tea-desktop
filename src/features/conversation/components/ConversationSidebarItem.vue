@@ -79,9 +79,11 @@ function selectAction(value: string): void {
           :label="runtimeLabel"
         />
       </span>
-      <ConversationActivityIndicator :running="running" :completed="completed" />
     </TeaButton>
     <span class="conversation-row__action-slot">
+      <span v-if="running || completed" class="conversation-row__activity">
+        <ConversationActivityIndicator :running="running" :completed="completed" />
+      </span>
       <span
         v-if="conversation.channelBinding"
         class="conversation-row__channel text-subtle"
@@ -177,6 +179,7 @@ function selectAction(value: string): void {
   flex: 0 0 1.75rem;
 }
 
+.conversation-row__activity,
 .conversation-row__channel,
 .conversation-row__menu {
   position: absolute;
@@ -185,6 +188,11 @@ function selectAction(value: string): void {
   align-items: center;
   justify-content: center;
   transition: opacity 150ms ease;
+}
+
+.conversation-row__activity {
+  z-index: 2;
+  pointer-events: none;
 }
 
 .conversation-row__channel {
@@ -199,6 +207,12 @@ function selectAction(value: string): void {
 .conversation-row:hover .conversation-row__channel,
 .conversation-row:has(:focus-visible) .conversation-row__channel,
 .conversation-row:has(.conversation-row__menu [aria-expanded='true']) .conversation-row__channel {
+  opacity: 0;
+}
+
+.conversation-row:hover .conversation-row__activity,
+.conversation-row:has(:focus-visible) .conversation-row__activity,
+.conversation-row:has(.conversation-row__menu [aria-expanded='true']) .conversation-row__activity {
   opacity: 0;
 }
 
@@ -218,6 +232,7 @@ function selectAction(value: string): void {
   }
 
   .conversation-row__channel,
+  .conversation-row__activity,
   .conversation-row__menu {
     transition: none;
   }
