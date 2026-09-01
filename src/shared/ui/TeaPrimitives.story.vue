@@ -5,7 +5,7 @@ import TeaButton from './TeaButton.vue'
 import TeaEmptyState from './TeaEmptyState.vue'
 import TeaInput from './TeaInput.vue'
 import TeaMessageBar from './TeaMessageBar.vue'
-import TeaSelect from './TeaSelect.vue'
+import TeaMenuSelect from './TeaMenuSelect.vue'
 
 const name = ref('')
 const runtime = ref<string | null>('external.claude')
@@ -21,7 +21,7 @@ const runtimes = [
       <div class="grid max-w-xl gap-4 p-6">
         <TeaInput v-model="name" label="Workspace name" placeholder="Enter a name" />
         <TeaInput model-value="Invalid value" label="Invalid field" invalid />
-        <TeaSelect v-model="runtime" :options="runtimes" label="Runtime" />
+        <TeaMenuSelect v-model="runtime" :options="runtimes" label="Runtime" appearance="field" />
         <div class="flex flex-wrap gap-2">
           <TeaButton appearance="primary">Create conversation</TeaButton>
           <TeaButton>Secondary</TeaButton>

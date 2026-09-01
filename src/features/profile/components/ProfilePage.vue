@@ -118,7 +118,7 @@ function displayValue(value: string | undefined): string {
       >
         <div class="flex min-w-0 items-center gap-4">
           <div
-            class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-overlay bg-inverse text-xl font-semibold text-canvas"
+            class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-overlay bg-inverse text-xl font-semibold text-on-inverse"
           >
             <img
               v-if="centerProfile.avatarUrl && !avatarFailed"

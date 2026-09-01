@@ -22,6 +22,25 @@ test('renders localized Chinese controls without horizontal overflow', async ({
   expect(overflow).toBe(false)
 })
 
+test('follows the dark system palette before app state is loaded', async ({
+  openFixture,
+  page,
+}) => {
+  await openFixture('channel', { colorScheme: 'dark' })
+
+  await expect(page.getByTestId('e2e-app')).toBeVisible()
+  const palette = await page.evaluate(() => ({
+    canvas: getComputedStyle(document.documentElement).getPropertyValue('--tea-canvas').trim(),
+    background: getComputedStyle(document.querySelector<HTMLElement>('[data-testid="e2e-app"]')!)
+      .backgroundColor,
+    colorScheme: getComputedStyle(document.documentElement).colorScheme,
+  }))
+
+  expect(palette.canvas).toBe('#111111')
+  expect(palette.background).toBe('rgb(17, 17, 17)')
+  expect(palette.colorScheme).toBe('dark')
+})
+
 test('honors reduced motion while preserving visible focus', async ({
   openFixture,
   page,

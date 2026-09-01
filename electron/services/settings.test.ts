@@ -23,6 +23,7 @@ describe('ElectronSettingsService', () => {
     const service = new ElectronSettingsService(filePath)
     const settings = {
       locale: 'zh-CN' as const,
+      theme: 'dark' as const,
       conversationDefaults: { runtimeId: 'external.codex', model: 'provider/model-a' },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
@@ -40,6 +41,7 @@ describe('ElectronSettingsService', () => {
         schemaVersion: 1,
         settings: {
           locale: 'en',
+          theme: undefined,
           conversationDefaults: { runtimeId: 'external.claude' },
           layout: { leftSidebarOpen: true, agentDrawerOpen: false },
         },
@@ -59,6 +61,15 @@ describe('ElectronSettingsService', () => {
 
     await expect(service.load()).rejects.toMatchObject({
       code: 'unsupportedSchema',
+      retryable: false,
+    })
+  })
+
+  it('rejects theme values outside the supported allowlist', async () => {
+    const service = new ElectronSettingsService(await settingsPath())
+
+    await expect(service.update({ ...defaultSettings(), theme: 'sepia' })).rejects.toMatchObject({
+      code: 'invalidRequest',
       retryable: false,
     })
   })

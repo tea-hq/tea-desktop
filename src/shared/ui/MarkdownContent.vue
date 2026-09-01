@@ -269,23 +269,23 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content--inverse {
-  color: var(--tea-canvas);
+  color: var(--tea-on-inverse);
 }
 
 .markdown-content--inverse :deep(h1),
 .markdown-content--inverse :deep(h2),
 .markdown-content--inverse :deep(h3),
 .markdown-content--inverse :deep(h4) {
-  color: var(--tea-canvas);
+  color: var(--tea-on-inverse);
 }
 
 .markdown-content--inverse :deep(a) {
-  color: var(--tea-canvas);
+  color: var(--tea-on-inverse);
   text-decoration-color: var(--tea-subtle);
 }
 
 .markdown-content--inverse :deep(a:hover) {
-  text-decoration-color: var(--tea-canvas);
+  text-decoration-color: var(--tea-on-inverse);
 }
 
 .markdown-content--inverse :deep(blockquote) {
@@ -294,13 +294,13 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content--inverse :deep(code) {
-  background: var(--tea-inverse);
-  color: var(--tea-canvas);
+  background: var(--tea-code-surface);
+  color: var(--tea-code-fg);
 }
 
 .markdown-content--inverse :deep(pre) {
-  background: var(--tea-inverse);
-  color: var(--tea-canvas);
+  background: var(--tea-code-surface);
+  color: var(--tea-code-fg);
 }
 
 .markdown-content--inverse :deep(pre code) {
@@ -313,7 +313,7 @@ onBeforeUnmount(() => {
 }
 
 .markdown-content--inverse :deep(th) {
-  color: var(--tea-canvas);
+  color: var(--tea-on-inverse);
 }
 
 .markdown-content--inverse :deep(hr) {

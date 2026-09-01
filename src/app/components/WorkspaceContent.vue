@@ -59,6 +59,7 @@ const {
   <main v-else class="flex min-w-0 flex-1 flex-col bg-canvas">
     <SettingsPage
       :locale-preference="settings.settings.locale"
+      :theme-preference="settings.settings.theme"
       :default-runtime-id="settings.defaultRuntimeId"
       :default-model="settings.defaultModel"
       :model-options="conversationModelOptions"
@@ -67,6 +68,7 @@ const {
       :error="settings.error"
       @close="selectWorkspace(previousMode)"
       @update-locale="settings.setLocalePreference($event)"
+      @update-theme="settings.setThemePreference($event)"
       @update-default-runtime="settings.setDefaultRuntime($event)"
       @update-default-model="settings.setDefaultModel($event)"
     />

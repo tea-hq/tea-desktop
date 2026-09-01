@@ -135,7 +135,7 @@ function formatTime(value: number): string {
             }}</span>
             <span
               v-if="channel.unreadCount"
-              class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-canvas"
+              class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-on-inverse"
             >
               {{ channel.unreadCount > 99 ? '99+' : channel.unreadCount }}
             </span>

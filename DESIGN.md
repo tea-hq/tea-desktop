@@ -540,3 +540,10 @@ Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI
 - Form validation states beyond `{component.text-input-focused}` are not extracted — error / success states would need a sign-up or booking flow to confirm.
 - The actual booking widget surface (cal.com/{username}) is the product, not a marketing surface; its spec is out of scope.
 - Avatar photos in testimonial sections sometimes carry pastel circular fills with initials instead of photographs; both treatments coexist on the same page.
+
+## Theme Support
+
+- Supported appearance preferences are `system`, `light`, and `dark`.
+- `system` resolves from `prefers-color-scheme` and updates without a reload.
+- Components consume semantic tokens; feature markup must not branch on theme names.
+- Normal text targets WCAG AA contrast; focus, disabled, status, code, and scrim tokens are defined per theme.

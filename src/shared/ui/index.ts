@@ -11,7 +11,15 @@ export { default as TeaMessageBar } from './TeaMessageBar.vue'
 export { default as TeaSelect } from './TeaSelect.vue'
 export { default as TeaTabs } from './TeaTabs.vue'
 export { default as TeaTextarea } from './TeaTextarea.vue'
+export { default as SegmentedChoice } from './SegmentedChoice.vue'
 export type { TeaMenuItem, TeaMenuPlacement } from './TeaMenu.vue'
-export type { TeaSelectOption } from './TeaSelect.vue'
+export type { TeaSelectOption } from './selectTypes'
 export type { TeaTabOption } from './TeaTabs.vue'
 export { teaDesignTokens } from './theme/teaTokens'
+export {
+  createThemeController,
+  THEME_PREFERENCES,
+  type EffectiveTheme,
+  type ThemeController,
+  type ThemePreference,
+} from './theme/themeController'

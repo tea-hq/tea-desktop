@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppSettings, SettingsClient } from './contracts'
 import { DEFAULT_SETTINGS } from './contracts'
@@ -29,6 +29,7 @@ describe('useSettingsStore', () => {
     const client = new FakeSettingsClient()
     client.saved = {
       locale: 'zh-CN',
+      theme: 'dark',
       conversationDefaults: { runtimeId: 'external.claude', model: null },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
@@ -39,6 +40,30 @@ describe('useSettingsStore', () => {
 
     expect(store.settings).toEqual(client.saved)
     expect(store.initialized).toBe(true)
+  })
+
+  it('shares an in-flight initialization request across callers', async () => {
+    const client = new FakeSettingsClient()
+    let resolveLoad!: (settings: AppSettings) => void
+    client.getSettings = vi.fn(
+      () =>
+        new Promise<AppSettings>((resolve) => {
+          resolveLoad = resolve
+        }),
+    )
+    const store = useSettingsStore()
+    store.configure(client)
+
+    const first = store.initialize()
+    const second = store.initialize()
+
+    expect(client.getSettings).toHaveBeenCalledOnce()
+    expect(store.loading).toBe(true)
+    resolveLoad(structuredClone(client.saved))
+    await Promise.all([first, second])
+
+    expect(store.initialized).toBe(true)
+    expect(store.loading).toBe(false)
   })
 
   it('persists layout intents without changing unrelated settings', async () => {
@@ -72,6 +97,34 @@ describe('useSettingsStore', () => {
     expect(client.saved.locale).toBe('en')
     expect(client.saved.conversationDefaults.runtimeId).toBe('external.codex')
     expect(client.saved.conversationDefaults.model).toBe('provider/model-a')
+  })
+
+  it.each(['system', 'light', 'dark'] as const)(
+    'persists the %s theme preference',
+    async (theme) => {
+      const client = new FakeSettingsClient()
+      const store = useSettingsStore()
+      store.configure(client)
+      await store.initialize()
+
+      await store.setThemePreference(theme)
+
+      expect(client.saved.theme).toBe(theme)
+      expect(store.settings.theme).toBe(theme)
+    },
+  )
+
+  it('rolls back a theme preference when persistence fails', async () => {
+    const client = new FakeSettingsClient()
+    const store = useSettingsStore()
+    store.configure(client)
+    await store.initialize()
+    client.updateError = new Error('disk full')
+
+    await store.setThemePreference('dark')
+
+    expect(store.settings.theme).toBe('system')
+    expect(store.error).toBe('settings.saveFailed')
   })
 
   it('rolls back the latest optimistic update when persistence fails', async () => {

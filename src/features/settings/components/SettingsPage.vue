@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { TeaButton, TeaIconButton, TeaSelect } from '@/shared/ui'
+import { SegmentedChoice, TeaIconButton, TeaMenuSelect } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 
 import type { ModelOption, RuntimeDescriptor } from '@/features/conversation/contracts'
-import type { LocalePreference } from '../contracts'
+import type { LocalePreference, ThemePreference } from '../contracts'
 
 const props = defineProps<{
   localePreference: LocalePreference
+  themePreference: ThemePreference
   defaultRuntimeId: string
   defaultModel: string | null
   runtimes: RuntimeDescriptor[]
@@ -19,16 +20,22 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   updateLocale: [locale: LocalePreference]
+  updateTheme: [theme: ThemePreference]
   updateDefaultRuntime: [runtimeId: string]
   updateDefaultModel: [model: string]
 }>()
 
 const { t } = useI18n()
-const localeOptions: Array<{ value: LocalePreference; labelKey: string }> = [
-  { value: 'system', labelKey: 'settings.language.system' },
-  { value: 'en', labelKey: 'settings.language.english' },
-  { value: 'zh-CN', labelKey: 'settings.language.chinese' },
-]
+const localeOptions = computed(() => [
+  { value: 'system', label: t('settings.language.system'), disabled: props.saving },
+  { value: 'en', label: t('settings.language.english'), disabled: props.saving },
+  { value: 'zh-CN', label: t('settings.language.chinese'), disabled: props.saving },
+])
+const themeOptions = computed(() => [
+  { value: 'system', label: t('settings.appearance.system'), disabled: props.saving },
+  { value: 'light', label: t('settings.appearance.light'), disabled: props.saving },
+  { value: 'dark', label: t('settings.appearance.dark'), disabled: props.saving },
+])
 const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
   runtimes.map((runtime) => ({
     value: runtime.id,
@@ -80,23 +87,33 @@ const effectiveDefaultModel = computed(
               {{ t('settings.language.description') }}
             </p>
           </div>
-          <div class="grid grid-cols-3 gap-1 rounded-pill bg-panel p-1" role="group">
-            <TeaButton
-              v-for="option in localeOptions"
-              :key="option.value"
-              appearance="ghost"
-              class="min-w-0 px-2"
-              :class="
-                localePreference === option.value
-                  ? 'bg-canvas text-fg'
-                  : 'text-dim hover:bg-pressed'
-              "
-              :aria-pressed="localePreference === option.value"
-              @click="emit('updateLocale', option.value)"
-            >
-              {{ t(option.labelKey) }}
-            </TeaButton>
+          <SegmentedChoice
+            class="settings-segmented w-full"
+            :model-value="localePreference"
+            :options="localeOptions"
+            :label="t('settings.language.title')"
+            @update:model-value="emit('updateLocale', $event as LocalePreference)"
+          />
+        </div>
+      </section>
+
+      <section class="mt-12">
+        <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-center">
+          <div>
+            <h2 class="text-base font-semibold text-fg">
+              {{ t('settings.appearance.title') }}
+            </h2>
+            <p class="mt-1 text-sm leading-5 text-dim">
+              {{ t('settings.appearance.description') }}
+            </p>
           </div>
+          <SegmentedChoice
+            class="settings-segmented w-full"
+            :model-value="themePreference"
+            :options="themeOptions"
+            :label="t('settings.appearance.title')"
+            @update:model-value="emit('updateTheme', $event as ThemePreference)"
+          />
         </div>
       </section>
 
@@ -110,10 +127,12 @@ const effectiveDefaultModel = computed(
               {{ t('settings.defaultAgent.description') }}
             </p>
           </div>
-          <TeaSelect
+          <TeaMenuSelect
             :model-value="defaultRuntimeId"
             :options="runtimeOptions(runtimes)"
             :label="t('settings.defaultAgent.title')"
+            appearance="field"
+            class="settings-menu-select"
             :disabled="saving || runtimes.every((runtime) => runtime.status !== 'ready')"
             @update:model-value="$event && emit('updateDefaultRuntime', String($event))"
           />
@@ -130,10 +149,12 @@ const effectiveDefaultModel = computed(
               {{ t('settings.defaultModel.description') }}
             </p>
           </div>
-          <TeaSelect
+          <TeaMenuSelect
             :model-value="effectiveDefaultModel"
             :options="modelOptions"
             :label="t('settings.defaultModel.title')"
+            appearance="field"
+            class="settings-menu-select"
             :disabled="saving || modelOptions.every((option) => option.disabled)"
             @update:model-value="$event && emit('updateDefaultModel', String($event))"
           />
@@ -151,3 +172,18 @@ const effectiveDefaultModel = computed(
     </div>
   </section>
 </template>
+
+<style scoped>
+.settings-segmented {
+  width: 100%;
+}
+
+.settings-segmented :deep(.nav-pill-group__item) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.settings-menu-select {
+  width: 100%;
+}
+</style>

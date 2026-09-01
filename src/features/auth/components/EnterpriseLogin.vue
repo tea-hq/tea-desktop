@@ -19,7 +19,7 @@ const { t } = useI18n()
     <header class="flex h-16 shrink-0 items-center px-6 sm:px-10">
       <div class="flex items-center gap-3">
         <span
-          class="flex size-8 items-center justify-center rounded-full bg-inverse font-display text-base font-semibold text-canvas"
+          class="flex size-8 items-center justify-center rounded-full bg-inverse font-display text-base font-semibold text-on-inverse"
           >T</span
         >
         <span class="font-display text-xl font-semibold">{{ t('app.name') }}</span>

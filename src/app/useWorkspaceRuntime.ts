@@ -8,7 +8,6 @@ import {
 import { ElectronCenterAuthClient } from '@/infrastructure/auth/electronCenterAuthClient'
 import { ElectronDirectoryClient } from '@/infrastructure/directory/electronDirectoryClient'
 import { ElectronManagedWorkspaceClient } from '@/infrastructure/managed-runtime/electronManagedWorkspaceClient'
-import { ElectronSettingsClient } from '@/infrastructure/settings/electronSettingsClient'
 import { WorkspaceLifecycle, type WorkspaceSession } from './workspaceLifecycle'
 import { recoverManagedWorkspace } from './refreshManagedWorkspace'
 import type { ConversationClient } from '@/features/conversation/contracts'
@@ -154,7 +153,6 @@ export function useWorkspaceRuntime(
         channels.configure(environment.transport)
         collaboration.configure(conversationClient, environment.transport)
         conversation.configure(conversationClient)
-        settings.configure(new ElectronSettingsClient())
         const bootstrap = centerAuth.state.bootstrap
         void agentRoles.initialize(
           bootstrap ? { tenantId: bootstrap.tenant.id, subjectId: bootstrap.user.id } : undefined,

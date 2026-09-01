@@ -39,11 +39,19 @@ describe('Tea design tokens', () => {
   it('defines the semantic color and overlay contract', () => {
     expect(teaDesignTokens.colors).toMatchObject({
       accent: '#111111',
+      onAccent: '#ffffff',
       canvas: '#ffffff',
       panel: '#f8f9fa',
       lineSoft: '#f3f4f6',
       focus: 'rgb(59 130 246 / 50%)',
+      onDanger: '#ffffff',
+      scrim: '#000000',
+      codeSurface: '#f8f9fa',
+      codeFg: '#111111',
+      inverse: '#111111',
+      onInverse: '#ffffff',
     })
     expect(teaDesignTokens.elevation).toEqual({ overlay: 'none' })
+    expect(teaDesignTokens.themePreferences).toEqual(['system', 'light', 'dark'])
   })
 })

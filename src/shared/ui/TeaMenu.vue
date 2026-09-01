@@ -24,8 +24,9 @@ const props = withDefaults(
     popup?: boolean
     label: string
     placement?: TeaMenuPlacement
+    minWidth?: number
   }>(),
-  { popup: false, placement: 'down' },
+  { popup: false, placement: 'down', minWidth: undefined },
 )
 const emit = defineEmits<{ select: [value: string]; hide: [] }>()
 const menu = ref<HTMLElement | null>(null)
@@ -191,7 +192,15 @@ defineExpose({ toggle, show, hide })
       'z-50 min-w-52 max-h-[calc(100vh-1rem)] overflow-y-auto rounded-menu border border-line bg-raised p-1 text-fg',
       popup ? 'fixed' : 'relative',
     ]"
-    :style="popup ? { top: `${position.top}px`, left: `${position.left}px` } : undefined"
+    :style="
+      popup
+        ? {
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+            ...(minWidth ? { minWidth: `${minWidth}px` } : {}),
+          }
+        : undefined
+    "
   >
     <template
       v-for="(item, index) in items"

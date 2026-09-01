@@ -12,6 +12,7 @@
     "src/infrastructure/channels/electronManagedImCredentials.ts",
     "src/types/channelCollaboration.ts",
     "src/types/electronBridge.ts",
+    "src/types/theme.ts",
     "src/features/*/contracts.ts",
     "src/features/conversation/hostToolCatalog.ts",
     "src/features/conversation/timelineReducer.ts"

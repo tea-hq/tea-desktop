@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport v-if="open" to="body">
     <div class="fixed inset-0 z-50 flex items-center justify-center p-6" @click="dismissOnBackdrop">
-      <div class="absolute inset-0 bg-inverse/30" aria-hidden="true" />
+      <div class="absolute inset-0 bg-scrim/30" aria-hidden="true" />
       <section
         ref="panel"
         :aria-labelledby="titleId"

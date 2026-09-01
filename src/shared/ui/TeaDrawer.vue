@@ -205,7 +205,7 @@ function clamp(value: number, min: number, max: number): number {
 <template>
   <Teleport v-if="open" to="body">
     <div class="fixed inset-0 z-40" @click="dismissOnBackdrop">
-      <div class="absolute inset-0 bg-inverse/30" aria-hidden="true" />
+      <div class="absolute inset-0 bg-scrim/30" aria-hidden="true" />
       <aside
         :id="panelId"
         ref="panel"

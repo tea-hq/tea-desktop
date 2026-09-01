@@ -2,7 +2,10 @@ import { expect, test as base } from '@playwright/test'
 
 interface AppFixtures {
   openApp: () => Promise<void>
-  openFixture: (name: string, options?: { lang?: 'en' | 'zh-CN' }) => Promise<void>
+  openFixture: (
+    name: string,
+    options?: { lang?: 'en' | 'zh-CN'; colorScheme?: 'light' | 'dark' | 'no-preference' },
+  ) => Promise<void>
 }
 
 export const test = base.extend<AppFixtures>({
@@ -16,6 +19,7 @@ export const test = base.extend<AppFixtures>({
     await use(async (name, options = {}) => {
       await page.emulateMedia({
         reducedMotion: testInfo.project.name.includes('reduced') ? 'reduce' : 'no-preference',
+        colorScheme: options.colorScheme ?? 'light',
       })
       const search = new URLSearchParams({ fixture: name, lang: options.lang ?? 'en' })
       await page.goto(`/?${search}`)

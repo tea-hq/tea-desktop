@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import type { AppSettings } from '../../src/features/settings/contracts'
+import { THEME_PREFERENCES, type ThemePreference } from '../../src/types/theme'
 
 const SETTINGS_SCHEMA_VERSION = 1
 const MAX_SETTINGS_BYTES = 64 * 1024
@@ -72,6 +73,7 @@ export class ElectronSettingsService {
 export function defaultSettings(): AppSettings {
   return {
     locale: 'system',
+    theme: 'system',
     conversationDefaults: { runtimeId: 'external.claude', model: null },
     layout: { leftSidebarOpen: true, agentDrawerOpen: false },
   }
@@ -80,10 +82,12 @@ export function defaultSettings(): AppSettings {
 function normalizeAppSettings(value: unknown): AppSettings | null {
   if (!isRecord(value)) return null
   const locale = value.locale
+  const theme = value.theme === undefined ? 'system' : value.theme
   const defaults = value.conversationDefaults
   const layout = value.layout
   if (
     !(locale === 'system' || locale === 'en' || locale === 'zh-CN') ||
+    !isThemePreference(theme) ||
     !isRecord(defaults) ||
     typeof defaults.runtimeId !== 'string' ||
     defaults.runtimeId.trim().length === 0 ||
@@ -102,6 +106,7 @@ function normalizeAppSettings(value: unknown): AppSettings | null {
     return null
   return {
     locale,
+    theme,
     conversationDefaults: {
       runtimeId: defaults.runtimeId,
       model: typeof model === 'string' ? model : null,
@@ -111,6 +116,10 @@ function normalizeAppSettings(value: unknown): AppSettings | null {
       agentDrawerOpen: layout.agentDrawerOpen,
     },
   }
+}
+
+function isThemePreference(value: unknown): value is ThemePreference {
+  return typeof value === 'string' && (THEME_PREFERENCES as readonly string[]).includes(value)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

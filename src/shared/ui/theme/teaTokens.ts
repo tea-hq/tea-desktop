@@ -59,7 +59,9 @@ export const teaDesignTokens = {
     muted: '#6b7280',
     mutedSoft: '#898989',
     accent: '#111111',
+    onAccent: '#ffffff',
     danger: '#ef4444',
+    onDanger: '#ffffff',
     success: '#10b981',
     warning: '#f59e0b',
     canvas: '#ffffff',
@@ -69,6 +71,11 @@ export const teaDesignTokens = {
     surfaceStrong: '#e5e7eb',
     surfaceDark: '#101010',
     surfaceDarkElevated: '#1a1a1a',
+    scrim: '#000000',
+    codeSurface: '#f8f9fa',
+    codeFg: '#111111',
+    inverse: '#111111',
+    onInverse: '#ffffff',
     line: '#e5e7eb',
     lineSoft: '#f3f4f6',
     lineStrong: '#e5e7eb',
@@ -85,4 +92,5 @@ export const teaDesignTokens = {
   elevation: {
     overlay: 'none',
   },
+  themePreferences: ['system', 'light', 'dark'],
 } as const

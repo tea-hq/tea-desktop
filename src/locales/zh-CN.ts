@@ -418,6 +418,13 @@ export default {
       english: 'English',
       chinese: '中文',
     },
+    appearance: {
+      title: '外观',
+      description: '选择跟随系统外观，或固定使用一种模式。',
+      system: '跟随系统',
+      light: '浅色',
+      dark: '深色',
+    },
     defaultAgent: {
       title: '默认 Agent',
       description: '新建会话时优先使用该 Agent。',

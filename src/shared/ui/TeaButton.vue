@@ -29,11 +29,11 @@ withDefaults(
       size === 'small' ? 'min-h-8 px-3' : 'min-h-10',
       fluid && 'w-full',
       appearance === 'primary' &&
-        'border-accent bg-accent text-canvas hover:bg-accent-hover active:bg-accent-pressed disabled:border-surface-strong disabled:bg-surface-strong disabled:text-subtle',
+        'border-accent bg-accent text-on-accent hover:bg-accent-hover active:bg-accent-pressed disabled:border-surface-strong disabled:bg-surface-strong disabled:text-subtle',
       appearance === 'secondary' &&
         'border-line-strong bg-canvas text-fg hover:bg-panel active:bg-muted disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'danger' &&
-        'border-danger bg-danger text-canvas hover:bg-danger/90 focus-visible:outline-danger disabled:border-line disabled:bg-panel disabled:text-disabled',
+        'border-danger bg-danger text-on-danger hover:bg-danger/90 focus-visible:outline-danger disabled:border-line disabled:bg-panel disabled:text-disabled',
       appearance === 'ghost' &&
         'border-transparent bg-transparent text-dim hover:bg-hover hover:text-fg active:bg-pressed disabled:text-disabled disabled:opacity-60',
     ]"

@@ -7,6 +7,7 @@ import {
   type AppSettings,
   type LocalePreference,
   type SettingsClient,
+  type ThemePreference,
 } from './contracts'
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -17,6 +18,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const error = ref<string | null>(null)
 
   let client: SettingsClient | null = null
+  let initialization: Promise<void> | null = null
   let writeQueue: Promise<void> = Promise.resolve()
   let revision = 0
 
@@ -30,28 +32,41 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function initialize(): Promise<void> {
-    if (initialized.value || loading.value) return
+    if (initialized.value) return
+    if (initialization) return initialization
     if (!client) {
       error.value = 'settings.loadFailed'
       applyLocalePreference(settings.value.locale)
       return
     }
-    loading.value = true
-    error.value = null
+    const request = (async () => {
+      loading.value = true
+      error.value = null
+      try {
+        settings.value = await client!.getSettings()
+        initialized.value = true
+      } catch {
+        settings.value = structuredClone(DEFAULT_SETTINGS)
+        error.value = 'settings.loadFailed'
+      } finally {
+        applyLocalePreference(settings.value.locale)
+        loading.value = false
+      }
+    })()
+    initialization = request
     try {
-      settings.value = await client.getSettings()
-      initialized.value = true
-    } catch {
-      settings.value = structuredClone(DEFAULT_SETTINGS)
-      error.value = 'settings.loadFailed'
+      await request
     } finally {
-      applyLocalePreference(settings.value.locale)
-      loading.value = false
+      if (initialization === request) initialization = null
     }
   }
 
   async function setLocalePreference(locale: LocalePreference): Promise<void> {
     await updateSettings((current) => ({ ...current, locale }))
+  }
+
+  async function setThemePreference(theme: ThemePreference): Promise<void> {
+    await updateSettings((current) => ({ ...current, theme }))
   }
 
   async function setDefaultRuntime(runtimeId: string): Promise<void> {
@@ -155,6 +170,7 @@ export const useSettingsStore = defineStore('settings', () => {
     configure,
     initialize,
     setLocalePreference,
+    setThemePreference,
     setDefaultRuntime,
     setDefaultModel,
     toggleLeftSidebar,
@@ -167,6 +183,7 @@ export const useSettingsStore = defineStore('settings', () => {
 function cloneSettings(settings: AppSettings): AppSettings {
   return {
     locale: settings.locale,
+    theme: settings.theme,
     conversationDefaults: { ...settings.conversationDefaults },
     layout: { ...settings.layout },
   }

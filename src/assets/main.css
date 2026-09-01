@@ -36,6 +36,12 @@
   --color-accent-pressed: var(--tea-accent-pressed);
   --color-focus: var(--tea-focus);
   --color-inverse: var(--tea-inverse);
+  --color-on-inverse: var(--tea-on-inverse);
+  --color-scrim: var(--tea-scrim);
+  --color-code-surface: var(--tea-code-surface);
+  --color-code-fg: var(--tea-code-fg);
+  --color-on-accent: var(--tea-on-accent);
+  --color-on-danger: var(--tea-on-danger);
   --color-danger: var(--tea-danger);
   --color-danger-subtle: var(--tea-danger-subtle);
   --color-success: var(--tea-success);
@@ -76,10 +82,16 @@
   --tea-accent: #111111;
   --tea-accent-hover: #242424;
   --tea-accent-pressed: #242424;
+  --tea-on-accent: #ffffff;
   --tea-focus: rgb(59 130 246 / 50%);
   --tea-brand-accent: #3b82f6;
   --tea-inverse: #111111;
+  --tea-on-inverse: #ffffff;
+  --tea-scrim: #000000;
+  --tea-code-surface: #f8f9fa;
+  --tea-code-fg: #111111;
   --tea-danger: #ef4444;
+  --tea-on-danger: #ffffff;
   --tea-danger-subtle: #fef2f2;
   --tea-success: #10b981;
   --tea-success-subtle: #ecfdf5;
@@ -98,6 +110,89 @@
   --tea-control-height-small: 2.25rem;
   --tea-control-height: 2.5rem;
   --tea-control-height-primary: 2.5rem;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --tea-canvas: #111111;
+  --tea-surface: #171717;
+  --tea-panel: #1f1f1f;
+  --tea-raised: #262626;
+  --tea-muted: #222222;
+  --tea-surface-card: #242424;
+  --tea-surface-strong: #3f3f46;
+  --tea-hover: #2b2b2b;
+  --tea-pressed: #363636;
+  --tea-fg: #f5f5f5;
+  --tea-dim: #d1d5db;
+  --tea-subtle: #a1a1aa;
+  --tea-disabled: #737373;
+  --tea-line: #3f3f46;
+  --tea-line-soft: #27272a;
+  --tea-line-strong: #52525b;
+  --tea-accent: #f4f4f5;
+  --tea-accent-hover: #e4e4e7;
+  --tea-accent-pressed: #d4d4d8;
+  --tea-on-accent: #111111;
+  --tea-focus: rgb(96 165 250 / 75%);
+  --tea-brand-accent: #60a5fa;
+  --tea-inverse: #f4f4f5;
+  --tea-on-inverse: #111111;
+  --tea-scrim: #000000;
+  --tea-code-surface: #0b0b0b;
+  --tea-code-fg: #f4f4f5;
+  --tea-danger: #f87171;
+  --tea-on-danger: #111111;
+  --tea-danger-subtle: #3f1d1d;
+  --tea-success: #34d399;
+  --tea-success-subtle: #12352b;
+  --tea-warning: #fbbf24;
+  --tea-warning-subtle: #3b2a08;
+  --tea-scrollbar-thumb: rgb(161 161 170 / 28%);
+  --tea-scrollbar-thumb-hover: rgb(161 161 170 / 48%);
+}
+
+/* Let the first frame follow the OS before the renderer has loaded settings. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --tea-canvas: #111111;
+    --tea-surface: #171717;
+    --tea-panel: #1f1f1f;
+    --tea-raised: #262626;
+    --tea-muted: #222222;
+    --tea-surface-card: #242424;
+    --tea-surface-strong: #3f3f46;
+    --tea-hover: #2b2b2b;
+    --tea-pressed: #363636;
+    --tea-fg: #f5f5f5;
+    --tea-dim: #d1d5db;
+    --tea-subtle: #a1a1aa;
+    --tea-disabled: #737373;
+    --tea-line: #3f3f46;
+    --tea-line-soft: #27272a;
+    --tea-line-strong: #52525b;
+    --tea-accent: #f4f4f5;
+    --tea-accent-hover: #e4e4e7;
+    --tea-accent-pressed: #d4d4d8;
+    --tea-on-accent: #111111;
+    --tea-focus: rgb(96 165 250 / 75%);
+    --tea-brand-accent: #60a5fa;
+    --tea-inverse: #f4f4f5;
+    --tea-on-inverse: #111111;
+    --tea-scrim: #000000;
+    --tea-code-surface: #0b0b0b;
+    --tea-code-fg: #f4f4f5;
+    --tea-danger: #f87171;
+    --tea-on-danger: #111111;
+    --tea-danger-subtle: #3f1d1d;
+    --tea-success: #34d399;
+    --tea-success-subtle: #12352b;
+    --tea-warning: #fbbf24;
+    --tea-warning-subtle: #3b2a08;
+    --tea-scrollbar-thumb: rgb(161 161 170 / 28%);
+    --tea-scrollbar-thumb-hover: rgb(161 161 170 / 48%);
+  }
 }
 
 html {

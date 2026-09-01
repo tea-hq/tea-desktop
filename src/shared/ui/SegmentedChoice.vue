@@ -2,11 +2,12 @@
 defineProps<{
   modelValue: string
   options: Array<{ value: string; label: string; disabled?: boolean }>
+  label?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 <template>
-  <div class="nav-pill-group" role="radiogroup">
+  <div class="nav-pill-group" role="radiogroup" :aria-label="label">
     <button
       v-for="option in options"
       :key="option.value"

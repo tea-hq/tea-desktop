@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T extends string | number">
 import { computed, nextTick, ref } from 'vue'
 import TeaMenu, { type TeaMenuItem, type TeaMenuPlacement } from './TeaMenu.vue'
-import type { TeaSelectOption } from './TeaSelect.vue'
+import type { TeaSelectOption } from './selectTypes'
 
 const props = withDefaults(
   defineProps<{
@@ -13,6 +13,7 @@ const props = withDefaults(
     disabled?: boolean
     invalid?: boolean
     size?: 'small' | 'default'
+    appearance?: 'menu' | 'field'
     menuPlacement?: TeaMenuPlacement
   }>(),
   {
@@ -21,6 +22,7 @@ const props = withDefaults(
     disabled: false,
     invalid: false,
     size: 'default',
+    appearance: 'menu',
     menuPlacement: 'down',
   },
 )
@@ -29,6 +31,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T | null] }>()
 const trigger = ref<HTMLButtonElement | null>(null)
 const menu = ref<InstanceType<typeof TeaMenu> | null>(null)
 const open = ref(false)
+const menuMinWidth = ref<number | undefined>()
 const selectedOption = computed(() =>
   props.options.find((option) => String(option.value) === String(props.modelValue)),
 )
@@ -47,6 +50,8 @@ function showMenu(): void {
   void nextTick(() => {
     const anchor = trigger.value
     if (!anchor) return
+    const width = anchor.getBoundingClientRect().width
+    menuMinWidth.value = props.appearance === 'field' && width > 0 ? width : undefined
     menu.value?.show({ currentTarget: anchor, target: anchor } as unknown as Event)
   })
 }
@@ -91,8 +96,11 @@ function hide(): void {
       :aria-invalid="invalid || undefined"
       :disabled="disabled"
       :class="[
-        'tea-menu-select__trigger inline-flex min-w-0 items-center gap-1 rounded-control border border-transparent bg-transparent text-left text-dim outline-none transition-colors hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus disabled:cursor-not-allowed disabled:text-disabled motion-reduce:transition-none',
-        size === 'small' ? 'min-h-8 px-2 text-sm' : 'min-h-9 px-2.5 text-base',
+        'tea-menu-select__trigger inline-flex min-w-0 items-center gap-1 rounded-control text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed motion-reduce:transition-none',
+        appearance === 'field'
+          ? 'min-h-10 border border-line bg-canvas px-3.5 text-fg hover:bg-panel focus-visible:border-fg focus-visible:bg-canvas focus-visible:text-fg disabled:bg-panel disabled:text-disabled'
+          : 'min-h-9 border border-transparent bg-transparent px-2.5 text-dim hover:bg-hover hover:text-fg focus-visible:bg-hover focus-visible:text-fg focus-visible:outline-focus disabled:text-disabled',
+        size === 'small' && 'min-h-8 px-2 text-sm',
         invalid ? 'text-danger focus-visible:outline-danger' : '',
       ]"
       @click="toggleMenu"
@@ -111,6 +119,7 @@ function hide(): void {
       :items="menuItems"
       popup
       :placement="menuPlacement"
+      :min-width="menuMinWidth"
       :label="label"
       @select="selectValue"
       @hide="hide"

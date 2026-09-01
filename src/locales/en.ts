@@ -434,6 +434,13 @@ export default {
       english: 'English',
       chinese: '中文',
     },
+    appearance: {
+      title: 'Appearance',
+      description: 'Choose whether Tea follows your system appearance or stays in one mode.',
+      system: 'System',
+      light: 'Light',
+      dark: 'Dark',
+    },
     defaultAgent: {
       title: 'Default Agent',
       description: 'Used when you start a new conversation.',

@@ -116,7 +116,7 @@ function messageSelectedUser(): void {
     </ul>
     <div
       v-if="selectedUser"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-inverse/30 p-6"
+      class="fixed inset-0 z-20 flex items-center justify-center bg-scrim/30 p-6"
       @click.self="selectedUser = null"
     >
       <section class="w-full max-w-sm rounded-overlay border border-line bg-canvas p-6">

@@ -74,7 +74,7 @@ describe('Tea primitives', () => {
     expect(wrapper.get('button').attributes('aria-label')).toBe('Close')
   })
 
-  it('emits selected values from selects', async () => {
+  it('keeps the select compatibility entry point on the application menu', async () => {
     const wrapper = mountTea(TeaSelect, {
       props: {
         modelValue: 'tea',
@@ -86,8 +86,13 @@ describe('Tea primitives', () => {
       },
     })
 
-    await wrapper.get('select').setValue('codex')
-    await wrapper.vm.$nextTick()
+    expect(wrapper.find('select').exists()).toBe(false)
+    await wrapper.get('[role="combobox"]').trigger('click')
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text() === 'Codex')!
+      .trigger('click')
+
     expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
   })
 
@@ -110,6 +115,36 @@ describe('Tea primitives', () => {
       .find((item) => item.text() === 'Codex')!
       .trigger('click')
     expect(wrapper.emitted('update:modelValue')).toEqual([['codex']])
+  })
+
+  it('matches field menu width to its trigger', async () => {
+    const wrapper = mountTea(TeaMenuSelect, {
+      props: {
+        modelValue: 'tea',
+        label: 'Runtime',
+        appearance: 'field',
+        options: [{ value: 'tea', label: 'Tea' }],
+      },
+    })
+    const trigger = wrapper.get('[role="combobox"]').element as HTMLElement
+    Object.defineProperty(trigger, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 40,
+        right: 340,
+        bottom: 80,
+        left: 40,
+        width: 300,
+        height: 40,
+        x: 40,
+        y: 40,
+        toJSON: () => {},
+      }),
+    })
+
+    await wrapper.get('[role="combobox"]').trigger('click')
+
+    expect(wrapper.get('[role="menu"]').attributes('style')).toContain('min-width: 300px')
   })
 
   it('places requested popup menus above their trigger and clamps them to the viewport', async () => {
