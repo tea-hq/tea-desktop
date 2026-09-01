@@ -15,6 +15,7 @@
 
 - 一份规范化的 API 操作目录；
 - 一个固定 Base URL；
+- 一个可选的插件图标地址（`iconUrl`）；
 - 一种 Center 支持的鉴权模式；
 - 一个只保存在 Center 的加密凭据引用；
 - 一个启用状态。
@@ -126,7 +127,7 @@ sequenceDiagram
 
 第一期已支持 OpenAPI 3、Swagger 2 和 Postman 导入，以及 Bearer、API Key、
 Basic 和 HMAC-SHA256 Timestamp 鉴权。Center 管理页支持导入、编辑、启用、
-禁用和删除；Desktop 在认证启动时同步，不按会话或请求频繁轮询。
+禁用和删除，并可配置插件图标地址；Desktop 在认证启动时同步，不按会话或请求频繁轮询。
 
 第一期明确不做插件版本/回滚、健康检查、Workspace/Agent Role 细粒度授权和
 完整审计存储。`AuditSink` 已作为扩展边界保留，当前生产组合使用空实现。

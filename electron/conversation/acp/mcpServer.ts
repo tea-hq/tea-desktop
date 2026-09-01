@@ -80,6 +80,7 @@ function toMcpTool(definition: HostToolDefinition): Tool {
   return {
     name: definition.name,
     description: definition.description,
+    ...(definition.iconUrl ? { icons: [{ src: definition.iconUrl }] } : {}),
     inputSchema: structuredClone(definition.inputSchema) as Tool['inputSchema'],
     outputSchema: structuredClone(definition.outputSchema) as Tool['outputSchema'],
   }

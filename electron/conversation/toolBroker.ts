@@ -361,6 +361,7 @@ export class ConversationToolBroker {
       !source.version.trim() ||
       source.version.length > MAX_TOOL_VERSION_CHARS ||
       !source.description.trim() ||
+      (source.iconUrl !== undefined && !validIconURL(source.iconUrl)) ||
       source.description.length > MAX_TOOL_DESCRIPTION_CHARS
     ) {
       throw new ConversationRuntimeError('invalidConfiguration', 'HostTool metadata is invalid')
@@ -483,6 +484,27 @@ export class ConversationToolBroker {
     if (this.shutDown) {
       throw new ConversationRuntimeError('shutDown', 'ConversationToolBroker has shut down')
     }
+  }
+}
+
+function validIconURL(value: string): boolean {
+  if (
+    typeof value !== 'string' ||
+    !value ||
+    value.length > 2_048 ||
+    value.trim() !== value ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  )
+    return false
+  try {
+    const parsed = new URL(value)
+    return (
+      (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+      !parsed.username &&
+      !parsed.password
+    )
+  } catch {
+    return false
   }
 }
 

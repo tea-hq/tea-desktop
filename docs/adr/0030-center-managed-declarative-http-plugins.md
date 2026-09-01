@@ -17,8 +17,9 @@ Tea 需要让所有 Agent 访问租户的 Jira、Wiki、GitLab 和未知内部�
 ## 决策
 
 使用 Center 托管的声明式 HTTP 插件：管理员导入 OpenAPI/Swagger/Postman，
-配置固定 Base URL、鉴权模式和 write-only 凭据。Center 规范化为 operation
-目录并保存租户级配置；凭据使用现有 encrypted secret store 保存。
+配置固定 Base URL、鉴权模式、可选 `iconUrl` 和 write-only 凭据。Center
+规范化为 operation 目录并保存租户级配置；凭据使用现有 encrypted secret
+store 保存。`iconUrl` 仅用于插件/工具展示元数据，不参与上游请求或鉴权。
 
 Desktop 在认证启动和租户切换时获取已启用目录。每个 operation 在 Electron
 main 中投影为命名 HostTool，并作为 mandatory tool 合并到每个新建会话。

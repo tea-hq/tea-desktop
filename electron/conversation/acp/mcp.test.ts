@@ -10,6 +10,7 @@ const TOOL: HostToolDefinition = {
   name: 'load_channel_messages',
   version: '1.0.0',
   description: 'Loads a bounded page of channel messages.',
+  iconUrl: 'https://example.test/tool.png',
   inputSchema: {
     type: 'object',
     additionalProperties: false,
@@ -36,6 +37,7 @@ describe('AcpConversationMcpServer', () => {
           {
             name: TOOL.name,
             description: TOOL.description,
+            icons: [{ src: TOOL.iconUrl }],
             inputSchema: TOOL.inputSchema,
             outputSchema: TOOL.outputSchema,
           },

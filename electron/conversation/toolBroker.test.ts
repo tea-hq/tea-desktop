@@ -188,6 +188,9 @@ describe('ConversationToolBroker', () => {
 
   it('validates definitions and generated call ids at the owner boundary', async () => {
     const broker = new ConversationToolBroker(vi.fn(), { createCallId: () => 'same-call' })
+    expect(() =>
+      broker.configureConversation('conversation-1', [{ ...TOOL, iconUrl: 'javascript:alert(1)' }]),
+    ).toThrowError(expect.objectContaining({ code: 'invalidConfiguration' }))
     expect(() => broker.configureConversation('conversation-1', [TOOL, TOOL])).toThrowError(
       expect.objectContaining({ code: 'invalidConfiguration' }),
     )

@@ -6,8 +6,10 @@
 ## 1. 领域模型
 
 `PluginIntegration` 是租户下的可执行 API 配置，核心字段包括：`id`、
-`tenant_id`、展示信息、`source_format`、`base_url`、鉴权类型/Header、
-`credential_ref`、`enabled` 和规范化 `catalog`。
+`tenant_id`、展示信息、可选 `icon_url`、`source_format`、`base_url`、鉴权类型/Header、
+`credential_ref`、`enabled` 和规范化 `catalog`。`icon_url` 只接受绝对
+`http/https` 地址，发布到 endpoint 目录并投影为 MCP tool icon；空值使用客户端
+默认图标。
 
 `catalog.operations[]` 描述稳定的 `id`、名称、说明、HTTP method/path、参数、
 请求/响应 Schema，以及 `readOnly`、`requiresApproval`、`idempotent` 提示。
@@ -55,7 +57,7 @@ Desktop 接口只接受 endpoint session：
 
 - `contracts.ts` 定义与 Center API 对齐的安全 DTO；
 - `pluginStore.ts` 处理按租户加载、竞态丢弃、导入、更新、启停和删除；
-- `PluginEditor.vue` 读取 JSON 文档并编辑 Base URL、鉴权与 write-only 凭据；
+- `PluginEditor.vue` 读取 JSON 文档并编辑图标地址、Base URL、鉴权与 write-only 凭据；
 - `PluginPanel.vue` 展示启用状态、鉴权配置和规范化操作列表；
 - `TenantDetailPage.vue` 将插件中心放入租户详情页。
 
@@ -89,6 +91,10 @@ automatic references，并按 `name + version` 去重。`RuntimeHostToolCatalog`
   "outputSchema": { "type": "object", "properties": { "statusCode": {} } }
 }
 ```
+
+插件图标作为工具元数据单独传递，不进入请求参数或凭据。默认 bootstrap 的
+Overmind 配置使用：
+`https://yx-web-nosdn.netease.im/common/a1d7a178ca0d42d05d92555abbc628ea/overmind.png`。
 
 哈希由 `pluginId + operationId` 生成，避免重名；参数 Schema 使用无原型属性表，
 可安全处理 `__proto__` 等外部参数名。`ConversationToolBroker` 在执行前检查

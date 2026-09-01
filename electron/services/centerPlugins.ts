@@ -15,6 +15,7 @@ const TOOL_VERSION = '1'
 const MAX_PLUGINS = 64
 const MAX_TOOLS = 127
 const MAX_TEXT = 4_096
+const MAX_ICON_URL = 2_048
 const IDENTIFIER = /^[A-Za-z0-9._-]{1,256}$/
 
 interface CenterPluginClient {
@@ -140,6 +141,7 @@ function parsePluginCatalog(value: unknown): Map<string, PluginTool> {
     const pluginId = requiredIdentifier(pluginValue.pluginId)
     const displayName = requiredText(pluginValue.displayName)
     const pluginDescription = optionalText(pluginValue.description)
+    const iconUrl = optionalIconURL(pluginValue.iconUrl)
     if (!Array.isArray(pluginValue.operations)) throw new Error('invalid plugin operations')
     for (const operationValue of pluginValue.operations) {
       const operation = parseOperation(operationValue)
@@ -160,6 +162,7 @@ function parsePluginCatalog(value: unknown): Map<string, PluginTool> {
           name,
           version: TOOL_VERSION,
           description,
+          ...(iconUrl ? { iconUrl } : {}),
           inputSchema: inputSchema(operation),
           outputSchema: pluginOutputSchema(),
         },
@@ -314,6 +317,29 @@ function requiredText(value: unknown): string {
 function optionalText(value: unknown): string {
   if (value === undefined || value === '') return ''
   return requiredText(value)
+}
+
+function optionalIconURL(value: unknown): string {
+  if (value === undefined || value === '') return ''
+  if (
+    typeof value !== 'string' ||
+    value.length > MAX_ICON_URL ||
+    value.trim() !== value ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  )
+    throw new Error('invalid icon URL')
+  try {
+    const parsed = new URL(value)
+    if (
+      (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') ||
+      parsed.username ||
+      parsed.password
+    )
+      throw new Error('invalid icon URL')
+  } catch {
+    throw new Error('invalid icon URL')
+  }
+  return value
 }
 
 function isRecord(value: unknown): value is Record<string, ConversationJson> {

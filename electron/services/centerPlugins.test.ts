@@ -28,6 +28,8 @@ describe('ElectronCenterPluginService', () => {
     expect(definitions).toHaveLength(1)
     expect(definitions[0]).toMatchObject({
       version: '1',
+      iconUrl:
+        'https://yx-web-nosdn.netease.im/common/a1d7a178ca0d42d05d92555abbc628ea/overmind.png',
       inputSchema: {
         properties: { productId: { type: 'string', default: '263' }, jiraKey: { type: 'string' } },
       },
@@ -173,6 +175,7 @@ function pluginCatalog() {
     pluginId: 'plugin-a',
     displayName: 'Overmind',
     description: 'Work item platform',
+    iconUrl: 'https://yx-web-nosdn.netease.im/common/a1d7a178ca0d42d05d92555abbc628ea/overmind.png',
     enabled: true,
     operations: [
       {
