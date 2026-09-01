@@ -118,7 +118,7 @@ defineExpose({ focus })
     class="agent-composer shrink-0 px-3 py-3 sm:px-5 sm:py-4"
     :class="centered ? 'agent-composer--centered' : ''"
   >
-    <div class="mx-auto w-full max-w-3xl">
+    <div class="agent-composer__content mx-auto w-full">
       <ChannelSourceTray
         v-if="profile.showSources"
         :sources="sources ?? []"
@@ -242,6 +242,9 @@ defineExpose({ focus })
 <style scoped>
 .agent-composer {
   background: var(--tea-canvas);
+}
+.agent-composer__content {
+  max-width: var(--agent-conversation-content-width);
 }
 .agent-composer--centered {
   padding-block: 0.75rem 1.5rem;

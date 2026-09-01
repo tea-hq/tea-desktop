@@ -154,6 +154,10 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
+.agent-conversation-surface {
+  --agent-conversation-content-width: 735px;
+}
+
 .agent-conversation-surface--empty :deep(.agent-composer) {
   flex: 0 1 auto;
   width: 100%;

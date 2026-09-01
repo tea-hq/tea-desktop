@@ -134,7 +134,7 @@ function loadOlder(): void {
       :title="t('messages.empty')"
       icon="i-mdi-message-outline"
     />
-    <div v-else class="conversation-turns mx-auto flex w-full max-w-3xl flex-col gap-8">
+    <div v-else class="conversation-turns mx-auto flex w-full flex-col gap-8">
       <ConversationTurnView
         v-for="(turn, turnIndex) in turns"
         :key="turn.id"
@@ -157,5 +157,6 @@ function loadOlder(): void {
 
 .conversation-turns {
   min-width: 0;
+  max-width: var(--agent-conversation-content-width);
 }
 </style>
