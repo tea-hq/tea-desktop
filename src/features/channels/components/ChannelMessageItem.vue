@@ -86,6 +86,8 @@ function formatTime(value: number): string {
           <ChannelMessageActions
             class="mt-0.5"
             :open-up="menuOpenUp"
+            :sent-by-current-user="message.sentByCurrentUser"
+            :message-state="message.state"
             :active-conversation="activeConversation"
             :recent-conversations="recentConversations"
             :current-session-available="currentSessionAvailable"

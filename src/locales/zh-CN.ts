@@ -278,6 +278,12 @@ export default {
     message: {
       revoked: '该消息已被撤回。',
       actions: '消息操作',
+      reply: '回复',
+      forward: '转发',
+      quickReaction: '快捷评论',
+      moreActions: '更多消息操作',
+      revoke: '撤回',
+      delete: '删除',
     },
     members: '{count} 位成员',
     today: '今天',

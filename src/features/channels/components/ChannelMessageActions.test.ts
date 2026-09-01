@@ -25,10 +25,18 @@ const runtime: RuntimeDescriptor = {
   status: 'ready',
 }
 
-function mountActions(openUp = false) {
+function mountActions(
+  options: {
+    openUp?: boolean
+    sentByCurrentUser?: boolean
+    messageState?: 'active' | 'revoked'
+  } = {},
+) {
   return mount(ChannelMessageActions, {
     props: {
-      openUp,
+      openUp: options.openUp ?? false,
+      sentByCurrentUser: options.sentByCurrentUser ?? true,
+      messageState: options.messageState ?? 'active',
       activeConversation,
       recentConversations: [],
       currentSessionAvailable: true,
@@ -49,18 +57,24 @@ afterEach(() => {
 })
 
 describe('ChannelMessageActions', () => {
-  it('exposes a compact message-level toolbar with an accessible Agent action', () => {
+  it('exposes accessible quick actions and Agent entry points', async () => {
     wrapper = mountActions()
 
     expect(wrapper.get('[role="toolbar"]').attributes('aria-label')).toBe('Message actions')
-    const trigger = wrapper.get('button[aria-label="Work with Agent"]')
-    expect(trigger.classes()).toContain('channel-message-actions__button')
-    expect(trigger.attributes('aria-haspopup')).toBe('menu')
-    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Reply',
+      'Forward',
+      'Quick reaction',
+      'Work with Agent',
+      'More message actions',
+    ])
+
+    await wrapper.get('button[aria-label="Reply"]').trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['reply']])
   })
 
   it('forwards the selected message action and closes its menu', async () => {
-    wrapper = mountActions(true)
+    wrapper = mountActions({ openUp: true })
 
     const trigger = wrapper.get('button[aria-label="Work with Agent"]')
     await trigger.trigger('click')
@@ -74,5 +88,40 @@ describe('ChannelMessageActions', () => {
     expect(wrapper.emitted('forwardToAgent')).toEqual([['current', undefined]])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
     expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('groups destructive actions in the overflow menu for sent messages', async () => {
+    wrapper = mountActions({ sentByCurrentUser: true })
+
+    const trigger = wrapper.get('button[aria-label="More message actions"]')
+    await trigger.trigger('click')
+
+    const menu = wrapper.get('[role="menu"]')
+    expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
+      'Reply',
+      'Forward',
+      'Quick reaction',
+      'Revoke message',
+      'Delete message',
+    ])
+    expect(menu.findAll('[role="menuitem"]')[4]?.classes()).toContain('text-danger')
+
+    await menu.findAll('[role="menuitem"]')[4]!.trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['delete']])
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+  })
+
+  it('omits revoke for received messages and leaves only delete after revocation', async () => {
+    wrapper = mountActions({ sentByCurrentUser: false })
+    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
+    expect(wrapper.get('[role="menu"]').text()).not.toContain('Revoke message')
+    wrapper.unmount()
+
+    wrapper = mountActions({ messageState: 'revoked' })
+    expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'More message actions',
+    ])
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('[role="menu"]').text()).toBe('Delete message')
   })
 })

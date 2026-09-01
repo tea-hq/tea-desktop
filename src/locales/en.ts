@@ -292,6 +292,12 @@ export default {
     message: {
       revoked: 'This message was revoked.',
       actions: 'Message actions',
+      reply: 'Reply',
+      forward: 'Forward',
+      quickReaction: 'Quick reaction',
+      moreActions: 'More message actions',
+      revoke: 'Revoke message',
+      delete: 'Delete message',
     },
     members: '{count} members',
     today: 'Today',
