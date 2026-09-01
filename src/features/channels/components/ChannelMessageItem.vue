@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
-import { TeaButton, TeaIconButton } from '@/shared/ui'
+import { TeaButton } from '@/shared/ui'
 import type { ConversationSummary } from '@/features/conversation/contracts'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
 import type { Message } from '../contracts'
-import ChannelAgentMenu from './ChannelAgentMenu.vue'
+import ChannelMessageActions from './ChannelMessageActions.vue'
 
 defineProps<{
   message: Message
@@ -22,8 +21,6 @@ const emit = defineEmits<{
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
 }>()
 const { t } = useI18n()
-const menuOpen = ref(false)
-const menuAnchor = ref<HTMLElement | null>(null)
 
 function initials(name: string): string {
   return [...name].slice(0, 2).join('').toUpperCase()
@@ -32,20 +29,11 @@ function initials(name: string): string {
 function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
 }
-
-function forwardToAgent(action: 'current' | 'conversation' | 'runtime' | 'all', id?: string): void {
-  emit('forwardToAgent', action, id)
-  menuOpen.value = false
-}
-
-function toggleMenu(): void {
-  menuOpen.value = !menuOpen.value
-}
 </script>
 
 <template>
   <article
-    class="group relative flex px-5 py-1.5"
+    class="channel-message group relative flex px-5 py-1.5"
     :class="message.sentByCurrentUser ? 'justify-end' : 'justify-start'"
     :data-message-id="message.ref.messageClientId"
     :data-message-direction="message.sentByCurrentUser ? 'outgoing' : 'incoming'"
@@ -78,7 +66,7 @@ function toggleMenu(): void {
         </div>
 
         <div
-          class="mt-1 flex min-w-0 items-center gap-1.5"
+          class="mt-1 flex min-w-0 items-start gap-1.5"
           :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
         >
           <div
@@ -95,33 +83,16 @@ function toggleMenu(): void {
             {{ t('channels.message.revoked') }}
           </p>
 
-          <div
-            class="relative z-20 flex shrink-0 rounded-pill bg-canvas p-0.5 opacity-0 ring-2 ring-focus ring-offset-2 ring-offset-canvas transition-opacity group-hover:opacity-100 focus-within:opacity-100"
-          >
-            <span ref="menuAnchor">
-              <TeaIconButton
-                size="small"
-                :label="t('channels.task.openMenu')"
-                icon="i-mdi-creation-outline"
-                :aria-expanded="menuOpen"
-                @click.stop="toggleMenu"
-              />
-            </span>
-            <ChannelAgentMenu
-              v-if="menuOpen"
-              :anchor="menuAnchor"
-              :active-conversation="activeConversation"
-              :recent-conversations="recentConversations"
-              :current-session-available="currentSessionAvailable"
-              :runtimes="runtimes"
-              :default-runtime-id="defaultRuntimeId"
-              @add-to-current="forwardToAgent('current')"
-              @select-conversation="forwardToAgent('conversation', $event)"
-              @create-runtime="forwardToAgent('runtime', $event)"
-              @view-all="forwardToAgent('all')"
-              @close="menuOpen = false"
-            />
-          </div>
+          <ChannelMessageActions
+            class="mt-0.5"
+            :open-up="menuOpenUp"
+            :active-conversation="activeConversation"
+            :recent-conversations="recentConversations"
+            :current-session-available="currentSessionAvailable"
+            :runtimes="runtimes"
+            :default-runtime-id="defaultRuntimeId"
+            @forward-to-agent="(action, id) => emit('forwardToAgent', action, id)"
+          />
         </div>
 
         <div v-if="message.reactions.length" class="mt-1.5 flex gap-1">
@@ -141,3 +112,12 @@ function toggleMenu(): void {
     </div>
   </article>
 </template>
+
+<style scoped>
+@media (hover: hover) and (pointer: fine) {
+  .channel-message:hover :deep(.channel-message-actions) {
+    pointer-events: auto;
+    opacity: 1;
+  }
+}
+</style>

@@ -71,6 +71,7 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
   constructor(
     private readonly service: RuntimeConversationService,
     private readonly workspaceId: string,
+    private readonly mandatoryHostTools: () => Promise<RuntimeHostToolReference[]> = async () => [],
   ) {}
 
   async listRuntimes(): Promise<RuntimeDescriptor[]> {
@@ -94,6 +95,8 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
   async createConversation(
     request: CreateConversationCommand,
   ): Promise<CreateConversationResponse> {
+    const automatic = await this.mandatoryHostTools()
+    const hostTools = mergeHostToolReferences(request.hostTools, automatic)
     const result = await this.service.createConversation({
       runtimeId: request.runtimeId,
       workspaceId: this.workspaceId,
@@ -103,7 +106,7 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
         ? {}
         : { workingDirectory: request.workingDirectory }),
       channelBinding: request.channelBinding,
-      hostTools: request.hostTools,
+      hostTools,
     })
     return {
       handle: {
@@ -184,4 +187,15 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
   async remove(conversationId: string): Promise<void> {
     return this.service.remove(conversationId)
   }
+}
+
+function mergeHostToolReferences(
+  selected: readonly RuntimeHostToolReference[],
+  automatic: readonly RuntimeHostToolReference[],
+): RuntimeHostToolReference[] {
+  const merged = new Map<string, RuntimeHostToolReference>()
+  for (const reference of [...selected, ...automatic]) {
+    merged.set(`${reference.name}\0${reference.version}`, structuredClone(reference))
+  }
+  return [...merged.values()]
 }

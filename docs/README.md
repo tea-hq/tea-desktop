@@ -16,6 +16,15 @@ host is now Electron.
   defines disposable subject sessions and durable Channel driving-turn facts.
 - `docs/adr/0023-use-domain-command-handler-registry.md` records the current
   Electron IPC routing decision.
+- `docs/design/center-managed-enterprise-plugins.md` explains how Center-managed
+  enterprise APIs become automatic Agent tools, with Mermaid flow and sequence
+  diagrams.
+- `docs/design/center-managed-enterprise-plugins-implementation.md` maps that
+  architecture to the three repositories, APIs, deployment settings, and
+  failure semantics.
+- `docs/adr/0030-center-managed-declarative-http-plugins.md` records why Tea
+  uses declarative HTTP plugins instead of a generic proxy or required MCP
+  deployment.
 - `docs/plans/2026-08-28-acp-foundation.md` records the ACP foundation and
   runtime checkpoints.
 - `docs/plans/2026-08-28-acp-mcp-attachment.md` is the active ACP MCP

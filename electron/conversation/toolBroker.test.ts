@@ -201,6 +201,38 @@ describe('ConversationToolBroker', () => {
     broker.cancelConversation('conversation-1')
     await expect(first).resolves.toMatchObject({ status: 'failure', code: 'cancelled' })
   })
+
+  it('executes main-owned tools without renderer dispatch and aborts their work', async () => {
+    let executionSignal: AbortSignal | undefined
+    const handler = {
+      handles: vi.fn((name: string) => name === TOOL.name),
+      execute: vi.fn(
+        (_call: HostToolCall, signal: AbortSignal) =>
+          new Promise<never>((_resolve, reject) => {
+            executionSignal = signal
+            signal.addEventListener(
+              'abort',
+              () => reject(new DOMException('aborted', 'AbortError')),
+              {
+                once: true,
+              },
+            )
+          }),
+      ),
+    }
+    const harness = createHarness({ mainHandler: handler })
+    harness.broker.configureConversation('conversation-1', [TOOL])
+    const controller = new AbortController()
+    const pending = harness.broker
+      .openScope('conversation-1')
+      .call('lookup_message', { id: 'message-1' }, { signal: controller.signal })
+
+    controller.abort()
+
+    await expect(pending).resolves.toMatchObject({ status: 'failure', code: 'cancelled' })
+    expect(executionSignal?.aborted).toBe(true)
+    expect(harness.calls).toEqual([])
+  })
 })
 
 function createHarness(options: ConversationToolBrokerOptions = {}) {

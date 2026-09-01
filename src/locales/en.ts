@@ -291,6 +291,7 @@ export default {
     },
     message: {
       revoked: 'This message was revoked.',
+      actions: 'Message actions',
     },
     members: '{count} members',
     today: 'Today',

@@ -16,7 +16,7 @@ const DEFAULT_CALL_TIMEOUT_MS = 60_000
 const DEFAULT_MAX_PENDING_CALLS = 4
 const DEFAULT_MAX_JSON_BYTES = 256 * 1024
 const DEFAULT_MAX_JSON_DEPTH = 16
-const DEFAULT_MAX_TOOL_DEFINITIONS = 32
+const DEFAULT_MAX_TOOL_DEFINITIONS = 128
 const MAX_TOOL_NAME_CHARS = 128
 const MAX_TOOL_VERSION_CHARS = 64
 const MAX_TOOL_DESCRIPTION_CHARS = 4_096
@@ -34,6 +34,11 @@ const FAILURE_CODES = new Set<HostToolFailureCode>([
 
 export type HostToolCallEmitter = (call: HostToolCall) => void
 
+export interface ConversationHostToolHandler {
+  handles(name: string): boolean
+  execute(call: HostToolCall, signal: AbortSignal): Promise<HostToolResult>
+}
+
 export interface ConversationToolBrokerScheduler {
   setTimeout(callback: () => void, delayMs: number): unknown
   clearTimeout(handle: unknown): void
@@ -47,6 +52,7 @@ export interface ConversationToolBrokerOptions {
   maxToolDefinitions?: number
   createCallId?: () => string
   scheduler?: ConversationToolBrokerScheduler
+  mainHandler?: ConversationHostToolHandler
 }
 
 export interface ConversationToolCallOptions {
@@ -83,6 +89,7 @@ interface PendingToolCall {
   signal?: AbortSignal
   onAbort?: () => void
   resolve: (result: HostToolResult) => void
+  abortExecution?: () => void
 }
 
 const DEFAULT_SCHEDULER: ConversationToolBrokerScheduler = {
@@ -102,6 +109,7 @@ export class ConversationToolBroker {
   private readonly maxJsonBytes: number
   private readonly maxJsonDepth: number
   private readonly maxToolDefinitions: number
+  private readonly mainHandler?: ConversationHostToolHandler
   private nextRevision = 1
   private shutDown = false
 
@@ -136,6 +144,7 @@ export class ConversationToolBroker {
     )
     this.createCallId = options.createCallId ?? randomUUID
     this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER
+    this.mainHandler = options.mainHandler
   }
 
   configureConversation(conversationId: string, definitions: HostToolDefinition[]): void {
@@ -310,13 +319,31 @@ export class ConversationToolBroker {
       this.pending.set(callId, pending)
     })
 
+    const call: HostToolCall = {
+      conversationId,
+      callId,
+      name,
+      arguments: structuredClone(argumentsValue),
+    }
     try {
-      this.emitCall({
-        conversationId,
-        callId,
-        name,
-        arguments: structuredClone(argumentsValue),
-      })
+      if (this.mainHandler?.handles(name)) {
+        const controller = new AbortController()
+        const pending = this.pending.get(callId)
+        if (pending) pending.abortExecution = () => controller.abort()
+        void this.mainHandler.execute(call, controller.signal).then(
+          (handled) => {
+            if (!this.pending.has(callId)) return
+            try {
+              this.resolve(handled)
+            } catch {
+              this.settleFailure(callId, 'executionFailed')
+            }
+          },
+          () => this.settleFailure(callId, 'executionFailed'),
+        )
+      } else {
+        this.emitCall(call)
+      }
     } catch {
       this.settleFailure(callId, 'executionFailed')
     }
@@ -383,6 +410,7 @@ export class ConversationToolBroker {
   private settleFailure(callId: string, code: HostToolFailureCode, message?: string): void {
     const pending = this.pending.get(callId)
     if (!pending) return
+    pending.abortExecution?.()
     this.settle(callId, {
       conversationId: pending.conversationId,
       callId,

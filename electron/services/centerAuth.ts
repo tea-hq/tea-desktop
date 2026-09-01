@@ -250,6 +250,29 @@ export class ElectronCenterAuthService {
     return this.authenticatedRequest('/v1/endpoint/runtime-configuration')
   }
 
+  async listEnabledPlugins(signal?: AbortSignal): Promise<unknown> {
+    return this.authenticatedRequest('/v1/endpoint/plugins', { signal, maxResponseBytes: 4 << 20 })
+  }
+
+  async callPlugin(
+    pluginId: string,
+    operationId: string,
+    argumentsValue: Record<string, unknown>,
+    conversationId: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    return this.authenticatedRequest(
+      `/v1/endpoint/plugins/${encodeURIComponent(pluginId)}/operations/${encodeURIComponent(operationId)}`,
+      {
+        method: 'POST',
+        body: { arguments: argumentsValue },
+        headers: { 'x-conversation-id': conversationId },
+        signal,
+        maxResponseBytes: 5 << 20,
+      },
+    )
+  }
+
   private async handleCallback(
     request: IncomingMessage,
     response: ServerResponse,
@@ -347,20 +370,29 @@ export class ElectronCenterAuthService {
     await this.acceptBootstrap(bootstrap)
   }
 
-  private async authenticatedRequest<T>(endpoint: string): Promise<T> {
+  private async authenticatedRequest<T>(
+    endpoint: string,
+    options: {
+      method?: string
+      body?: unknown
+      headers?: Record<string, string>
+      signal?: AbortSignal
+      maxResponseBytes?: number
+    } = {},
+  ): Promise<T> {
     if (!this.accessToken) {
       const refresh = this.loadSecret(this.file.encryptedRefresh)
       if (!refresh) throw serviceError('recoveryRequired', false)
       await this.refreshSession(refresh)
     }
     try {
-      return await this.request<T>(endpoint, { token: this.accessToken! })
+      return await this.request<T>(endpoint, { ...options, token: this.accessToken! })
     } catch (error) {
       if (errorCode(error) !== 'recoveryRequired') throw error
       const refresh = this.loadSecret(this.file.encryptedRefresh)
       if (!refresh) throw error
       await this.refreshSession(refresh)
-      return this.request<T>(endpoint, { token: this.accessToken! })
+      return this.request<T>(endpoint, { ...options, token: this.accessToken! })
     }
   }
 
@@ -447,7 +479,14 @@ export class ElectronCenterAuthService {
 
   private async request<T = unknown>(
     endpoint: string,
-    options: { method?: string; body?: unknown; token?: string } = {},
+    options: {
+      method?: string
+      body?: unknown
+      token?: string
+      headers?: Record<string, string>
+      signal?: AbortSignal
+      maxResponseBytes?: number
+    } = {},
   ): Promise<T> {
     const origin = centerOrigin()
     if (!origin)
@@ -455,17 +494,22 @@ export class ElectronCenterAuthService {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 15_000)
     try {
+      const signal = options.signal
+        ? AbortSignal.any([controller.signal, options.signal])
+        : controller.signal
       const response = await fetch(new URL(endpoint, `${origin}/`).toString(), {
         method: options.method || 'GET',
         headers: {
           ...(options.body ? { 'content-type': 'application/json' } : {}),
           ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+          ...options.headers,
         },
         ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-        signal: controller.signal,
+        signal,
       })
       const bytes = new Uint8Array(await response.arrayBuffer())
-      if (bytes.byteLength > 512 * 1024) throw serviceError('protocolFailure', false)
+      if (bytes.byteLength > (options.maxResponseBytes ?? 512 * 1024))
+        throw serviceError('protocolFailure', false)
       const parsed: unknown = bytes.length ? JSON.parse(Buffer.from(bytes).toString('utf8')) : null
       if (!response.ok) {
         const code =
@@ -480,6 +524,7 @@ export class ElectronCenterAuthService {
       }
       return parsed as T
     } catch (error) {
+      if (isAbortError(error) && options.signal?.aborted) throw error
       if (isAbortError(error) || error instanceof TypeError)
         throw serviceError('centerUnavailable', true)
       throw error

@@ -52,4 +52,37 @@ describe('RuntimeConversationCommandService', () => {
     })
     expect(result.handle).not.toHaveProperty('binding')
   })
+
+  it('merges mandatory Center tools into every creation without duplicates', async () => {
+    const createConversation = vi.fn(async () => ({
+      handle: {
+        conversationId: 'conversation-1',
+        runtimeId: 'external.codex',
+        nativeSessionId: 'session-1',
+        binding: {} as never,
+      },
+      summary: {
+        conversationId: 'conversation-1',
+        runtimeId: 'external.codex',
+        workspaceId: 'workspace-1',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    }))
+    const service = { createConversation } as unknown as RuntimeConversationService
+    const mandatory = { name: 'tea_plugin_issues_a1', version: '1' }
+    const commands = new RuntimeConversationCommandService(service, 'workspace-1', async () => [
+      mandatory,
+    ])
+
+    await commands.createConversation({
+      runtimeId: 'external.codex',
+      idempotencyKey: 'create-1',
+      hostTools: [mandatory],
+    })
+
+    expect(createConversation).toHaveBeenCalledWith(
+      expect.objectContaining({ hostTools: [mandatory] }),
+    )
+  })
 })

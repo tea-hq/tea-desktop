@@ -15,7 +15,11 @@ import {
   type RuntimeHostToolReference,
   type RuntimeHostToolResolver,
 } from './service'
-import { ConversationToolBroker } from './toolBroker'
+import { ConversationToolBroker, type ConversationHostToolHandler } from './toolBroker'
+
+export interface MandatoryHostToolProvider {
+  definitions(): Promise<HostToolDefinition[]>
+}
 
 export interface ElectronConversationHostEvents {
   conversationEvent(event: ConversationEvent): void
@@ -31,12 +35,17 @@ export interface ElectronConversationHostOptions {
   events: ElectronConversationHostEvents
   registry?: AcpRuntimeRegistryOptions
   modelProviderResolver?: RuntimeModelProviderResolver
+  mandatoryHostTools?: MandatoryHostToolProvider
+  mainHostToolHandler?: ConversationHostToolHandler
 }
 
 export class RuntimeHostToolCatalog implements RuntimeHostToolResolver {
   private readonly definitions = new Map<string, HostToolDefinition>()
 
-  constructor(definitions: readonly HostToolDefinition[]) {
+  constructor(
+    definitions: readonly HostToolDefinition[],
+    private readonly mandatory?: MandatoryHostToolProvider,
+  ) {
     for (const definition of definitions) {
       const key = hostToolKey(definition)
       if (this.definitions.has(key)) {
@@ -50,8 +59,19 @@ export class RuntimeHostToolCatalog implements RuntimeHostToolResolver {
   }
 
   async resolve(references: readonly RuntimeHostToolReference[]): Promise<HostToolDefinition[]> {
+    const definitions = new Map(this.definitions)
+    for (const definition of (await this.mandatory?.definitions()) ?? []) {
+      const key = hostToolKey(definition)
+      if (definitions.has(key)) {
+        throw new ConversationRuntimeError(
+          'invalidConfiguration',
+          `duplicate main-owned HostTool definition: ${definition.name}@${definition.version}`,
+        )
+      }
+      definitions.set(key, structuredClone(definition))
+    }
     return references.map((reference) => {
-      const definition = this.definitions.get(hostToolKey(reference))
+      const definition = definitions.get(hostToolKey(reference))
       if (!definition) {
         throw new ConversationRuntimeError(
           'notConfigured',
@@ -60,6 +80,13 @@ export class RuntimeHostToolCatalog implements RuntimeHostToolResolver {
       }
       return structuredClone(definition)
     })
+  }
+
+  async mandatoryReferences(): Promise<RuntimeHostToolReference[]> {
+    return ((await this.mandatory?.definitions()) ?? []).map(({ name, version }) => ({
+      name,
+      version,
+    }))
   }
 }
 
@@ -71,8 +98,11 @@ export class ElectronConversationHost {
     private readonly service: RuntimeConversationService,
     private readonly toolBroker: ConversationToolBroker,
     workspaceId: string,
+    hostTools: RuntimeHostToolCatalog,
   ) {
-    this.commands = new RuntimeConversationCommandService(service, workspaceId)
+    this.commands = new RuntimeConversationCommandService(service, workspaceId, () =>
+      hostTools.mandatoryReferences(),
+    )
   }
 
   initialize(): Promise<void> {
@@ -94,7 +124,9 @@ export class ElectronConversationHost {
 export async function createElectronConversationHost(
   options: ElectronConversationHostOptions,
 ): Promise<ElectronConversationHost> {
-  const toolBroker = new ConversationToolBroker((call) => options.events.hostToolCall(call))
+  const toolBroker = new ConversationToolBroker((call) => options.events.hostToolCall(call), {
+    mainHandler: options.mainHostToolHandler,
+  })
   try {
     const runtimes = await createAcpRuntimeRegistry(
       options.workspacePath,
@@ -105,17 +137,18 @@ export async function createElectronConversationHost(
       conversationEvent: (event) => options.events.conversationEvent(event),
       conversationUpdated: (summary) => options.events.conversationUpdated(summary),
     }
+    const hostTools = new RuntimeHostToolCatalog(options.hostTools, options.mandatoryHostTools)
     const service = new RuntimeConversationService(
       new ConversationCatalog(options.catalogPath),
       runtimes,
-      new RuntimeHostToolCatalog(options.hostTools),
+      hostTools,
       undefined,
       undefined,
       toolBroker,
       serviceEvents,
       options.modelProviderResolver,
     )
-    return new ElectronConversationHost(service, toolBroker, options.workspaceId)
+    return new ElectronConversationHost(service, toolBroker, options.workspaceId, hostTools)
   } catch (cause) {
     toolBroker.shutdown()
     throw cause

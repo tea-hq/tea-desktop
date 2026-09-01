@@ -12,6 +12,7 @@ import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
 import { ElectronCredentialService } from './services/credentials'
 import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
+import { ElectronCenterPluginService } from './services/centerPlugins'
 import { ElectronPluginProcessService } from './services/plugins'
 import { ElectronSettingsService } from './services/settings'
 
@@ -59,10 +60,15 @@ function registerIpc(route: DesktopCommandRouter): void {
 
 async function bootstrap(): Promise<void> {
   const settings = new ElectronSettingsService(path.join(app.getPath('userData'), 'settings.json'))
+  let centerPlugins: ElectronCenterPluginService | null = null
   const centerAuth = new ElectronCenterAuthService(
     path.join(app.getPath('userData'), 'center-auth.json'),
-    (state) => events.publish('center-auth-state-changed', state),
+    (state) => {
+      events.publish('center-auth-state-changed', state)
+      void centerPlugins?.synchronize(state).catch(() => undefined)
+    },
   )
+  centerPlugins = new ElectronCenterPluginService(centerAuth)
   const managedWorkspace = new ElectronManagedWorkspaceService(centerAuth, (state) =>
     events.publish('managed-workspace-state-changed', state),
   )
@@ -79,6 +85,8 @@ async function bootstrap(): Promise<void> {
     modelProviderResolver: {
       resolve: (providerId, modelId) => managedWorkspace.resolveModelProvider(providerId, modelId),
     },
+    mandatoryHostTools: { definitions: () => centerPlugins!.mandatoryDefinitions() },
+    mainHostToolHandler: centerPlugins,
   })
   const catalog = new ElectronCatalogService(
     path.join(app.getPath('userData'), 'catalog.json'),
@@ -119,6 +127,7 @@ async function bootstrap(): Promise<void> {
   )
 
   await centerAuth.initialize()
+  await centerPlugins.synchronize().catch(() => undefined)
   await managedWorkspace.refresh().catch(() => undefined)
   await Promise.all([catalog.initialize(), conversationHost.initialize()])
   createWindow()

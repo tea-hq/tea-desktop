@@ -277,6 +277,7 @@ export default {
     },
     message: {
       revoked: '该消息已被撤回。',
+      actions: '消息操作',
     },
     members: '{count} 位成员',
     today: '今天',

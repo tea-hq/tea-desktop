@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { TeaMenu, type TeaMenuItem } from '@/shared/ui'
+import { TeaMenu, type TeaMenuItem, type TeaMenuPlacement } from '@/shared/ui'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 
 const emit = defineEmits<{
@@ -12,14 +12,18 @@ const emit = defineEmits<{
   'view-all': []
   close: []
 }>()
-const props = defineProps<{
-  anchor: HTMLElement | null
-  activeConversation: ConversationSummary | null
-  recentConversations: ConversationSummary[]
-  currentSessionAvailable: boolean
-  runtimes: RuntimeDescriptor[]
-  defaultRuntimeId: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    anchor: HTMLElement | null
+    placement?: TeaMenuPlacement
+    activeConversation: ConversationSummary | null
+    recentConversations: ConversationSummary[]
+    currentSessionAvailable: boolean
+    runtimes: RuntimeDescriptor[]
+    defaultRuntimeId: string | null
+  }>(),
+  { placement: 'down' },
+)
 const { t } = useI18n()
 const menu = ref<InstanceType<typeof TeaMenu> | null>(null)
 const items = computed<TeaMenuItem[]>(() => {
@@ -85,6 +89,7 @@ onMounted(async () => {
     popup
     :items="items"
     :label="t('channels.task.openMenu')"
+    :placement="placement"
     @select="select"
     @hide="emit('close')"
   />
