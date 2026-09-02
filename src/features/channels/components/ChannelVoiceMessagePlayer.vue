@@ -97,7 +97,7 @@ function formatTime(value: number): string {
         <div class="flex min-w-0 items-center justify-between gap-2">
           <span class="shrink-0 text-xs tabular-nums text-subtle">{{ positionText }}</span>
           <TeaMenuSelect
-            class="w-16 shrink-0"
+            class="w-20 shrink-0"
             size="small"
             menu-placement="up"
             :model-value="rate"
