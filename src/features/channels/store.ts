@@ -27,6 +27,8 @@ import type {
   ListChannelMembersRequest,
   MessageRef,
   Message,
+  MessageMention,
+  MessageReceiptDetails,
   MessageSearchPage,
   MessageSearchState,
   OutgoingMessageContent,
@@ -657,15 +659,20 @@ export const useChannelsStore = defineStore('channels', () => {
     }
   }
 
-  async function sendText(text: string, replyTo?: MessageRef): Promise<SendMessageResult | null> {
+  async function sendText(
+    text: string,
+    replyTo?: MessageRef,
+    mentions?: MessageMention[],
+  ): Promise<SendMessageResult | null> {
     const trimmed = text.trim()
     if (!trimmed) return null
-    return sendContent(createTextMessageContent(trimmed), replyTo)
+    return sendContent(createTextMessageContent(trimmed), replyTo, mentions)
   }
 
   async function sendContent(
     content: OutgoingMessageContent,
     replyTo?: MessageRef,
+    mentions?: MessageMention[],
   ): Promise<SendMessageResult | null> {
     const channelRef = activeChannelRef.value
     if (!channelRef || sendingMessage.value) return null
@@ -682,9 +689,15 @@ export const useChannelsStore = defineStore('channels', () => {
             channelRef,
             replyTo,
             content,
+            ...(mentions?.length ? { mentions } : {}),
             operationId,
           } satisfies ReplyMessageRequest)
-        : await client.sendMessage({ channelRef, content, operationId })
+        : await client.sendMessage({
+            channelRef,
+            content,
+            ...(mentions?.length ? { mentions } : {}),
+            operationId,
+          })
       return generation === lifecycleGeneration && transport.value === client ? result : null
     } catch (error) {
       if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
@@ -770,6 +783,16 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function quickComment(request: QuickCommentRequest): Promise<void> {
     await mutateMessage((client) => client.quickComment(request))
+  }
+
+  async function getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
+    const client = requireTransport()
+    try {
+      return structuredClone(await client.getMessageReceiptDetails(messageRef))
+    } catch (error) {
+      errorCode.value = transportErrorCode(error)
+      throw error
+    }
   }
 
   async function openDirectConversation(accountId: string): Promise<ChannelRef> {
@@ -1125,6 +1148,7 @@ export const useChannelsStore = defineStore('channels', () => {
     revokeMessage,
     pinMessage,
     quickComment,
+    getMessageReceiptDetails,
     openDirectConversation,
     dispose,
   }

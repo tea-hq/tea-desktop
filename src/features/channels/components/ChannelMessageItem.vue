@@ -31,6 +31,7 @@ const emit = defineEmits<{
   action: [action: MessageAction]
   toggleSelection: []
   openMerged: []
+  openReceiptDetails: []
 }>()
 const { t } = useI18n()
 
@@ -246,6 +247,32 @@ function selectMessage(): void {
             <span>{{ reaction.count }}</span>
           </TeaButton>
         </div>
+        <TeaButton
+          v-if="
+            message.sentByCurrentUser &&
+            message.receipt &&
+            (message.receipt.readCount !== undefined || message.receipt.unreadCount !== undefined)
+          "
+          appearance="ghost"
+          size="small"
+          class="mt-1 h-6 px-1.5 text-xs text-subtle"
+          @click="emit('openReceiptDetails')"
+        >
+          <span class="i-mdi-check-all size-3.5" aria-hidden="true" />
+          {{
+            t('channels.receipts.summary', {
+              read: message.receipt.readCount ?? 0,
+              unread: message.receipt.unreadCount ?? 0,
+            })
+          }}
+        </TeaButton>
+        <span
+          v-else-if="message.sentByCurrentUser && message.receipt?.readAt"
+          class="mt-1 inline-flex items-center gap-1 text-xs text-subtle"
+        >
+          <span class="i-mdi-check-all size-3.5" aria-hidden="true" />
+          {{ t('channels.receipts.read') }}
+        </span>
       </div>
     </div>
   </article>

@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 import { TeaButton, TeaIconButton, TeaTextarea } from '@/shared/ui'
 
-import type { Channel, ChannelAttachment, Message } from '../contracts'
+import type {
+  Channel,
+  ChannelAttachment,
+  ChannelMember,
+  Message,
+  MessageMention,
+  MessageMentionTarget,
+} from '../contracts'
 import type { ForwardMessageMode } from '../contracts'
+import { collectMessageMentions, type SelectedMessageMention } from '../messageMentions'
 import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelMessageItem from './ChannelMessageItem.vue'
@@ -39,6 +47,8 @@ const props = withDefaults(
     selectedCount?: number
     canForwardIndividual?: boolean
     canForwardMerged?: boolean
+    mentionMembers?: ChannelMember[]
+    mentionMembersLoading?: boolean
   }>(),
   {
     replyTo: null,
@@ -51,6 +61,8 @@ const props = withDefaults(
     selectedCount: 0,
     canForwardIndividual: false,
     canForwardMerged: false,
+    mentionMembers: () => [],
+    mentionMembersLoading: false,
   },
 )
 const emit = defineEmits<{
@@ -63,7 +75,14 @@ const emit = defineEmits<{
   ]
   messageAction: [payload: { message: Message; action: MessageAction }]
   togglePanel: []
-  send: [payload: { text: string; replyTo: Message | null; attachments: ChannelAttachment[] }]
+  send: [
+    payload: {
+      text: string
+      replyTo: Message | null
+      attachments: ChannelAttachment[]
+      mentions: MessageMention[]
+    },
+  ]
   pickAttachments: []
   removeAttachment: [token: string]
   cancelReply: []
@@ -78,21 +97,124 @@ const emit = defineEmits<{
   cancelSelection: []
   forwardSelection: [mode: ForwardMessageMode]
   openMerged: [message: Message]
+  requestMentionMembers: []
+  openReceiptDetails: [message: Message]
 }>()
 const { t } = useI18n()
 const draft = ref('')
+const selectedMentions = ref<SelectedMessageMention[]>([])
+const activeMentionIndex = ref(0)
+const requestedMentionChannel = ref('')
 const container = ref<HTMLElement | null>(null)
 const initialScrollPending = ref(true)
 const prependSnapshot = ref<(TimelineScrollSnapshot & { messageCount: number }) | null>(null)
 
+interface MentionOption {
+  key: string
+  target: MessageMentionTarget
+  label: string
+  name: string
+  detail: string
+}
+
+const mentionContext = computed(() => {
+  if (props.channel.kind !== 'group') return null
+  const match = draft.value.match(/(?:^|\s)@([^\s@]*)$/u)
+  if (!match) return null
+  return {
+    query: (match[1] ?? '').toLocaleLowerCase(),
+    start: draft.value.length - (match[1]?.length ?? 0) - 1,
+    end: draft.value.length,
+  }
+})
+
+const mentionOptions = computed<MentionOption[]>(() => {
+  const context = mentionContext.value
+  if (!context) return []
+  const query = context.query
+  const options: MentionOption[] = []
+  if ('channel'.includes(query)) {
+    options.push({
+      key: 'channel',
+      target: { kind: 'channel' },
+      label: '@channel',
+      name: '@channel',
+      detail: t('channels.mentions.channelDescription'),
+    })
+  }
+  for (const member of props.mentionMembers) {
+    const haystack = `${member.name} ${member.accountId}`.toLocaleLowerCase()
+    if (query && !haystack.includes(query)) continue
+    options.push({
+      key: `user:${member.accountId}`,
+      target: { kind: 'user', accountId: member.accountId },
+      label: `@${member.name}`,
+      name: member.name,
+      detail: member.accountId,
+    })
+    if (options.length >= 8) break
+  }
+  return options
+})
+
+const mentionMenuOpen = computed(() => mentionContext.value !== null)
+
 function submitMessage(): void {
-  if (!draft.value.trim() && !props.attachments.length) return
+  const text = draft.value.trim()
+  if (!text && !props.attachments.length) return
   emit('send', {
-    text: draft.value.trim(),
+    text,
     replyTo: props.replyTo,
     attachments: props.attachments,
+    mentions: collectMessageMentions(text, selectedMentions.value),
   })
   draft.value = ''
+  selectedMentions.value = []
+}
+
+function selectMention(option: MentionOption): void {
+  const context = mentionContext.value
+  if (!context) return
+  draft.value = `${draft.value.slice(0, context.start)}${option.label} ${draft.value.slice(context.end)}`
+  selectedMentions.value = [
+    ...selectedMentions.value.filter(
+      (value) => mentionTargetKey(value.target) !== mentionTargetKey(option.target),
+    ),
+    { target: option.target, label: option.label },
+  ]
+  activeMentionIndex.value = 0
+}
+
+function handleComposerKeydown(event: KeyboardEvent): void {
+  if (mentionMenuOpen.value) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!mentionOptions.value.length) return
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      activeMentionIndex.value =
+        (activeMentionIndex.value + direction + mentionOptions.value.length) %
+        mentionOptions.value.length
+      return
+    }
+    if (event.key === 'Enter' && mentionOptions.value.length) {
+      event.preventDefault()
+      selectMention(mentionOptions.value[activeMentionIndex.value] ?? mentionOptions.value[0]!)
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      draft.value = draft.value.replace(/@([^\s@]*)$/u, '$1')
+      return
+    }
+  }
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault()
+    submitMessage()
+  }
+}
+
+function mentionTargetKey(target: MessageMentionTarget): string {
+  return target.kind === 'channel' ? 'channel' : `user:${target.accountId}`
 }
 
 function attachmentIcon(kind: ChannelAttachment['kind']): string {
@@ -121,6 +243,8 @@ function requestOlderMessages(): void {
 watch(
   () => props.channel.ref,
   async () => {
+    selectedMentions.value = []
+    requestedMentionChannel.value = ''
     initialScrollPending.value = true
     prependSnapshot.value = null
     await nextTick()
@@ -130,6 +254,16 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => mentionContext.value?.query,
+  (query) => {
+    activeMentionIndex.value = 0
+    if (query === undefined || requestedMentionChannel.value === props.channel.ref) return
+    requestedMentionChannel.value = props.channel.ref
+    emit('requestMentionMembers')
+  },
 )
 
 watch(
@@ -294,6 +428,7 @@ watch(
           @action="(action) => emit('messageAction', { message, action })"
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
+          @open-receipt-details="emit('openReceiptDetails', message)"
         />
         <div v-if="hasMoreNewer" class="flex justify-center pt-2">
           <TeaButton appearance="ghost" size="small" :disabled="loading" @click="emit('loadNewer')">
@@ -344,6 +479,53 @@ watch(
     </div>
 
     <div v-else class="channel-composer-bar relative shrink-0 px-3 py-2.5 sm:px-4">
+      <div
+        v-if="mentionMenuOpen"
+        class="channel-mention-menu absolute left-3 right-3 z-20 mx-auto max-h-72 max-w-xl overflow-y-auto rounded-card border border-line bg-canvas p-1 sm:left-4 sm:right-4"
+        :style="{
+          bottom: `${4.5 + (replyTo ? 3 : 0) + (attachments.length ? 3 : 0)}rem`,
+        }"
+        role="listbox"
+        :aria-label="t('channels.mentions.suggestions')"
+      >
+        <div
+          v-if="mentionMembersLoading && mentionOptions.length <= 1"
+          class="flex items-center gap-2 px-3 py-2 text-sm text-subtle"
+        >
+          <span class="i-mdi-loading size-4 animate-spin" aria-hidden="true" />
+          {{ t('channels.mentions.loading') }}
+        </div>
+        <div v-else-if="mentionOptions.length === 0" class="px-3 py-2 text-sm text-subtle">
+          {{ t('channels.mentions.empty') }}
+        </div>
+        <TeaButton
+          v-for="(option, index) in mentionOptions"
+          v-else
+          :key="option.key"
+          appearance="ghost"
+          fluid
+          class="flex min-w-0 items-center justify-start gap-2 px-2.5 py-2 text-left"
+          :class="index === activeMentionIndex ? 'bg-hover' : ''"
+          role="option"
+          :aria-selected="index === activeMentionIndex"
+          @mouseenter="activeMentionIndex = index"
+          @click="selectMention(option)"
+        >
+          <span
+            :class="[
+              option.target.kind === 'channel'
+                ? 'i-mdi-bullhorn-outline'
+                : 'i-mdi-account-circle-outline',
+              'size-5 shrink-0 text-subtle',
+            ]"
+            aria-hidden="true"
+          />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium text-fg">{{ option.name }}</span>
+            <span class="block truncate text-xs text-subtle">{{ option.detail }}</span>
+          </span>
+        </TeaButton>
+      </div>
       <div class="channel-composer-shell mx-auto flex w-full max-w-4xl items-end gap-2">
         <div
           v-if="replyTo"
@@ -413,8 +595,7 @@ watch(
           :rows="1"
           :label="t('channels.composer.placeholder', { channel: channel.name })"
           :placeholder="t('channels.composer.placeholder', { channel: channel.name })"
-          @keydown.meta.enter.prevent="submitMessage"
-          @keydown.ctrl.enter.prevent="submitMessage"
+          @keydown="handleComposerKeydown"
         />
         <TeaIconButton
           class="channel-composer-send"
@@ -434,6 +615,9 @@ watch(
 .channel-composer-bar {
   border-top: 1px solid var(--tea-line-soft);
   background: var(--tea-panel);
+}
+.channel-mention-menu {
+  max-width: min(32rem, calc(100% - 1.5rem));
 }
 .channel-selection-bar {
   min-height: 6.5rem;

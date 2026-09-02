@@ -25,9 +25,11 @@ import type {
   MessageSearchPage,
   Message,
   MessageReaction,
+  MessageReceiptDetails,
   MessageRef,
   ModifyMessageRequest,
   OutgoingMessageContent,
+  Participant,
   PinMessageRequest,
   PinnedMessage,
   SavedMessage,
@@ -100,6 +102,7 @@ import type {
   ManagedImCredentialClient,
   ManagedImCredentials,
 } from './electronManagedImCredentials'
+import { withYunxinMentions } from './yunxinMentions'
 
 export interface YunxinSdkFactory {
   create(appKey: string): YunxinSdk | Promise<YunxinSdk>
@@ -176,6 +179,7 @@ const capabilities: ChannelCapability[] = [
   'message.revoke.events',
   'message.pin.events',
   'message.receipt.events',
+  'message.receipt.details',
 ].map((id) => ({ id: id as ChannelCapability['id'], available: true }))
 
 export interface ResolvedMessageAttachment {
@@ -796,7 +800,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
         const existing = this.sentByKey.get(request.idempotencyKey)
         if (existing) return structuredClone(existing)
       }
-      message.serverExtension = serializeServerExtension(request.serverExtension)
+      message.serverExtension = outgoingServerExtension(request)
       const result = await this.sendProviderMessage(request.operationId, () => {
         const params = { messageConfig: { readReceiptEnabled: true } }
         return request.operationId
@@ -831,7 +835,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
         request.content,
         this.attachmentResolver,
       )
-      message.serverExtension = serializeServerExtension(request.serverExtension)
+      message.serverExtension = outgoingServerExtension(request)
       if (request.idempotencyKey) {
         const existing = this.sentByKey.get(request.idempotencyKey)
         if (existing) return structuredClone(existing)
@@ -1129,7 +1133,66 @@ export class YunxinWebChannelTransport implements ChannelTransport {
   }
 
   async markRead(channelRef: ChannelRef): Promise<void> {
-    await this.connectedSdk().V2NIMConversationService.markConversationRead(channelRef)
+    const sdk = this.connectedSdk()
+    await sdk.V2NIMConversationService.markConversationRead(channelRef)
+    const incoming = [...this.rawMessages.values()]
+      .filter(
+        (message) =>
+          message.conversationId === channelRef &&
+          !message.isDelete &&
+          !message.isSelf &&
+          message.senderId !== this.selfAccount,
+      )
+      .sort((left, right) => left.createTime - right.createTime)
+    if (!incoming.length) return
+    const type = sdk.V2NIMConversationIdUtil.parseConversationType(channelRef)
+    if (type === 1) {
+      await sdk.V2NIMMessageService.sendP2PMessageReceipt(incoming.at(-1)!)
+    } else if (type === 2) {
+      await sdk.V2NIMMessageService.sendTeamMessageReceipts(incoming.slice(-50))
+    }
+  }
+
+  async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
+    const sdk = this.connectedSdk()
+    const message = this.rawMessageForRef(messageRef)
+    if (
+      sdk.V2NIMConversationIdUtil.parseConversationType(message.conversationId) !== 2 ||
+      !message.isSelf
+    )
+      throw new ChannelTransportError('invalidRequest', false)
+
+    let detail
+    try {
+      detail = await sdk.V2NIMMessageService.getTeamMessageReceiptDetail(message)
+    } catch {
+      throw new ChannelTransportError('transport', true)
+    }
+    if (
+      !detail ||
+      !Array.isArray(detail.readAccountList) ||
+      !Array.isArray(detail.unreadAccountList) ||
+      [...detail.readAccountList, ...detail.unreadAccountList].some(
+        (accountId) => typeof accountId !== 'string' || !accountId.trim() || accountId.length > 128,
+      ) ||
+      !Number.isInteger(detail.readReceipt?.readCount) ||
+      !Number.isInteger(detail.readReceipt?.unreadCount)
+    )
+      throw new ChannelTransportError('protocolFailure', false)
+
+    const accountIds = uniqueAccountIds([...detail.readAccountList, ...detail.unreadAccountList])
+    const profiles = await loadReceiptProfiles(sdk, accountIds, this.selfAccount)
+    return {
+      messageRef: structuredClone(messageRef),
+      read: detail.readAccountList.map(
+        (accountId) => profiles.get(accountId) ?? fallbackParticipant(accountId, this.selfAccount),
+      ),
+      unread: detail.unreadAccountList.map(
+        (accountId) => profiles.get(accountId) ?? fallbackParticipant(accountId, this.selfAccount),
+      ),
+      readCount: Math.max(0, detail.readReceipt.readCount),
+      unreadCount: Math.max(0, detail.readReceipt.unreadCount),
+    }
   }
 
   private async sendProviderMessage<T>(
@@ -1666,6 +1729,73 @@ function validateGroupAccounts(accountIds: string[]): void {
     accountIds.some((value) => value.length > 128)
   )
     throw new ChannelTransportError('invalidRequest', false)
+}
+
+function outgoingServerExtension(
+  request: Pick<SendMessageRequest, 'content' | 'mentions' | 'serverExtension'>,
+): string | undefined {
+  if (request.mentions?.length && request.content.kind !== 'text')
+    throw new ChannelTransportError('invalidRequest', false)
+  try {
+    return serializeServerExtension(
+      withYunxinMentions(
+        request.serverExtension,
+        request.mentions,
+        request.content.kind === 'text' ? request.content.text : '',
+      ),
+    )
+  } catch {
+    throw new ChannelTransportError('invalidRequest', false)
+  }
+}
+
+async function loadReceiptProfiles(
+  sdk: YunxinSdk,
+  accountIds: string[],
+  selfAccount: string | null,
+): Promise<Map<string, Participant>> {
+  const result = new Map<string, Participant>()
+  for (let offset = 0; offset < accountIds.length; offset += 150) {
+    let values: unknown
+    try {
+      values = await sdk.V2NIMUserService.getUserListFromCloud(
+        accountIds.slice(offset, offset + 150),
+      )
+    } catch {
+      continue
+    }
+    if (!Array.isArray(values)) continue
+    for (const value of values) {
+      const participant = mapReceiptParticipant(value, selfAccount)
+      if (participant) result.set(participant.id, participant)
+    }
+  }
+  return result
+}
+
+function mapReceiptParticipant(value: unknown, selfAccount: string | null): Participant | null {
+  if (!isModuleRecord(value)) return null
+  const accountId = boundedTeamText(
+    typeof value.accountId === 'string' ? value.accountId.trim() : '',
+    128,
+  )
+  if (!accountId) return null
+  const name = boundedTeamText(
+    typeof value.name === 'string' && value.name.trim() ? value.name.trim() : accountId,
+    200,
+  )
+  const avatarUrl = typeof value.avatar === 'string' ? boundedTeamUrl(value.avatar) : undefined
+  return {
+    id: accountId,
+    name,
+    ...(avatarUrl ? { avatarUrl } : {}),
+    isCurrentUser: accountId === selfAccount,
+  }
+}
+
+function fallbackParticipant(accountId: string, selfAccount: string | null): Participant {
+  const id = boundedTeamText(accountId.trim(), 128)
+  return { id, name: id, isCurrentUser: id === selfAccount }
 }
 
 async function createYunxinOutgoingMessage(

@@ -34,6 +34,31 @@ export interface MessageReceipt {
   readAt?: number
 }
 
+export interface MessageMentionRange {
+  start: number
+  end: number
+}
+
+export type MessageMentionTarget = { kind: 'user'; accountId: string } | { kind: 'channel' }
+
+/**
+ * Provider-neutral mention metadata. Ranges use JavaScript string offsets so
+ * adapters can translate them without exposing provider extension fields.
+ */
+export interface MessageMention {
+  target: MessageMentionTarget
+  label: string
+  ranges: MessageMentionRange[]
+}
+
+export interface MessageReceiptDetails {
+  messageRef: MessageRef
+  read: Participant[]
+  unread: Participant[]
+  readCount: number
+  unreadCount: number
+}
+
 export interface MessageReaction {
   type: number
   count: number
@@ -178,6 +203,7 @@ export interface Message {
   pinned: boolean
   reactions: MessageReaction[]
   receipt?: MessageReceipt
+  mentions?: MessageMention[]
 }
 
 export interface MessageReply {
@@ -302,6 +328,7 @@ export type ChannelCapabilityId =
   | 'message.revoke.events'
   | 'message.pin.events'
   | 'message.receipt.events'
+  | 'message.receipt.details'
 
 export interface ChannelCapability {
   id: ChannelCapabilityId
@@ -404,6 +431,7 @@ export interface LoadMessagesRequest {
 export interface SendMessageRequest {
   channelRef: ChannelRef
   content: OutgoingMessageContent
+  mentions?: MessageMention[]
   serverExtension?: JsonValue
   idempotencyKey?: string
   operationId?: string
@@ -418,6 +446,7 @@ export interface ReplyMessageRequest {
   channelRef: ChannelRef
   replyTo: MessageRef
   content: OutgoingMessageContent
+  mentions?: MessageMention[]
   serverExtension?: JsonValue
   idempotencyKey?: string
   operationId?: string
@@ -552,6 +581,7 @@ export interface ChannelTransport {
   revokeMessage(request: RevokeMessageRequest): Promise<void>
   pinMessage(request: PinMessageRequest): Promise<void>
   quickComment(request: QuickCommentRequest): Promise<void>
+  getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails>
   openDirectConversation(accountId: string): Promise<ChannelRef>
   markRead(channelRef: ChannelRef): Promise<void>
   subscribe(listener: ChannelEventListener): () => void

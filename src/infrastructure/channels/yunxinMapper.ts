@@ -8,6 +8,7 @@ import type {
   MessageRef,
 } from '@/features/channels/contracts'
 import { messageContentToText } from '@/features/channels/messageContent'
+import { parseYunxinMentions } from './yunxinMentions'
 import type { V2NIMConversation } from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMConversationService'
 import type {
   V2NIMMessage,
@@ -42,6 +43,8 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
   const content = mapYunxinMessageContent(value)
   const text = boundedText(messageContentToText(content), 8_000)
   const mergedSender = mergedSenderMetadata(value.serverExtension)
+  const serverExtension = parseBoundedJson(value.serverExtension)
+  const mentions = parseYunxinMentions(serverExtension)
   return {
     ref: mapYunxinMessageRef(value),
     sender: {
@@ -64,9 +67,10 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
       : {}),
     state: 'active',
     sentByCurrentUser: value.isSelf || value.senderId === currentAccount,
-    serverExtension: parseBoundedJson(value.serverExtension),
+    serverExtension,
     pinned: false,
     reactions: [],
+    ...(mentions.length ? { mentions } : {}),
   }
 }
 

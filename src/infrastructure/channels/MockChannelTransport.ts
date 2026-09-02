@@ -22,6 +22,7 @@ import type {
   ListChannelMembersRequest,
   Message,
   MessagePage,
+  MessageReceiptDetails,
   MessageSearchPage,
   MessageRef,
   UpdateGroupRequest,
@@ -130,12 +131,15 @@ const seedMessages: Message[] = [
     now - minute * 11,
     '同意。入口可以直接放在消息操作里，以某条消息作为锚点，让 Agent 自己向前扩展上下文。这样也不用额外 @ 一个机器人。',
   ),
-  createSeedMessage(
-    'm-104',
-    participants.me,
-    now - minute * 6,
-    '第一期先做人工触发和人工确认回写。通道能力与 Agent runtime 之间需要独立桥接，后续能替换通道，也能增加新的 Agent。',
-  ),
+  {
+    ...createSeedMessage(
+      'm-104',
+      participants.me,
+      now - minute * 6,
+      '第一期先做人工触发和人工确认回写。通道能力与 Agent runtime 之间需要独立桥接，后续能替换通道，也能增加新的 Agent。',
+    ),
+    receipt: { readCount: 3, unreadCount: 2 },
+  },
   createSeedMessage(
     'm-105',
     participants.chen,
@@ -170,6 +174,7 @@ const capabilities: ChannelCapability[] = [
   'message.revoke.events',
   'message.pin.events',
   'message.receipt.events',
+  'message.receipt.details',
 ].map((id) => ({ id: id as ChannelCapability['id'], available: true }))
 
 export class MockChannelTransport implements ChannelTransport {
@@ -760,6 +765,23 @@ export class MockChannelTransport implements ChannelTransport {
       ref: structuredClone(message.ref),
       reactions: structuredClone(reactions),
     })
+  }
+
+  async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
+    this.assertConnected()
+    const message = this.messages
+      .get(messageRef.channelRef)
+      ?.find((value) => sameMessageRef(value.ref, messageRef))
+    const channel = this.channels.find((value) => value.ref === messageRef.channelRef)
+    if (!message || !message.sentByCurrentUser || channel?.kind !== 'group')
+      throw new ChannelTransportError('invalidRequest', false)
+    return {
+      messageRef: structuredClone(messageRef),
+      read: [participants.meng, participants.lin].map((value) => structuredClone(value)),
+      unread: [participants.yu, participants.chen].map((value) => structuredClone(value)),
+      readCount: 2,
+      unreadCount: 2,
+    }
   }
 
   async openDirectConversation(accountId: string): Promise<ChannelRef> {

@@ -14,6 +14,8 @@ import type {
   ChannelRef,
   ForwardMessageMode,
   Message,
+  MessageMention,
+  MessageReceiptDetails,
   PinnedMessage,
   SavedMessage,
 } from '@/features/channels/contracts'
@@ -27,6 +29,7 @@ import ChannelMessageSearchDialog from '@/features/channels/components/ChannelMe
 import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelPinnedMessagesDialog.vue'
 import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
 import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelMergedMessagesDialog.vue'
+import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import { useChannelMessageSelection } from '@/features/channels/useChannelMessageSelection'
 import { useChannelMergedMessageViewer } from '@/features/channels/useChannelMergedMessageViewer'
 
@@ -79,7 +82,17 @@ const searchScope = ref<ChannelRef | null>(null)
 const pinnedOpen = ref(false)
 const savedOpen = ref(false)
 const pendingSavedRemoval = ref<SavedMessage | null>(null)
+const mentionMembers = shallowRef<ChannelMember[]>([])
+const mentionMembersChannelRef = ref<ChannelRef | null>(null)
+const mentionMembersLoading = ref(false)
+const receiptDetailsOpen = ref(false)
+const receiptDetailsMessage = ref<Message | null>(null)
+const receiptDetails = ref<MessageReceiptDetails | null>(null)
+const receiptDetailsLoading = ref(false)
+const receiptDetailsErrorCode = ref<string | null>(null)
 let detailsGeneration = 0
+let mentionMembersGeneration = 0
+let receiptDetailsGeneration = 0
 
 const {
   active: selectingMessages,
@@ -118,6 +131,11 @@ const reactionOptions = [
 ] as const
 
 function handleChannelSelect(channelRef: ChannelRef): void {
+  mentionMembersGeneration += 1
+  mentionMembers.value = []
+  mentionMembersChannelRef.value = null
+  mentionMembersLoading.value = false
+  closeReceiptDetails()
   channelAttachments.value = []
   replyTo.value = null
   searchOpen.value = false
@@ -227,11 +245,12 @@ async function handleChannelSend(payload: {
   text: string
   replyTo: Message | null
   attachments: ChannelAttachment[]
+  mentions: MessageMention[]
 }): Promise<void> {
   try {
     let replyRef = payload.replyTo?.ref
     if (payload.text) {
-      await channels.sendText(payload.text, replyRef)
+      await channels.sendText(payload.text, replyRef, payload.mentions)
       replyRef = undefined
     }
     for (const attachment of payload.attachments) {
@@ -255,6 +274,71 @@ async function handleChannelSend(payload: {
   } catch {
     // The store exposes the stable error code to the connection panel.
   }
+}
+
+async function loadMentionMembers(): Promise<void> {
+  const channel = channels.activeChannel
+  if (!channel || channel.kind !== 'group') return
+  if (mentionMembersChannelRef.value === channel.ref && mentionMembers.value.length) return
+  const operation = ++mentionMembersGeneration
+  mentionMembersChannelRef.value = channel.ref
+  mentionMembersLoading.value = true
+  mentionMembers.value = []
+  try {
+    const members = new Map<string, ChannelMember>()
+    let cursor: string | undefined
+    for (let pageIndex = 0; pageIndex < 100; pageIndex += 1) {
+      const page = await channels.listChannelMembers({
+        channelRef: channel.ref,
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      })
+      if (operation !== mentionMembersGeneration || channels.activeChannelRef !== channel.ref)
+        return
+      page.items.forEach((member) => members.set(member.accountId, member))
+      mentionMembers.value = [...members.values()]
+      if (!page.hasMore || !page.nextCursor) break
+      cursor = page.nextCursor
+    }
+  } catch {
+    // The channel store exposes the stable transport error code.
+  } finally {
+    if (operation === mentionMembersGeneration) mentionMembersLoading.value = false
+  }
+}
+
+function closeReceiptDetails(): void {
+  receiptDetailsGeneration += 1
+  receiptDetailsOpen.value = false
+  receiptDetailsMessage.value = null
+  receiptDetails.value = null
+  receiptDetailsLoading.value = false
+  receiptDetailsErrorCode.value = null
+}
+
+async function openReceiptDetails(message: Message): Promise<void> {
+  const operation = ++receiptDetailsGeneration
+  receiptDetailsOpen.value = true
+  receiptDetailsMessage.value = message
+  receiptDetails.value = null
+  receiptDetailsLoading.value = true
+  receiptDetailsErrorCode.value = null
+  try {
+    const details = await channels.getMessageReceiptDetails(message.ref)
+    if (operation === receiptDetailsGeneration) receiptDetails.value = details
+  } catch (error) {
+    if (operation === receiptDetailsGeneration)
+      receiptDetailsErrorCode.value =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String(error.code)
+          : 'transport'
+  } finally {
+    if (operation === receiptDetailsGeneration) receiptDetailsLoading.value = false
+  }
+}
+
+function retryReceiptDetails(): void {
+  if (receiptDetailsMessage.value) void openReceiptDetails(receiptDetailsMessage.value)
 }
 
 async function pickChannelAttachments(): Promise<void> {
@@ -584,6 +668,8 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :selected-count="selectedMessages.length"
     :can-forward-individual="individualEligibility.eligible"
     :can-forward-merged="mergedEligibility.eligible"
+    :mention-members="mentionMembers"
+    :mention-members-loading="mentionMembersLoading"
     @forward-to-agent="forwardToAgent"
     @message-action="handleMessageAction"
     @send="handleChannelSend"
@@ -602,6 +688,8 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @cancel-selection="clearMessageSelection"
     @forward-selection="forwardSelection"
     @open-merged="openMergedMessage"
+    @request-mention-members="loadMentionMembers"
+    @open-receipt-details="openReceiptDetails"
   />
   <ChannelSelectionPlaceholder
     v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0"
@@ -790,6 +878,14 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :pending="actionPending"
     @close="reactingMessage = null"
     @select="selectReaction"
+  />
+  <ChannelReceiptDetailsDialog
+    :open="receiptDetailsOpen"
+    :details="receiptDetails"
+    :loading="receiptDetailsLoading"
+    :error-code="receiptDetailsErrorCode"
+    @close="closeReceiptDetails"
+    @retry="retryReceiptDetails"
   />
   <ChannelDetailsDialog
     :open="detailsOpen"

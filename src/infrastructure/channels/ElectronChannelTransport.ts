@@ -21,6 +21,7 @@ import type {
   LoadMessagesRequest,
   Message,
   MessageRef,
+  MessageReceiptDetails,
   MessageSearchPage,
   ModifyMessageRequest,
   DeleteMessagesRequest,
@@ -75,6 +76,7 @@ const descriptor: ChannelTransportDescriptor = {
     'message.revoke.events',
     'message.pin.events',
     'message.receipt.events',
+    'message.receipt.details',
   ].map((id) => ({ id: id as ChannelCapability['id'], available: true })),
 }
 
@@ -232,6 +234,10 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
     await this.command('quick_comment_channel_message', { request })
+  }
+
+  async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
+    return this.command('get_channel_message_receipt_details', { messageRef })
   }
 
   async openDirectConversation(_accountId: string): Promise<ChannelRef> {

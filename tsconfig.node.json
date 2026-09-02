@@ -10,6 +10,7 @@
     "src/infrastructure/channels/yunxinMapper.ts",
     "src/infrastructure/channels/yunxinSavedMessages.ts",
     "src/infrastructure/channels/yunxinMergedMessages.ts",
+    "src/infrastructure/channels/yunxinMentions.ts",
     "src/features/channels/messageContent.ts",
     "src/features/channels/messageForwarding.ts",
     "src/infrastructure/channels/accountScope.ts",

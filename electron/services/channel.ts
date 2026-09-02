@@ -23,7 +23,9 @@ import type {
   QuickCommentRequest,
   RevokeMessageRequest,
   MessagePage,
+  MessageReceiptDetails,
   Message,
+  MessageRef,
   MessageSearchPage,
   SendMessageRequest,
   SendMessageResult,
@@ -193,6 +195,10 @@ export class ElectronChannelService {
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
     await this.transport.quickComment(request)
+  }
+
+  async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
+    return this.transport.getMessageReceiptDetails(messageRef)
   }
 
   async markRead(channelRef: string): Promise<void> {

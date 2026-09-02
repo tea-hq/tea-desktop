@@ -61,6 +61,8 @@ export function createChannelCommandHandlers(
     pin_channel_message: (args) => channel.pinMessage(readRecord(args.request) as never),
     quick_comment_channel_message: (args) =>
       channel.quickComment(readRecord(args.request) as never),
+    get_channel_message_receipt_details: (args) =>
+      channel.getMessageReceiptDetails(readRecord(args.messageRef) as never),
     cancel_channel_message_send: (args) =>
       channel.cancelMessageSend(readString(args.operationId, 'operationId')),
     select_channel_attachments: () => channel.selectAttachments(),
