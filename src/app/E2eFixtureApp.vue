@@ -9,14 +9,17 @@ import WorkspaceSearchField from '@/app/components/WorkspaceSearchField.vue'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
 import ChannelForwardDialog from '@/features/channels/components/ChannelForwardDialog.vue'
 import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelMergedMessagesDialog.vue'
+import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelPinnedMessagesDialog.vue'
 import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
 import type {
   Channel,
+  ChannelMember,
   ForwardMessageMode,
   Message,
+  MessageReceiptDetails,
   PinnedMessage,
   SavedMessage,
 } from '@/features/channels/contracts'
@@ -121,8 +124,25 @@ const messages: Message[] = [
     sentByCurrentUser: true,
     pinned: false,
     reactions: [],
+    receipt: { readCount: 12, unreadCount: 5 },
   },
 ]
+const mentionMembers: ChannelMember[] = [
+  { accountId: 'lin', name: 'Lin', role: 'member', chatBanned: false },
+  { accountId: 'kai', name: 'Kai', role: 'manager', chatBanned: false },
+  { accountId: 'maya', name: 'Maya Chen', role: 'member', chatBanned: false },
+]
+const receiptDetailsOpen = ref(fixture.value === 'receipt-details')
+const receiptDetails: MessageReceiptDetails = {
+  messageRef: messages[1]!.ref,
+  read: [
+    { id: 'lin', name: 'Lin', isCurrentUser: false },
+    { id: 'kai', name: 'Kai', isCurrentUser: false },
+  ],
+  unread: [{ id: 'maya', name: 'Maya Chen', isCurrentUser: false }],
+  readCount: 12,
+  unreadCount: 5,
+}
 const mergedMessage: Message = {
   ref: {
     channelRef: channel.ref,
@@ -586,12 +606,15 @@ function retryFixtureMergedMessages(): void {
         :selected-count="selectedMessageKeys.length"
         :can-forward-individual="selectedMessageKeys.length > 0"
         :can-forward-merged="selectedMessageKeys.length > 0"
+        :mention-members="mentionMembers"
+        :mention-members-loading="false"
         @toggle-panel="drawerOpen = !drawerOpen"
         @toggle-message-selection="() => undefined"
         @select-all-visible="selectingMessages = true"
         @cancel-selection="selectingMessages = false"
         @forward-selection="openFixtureForwarding"
         @open-merged="openFixtureMergedMessage"
+        @open-receipt-details="receiptDetailsOpen = true"
       />
       <AgentDrawer
         :open="drawerOpen"
@@ -637,6 +660,13 @@ function retryFixtureMergedMessages(): void {
         :has-more="true"
         :error-code="null"
         :removing-id="null"
+      />
+      <ChannelReceiptDetailsDialog
+        :open="receiptDetailsOpen"
+        :details="receiptDetails"
+        :loading="false"
+        :error-code="null"
+        @close="receiptDetailsOpen = false"
       />
       <ChannelForwardDialog
         :open="forwardingMessages.length > 0"

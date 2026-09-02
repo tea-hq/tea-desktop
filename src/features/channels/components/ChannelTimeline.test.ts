@@ -120,4 +120,95 @@ describe('ChannelTimeline selection mode', () => {
     expect(wrapper.emitted('openMerged')).toBeUndefined()
     wrapper.unmount()
   })
+
+  it('selects a mention with the keyboard and emits structured metadata', async () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        sending: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+        mentionMembers: [
+          {
+            accountId: 'lin',
+            name: 'Lin',
+            role: 'member',
+            chatBanned: false,
+          },
+        ],
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+    const textarea = wrapper.get('textarea')
+
+    await textarea.setValue('@li')
+    expect(wrapper.emitted('requestMentionMembers')).toEqual([[]])
+    await textarea.trigger('keydown', { key: 'Enter' })
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('@Lin ')
+
+    await textarea.setValue('@Lin review this')
+    await textarea.trigger('keydown', { key: 'Enter', ctrlKey: true })
+
+    expect(wrapper.emitted('send')).toEqual([
+      [
+        {
+          text: '@Lin review this',
+          replyTo: null,
+          attachments: [],
+          mentions: [
+            {
+              target: { kind: 'user', accountId: 'lin' },
+              label: '@Lin',
+              ranges: [{ start: 0, end: 4 }],
+            },
+          ],
+        },
+      ],
+    ])
+    wrapper.unmount()
+  })
+
+  it('opens receipt details from an outgoing group message summary', async () => {
+    const outgoing: Message = {
+      ...selectedMessage,
+      sender: { id: 'me', name: 'Me', isCurrentUser: true },
+      sentByCurrentUser: true,
+      receipt: { readCount: 2, unreadCount: 1 },
+    }
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [outgoing],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        sending: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    const receipt = wrapper
+      .findAll('button')
+      .find((candidate) => candidate.text().includes('2 read · 1 unread'))!
+    await receipt.trigger('click')
+
+    expect(wrapper.emitted('openReceiptDetails')).toEqual([[outgoing]])
+    wrapper.unmount()
+  })
 })

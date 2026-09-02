@@ -238,6 +238,28 @@ describe('useChannelsStore', () => {
     expect(store.activeMessages.at(-1)?.text).toBe('Hello')
   })
 
+  it('preserves provider-neutral mentions and loads receipt details', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const send = vi.spyOn(transport, 'sendMessage')
+    const mentions = [
+      {
+        target: { kind: 'user' as const, accountId: 'lin' },
+        label: '@Lin',
+        ranges: [{ start: 0, end: 4 }],
+      },
+    ]
+
+    const result = await store.sendText('@Lin review this', undefined, mentions)
+
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ mentions }))
+    await expect(store.getMessageReceiptDetails(result!.ref)).resolves.toMatchObject({
+      messageRef: result!.ref,
+      readCount: 2,
+      unreadCount: 2,
+    })
+  })
+
   it('searches the active channel and jumps to a result anchor', async () => {
     const { store } = await connectedStore()
     await store.selectChannel('product-collab')

@@ -71,6 +71,7 @@ describe('ElectronChannelTransport', () => {
         'message.save',
         'message.save.list',
         'message.quickComment',
+        'message.receipt.details',
         'channel.manage',
       ]),
     )
@@ -157,6 +158,23 @@ describe('ElectronChannelTransport', () => {
       ['forward_channel_message', { request }],
       ['load_merged_channel_messages', { messageRef }],
     ])
+    await transport.dispose()
+  })
+
+  it('loads receipt details through the allowlisted Electron boundary', async () => {
+    const messageRef = { channelRef: 'team', messageClientId: 'message-1' }
+    const details = {
+      messageRef,
+      read: [],
+      unread: [],
+      readCount: 0,
+      unreadCount: 0,
+    }
+    mocks.invoke.mockResolvedValueOnce(details)
+    const transport = new ElectronChannelTransport()
+
+    await expect(transport.getMessageReceiptDetails(messageRef)).resolves.toEqual(details)
+    expect(mocks.invoke).toHaveBeenCalledWith('get_channel_message_receipt_details', { messageRef })
     await transport.dispose()
   })
 })

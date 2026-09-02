@@ -238,9 +238,16 @@ function createFakeSdk() {
     unpinMessage: vi.fn(async () => undefined),
     addQuickComment: vi.fn(async () => undefined),
     removeQuickComment: vi.fn(async () => undefined),
+    sendP2PMessageReceipt: vi.fn(async (_message: ReturnType<typeof rawMessage>) => undefined),
+    sendTeamMessageReceipts: vi.fn(async (_messages: ReturnType<typeof rawMessage>[]) => undefined),
+    getTeamMessageReceiptDetail: vi.fn(async () => ({
+      readReceipt: { readCount: 2, unreadCount: 1 },
+      readAccountList: ['reader-a', 'reader-b'],
+      unreadAccountList: ['reader-c'],
+    })),
   })
   const user = Object.assign(new FakeService(), {
-    getUserListFromCloud: vi.fn(async () => [
+    getUserListFromCloud: vi.fn(async (_accountIds: string[]) => [
       {
         accountId: 'account-a',
         name: 'OIDC User',
@@ -561,6 +568,94 @@ describe('YunxinWebChannelTransport', () => {
     )
     expect(message.sendMessage).toHaveBeenCalledTimes(1)
     expect(sdk.V2NIMMessageCreator.createForwardMessage).toHaveBeenCalledWith(expect.anything())
+  })
+
+  it('encodes provider-neutral mentions only inside the Yunxin adapter', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await transport.sendMessage({
+      channelRef: 'team|design',
+      content: { kind: 'text', text: '@Lin review this' },
+      mentions: [
+        {
+          target: { kind: 'user', accountId: 'lin' },
+          label: '@Lin',
+          ranges: [{ start: 0, end: 4 }],
+        },
+      ],
+      serverExtension: { source: 'tea' },
+    })
+
+    const outgoing = message.sendMessage.mock.calls[0]![0]
+    expect(JSON.parse(outgoing.serverExtension ?? '{}')).toEqual({
+      source: 'tea',
+      yxAitMsg: {
+        lin: { text: '@Lin', segments: [{ start: 0, end: 4, broken: false }] },
+      },
+    })
+  })
+
+  it('loads team receipt details and keeps account ids when profile enrichment is partial', async () => {
+    const { sdk, message, user } = createFakeSdk()
+    user.getUserListFromCloud.mockImplementation(async (accountIds: string[]) =>
+      accountIds
+        .filter((accountId) => accountId !== 'reader-c')
+        .map((accountId) => ({
+          accountId,
+          name: `Profile ${accountId}`,
+          email: '',
+          avatar: '',
+          createTime: 1,
+        })),
+    )
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const sent = await transport.sendMessage({
+      channelRef: 'team|design',
+      content: { kind: 'text', text: 'receipt detail' },
+    })
+
+    await expect(transport.getMessageReceiptDetails(sent.ref)).resolves.toEqual({
+      messageRef: sent.ref,
+      read: [
+        { id: 'reader-a', name: 'Profile reader-a', isCurrentUser: false },
+        { id: 'reader-b', name: 'Profile reader-b', isCurrentUser: false },
+      ],
+      unread: [{ id: 'reader-c', name: 'reader-c', isCurrentUser: false }],
+      readCount: 2,
+      unreadCount: 1,
+    })
+    expect(message.getTeamMessageReceiptDetail).toHaveBeenCalledWith(expect.anything())
+    expect(user.getUserListFromCloud).toHaveBeenCalledWith(['reader-a', 'reader-b', 'reader-c'])
+  })
+
+  it('marks conversations read and sends the matching provider receipt batch', async () => {
+    const { sdk, message, conversation } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const raw = (await message.getMessageListEx()).messages[0]
+    const incoming = Array.from({ length: 55 }, (_, index) => ({
+      ...raw,
+      conversationId: 'team|design',
+      conversationType: 2,
+      messageClientId: `incoming-${index}`,
+      messageServerId: `incoming-server-${index}`,
+      senderId: 'member-a',
+      isSelf: false,
+      createTime: index + 1,
+    }))
+    message.emit('onReceiveMessages', incoming)
+
+    await transport.markRead('team|design')
+
+    expect(conversation.markConversationRead).toHaveBeenCalledWith('team|design')
+    expect(message.sendTeamMessageReceipts).toHaveBeenCalledOnce()
+    expect(message.sendTeamMessageReceipts.mock.calls[0]![0]).toHaveLength(50)
+    expect(message.sendTeamMessageReceipts.mock.calls[0]![0][0]).toMatchObject({
+      messageClientId: 'incoming-5',
+    })
   })
 
   it('uploads an interoperable merged archive and loads it through the converter', async () => {
