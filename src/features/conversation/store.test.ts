@@ -344,6 +344,8 @@ describe('useConversationStore', () => {
     expect(store.error).toEqual({
       kind: 'runtime',
       message: 'no runner is available for the requested tags',
+      code: 'pending',
+      retryable: true,
     })
   })
 

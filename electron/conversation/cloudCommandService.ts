@@ -140,6 +140,13 @@ export class CloudConversationCommandService implements ConversationCommandServi
     }
   }
 
+  async relocateConversationWorkspace(
+    _conversationId: string,
+    _workspacePath: string,
+  ): Promise<ConversationDetail> {
+    throw unsupportedCloud('cloud conversation workspace is managed by the runner')
+  }
+
   async loadConversationHistory(
     request: LoadConversationHistoryRequest,
   ): Promise<ConversationHistoryPage> {
