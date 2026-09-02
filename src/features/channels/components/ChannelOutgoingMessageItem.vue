@@ -5,7 +5,7 @@ import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 import { TeaIconButton } from '@/shared/ui'
 import type { OutgoingMessageAttempt } from '../contracts'
 
-const props = defineProps<{ attempt: OutgoingMessageAttempt }>()
+defineProps<{ attempt: OutgoingMessageAttempt }>()
 const emit = defineEmits<{ retry: []; cancel: []; dismiss: [] }>()
 const { t } = useI18n()
 
