@@ -15,6 +15,8 @@
 - `sendingMessage` and `sendingProgress` are global composer flags. They cannot represent concurrent text/media sends, associate a failure with a row, or support independent retry.
 - Yunxin `sendingState` is adapter evidence only. Tea owns the stable statuses `sending`, `failed`, and `cancelled`; a provider-confirmed `Message` represents the sent state.
 - An outgoing attempt is a renderer projection, never durable provider truth. It retains content, mention metadata, a reply snapshot, operation identity, progress, stable error code, retryability, and attempt count.
+- Before a composer submission starts, its text draft must be durably flushed. The draft remains the restart recovery source until every item in that submission is provider-confirmed; attempts themselves remain process-scoped.
+- An unresolved submission prevents duplicate submission while still allowing edits. A late confirmation must never clear text changed after the submission started.
 - A retry reuses the same idempotency key and content but receives a fresh cancellable operation id. It must not create a second visible failed row.
 - Provider `message.upserted` events carrying the same Tea client reference reconcile and remove an uncertain attempt even if the original promise rejected or completed late.
 - Components render attempts and emit `retry`, `cancel`, and `dismiss` intent. The store owns all async state transitions and stale-lifecycle rejection.
@@ -150,7 +152,7 @@ Use a restrained right-aligned row with the same content hierarchy as sent messa
 
 **Step 3: Transfer composer ownership**
 
-Start all text/media attempts synchronously, then clear the controlled draft, reply target, and selected attachments. Failed content remains owned by its visible attempt. Multiple sends progress independently.
+Flush text durably, register the full delivery batch, and only then start its text/media attempts. Clear reply and selected attachments after ownership moves to attempts. Clear the controlled draft only when the whole batch is confirmed and the draft still matches its submitted snapshot. Preserve it after failure, cancellation, dismissal, restart, or storage cleanup failure. Multiple items in the batch progress independently.
 
 **Step 4: Add locale parity and fixture state**
 
