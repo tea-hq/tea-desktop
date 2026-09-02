@@ -115,7 +115,7 @@ watch(
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
+      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-canvas px-4 sm:px-6"
     >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -227,7 +227,7 @@ watch(
 <style scoped>
 .channel-composer-bar {
   border-top: 1px solid var(--tea-line-soft);
-  background: var(--tea-panel);
+  background: var(--tea-canvas);
 }
 .channel-composer-shell {
   border: 1px solid var(--tea-line-soft);

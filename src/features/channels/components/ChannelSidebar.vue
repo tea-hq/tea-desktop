@@ -33,9 +33,9 @@ function formatTime(value: number): string {
 
 <template>
   <aside
-    class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-panel sm:flex"
+    class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-canvas sm:flex"
   >
-    <div class="px-2 pb-1.5 pt-3">
+    <div class="border-b border-line-soft bg-canvas px-3 pb-3 pt-4 sm:px-4">
       <div class="flex h-7 items-center gap-2">
         <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
         <span
@@ -67,9 +67,7 @@ function formatTime(value: number): string {
       />
     </div>
 
-    <div
-      class="channel-list-scroll-area flex-1 overflow-y-auto border-t border-line-soft bg-canvas px-2 pb-2 pt-3"
-    >
+    <div class="channel-list-scroll-area flex-1 overflow-y-auto bg-canvas px-2 pb-2 pt-3">
       <div
         v-if="loading && channels.length === 0"
         class="pt-0.5"
