@@ -11,6 +11,7 @@ import { ElectronManagedWorkspaceClient } from '@/infrastructure/managed-runtime
 import { WorkspaceLifecycle, type WorkspaceSession } from './workspaceLifecycle'
 import { recoverManagedWorkspace } from './refreshManagedWorkspace'
 import type { ConversationClient } from '@/features/conversation/contracts'
+import type { MessageRef } from '@/features/channels/contracts'
 import type { TeaDesktopStores } from './desktopAppDependencies'
 import type { WorkspaceUiState } from './desktopAppState'
 
@@ -160,6 +161,7 @@ export function useWorkspaceRuntime(
   function createWorkspaceSession(workspaceProfile: CenterSelfProfile): WorkspaceSession {
     const environment = createChannelEnvironment()
     let disposed = false
+    let unsubscribeNotification: (() => void) | null = null
     return {
       async initialize(isCurrent) {
         if (!isCurrent()) return
@@ -176,6 +178,12 @@ export function useWorkspaceRuntime(
         )
         collaboration.configure(conversationClient, environment.transport)
         conversation.configure(conversationClient)
+        unsubscribeNotification = environment.notificationActivationClient.subscribe(
+          (messageRef) => {
+            if (!isCurrent()) return
+            void activateChannelNotification(messageRef, isCurrent)
+          },
+        )
         const bootstrap = centerAuth.state.bootstrap
         void agentRoles.initialize(
           bootstrap ? { tenantId: bootstrap.tenant.id, subjectId: bootstrap.user.id } : undefined,
@@ -186,6 +194,8 @@ export function useWorkspaceRuntime(
         if (disposed) return
         disposed = true
         if (channelEnvironment.value === environment) channelEnvironment.value = null
+        unsubscribeNotification?.()
+        unsubscribeNotification = null
         ui.activeMode.value = 'channels'
         ui.previousMode.value = 'channels'
         ui.collaborationWorkspace.value = false
@@ -197,8 +207,23 @@ export function useWorkspaceRuntime(
         const conversationDisposal = conversation.dispose()
         collaboration.dispose()
         const channelDisposal = channels.dispose()
-        await Promise.allSettled([conversationDisposal, channelDisposal])
+        const notificationDisposal = environment.notificationActivationClient.dispose()
+        await Promise.allSettled([conversationDisposal, channelDisposal, notificationDisposal])
       },
+    }
+  }
+
+  async function activateChannelNotification(
+    messageRef: MessageRef,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    if (!isCurrent()) return
+    ui.activeMode.value = 'channels'
+    ui.collaborationWorkspace.value = false
+    try {
+      await channels.jumpToMessage(messageRef)
+    } catch {
+      // A stale or unavailable message should not surface an error from a passive notification.
     }
   }
 

@@ -6,6 +6,10 @@ import { BrowserChannelVoicePlaybackClient } from './BrowserChannelVoicePlayback
 import { ElectronChannelMediaClient } from './ElectronChannelMediaClient'
 import { ElectronChannelTransport } from './ElectronChannelTransport'
 import { MockChannelMediaClient } from './MockChannelMediaClient'
+import {
+  ElectronChannelNotificationClient,
+  NoopChannelNotificationClient,
+} from './ElectronChannelNotificationClient'
 import { MockChannelTransport } from './MockChannelTransport'
 import { createChannelEnvironment } from './channelComposition'
 
@@ -21,9 +25,11 @@ describe('channel composition', () => {
     expect(environment.transport).toBeInstanceOf(MockChannelTransport)
     expect(environment.voicePlaybackClient).toBeInstanceOf(BrowserChannelVoicePlaybackClient)
     expect(environment.mediaClient).toBeInstanceOf(MockChannelMediaClient)
+    expect(environment.notificationActivationClient).toBeInstanceOf(NoopChannelNotificationClient)
 
     environment.voicePlaybackClient.dispose()
     void environment.mediaClient.dispose()
+    void environment.notificationActivationClient.dispose()
   })
 
   it('provides the same player boundary in the Electron renderer', () => {
@@ -38,8 +44,12 @@ describe('channel composition', () => {
     expect(environment.transport).toBeInstanceOf(ElectronChannelTransport)
     expect(environment.voicePlaybackClient).toBeInstanceOf(BrowserChannelVoicePlaybackClient)
     expect(environment.mediaClient).toBeInstanceOf(ElectronChannelMediaClient)
+    expect(environment.notificationActivationClient).toBeInstanceOf(
+      ElectronChannelNotificationClient,
+    )
 
     environment.voicePlaybackClient.dispose()
     void environment.mediaClient.dispose()
+    void environment.notificationActivationClient.dispose()
   })
 })

@@ -77,6 +77,20 @@ describe('Electron preload bridge', () => {
     expect(electron.removeListener).toHaveBeenCalledWith(channel, wrapped)
   })
 
+  it('allowlists provider-neutral notification activation with a message ref payload', () => {
+    const listener = vi.fn()
+    const dispose = bridge.on('channel-notification-activated', listener)
+    const [channel, wrapped] = electron.on.mock.calls[0]!
+    const messageRef = { channelRef: 'product', messageClientId: 'message-1' }
+
+    wrapped({}, messageRef)
+    dispose()
+
+    expect(channel).toBe('tea:event:channel-notification-activated')
+    expect(listener).toHaveBeenCalledWith(messageRef)
+    expect(electron.removeListener).toHaveBeenCalledWith(channel, wrapped)
+  })
+
   it('allows the provider-neutral presence command without exposing a new IPC channel', async () => {
     electron.invoke.mockResolvedValueOnce({ ok: true, value: undefined })
 

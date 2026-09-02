@@ -2,6 +2,7 @@ import type {
   ChannelAttachmentPicker,
   ChannelDraftClient,
   ChannelMediaClient,
+  ChannelNotificationActivationClient,
   ChannelTransport,
   ChannelVoicePlaybackClient,
 } from '@/features/channels/contracts'
@@ -15,6 +16,10 @@ import { ElectronChannelDraftClient } from './ElectronChannelDraftClient'
 import { ElectronChannelMediaClient } from './ElectronChannelMediaClient'
 import { MemoryChannelDraftClient } from './MemoryChannelDraftClient'
 import { MockChannelMediaClient } from './MockChannelMediaClient'
+import {
+  ElectronChannelNotificationClient,
+  NoopChannelNotificationClient,
+} from './ElectronChannelNotificationClient'
 
 export interface ChannelEnvironment {
   transport: ChannelTransport
@@ -22,6 +27,7 @@ export interface ChannelEnvironment {
   draftClient: ChannelDraftClient
   voicePlaybackClient: ChannelVoicePlaybackClient
   mediaClient: ChannelMediaClient
+  notificationActivationClient: ChannelNotificationActivationClient
   preview: boolean
 }
 
@@ -34,6 +40,7 @@ export function createChannelEnvironment(): ChannelEnvironment {
       draftClient: new MemoryChannelDraftClient(),
       voicePlaybackClient,
       mediaClient: new MockChannelMediaClient(),
+      notificationActivationClient: new NoopChannelNotificationClient(),
       preview: true,
     }
   }
@@ -43,6 +50,7 @@ export function createChannelEnvironment(): ChannelEnvironment {
     draftClient: new ElectronChannelDraftClient(),
     voicePlaybackClient,
     mediaClient: new ElectronChannelMediaClient(),
+    notificationActivationClient: new ElectronChannelNotificationClient(),
     preview: false,
   }
 }

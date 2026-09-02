@@ -185,11 +185,12 @@ async function bootstrap(): Promise<void> {
     getSettings: () => settings.snapshot().notifications,
     isWindowFocused: () => Boolean(win && !win.isDestroyed() && win.isFocused()),
     resolver: channel,
-    onActivate: () => {
+    onActivate: (messageRef) => {
       if (!win || win.isDestroyed()) return
       if (win.isMinimized()) win.restore()
       win.show()
       win.focus()
+      events.publish('channel-notification-activated', messageRef)
     },
   })
   const channelDrafts = new ElectronChannelDraftService(

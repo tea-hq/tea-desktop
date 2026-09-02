@@ -570,6 +570,14 @@ export interface ChannelNotificationSourceResolver {
   resolveNotificationContext(channelRef: ChannelRef): Promise<ChannelNotificationContext>
 }
 
+export type ChannelNotificationActivationListener = (messageRef: MessageRef) => void
+
+/** Renderer platform boundary for activating a message from a desktop notification. */
+export interface ChannelNotificationActivationClient {
+  subscribe(listener: ChannelNotificationActivationListener): () => void
+  dispose(): Promise<void>
+}
+
 export interface ListChannelMembersRequest {
   channelRef: ChannelRef
   limit: number

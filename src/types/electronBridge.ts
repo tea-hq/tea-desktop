@@ -1,3 +1,5 @@
+import type { MessageRef } from '@/features/channels/contracts'
+
 export const DESKTOP_COMMANDS = [
   'resolve_center_enterprise',
   'start_center_login',
@@ -104,6 +106,7 @@ export const DESKTOP_EVENTS = [
   'center-auth-state-changed',
   'managed-workspace-state-changed',
   'channel-event',
+  'channel-notification-activated',
   'channel-media-save-progress',
   'conversation:event',
   'conversation:host-tool-call',
@@ -116,6 +119,7 @@ export interface DesktopEventPayloadMap {
   'center-auth-state-changed': CenterAuthState
   'managed-workspace-state-changed': ManagedWorkspaceState
   'channel-event': ChannelEvent
+  'channel-notification-activated': MessageRef
   'channel-media-save-progress': ChannelMediaSaveProgressEvent
   'conversation:event': ConversationEvent
   'conversation:host-tool-call': HostToolCall
