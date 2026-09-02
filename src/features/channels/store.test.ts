@@ -1121,6 +1121,107 @@ describe('useChannelsStore', () => {
     expect(store.activeMessages.at(-1)).toMatchObject({ text: 'updated', state: 'active' })
   })
 
+  it('opens a provider-neutral thread and reloads it after sending a reply', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const root = store.activeMessages[0]!
+    const reply = vi.spyOn(transport, 'replyMessage')
+
+    await store.openThread(root.ref)
+
+    expect(store.threadRootRef).toEqual(root.ref)
+    expect(store.thread).toMatchObject({
+      channelRef: 'product-collab',
+      root: { ref: root.ref },
+      replies: [],
+      replyCount: 0,
+    })
+    expect(store.loadingThread).toBe(false)
+
+    await store.sendThreadText('Keep this decision attached.')
+
+    expect(reply).toHaveBeenCalledWith(
+      expect.objectContaining({ channelRef: 'product-collab', replyTo: root.ref }),
+    )
+    expect(store.thread?.replies).toHaveLength(1)
+    expect(store.thread?.replies[0]).toMatchObject({
+      text: 'Keep this decision attached.',
+      replyTo: { ref: root.ref },
+    })
+    expect(store.activeThreadOutgoingAttempts).toEqual([])
+  })
+
+  it('rejects a failed thread load and retries the selected root', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const root = store.activeMessages[0]!
+    const loadThread = vi
+      .spyOn(transport, 'loadThread')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+    const original = transport.loadThread.bind(transport)
+
+    await expect(store.openThread(root.ref)).rejects.toMatchObject({ code: 'transport' })
+    expect(store.threadRootRef).toEqual(root.ref)
+    expect(store.thread).toBeNull()
+    expect(store.threadErrorCode).toBe('transport')
+    expect(store.loadingThread).toBe(false)
+
+    loadThread.mockImplementationOnce(original)
+    await store.retryThread()
+    expect(store.threadErrorCode).toBeNull()
+    expect(store.thread?.root.ref).toEqual(root.ref)
+  })
+
+  it('ignores a late thread load after the root is closed or the transport is replaced', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const root = store.activeMessages[0]!
+    const original = transport.loadThread.bind(transport)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'loadThread').mockImplementation(async (ref) => {
+      await gate
+      return original(ref)
+    })
+
+    const loading = store.openThread(root.ref)
+    await vi.waitFor(() => expect(transport.loadThread).toHaveBeenCalled())
+    store.closeThread()
+    release()
+
+    await expect(loading).resolves.toBeUndefined()
+    expect(store.threadRootRef).toBeNull()
+    expect(store.thread).toBeNull()
+    expect(store.loadingThread).toBe(false)
+  })
+
+  it('clears the thread when its root is deleted, revoked, or the channel is changed', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const root = store.activeMessages[0]!
+    const rootRef = { ...root.ref }
+
+    await store.openThread(root.ref)
+    transport.emitForTest({ type: 'message.deleted', refs: [rootRef] })
+    expect(store.threadRootRef).toBeNull()
+    expect(store.thread).toBeNull()
+
+    const nextRoot = store.activeMessages[0]!
+    await store.openThread(nextRoot.ref)
+    transport.emitForTest({ type: 'message.revoked', refs: [{ ...nextRoot.ref }] })
+    expect(store.threadRootRef).toBeNull()
+    expect(store.thread).toBeNull()
+
+    const latest = store.activeMessages.find((message) => message.state === 'active')
+    if (!latest) throw new Error('thread root fixture missing')
+    await store.openThread(latest.ref)
+    await store.selectChannel('runtime-architecture')
+    expect(store.threadRootRef).toBeNull()
+    expect(store.thread).toBeNull()
+  })
+
   it('sends through the transport and keeps the provider message identity', async () => {
     const { store } = await connectedStore()
     await store.selectChannel('product-collab')

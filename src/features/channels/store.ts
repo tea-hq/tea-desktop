@@ -8,6 +8,7 @@ import type {
   ChannelDraftClient,
   ChannelEvent,
   ChannelDetails,
+  ChannelThread,
   ChannelMemberPage,
   ChannelMediaClient,
   ChannelMediaSaveErrorCode,
@@ -151,6 +152,10 @@ export const useChannelsStore = defineStore('channels', () => {
   const mutatingMessage = ref(false)
   const loadingMergedMessages = ref(false)
   const mergedMessagesErrorCode = ref<string | null>(null)
+  const threadRootRef = ref<MessageRef | null>(null)
+  const thread = shallowRef<ChannelThread | null>(null)
+  const loadingThread = ref(false)
+  const threadErrorCode = ref<string | null>(null)
   const errorCode = ref<string | null>(null)
   const presenceByAccount = reactive(new Map<string, ChannelPresence>())
   const presenceErrorCode = ref<string | null>(null)
@@ -167,6 +172,7 @@ export const useChannelsStore = defineStore('channels', () => {
   let pinnedMessagesOperationId = 0
   let savedMessagesOperationId = 0
   let mergedMessagesOperationId = 0
+  let threadOperationId = 0
   let draftLoadOperationId = 0
   let loadedDraftAccountRef: string | null = null
   let presenceGeneration = 0
@@ -266,6 +272,21 @@ export const useChannelsStore = defineStore('channels', () => {
           left.createdAt - right.createdAt || left.attemptId.localeCompare(right.attemptId),
       ),
   )
+  const activeThreadOutgoingAttempts = computed(() => {
+    const root = threadRootRef.value
+    if (!root) return []
+    return [...outgoingAttempts.values()]
+      .filter(
+        (attempt) =>
+          attempt.channelRef === root.channelRef &&
+          attempt.replyTo &&
+          sameMessage(attempt.replyTo.ref, root),
+      )
+      .sort(
+        (left, right) =>
+          left.createdAt - right.createdAt || left.attemptId.localeCompare(right.attemptId),
+      )
+  })
   const drafts = computed(() =>
     [...draftsByChannel.values()].sort(
       (left, right) =>
@@ -444,6 +465,7 @@ export const useChannelsStore = defineStore('channels', () => {
   async function selectChannel(channelRef: ChannelRef): Promise<void> {
     if (!projection.channels.has(channelRef)) return
     const previousChannelRef = activeChannelRef.value
+    if (previousChannelRef && previousChannelRef !== channelRef) closeThread()
     if (previousChannelRef && previousChannelRef !== channelRef) pauseVoicePlayback()
     if (previousChannelRef && previousChannelRef !== channelRef) closeMediaViewer()
     if (previousChannelRef && previousChannelRef !== channelRef)
@@ -1640,6 +1662,96 @@ export const useChannelsStore = defineStore('channels', () => {
     }
   }
 
+  async function openThread(messageRef: MessageRef): Promise<void> {
+    const client = requireTransport()
+    if (activeChannelRef.value !== messageRef.channelRef)
+      throw new ChannelTransportError('invalidRequest', false)
+    if (
+      !client
+        .capabilities()
+        .some((capability) => capability.id === 'message.thread' && capability.available)
+    )
+      throw new ChannelTransportError('unsupportedCapability', false)
+    const root = messageForRef(messageRef)
+    if (!root || root.state !== 'active') throw new ChannelTransportError('invalidRequest', false)
+    if (
+      threadRootRef.value &&
+      sameMessage(threadRootRef.value, root.ref) &&
+      (loadingThread.value || thread.value)
+    )
+      return
+
+    const ref = copyMessageRef(root.ref)
+    const generation = lifecycleGeneration
+    const operationId = ++threadOperationId
+    threadRootRef.value = ref
+    thread.value = null
+    loadingThread.value = true
+    threadErrorCode.value = null
+    try {
+      const value = await client.loadThread(ref)
+      if (!hasThreadContext(client, generation, operationId, ref)) return
+      if (
+        value.channelRef !== ref.channelRef ||
+        !sameMessage(value.root.ref, ref) ||
+        value.root.state !== 'active' ||
+        value.replies.some((reply) => reply.ref.channelRef !== ref.channelRef) ||
+        !Number.isSafeInteger(value.replyCount) ||
+        value.replyCount < value.replies.length
+      )
+        throw new ChannelTransportError('protocolFailure', false)
+      thread.value = structuredClone(value)
+    } catch (error) {
+      if (hasThreadContext(client, generation, operationId, ref)) {
+        threadErrorCode.value = transportErrorCode(error)
+        errorCode.value = threadErrorCode.value
+      }
+      throw error
+    } finally {
+      if (hasThreadContext(client, generation, operationId, ref)) loadingThread.value = false
+    }
+  }
+
+  async function retryThread(): Promise<void> {
+    const root = threadRootRef.value
+    if (!root) return
+    await openThread(root)
+  }
+
+  function closeThread(): void {
+    clearThreadProjection()
+  }
+
+  async function sendThreadContent(
+    content: OutgoingMessageContent,
+    mentions: MessageMention[] = [],
+  ): Promise<SendMessageResult | null> {
+    const root = threadRootRef.value
+    const channelRef = activeChannelRef.value
+    if (!root || !channelRef || root.channelRef !== channelRef) return null
+    const generation = lifecycleGeneration
+    const client = requireTransport()
+    const result = await startOutgoingContent(channelRef, content, root, mentions).completion
+    if (
+      result &&
+      generation === lifecycleGeneration &&
+      transport.value === client &&
+      threadRootRef.value &&
+      sameMessage(threadRootRef.value, root)
+    )
+      await openThread(root).catch(() => undefined)
+    return result
+  }
+
+  async function sendThreadText(
+    text: string,
+    mentions: MessageMention[] = [],
+  ): Promise<SendMessageResult | null> {
+    const trimmed = text.trim()
+    if (!trimmed) return null
+    return sendThreadContent(createTextMessageContent(trimmed), mentions)
+  }
+
   async function openDirectConversation(accountId: string): Promise<ChannelRef> {
     const client = requireTransport()
     const channelRef = await client.openDirectConversation(accountId)
@@ -1950,6 +2062,7 @@ export const useChannelsStore = defineStore('channels', () => {
     reconcileVoiceTranscripts(event)
     reconcileVoicePlayback(event)
     reconcileMedia(event)
+    reconcileThread(event)
     if (event.type === 'status.changed') {
       if (event.status.phase !== 'connected') clearPresenceProjection()
       if (
@@ -2021,7 +2134,135 @@ export const useChannelsStore = defineStore('channels', () => {
     clearVoiceTranscriptProjection()
     clearVoicePlaybackProjection()
     clearMediaProjection()
+    clearThreadProjection()
     void clearOutgoingAttempts(attachmentPicker.value)
+  }
+
+  function hasThreadContext(
+    client: ChannelTransport,
+    generation: number,
+    operationId: number,
+    root: MessageRef,
+  ): boolean {
+    return (
+      generation === lifecycleGeneration &&
+      transport.value === client &&
+      threadOperationId === operationId &&
+      threadRootRef.value !== null &&
+      sameMessage(threadRootRef.value, root)
+    )
+  }
+
+  function clearThreadProjection(): void {
+    threadOperationId += 1
+    threadRootRef.value = null
+    thread.value = null
+    loadingThread.value = false
+    threadErrorCode.value = null
+  }
+
+  function reconcileThread(event: ChannelEvent): void {
+    const current = thread.value
+    const root = threadRootRef.value
+    if (!current || !root) {
+      if (event.type === 'channel.deleted' && root && event.channelRefs.includes(root.channelRef))
+        clearThreadProjection()
+      return
+    }
+    if (event.type === 'channel.deleted' && event.channelRefs.includes(root.channelRef)) {
+      clearThreadProjection()
+      return
+    }
+    if (event.type === 'message.historyCleared' && event.channelRef === root.channelRef) {
+      if (event.before === undefined || current.root.sentAt <= event.before) {
+        clearThreadProjection()
+        return
+      }
+      const replies = current.replies.filter((reply) => reply.sentAt > (event.before ?? 0))
+      const removedCount = current.replies.length - replies.length
+      thread.value = {
+        ...current,
+        replies,
+        replyCount: Math.max(0, current.replyCount - removedCount),
+        updatedAt: Math.max(current.root.sentAt, replies.at(-1)?.sentAt ?? current.root.sentAt),
+      }
+      return
+    }
+    if (event.type === 'message.deleted') {
+      if (event.refs.some((ref) => sameMessage(ref, root))) {
+        clearThreadProjection()
+        return
+      }
+      const replies = current.replies.filter(
+        (reply) => !event.refs.some((ref) => sameMessage(ref, reply.ref)),
+      )
+      const removedCount = current.replies.length - replies.length
+      if (removedCount)
+        thread.value = {
+          ...current,
+          replies,
+          replyCount: Math.max(0, current.replyCount - removedCount),
+          updatedAt: Math.max(current.root.sentAt, replies.at(-1)?.sentAt ?? current.root.sentAt),
+        }
+      return
+    }
+    if (event.type === 'message.revoked') {
+      if (event.refs.some((ref) => sameMessage(ref, root))) {
+        clearThreadProjection()
+        return
+      }
+      const replies = current.replies.map((reply) =>
+        event.refs.some((ref) => sameMessage(ref, reply.ref))
+          ? {
+              ...reply,
+              state: 'revoked' as const,
+              text: '',
+              content: { kind: 'redacted' as const, reason: 'revoked' as const },
+            }
+          : reply,
+      )
+      if (replies.some((reply, index) => reply !== current.replies[index]))
+        thread.value = { ...current, replies }
+      return
+    }
+    if (event.type !== 'message.received' && event.type !== 'message.upserted') return
+    const incomingRoot = event.messages.find((message) => sameMessage(message.ref, root))
+    if (incomingRoot) {
+      if (incomingRoot.state !== 'active') {
+        clearThreadProjection()
+        return
+      }
+      current.root = structuredClone(incomingRoot)
+    }
+    const incomingReplies = event.messages.filter(
+      (message) =>
+        message.ref.channelRef === root.channelRef &&
+        message.replyTo &&
+        sameMessage(message.replyTo.ref, root),
+    )
+    if (!incomingReplies.length && !incomingRoot) return
+    const replies = [...current.replies]
+    let addedCount = 0
+    for (const incoming of incomingReplies) {
+      const index = replies.findIndex((reply) => sameMessage(reply.ref, incoming.ref))
+      if (index >= 0) replies[index] = structuredClone(incoming)
+      else {
+        replies.push(structuredClone(incoming))
+        addedCount += 1
+      }
+    }
+    replies.sort(
+      (left, right) =>
+        left.sentAt - right.sentAt ||
+        left.ref.messageClientId.localeCompare(right.ref.messageClientId),
+    )
+    thread.value = {
+      ...current,
+      root: current.root,
+      replies,
+      replyCount: current.replyCount + addedCount,
+      updatedAt: Math.max(current.root.sentAt, replies.at(-1)?.sentAt ?? current.root.sentAt),
+    }
   }
 
   function hasVoiceTranscriptionContext(
@@ -2561,6 +2802,7 @@ export const useChannelsStore = defineStore('channels', () => {
     mediaViewerCanGoPrevious,
     mediaViewerCanGoNext,
     activeOutgoingAttempts,
+    activeThreadOutgoingAttempts,
     drafts,
     activeDraft,
     activeDraftHasUnresolvedDelivery,
@@ -2590,6 +2832,10 @@ export const useChannelsStore = defineStore('channels', () => {
     mutatingMessage,
     loadingMergedMessages,
     mergedMessagesErrorCode,
+    threadRootRef,
+    thread,
+    loadingThread,
+    threadErrorCode,
     errorCode,
     presenceErrorCode,
     configure,
@@ -2649,6 +2895,11 @@ export const useChannelsStore = defineStore('channels', () => {
     retryMediaSave,
     cancelMediaSave,
     getMessageReceiptDetails,
+    openThread,
+    retryThread,
+    closeThread,
+    sendThreadContent,
+    sendThreadText,
     openDirectConversation,
     setChannelPinned,
     setChannelMuted,
@@ -2742,7 +2993,7 @@ function randomIdempotencyKey(): string {
 function messageReplySnapshot(ref: MessageRef, messages: Message[]): MessageReply {
   const message = messages.find((candidate) => sameMessage(candidate.ref, ref))
   return {
-    ref: structuredClone(ref),
+    ref: copyMessageRef(ref),
     senderName: message?.sender.name ?? '',
     text: message?.text ?? '',
   }
