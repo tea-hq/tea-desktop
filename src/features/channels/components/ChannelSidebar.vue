@@ -11,13 +11,22 @@ const props = defineProps<{
   activeRef: ChannelRef | null
   status: ChannelStatus
   loading: boolean
+  searchQuery?: string
 }>()
 
 const emit = defineEmits<{
   select: [channelRef: ChannelRef]
+  'update:searchQuery': [value: string]
 }>()
 const { t } = useI18n()
-const query = ref('')
+const localQuery = ref('')
+const query = computed({
+  get: () => props.searchQuery ?? localQuery.value,
+  set: (value: string) => {
+    if (props.searchQuery === undefined) localQuery.value = value
+    else emit('update:searchQuery', value)
+  },
+})
 const filteredChannels = computed(() => {
   const value = query.value.trim().toLocaleLowerCase()
   if (!value) return props.channels
@@ -34,12 +43,25 @@ function formatTime(value: number): string {
 <template>
   <aside
     class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-canvas sm:flex"
+    :aria-label="t('channels.title')"
   >
-    <div class="border-b border-line-soft bg-canvas px-3 pb-3 pt-4 sm:px-4">
-      <div class="flex h-7 items-center gap-2">
-        <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
+    <div
+      v-if="searchQuery === undefined"
+      class="border-b border-line-soft bg-canvas px-3 pb-3 pt-4 sm:px-4"
+    >
+      <div class="channel-search-wrap relative">
+        <TeaInput
+          v-model="query"
+          class="pr-10"
+          type="search"
+          size="small"
+          :label="t('channels.search')"
+          :placeholder="t('channels.search')"
+          :disabled="loading && channels.length === 0"
+        />
         <span
-          class="size-1.5 shrink-0 rounded-full"
+          role="img"
+          class="channel-sidebar__status pointer-events-none absolute right-3 top-1/2 size-1.5 -translate-y-1/2 rounded-full"
           :class="
             loading && channels.length === 0
               ? 'animate-pulse bg-muted motion-reduce:animate-none'
@@ -49,6 +71,11 @@ function formatTime(value: number): string {
                   ? 'bg-danger'
                   : 'bg-muted'
           "
+          :aria-label="
+            loading && channels.length === 0
+              ? t('channels.loading')
+              : t(`channels.connection.${status.phase}`)
+          "
           :title="
             loading && channels.length === 0
               ? t('channels.loading')
@@ -56,15 +83,6 @@ function formatTime(value: number): string {
           "
         />
       </div>
-      <TeaInput
-        v-model="query"
-        class="mt-2"
-        type="search"
-        size="small"
-        :label="t('channels.search')"
-        :placeholder="t('channels.search')"
-        :disabled="loading && channels.length === 0"
-      />
     </div>
 
     <div class="channel-list-scroll-area flex-1 overflow-y-auto bg-canvas px-2 pb-2 pt-3">

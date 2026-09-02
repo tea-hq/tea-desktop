@@ -5,6 +5,8 @@ import ConversationSidebar from '@/features/conversation/components/Conversation
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
 import { fullAgentProfile } from '@/app/composerProfiles'
 
+defineProps<{ searchQuery: string }>()
+
 const {
   channels,
   conversation,
@@ -45,6 +47,7 @@ const { t } = useI18n()
 <template>
   <ConversationSidebar
     v-if="settings.leftSidebarOpen"
+    :search-query="searchQuery"
     :conversations="conversation.conversations"
     :active-id="collaborationWorkspace ? collaboration.conversationId : conversation.conversationId"
     :runtimes="conversation.runtimes"

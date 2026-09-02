@@ -2,6 +2,7 @@
 import EnterpriseLogin from '@/features/auth/components/EnterpriseLogin.vue'
 import WorkspaceShell from './WorkspaceShell.vue'
 import WindowChrome from './WindowChrome.vue'
+import WorkspaceGlobalSearch from './WorkspaceGlobalSearch.vue'
 import { provideTeaDesktopApp } from '@/app/teaDesktopContext'
 import { useTeaDesktopApp } from '@/app/useTeaDesktopApp'
 
@@ -12,6 +13,9 @@ const { centerAuth } = app
 
 <template>
   <WindowChrome>
+    <template #toolbar>
+      <WorkspaceGlobalSearch v-if="centerAuth.canEnterWorkspace" />
+    </template>
     <EnterpriseLogin
       v-if="!centerAuth.canEnterWorkspace"
       :domain="centerAuth.domain"

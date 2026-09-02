@@ -22,6 +22,7 @@ const props = defineProps<{
   error: ConversationUiError | null
   hasMore: boolean
   filter: ConversationScopeFilter
+  searchQuery?: string
   runningConversationIds?: ReadonlySet<string>
   completedConversationIds?: ReadonlySet<string>
 }>()
@@ -42,10 +43,21 @@ const projectsExpanded = ref(true)
 const collapsedProjects = ref(new Set<string>())
 const pendingAction = ref<{ id: string; title: string } | null>(null)
 
+const filteredConversations = computed(() => {
+  const query = props.searchQuery?.trim().toLocaleLowerCase()
+  if (!query) return props.conversations
+  return props.conversations.filter((conversation) =>
+    [conversation.title, conversation.lastMessagePreview, conversation.workingDirectory]
+      .filter(Boolean)
+      .some((value) => value!.toLocaleLowerCase().includes(query)),
+  )
+})
+const hasSearchQuery = computed(() => Boolean(props.searchQuery?.trim()))
+
 const groupedConversations = computed(() => {
   const projects = new Map<string, ConversationSummary[]>()
   const recent: ConversationSummary[] = []
-  for (const conversation of props.conversations) {
+  for (const conversation of filteredConversations.value) {
     if (!conversation.workingDirectory) {
       recent.push(conversation)
       continue
@@ -124,9 +136,26 @@ function confirmAction(): void {
 <template>
   <aside
     class="conversation-sidebar hidden h-full w-[288px] flex-col border-r border-line-soft bg-canvas sm:flex"
+    :aria-label="t('sidebar.title')"
   >
     <header class="conversation-sidebar__header">
-      <h2 class="conversation-sidebar__title">{{ t('sidebar.title') }}</h2>
+      <nav class="conversation-filters" :aria-label="t('sidebar.filterLabel')">
+        <div class="conversation-filters__list nav-pill-group" role="tablist">
+          <TeaButton
+            v-for="kind in ['all', 'local', 'channel'] as const"
+            :key="kind"
+            appearance="ghost"
+            size="small"
+            role="tab"
+            :aria-selected="filter.kind === kind"
+            class="conversation-filter nav-pill-group__item"
+            :class="filter.kind === kind ? 'conversation-filter--active text-fg' : 'text-subtle'"
+            @click="emit('filter', { kind })"
+          >
+            {{ t(`sidebar.filters.${kind}`) }}
+          </TeaButton>
+        </div>
+      </nav>
       <div class="conversation-sidebar__actions">
         <TeaIconButton
           size="small"
@@ -144,23 +173,6 @@ function confirmAction(): void {
         />
       </div>
     </header>
-    <nav class="conversation-filters" :aria-label="t('sidebar.filterLabel')">
-      <div class="conversation-filters__list nav-pill-group" role="tablist">
-        <TeaButton
-          v-for="kind in ['all', 'local', 'channel'] as const"
-          :key="kind"
-          appearance="ghost"
-          size="small"
-          role="tab"
-          :aria-selected="filter.kind === kind"
-          class="conversation-filter nav-pill-group__item"
-          :class="filter.kind === kind ? 'conversation-filter--active text-fg' : 'text-subtle'"
-          @click="emit('filter', { kind })"
-        >
-          {{ t(`sidebar.filters.${kind}`) }}
-        </TeaButton>
-      </div>
-    </nav>
 
     <div
       class="conversation-sidebar__scroll flex-1 overflow-y-auto bg-canvas pb-3 pt-2"
@@ -183,8 +195,11 @@ function confirmAction(): void {
           {{ t('sidebar.retry') }}
         </TeaButton>
       </div>
-      <p v-else-if="conversations.length === 0" class="px-3 py-6 text-center text-sm text-subtle">
-        {{ t('sidebar.empty') }}
+      <p
+        v-else-if="filteredConversations.length === 0"
+        class="px-3 py-6 text-center text-sm text-subtle"
+      >
+        {{ t(hasSearchQuery ? 'sidebar.noResults' : 'sidebar.empty') }}
       </p>
       <section v-if="groupedConversations.projects.length" class="workspace-group">
         <button
@@ -338,8 +353,8 @@ function confirmAction(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 0.875rem 0.5rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
 }
 
 .conversation-sidebar__scroll {
@@ -354,26 +369,22 @@ function confirmAction(): void {
   gap: 0.25rem;
 }
 
-.conversation-sidebar__title {
-  min-width: 0;
-  color: var(--tea-fg);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
 .conversation-filters {
-  padding: 0.25rem 0.75rem 0.625rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
 }
 
 .conversation-filters__list {
-  display: grid;
+  display: flex;
   width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
 }
 
 .conversation-filter {
-  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-inline: 0.5rem;
 }
 
 .workspace-group {
