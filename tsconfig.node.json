@@ -8,6 +8,7 @@
     "src/infrastructure/electronBridge.ts",
     "src/infrastructure/channels/YunxinWebChannelTransport.ts",
     "src/infrastructure/channels/yunxinMapper.ts",
+    "src/infrastructure/channels/yunxinPresence.ts",
     "src/infrastructure/channels/yunxinSavedMessages.ts",
     "src/infrastructure/channels/yunxinMergedMessages.ts",
     "src/infrastructure/channels/yunxinMentions.ts",

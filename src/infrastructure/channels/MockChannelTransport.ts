@@ -97,6 +97,7 @@ const seedChannels: Channel[] = [
   {
     ref: 'lin-direct',
     kind: 'direct',
+    directAccountId: 'lin',
     name: '林晓',
     participantAccountId: 'lin',
     description: '产品设计',
@@ -164,6 +165,7 @@ const capabilities: ChannelCapability[] = [
   'channel.pin',
   'channel.mute',
   'channel.hide',
+  'presence.subscribe',
   'profile.self',
   'message.history',
   'message.search',
@@ -201,6 +203,7 @@ export class MockChannelTransport implements ChannelTransport {
   private mergedArchives = new Map<string, Message[]>()
   private sequence = 0
   private disposed = false
+  private presenceAccountIds = new Set<string>()
 
   descriptor(): ChannelTransportDescriptor {
     return {
@@ -840,6 +843,22 @@ export class MockChannelTransport implements ChannelTransport {
     this.emit({ type: 'channel.upserted', channels: [structuredClone(channel)] })
   }
 
+  async setPresenceSubscriptions(accountIds: string[]): Promise<void> {
+    this.assertConnected()
+    const normalized = normalizeMockPresenceAccounts(accountIds)
+    this.presenceAccountIds = new Set(normalized)
+    if (normalized.length) {
+      this.emit({
+        type: 'presence.changed',
+        presences: normalized.map((accountId) => ({
+          accountId,
+          availability: accountId === 'lin' ? 'online' : 'offline',
+          updatedAt: now,
+        })),
+      })
+    }
+  }
+
   subscribe(listener: ChannelEventListener): () => void {
     if (this.disposed) throw new ChannelTransportError('disposed', false)
     this.listeners.add(listener)
@@ -875,6 +894,7 @@ export class MockChannelTransport implements ChannelTransport {
     this.forwardedByKey.clear()
     this.savedMessages = []
     this.mergedArchives.clear()
+    this.presenceAccountIds.clear()
   }
 
   private assertUsable(): void {
@@ -981,4 +1001,18 @@ function messageIdentity(ref: MessageRef): string {
 
 function uniqueAccounts(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function normalizeMockPresenceAccounts(values: string[]): string[] {
+  if (!Array.isArray(values)) throw new ChannelTransportError('invalidRequest', false)
+  const result = new Set<string>()
+  for (const value of values) {
+    if (typeof value !== 'string') throw new ChannelTransportError('invalidRequest', false)
+    const accountId = value.trim()
+    if (!accountId || accountId.length > 512 || /[\u0000-\u001f\u007f]/.test(accountId))
+      throw new ChannelTransportError('invalidRequest', false)
+    result.add(accountId)
+    if (result.size > 3_000) throw new ChannelTransportError('limitExceeded', false)
+  }
+  return [...result]
 }

@@ -17,6 +17,24 @@ describe('MockChannelTransport', () => {
     })
   })
 
+  it('publishes deterministic provider-neutral presence from replace-set subscriptions', async () => {
+    const transport = new MockChannelTransport()
+    const events: Array<{ type: string; presences?: unknown[] }> = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+    const accountIds = ['lin', 'meng', 'lin']
+
+    await transport.setPresenceSubscriptions(accountIds)
+    accountIds[0] = 'mutated-after-call'
+
+    expect(events.find((event) => event.type === 'presence.changed')).toMatchObject({
+      presences: [
+        { accountId: 'lin', availability: 'online' },
+        { accountId: 'meng', availability: 'offline' },
+      ],
+    })
+  })
+
   it('exposes a safe preview self profile', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()

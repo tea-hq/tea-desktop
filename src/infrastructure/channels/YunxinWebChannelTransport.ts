@@ -104,6 +104,13 @@ import type {
   ManagedImCredentials,
 } from './electronManagedImCredentials'
 import { withYunxinMentions } from './yunxinMentions'
+import {
+  mapYunxinPresenceStatuses,
+  normalizePresenceAccountIds,
+  reconcileYunxinPresenceSubscriptions,
+  YUNXIN_PRESENCE_RENEWAL_MS,
+  type YunxinPresenceServicePort,
+} from './yunxinPresence'
 
 export interface YunxinSdkFactory {
   create(appKey: string): YunxinSdk | Promise<YunxinSdk>
@@ -163,6 +170,7 @@ const capabilities: ChannelCapability[] = [
   'channel.pin',
   'channel.mute',
   'channel.hide',
+  'presence.subscribe',
   'profile.self',
   'message.history',
   'message.search',
@@ -220,6 +228,12 @@ export class YunxinWebChannelTransport implements ChannelTransport {
   private credentialFingerprint: string | null = null
   private lifecycleGeneration = 0
   private readonly activeSends = new Map<string, { cancelled: boolean }>()
+  private presenceGeneration = 0
+  private presenceDesired = new Set<string>()
+  private presenceSubscribed = new Set<string>()
+  private presenceRenewalTimer: ReturnType<typeof setTimeout> | null = null
+  private presenceOperation: Promise<void> = Promise.resolve()
+  private presenceListener: ((values: unknown[]) => void) | null = null
 
   constructor(
     private readonly credentials: ManagedImCredentialClient,
@@ -1160,6 +1174,37 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     }
   }
 
+  setPresenceSubscriptions(accountIds: string[]): Promise<void> {
+    const desired = normalizePresenceAccountIds(accountIds)
+    const sdk = this.connectedSdk()
+    const lifecycleGeneration = this.lifecycleGeneration
+    const operation = this.presenceOperation
+      .catch(() => undefined)
+      .then(async () => {
+        this.assertPresenceContext(sdk, lifecycleGeneration)
+        await this.ensureKnownContacts(desired)
+        this.assertPresenceContext(sdk, lifecycleGeneration)
+        this.presenceDesired = new Set(desired)
+        const result = await reconcileYunxinPresenceSubscriptions(
+          this.guardedPresenceService(sdk, lifecycleGeneration, this.presenceGeneration),
+          this.presenceSubscribed,
+          desired,
+        )
+        this.assertPresenceContext(sdk, lifecycleGeneration)
+        this.presenceSubscribed = result.subscribed
+        this.schedulePresenceRenewal()
+        if (result.failed) {
+          this.emit({
+            type: 'presence.subscriptionFailed',
+            errorCode: 'presenceSubscriptionFailed',
+          })
+          throw new ChannelTransportError('transport', true)
+        }
+      })
+    this.presenceOperation = operation.catch(() => undefined)
+    return operation
+  }
+
   async setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void> {
     if (typeof pinned !== 'boolean') throw new ChannelTransportError('invalidRequest', false)
     const sdk = this.connectedSdk()
@@ -1304,6 +1349,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     this.selfAccount = null
     this.credentialFingerprint = null
     this.activeSends.clear()
+    this.clearPresenceState()
     this.resetMemory()
     this.listeners.clear()
     this.currentStatus = { phase: 'disconnected', retryable: false }
@@ -1457,6 +1503,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     message.on('onReceiveP2PMessageReadReceipts', this.onReceiveP2PMessageReadReceipts)
     message.on('onReceiveTeamMessageReadReceipts', this.onReceiveTeamMessageReadReceipts)
     this.listenersAttached = true
+    this.attachPresenceListener()
   }
 
   private detachListeners(): void {
@@ -1486,6 +1533,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     message.off('onMessageQuickCommentNotification', this.onMessageQuickCommentNotification)
     message.off('onReceiveP2PMessageReadReceipts', this.onReceiveP2PMessageReadReceipts)
     message.off('onReceiveTeamMessageReadReceipts', this.onReceiveTeamMessageReadReceipts)
+    this.detachPresenceListener()
     this.listenersAttached = false
   }
 
@@ -1603,6 +1651,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
   }
 
   private setStatus(status: ChannelStatus): void {
+    if (status.phase !== 'connected') this.clearPresenceState()
     const next =
       status.phase === 'disconnected'
         ? status
@@ -1611,6 +1660,7 @@ export class YunxinWebChannelTransport implements ChannelTransport {
             accountRef: status.accountRef ?? this.currentStatus.accountRef,
           }
     this.currentStatus = next
+    if (status.phase === 'connected') this.rebindPresenceListener()
     this.emit({ type: 'status.changed', status: structuredClone(next) })
   }
 
@@ -1646,6 +1696,141 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     this.forwardedByKey.clear()
     this.savedCollections.clear()
     this.savedCursorOffsets.clear()
+  }
+
+  private attachPresenceListener(): void {
+    if (!this.sdk || this.presenceListener) return
+    const sdk = this.sdk
+    const generation = this.presenceGeneration
+    this.presenceListener = (values) => {
+      if (
+        this.sdk !== sdk ||
+        this.presenceGeneration !== generation ||
+        this.currentStatus.phase !== 'connected'
+      ) {
+        return
+      }
+      const presences = mapYunxinPresenceStatuses(values).filter(
+        (presence) =>
+          this.presenceDesired.has(presence.accountId) &&
+          this.presenceSubscribed.has(presence.accountId),
+      )
+      if (presences.length) this.emit({ type: 'presence.changed', presences })
+    }
+    sdk.V2NIMSubscriptionService.on('onUserStatusChanged', this.presenceListener)
+  }
+
+  private detachPresenceListener(): void {
+    if (!this.sdk || !this.presenceListener) return
+    this.sdk.V2NIMSubscriptionService.off('onUserStatusChanged', this.presenceListener)
+    this.presenceListener = null
+  }
+
+  private rebindPresenceListener(): void {
+    if (!this.listenersAttached) return
+    this.detachPresenceListener()
+    this.attachPresenceListener()
+  }
+
+  private clearPresenceState(): void {
+    this.presenceGeneration += 1
+    if (this.presenceRenewalTimer) clearTimeout(this.presenceRenewalTimer)
+    this.presenceRenewalTimer = null
+    this.presenceDesired.clear()
+    this.presenceSubscribed.clear()
+  }
+
+  private schedulePresenceRenewal(): void {
+    if (this.presenceRenewalTimer) clearTimeout(this.presenceRenewalTimer)
+    this.presenceRenewalTimer = null
+    if (!this.presenceDesired.size || this.currentStatus.phase !== 'connected') return
+    const sdk = this.sdk
+    if (!sdk) return
+    const lifecycleGeneration = this.lifecycleGeneration
+    const presenceGeneration = this.presenceGeneration
+    this.presenceRenewalTimer = setTimeout(() => {
+      this.presenceRenewalTimer = null
+      void this.renewPresenceSubscriptions(sdk, lifecycleGeneration, presenceGeneration)
+    }, YUNXIN_PRESENCE_RENEWAL_MS)
+  }
+
+  private async renewPresenceSubscriptions(
+    sdk: YunxinSdk,
+    lifecycleGeneration: number,
+    presenceGeneration: number,
+  ): Promise<void> {
+    if (!this.hasPresenceContext(sdk, lifecycleGeneration, presenceGeneration)) return
+    try {
+      const result = await reconcileYunxinPresenceSubscriptions(
+        this.guardedPresenceService(sdk, lifecycleGeneration, presenceGeneration),
+        this.presenceSubscribed,
+        [...this.presenceDesired],
+        { renew: true },
+      )
+      if (!this.hasPresenceContext(sdk, lifecycleGeneration, presenceGeneration)) return
+      this.presenceSubscribed = result.subscribed
+      if (result.failed) {
+        this.emit({
+          type: 'presence.subscriptionFailed',
+          errorCode: 'presenceSubscriptionFailed',
+        })
+      }
+      this.schedulePresenceRenewal()
+    } catch {
+      if (this.hasPresenceContext(sdk, lifecycleGeneration, presenceGeneration)) {
+        this.emit({
+          type: 'presence.subscriptionFailed',
+          errorCode: 'presenceSubscriptionFailed',
+        })
+        this.schedulePresenceRenewal()
+      }
+    }
+  }
+
+  private guardedPresenceService(
+    sdk: YunxinSdk,
+    lifecycleGeneration: number,
+    presenceGeneration: number,
+  ): YunxinPresenceServicePort {
+    const service = sdk.V2NIMSubscriptionService
+    return {
+      subscribeUserStatus: async (request) => {
+        this.assertPresenceContext(sdk, lifecycleGeneration, presenceGeneration)
+        const result = await service.subscribeUserStatus(request)
+        this.assertPresenceContext(sdk, lifecycleGeneration, presenceGeneration)
+        return result
+      },
+      unsubscribeUserStatus: async (request) => {
+        this.assertPresenceContext(sdk, lifecycleGeneration, presenceGeneration)
+        const result = await service.unsubscribeUserStatus(request)
+        this.assertPresenceContext(sdk, lifecycleGeneration, presenceGeneration)
+        return result
+      },
+    }
+  }
+
+  private hasPresenceContext(
+    sdk: YunxinSdk,
+    lifecycleGeneration: number,
+    presenceGeneration: number,
+  ): boolean {
+    return (
+      !this.disposed &&
+      this.sdk === sdk &&
+      this.lifecycleGeneration === lifecycleGeneration &&
+      this.presenceGeneration === presenceGeneration &&
+      this.currentStatus.phase === 'connected'
+    )
+  }
+
+  private assertPresenceContext(
+    sdk: YunxinSdk,
+    lifecycleGeneration: number,
+    presenceGeneration = this.presenceGeneration,
+  ): void {
+    this.assertUsable()
+    if (!this.hasPresenceContext(sdk, lifecycleGeneration, presenceGeneration))
+      throw new ChannelTransportError('transport', true)
   }
 }
 

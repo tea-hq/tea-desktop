@@ -24,6 +24,19 @@ export async function verifyTransportContract(transport: ChannelTransport): Prom
   }
   const channels = await transport.listChannels({ offset: 0, limit: 2 })
   expect(channels.items.length).toBeGreaterThan(0)
+  const presenceCapability = transport
+    .capabilities()
+    .find((value) => value.id === 'presence.subscribe')
+  if (presenceCapability?.available) {
+    const directAccountId = channels.items.find(
+      (channel) => channel.directAccountId,
+    )?.directAccountId
+    const accountIds = directAccountId ? [directAccountId] : []
+    const inputSnapshot = [...accountIds]
+    await transport.setPresenceSubscriptions(accountIds)
+    expect(accountIds).toEqual(inputSnapshot)
+    await transport.setPresenceSubscriptions([])
+  }
   const channelRef = channels.items[0]!.ref
   const page = await transport.loadMessages({ channelRef, direction: 'before', limit: 20 })
   expect(page.channelRef).toBe(channelRef)

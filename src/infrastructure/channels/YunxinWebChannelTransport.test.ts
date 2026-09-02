@@ -12,6 +12,7 @@ import type {
 } from './electronManagedImCredentials'
 import type { YunxinMergedArchiveLoader } from './yunxinMergedMessages'
 import { decodeYunxinMergedMessagePayload } from './yunxinMergedMessages'
+import { YUNXIN_PRESENCE_DURATION_SECONDS, YUNXIN_PRESENCE_RENEWAL_MS } from './yunxinPresence'
 
 type Listener = (...args: never[]) => void
 
@@ -299,6 +300,10 @@ function createFakeSdk() {
     setP2PMessageMuteMode: vi.fn(async () => undefined),
     setTeamMessageMuteMode: vi.fn(async () => undefined),
   })
+  const subscription = Object.assign(new FakeService(), {
+    subscribeUserStatus: vi.fn(async (_request: { accountIds: string[] }) => [] as string[]),
+    unsubscribeUserStatus: vi.fn(async (_request: { accountIds: string[] }) => [] as string[]),
+  })
   const sdk = {
     V2NIMLoginService: login,
     V2NIMConversationService: conversation,
@@ -307,6 +312,7 @@ function createFakeSdk() {
     V2NIMFriendService: friend,
     V2NIMTeamService: team,
     V2NIMSettingService: setting,
+    V2NIMSubscriptionService: subscription,
     V2NIMMessageCreator: {
       createTextMessage: (text: string) => rawMessage(text),
       createForwardMessage: vi.fn((value: ReturnType<typeof rawMessage>) => rawMessage(value.text)),
@@ -350,6 +356,7 @@ function createFakeSdk() {
     friend,
     team,
     setting,
+    subscription,
     getUploadedArchive: () => uploadedArchive,
   }
 }
@@ -415,6 +422,124 @@ describe('YunxinWebChannelTransport', () => {
     expect(projection).not.toContain(credentials.account)
     expect(projection).not.toContain(credentials.token)
     expect(transport.status().accountRef).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('validates the complete presence replace set against Tea Center before SDK calls', async () => {
+    const { sdk, subscription } = createFakeSdk()
+    const directory = {
+      isKnownContact: vi.fn(async (accountId: string) => accountId !== 'unknown'),
+    }
+    const transport = new YunxinWebChannelTransport(
+      credentialClient(),
+      { create: () => sdk as never },
+      undefined,
+      directory,
+    )
+    await transport.connect()
+
+    await expect(transport.setPresenceSubscriptions(['known', 'unknown'])).rejects.toMatchObject({
+      code: 'invalidRequest',
+    })
+
+    expect(directory.isKnownContact).toHaveBeenCalledTimes(2)
+    expect(subscription.subscribeUserStatus).not.toHaveBeenCalled()
+    expect(subscription.unsubscribeUserStatus).not.toHaveBeenCalled()
+  })
+
+  it('subscribes with immediate sync and emits provider-neutral availability', async () => {
+    const { sdk, subscription } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+
+    await transport.setPresenceSubscriptions(['lin'])
+    subscription.emit('onUserStatusChanged', [
+      { accountId: 'lin', statusType: 1, clientType: 1, publishTime: 10 },
+      { accountId: 'other', statusType: 1, clientType: 1, publishTime: 11 },
+    ])
+
+    expect(subscription.subscribeUserStatus).toHaveBeenCalledWith({
+      accountIds: ['lin'],
+      duration: YUNXIN_PRESENCE_DURATION_SECONDS,
+      immediateSync: true,
+    })
+    expect(events.filter((event) => event.type === 'presence.changed')).toEqual([
+      expect.objectContaining({
+        presences: [{ accountId: 'lin', availability: 'online', updatedAt: 10 }],
+      }),
+    ])
+  })
+
+  it('retains successful subscriptions and emits a stable retryable failure', async () => {
+    const { sdk, subscription } = createFakeSdk()
+    subscription.subscribeUserStatus.mockResolvedValueOnce(['meng'])
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+
+    await expect(transport.setPresenceSubscriptions(['lin', 'meng'])).rejects.toMatchObject({
+      code: 'transport',
+      retryable: true,
+    })
+    subscription.emit('onUserStatusChanged', [
+      { accountId: 'lin', statusType: 1, clientType: 1, publishTime: 10 },
+      { accountId: 'meng', statusType: 1, clientType: 1, publishTime: 11 },
+    ])
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'presence.subscriptionFailed',
+        errorCode: 'presenceSubscriptionFailed',
+      }),
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'presence.changed',
+        presences: [{ accountId: 'lin', availability: 'online', updatedAt: 10 }],
+      }),
+    )
+  })
+
+  it('renews desired subscriptions and cancels renewal on disconnect', async () => {
+    vi.useFakeTimers()
+    try {
+      const { sdk, subscription } = createFakeSdk()
+      const transport = createTransport({ create: () => sdk as never })
+      await transport.connect()
+      await transport.setPresenceSubscriptions(['lin'])
+
+      await vi.advanceTimersByTimeAsync(YUNXIN_PRESENCE_RENEWAL_MS)
+      expect(subscription.subscribeUserStatus).toHaveBeenNthCalledWith(2, {
+        accountIds: ['lin'],
+        duration: YUNXIN_PRESENCE_DURATION_SECONDS,
+        immediateSync: false,
+      })
+
+      await transport.disconnect()
+      await vi.advanceTimersByTimeAsync(YUNXIN_PRESENCE_RENEWAL_MS)
+      expect(subscription.subscribeUserStatus).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('removes the presence listener and rejects stale events across reconnects', async () => {
+    const { sdk, subscription } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+    await transport.setPresenceSubscriptions(['lin'])
+    const staleListener = [...(subscription.listeners.get('onUserStatusChanged') ?? [])][0] as
+      ((values: unknown[]) => void) | undefined
+
+    await transport.disconnect()
+    staleListener?.([{ accountId: 'lin', statusType: 1, clientType: 1, publishTime: 10 }])
+
+    expect(subscription.listeners.get('onUserStatusChanged')?.size ?? 0).toBe(0)
+    expect(events.some((event) => event.type === 'presence.changed')).toBe(false)
   })
 
   it('rejects hostile provider error codes without publishing their content', async () => {
