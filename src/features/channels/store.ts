@@ -142,7 +142,9 @@ export const useChannelsStore = defineStore('channels', () => {
   let presenceGeneration = 0
   let presenceTargetKey: string | null = null
   let presenceSynchronization: Promise<void> = Promise.resolve()
+  let voiceTranscriptionOperationId = 0
   const voiceTranscriptionOperations = new Map<string, Promise<void>>()
+  const voiceTranscriptionOperationIds = new Map<string, number>()
   const dirtyDraftRefs = new Set<ChannelRef>()
   const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
   const draftSavePromises = new Map<ChannelRef, Promise<void>>()
@@ -1085,13 +1087,21 @@ export const useChannelsStore = defineStore('channels', () => {
       status: 'loading',
       retryable: false,
     })
-    let operation!: Promise<void>
-    operation = (async () => {
+    const operationId = ++voiceTranscriptionOperationId
+    voiceTranscriptionOperationIds.set(key, operationId)
+    const transcription = (() => {
       try {
-        const value = await client.transcribeVoice(ref)
+        return Promise.resolve(client.transcribeVoice(ref))
+      } catch (error) {
+        return Promise.reject(error)
+      }
+    })()
+    const operation = (async () => {
+      try {
+        const value = await transcription
         const text = value.trim()
         if (!text || text.length > 32_768) throw new ChannelTransportError('protocolFailure', false)
-        if (!hasVoiceTranscriptionContext(client, generation, key, operation)) return
+        if (!hasVoiceTranscriptionContext(client, generation, key, operationId)) return
         voiceTranscriptsByMessage.set(key, {
           messageRef: ref,
           status: 'ready',
@@ -1099,7 +1109,7 @@ export const useChannelsStore = defineStore('channels', () => {
           retryable: false,
         })
       } catch (error) {
-        if (!hasVoiceTranscriptionContext(client, generation, key, operation)) return
+        if (!hasVoiceTranscriptionContext(client, generation, key, operationId)) return
         voiceTranscriptsByMessage.set(key, {
           messageRef: ref,
           status: 'failed',
@@ -1108,8 +1118,10 @@ export const useChannelsStore = defineStore('channels', () => {
         })
         throw error
       } finally {
-        if (voiceTranscriptionOperations.get(key) === operation)
+        if (voiceTranscriptionOperationIds.get(key) === operationId) {
           voiceTranscriptionOperations.delete(key)
+          voiceTranscriptionOperationIds.delete(key)
+        }
       }
     })()
     voiceTranscriptionOperations.set(key, operation)
@@ -1503,12 +1515,12 @@ export const useChannelsStore = defineStore('channels', () => {
     client: ChannelTransport,
     generation: number,
     key: string,
-    operation: Promise<void>,
+    operationId: number,
   ): boolean {
     return (
       generation === lifecycleGeneration &&
       transport.value === client &&
-      voiceTranscriptionOperations.get(key) === operation
+      voiceTranscriptionOperationIds.get(key) === operationId
     )
   }
 
@@ -1536,6 +1548,7 @@ export const useChannelsStore = defineStore('channels', () => {
     for (const [key, transcript] of voiceTranscriptsByMessage) {
       if (!refs.some((ref) => sameMessage(transcript.messageRef, ref))) continue
       voiceTranscriptionOperations.delete(key)
+      voiceTranscriptionOperationIds.delete(key)
       voiceTranscriptsByMessage.delete(key)
     }
   }
@@ -1545,12 +1558,14 @@ export const useChannelsStore = defineStore('channels', () => {
     for (const [key, transcript] of voiceTranscriptsByMessage) {
       if (!values.has(transcript.messageRef.channelRef)) continue
       voiceTranscriptionOperations.delete(key)
+      voiceTranscriptionOperationIds.delete(key)
       voiceTranscriptsByMessage.delete(key)
     }
   }
 
   function clearVoiceTranscriptProjection(): void {
     voiceTranscriptionOperations.clear()
+    voiceTranscriptionOperationIds.clear()
     voiceTranscriptsByMessage.clear()
   }
 

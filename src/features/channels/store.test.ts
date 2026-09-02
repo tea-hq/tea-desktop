@@ -285,6 +285,36 @@ describe('useChannelsStore', () => {
     ])
   })
 
+  it('normalizes synchronous voice transcription failures and permits retry', async () => {
+    const { store, transport } = await connectedStore()
+    const messageRef = await addVoiceMessage(store, transport)
+    vi.spyOn(transport, 'transcribeVoice')
+      .mockImplementationOnce(() => {
+        throw new ChannelTransportError('transport', true)
+      })
+      .mockResolvedValueOnce('Recovered after synchronous failure')
+
+    await expect(store.transcribeVoice(messageRef)).rejects.toMatchObject({ code: 'transport' })
+    expect(store.activeVoiceTranscripts).toEqual([
+      {
+        messageRef,
+        status: 'failed',
+        errorCode: 'transport',
+        retryable: true,
+      },
+    ])
+
+    await store.transcribeVoice(messageRef)
+    expect(store.activeVoiceTranscripts).toEqual([
+      {
+        messageRef,
+        status: 'ready',
+        text: 'Recovered after synchronous failure',
+        retryable: false,
+      },
+    ])
+  })
+
   it('gates voice transcription by capability and active audio content', async () => {
     const { store, transport } = await connectedStore()
     const messageRef = await addVoiceMessage(store, transport)
