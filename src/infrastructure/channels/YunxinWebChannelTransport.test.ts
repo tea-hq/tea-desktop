@@ -733,6 +733,150 @@ describe('YunxinWebChannelTransport', () => {
     })
   })
 
+  it('resolves cached media through a provider-neutral source contract', async () => {
+    const { sdk, message } = createFakeSdk()
+    const mediaMessages = [
+      {
+        messageClientId: 'image-client',
+        messageServerId: 'image-server',
+        messageType: 1,
+        attachment: {
+          url: 'https://cdn.example.test/design.png',
+          name: 'design.png',
+          size: 42,
+          ext: 'png',
+        },
+      },
+      {
+        messageClientId: 'video-client',
+        messageServerId: 'video-server',
+        messageType: 3,
+        attachment: {
+          url: 'https://cdn.example.test/demo.mp4',
+          size: 84,
+          ext: '.mp4',
+        },
+      },
+      {
+        messageClientId: 'file-client',
+        messageServerId: 'file-server',
+        messageType: 6,
+        attachment: {
+          url: 'https://cdn.example.test/notes.txt',
+          name: 'notes.txt',
+        },
+      },
+      {
+        messageClientId: 'voice-client',
+        messageServerId: 'voice-server',
+        messageType: 2,
+        attachment: { url: 'https://cdn.example.test/voice.aac', ext: 'aac' },
+      },
+    ].map((value, index) => ({
+      conversationId: 'c1',
+      senderId: 'other',
+      receiverId: 'account-a',
+      createTime: index + 10,
+      isSelf: false,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: '',
+      ...value,
+    }))
+    message.getMessageListEx.mockResolvedValueOnce({
+      messages: mediaMessages,
+      anchorMessage: mediaMessages[0],
+      hasMore: false,
+    })
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 10 })
+    const refs = new Map(page.items.map((item) => [item.content.kind, item.ref]))
+
+    expect(transport.resolveMediaSource(refs.get('image')!)).toEqual({
+      url: 'https://cdn.example.test/design.png',
+      fileName: 'design.png',
+      expectedSize: 42,
+    })
+    expect(transport.resolveMediaSource(refs.get('video')!)).toEqual({
+      url: 'https://cdn.example.test/demo.mp4',
+      fileName: 'video.mp4',
+      expectedSize: 84,
+    })
+    expect(transport.resolveMediaSource(refs.get('file')!)).toEqual({
+      url: 'https://cdn.example.test/notes.txt',
+      fileName: 'notes.txt',
+    })
+    expect(transport.resolveMediaSource(refs.get('audio')!)).toEqual({
+      url: 'https://cdn.example.test/voice.aac',
+      fileName: 'audio.aac',
+    })
+  })
+
+  it('rejects missing, deleted, non-media, and URL-less cached messages', async () => {
+    const { sdk, message } = createFakeSdk()
+    const base = {
+      conversationId: 'c1',
+      senderId: 'other',
+      receiverId: 'account-a',
+      createTime: 10,
+      isSelf: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: '',
+    }
+    const messages = [
+      {
+        ...base,
+        messageClientId: 'text-client',
+        messageServerId: 'text-server',
+        messageType: 0,
+        isDelete: false,
+        text: 'not media',
+      },
+      {
+        ...base,
+        messageClientId: 'url-less-client',
+        messageServerId: 'url-less-server',
+        messageType: 1,
+        isDelete: false,
+        attachment: { name: 'missing.png' },
+      },
+      {
+        ...base,
+        messageClientId: 'deleted-client',
+        messageServerId: 'deleted-server',
+        messageType: 6,
+        isDelete: true,
+        attachment: { url: 'https://cdn.example.test/deleted.txt' },
+      },
+    ]
+    message.getMessageListEx.mockResolvedValueOnce({
+      messages,
+      anchorMessage: messages[0],
+      hasMore: false,
+    })
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 10 })
+
+    expect(() =>
+      transport.resolveMediaSource({ channelRef: 'c1', messageClientId: 'missing-client' }),
+    ).toThrowError(expect.objectContaining({ code: 'messageUnavailable', retryable: false }))
+    expect(() =>
+      transport.resolveMediaSource({ channelRef: 'c1', messageClientId: 'deleted-client' }),
+    ).toThrowError(expect.objectContaining({ code: 'messageUnavailable', retryable: false }))
+    expect(() =>
+      transport.resolveMediaSource({ channelRef: 'c1', messageClientId: 'text-client' }),
+    ).toThrowError(expect.objectContaining({ code: 'mediaUnavailable', retryable: false }))
+    expect(() =>
+      transport.resolveMediaSource({ channelRef: 'c1', messageClientId: 'url-less-client' }),
+    ).toThrowError(expect.objectContaining({ code: 'mediaUnavailable', retryable: false }))
+  })
+
   it('maps reply and ordinary forwarding to provider calls', async () => {
     const { sdk, message } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })

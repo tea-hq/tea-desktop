@@ -47,6 +47,7 @@ import type { ManagedImCredentials } from './managedWorkspace'
 import { createNodeYunxinSdkFactory } from './yunxinNode'
 import type { ChannelAttachment } from '../../src/features/channels/contracts'
 import type { MessageAttachmentResolver } from '../../src/infrastructure/channels/YunxinWebChannelTransport'
+import type { ChannelMediaSource } from '../../src/infrastructure/channels/channelMediaSource'
 
 export type ChannelEventEmitter = (event: ChannelEvent) => void
 
@@ -208,6 +209,10 @@ export class ElectronChannelService {
 
   async transcribeVoice(messageRef: MessageRef): Promise<string> {
     return this.transport.transcribeVoice(messageRef)
+  }
+
+  resolveMediaSource(messageRef: MessageRef): ChannelMediaSource {
+    return this.transport.resolveMediaSource(messageRef)
   }
 
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {

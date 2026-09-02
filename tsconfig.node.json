@@ -7,6 +7,7 @@
     "src/env.d.ts",
     "src/infrastructure/electronBridge.ts",
     "src/infrastructure/channels/YunxinWebChannelTransport.ts",
+    "src/infrastructure/channels/channelMediaSource.ts",
     "src/infrastructure/channels/yunxinMapper.ts",
     "src/infrastructure/channels/yunxinPresence.ts",
     "src/infrastructure/channels/yunxinVoiceTranscription.ts",

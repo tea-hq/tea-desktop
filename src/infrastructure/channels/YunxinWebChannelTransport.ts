@@ -115,6 +115,11 @@ import {
   mapYunxinVoiceToTextParams,
   normalizeYunxinVoiceTranscript,
 } from './yunxinVoiceTranscription'
+import {
+  ChannelMediaSourceError,
+  mediaSourceFromMessage,
+  type ChannelMediaSource,
+} from './channelMediaSource'
 
 export interface YunxinSdkFactory {
   create(appKey: string): YunxinSdk | Promise<YunxinSdk>
@@ -1114,6 +1119,16 @@ export class YunxinWebChannelTransport implements ChannelTransport {
       throw new ChannelTransportError('transport', true)
     }
     return normalizeYunxinVoiceTranscript(transcript)
+  }
+
+  resolveMediaSource(messageRef: MessageRef): ChannelMediaSource {
+    let message: V2NIMMessage
+    try {
+      message = this.rawMessageForRef(messageRef)
+    } catch {
+      throw new ChannelMediaSourceError('messageUnavailable')
+    }
+    return mediaSourceFromMessage(mapYunxinMessage(message, this.selfAccount ?? ''))
   }
 
   async openDirectConversation(accountId: string): Promise<ChannelRef> {
