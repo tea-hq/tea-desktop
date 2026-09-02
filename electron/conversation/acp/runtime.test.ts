@@ -10,6 +10,7 @@ import type {
   SendMessageOptions,
 } from '../../../src/features/conversation/contracts'
 import type { ConversationToolScope } from '../toolBroker'
+import type { ConversationWorkspaceFileSystem } from '../workspace'
 import { officialAcpAgentDefinitions } from './agentCatalog'
 import type { ResolvedAcpAgentArtifact } from './agentDefinition'
 import { createAcpConversationBinding } from './binding'
@@ -55,6 +56,43 @@ describe('AcpConversationRuntime', () => {
       ).toThrowError(expect.objectContaining({ code: 'invalidConfiguration' }))
     },
   )
+
+  it.each([
+    [
+      'missing',
+      workspaceFileSystem({ stat: vi.fn(async () => Promise.reject(new Error('ENOENT'))) }),
+    ],
+    [
+      'not a directory',
+      workspaceFileSystem({ stat: vi.fn(async () => ({ isDirectory: () => false })) }),
+    ],
+    [
+      'inaccessible',
+      workspaceFileSystem({ access: vi.fn(async () => Promise.reject(new Error('EACCES'))) }),
+    ],
+  ])('rejects an %s restore workspace before connecting', async (_label, fileSystem) => {
+    const definition = officialAcpAgentDefinitions()[0]
+    const connect = vi.fn()
+    const runtime = new AcpConversationRuntime(
+      definition,
+      '/workspace',
+      { connect },
+      undefined,
+      undefined,
+      { workspaceFileSystem: fileSystem },
+    )
+    const binding = createAcpConversationBinding(
+      { definition, workspacePath: '/workspace', hostTools: [] },
+      'session-1',
+      2,
+    )
+
+    await expect(runtime.restoreConversation('conversation-1', binding)).rejects.toMatchObject({
+      code: 'workspaceUnavailable',
+      retryable: false,
+    })
+    expect(connect).not.toHaveBeenCalled()
+  })
 
   it('runs a V1 turn and returns the exact permission option selected by Tea', async () => {
     const harness = createHarness(1)
@@ -330,6 +368,9 @@ describe('AcpConversationRuntime', () => {
       officialAcpAgentDefinitions()[0],
       '/workspace',
       factory,
+      undefined,
+      undefined,
+      { workspaceFileSystem: workspaceFileSystem() },
     )
 
     await expect(runtime.createConversation('conversation-1')).rejects.toMatchObject({
@@ -1281,7 +1322,10 @@ function createHarness(
     factory,
     dependencies.broker,
     dependencies.attachmentFactory,
-    dependencies.runtimeOptions,
+    {
+      workspaceFileSystem: workspaceFileSystem(),
+      ...dependencies.runtimeOptions,
+    },
   )
   return {
     runtime,
@@ -1295,6 +1339,17 @@ function createHarness(
       if (!registeredHandlers) throw new Error('ACP handlers were not registered')
       return registeredHandlers
     },
+  }
+}
+
+function workspaceFileSystem(
+  overrides: Partial<ConversationWorkspaceFileSystem> = {},
+): ConversationWorkspaceFileSystem {
+  return {
+    access: vi.fn(async () => undefined),
+    realpath: vi.fn(async (workspacePath) => workspacePath),
+    stat: vi.fn(async () => ({ isDirectory: () => true })),
+    ...overrides,
   }
 }
 

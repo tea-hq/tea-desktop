@@ -489,6 +489,9 @@ export default {
   },
   messages: {
     empty: 'Send a message to start.',
+    workspaceUnavailable:
+      "This conversation's working directory is no longer available. Choose its current location to reopen the conversation.",
+    chooseReplacementDirectory: 'Choose current location',
     runNotice: 'Run notice',
     activitySummary: '{summary}',
     activitySummaryOverflow: '{summary} +{count} more',

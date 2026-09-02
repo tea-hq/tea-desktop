@@ -248,7 +248,7 @@ export interface ModelOption {
 
 export type ConversationUiError =
   | { kind: 'localized'; key: string; params?: Record<string, string | number> }
-  | { kind: 'runtime'; message: string }
+  | { kind: 'runtime'; message: string; code: string; retryable: boolean }
 
 export interface ConversationSummary {
   conversationId: string
@@ -321,6 +321,10 @@ export interface ConversationClient {
     runtimeId: string,
     options: CreateConversationOptions,
   ): Promise<CreateConversationResponse>
+  relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail>
   appendConversationSources(
     conversationId: string,
     turnIndex: number,

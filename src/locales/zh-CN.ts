@@ -473,6 +473,8 @@ export default {
   },
   messages: {
     empty: '发送一条消息开始对话。',
+    workspaceUnavailable: '此会话的工作目录已不可用。请选择项目当前所在目录以重新打开会话。',
+    chooseReplacementDirectory: '选择当前目录',
     runNotice: '运行提示',
     activitySummary: '{summary}',
     activitySummaryOverflow: '{summary}，还有 {count} 条',

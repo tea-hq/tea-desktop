@@ -40,6 +40,7 @@ describe('ElectronConversationClient collaboration mapping', () => {
       cursor: 'older',
       limit: 30,
     })
+    await client.relocateConversationWorkspace('conversation-1', '/projects/tea')
     await client.createConversation('external.codex', {
       idempotencyKey: 'create-1',
       channelBinding,
@@ -56,6 +57,10 @@ describe('ElectronConversationClient collaboration mapping', () => {
       [
         'load_conversation_history',
         { request: { conversationId: 'conversation-1', cursor: 'older', limit: 30 } },
+      ],
+      [
+        'relocate_conversation_workspace',
+        { conversationId: 'conversation-1', workspacePath: '/projects/tea' },
       ],
       [
         'create_conversation',

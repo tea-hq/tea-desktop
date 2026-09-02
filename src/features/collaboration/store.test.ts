@@ -353,7 +353,12 @@ describe('useCollaborationStore', () => {
 
     await store.sendMessage('Fail on send')
 
-    expect(store.error).toEqual({ kind: 'runtime', message: 'start codex thread: protocol failed' })
+    expect(store.error).toEqual({
+      kind: 'runtime',
+      message: 'start codex thread: protocol failed',
+      code: 'restoreFailed',
+      retryable: true,
+    })
     expect(client.sends).toEqual([])
   })
 

@@ -4,6 +4,28 @@ import type { RuntimeConversationService } from './service'
 import { RuntimeConversationCommandService } from './commandService'
 
 describe('RuntimeConversationCommandService', () => {
+  it('relocates through the main service without exposing the runtime binding', async () => {
+    const detail = {
+      summary: {
+        conversationId: 'conversation-1',
+        runtimeId: 'external.codex',
+        workspaceId: 'workspace-1',
+        workingDirectory: '/projects/tea',
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      collaboration: { turnContexts: [], drafts: [], deliveries: [] },
+    }
+    const relocateConversationWorkspace = vi.fn(async () => detail)
+    const service = { relocateConversationWorkspace } as unknown as RuntimeConversationService
+    const commands = new RuntimeConversationCommandService(service, 'workspace-1')
+
+    await expect(
+      commands.relocateConversationWorkspace('conversation-1', '/projects/tea'),
+    ).resolves.toEqual(detail)
+    expect(relocateConversationWorkspace).toHaveBeenCalledWith('conversation-1', '/projects/tea')
+  })
+
   it('adds the main-owned workspace and does not expose durable runtime bindings', async () => {
     const createConversation = vi.fn(async () => ({
       handle: {

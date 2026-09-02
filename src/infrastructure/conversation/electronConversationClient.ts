@@ -64,6 +64,16 @@ export class ElectronConversationClient implements ConversationClient {
     })
   }
 
+  async relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail> {
+    return invoke<ConversationDetail>('relocate_conversation_workspace', {
+      conversationId,
+      workspacePath,
+    })
+  }
+
   async appendConversationSources(
     conversationId: string,
     turnIndex: number,
@@ -285,6 +295,7 @@ export class FakeConversationClient implements ConversationClient {
       conversationId: handle.conversationId,
       runtimeId,
       workspaceId: 'desktop-workspace',
+      workingDirectory: options.workingDirectory,
       createdAt: now,
       updatedAt: now,
       channelBinding: options?.channelBinding ? structuredClone(options.channelBinding) : undefined,
@@ -296,6 +307,17 @@ export class FakeConversationClient implements ConversationClient {
     this._creationKeys.set(options.idempotencyKey, handle.conversationId)
     this.emitSummary(summary)
     return { handle, summary: structuredClone(summary) }
+  }
+
+  async relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail> {
+    const summary = this.requireSummary(conversationId)
+    summary.workingDirectory = workspacePath
+    summary.updatedAt = Date.now()
+    this.emitSummary(summary)
+    return this.getConversation(conversationId)
   }
 
   async appendConversationSources(

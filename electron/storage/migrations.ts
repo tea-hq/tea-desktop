@@ -1,12 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 
+import { parseRuntimeConversationBinding } from '../conversation/runtime'
 import { MainDatabaseError } from './database'
 
-export const CONVERSATION_CATALOG_SCHEMA_VERSION = 2
+export const CONVERSATION_CATALOG_SCHEMA_VERSION = 3
 
 export function migrateConversationCatalog(database: DatabaseSync): void {
   const row = database.prepare('PRAGMA user_version').get()
-  const version = readUserVersion(row)
+  let version = readUserVersion(row)
   if (version === CONVERSATION_CATALOG_SCHEMA_VERSION) return
   if (version === 1) {
     if (!hasUserTables(database)) throw unsupportedSchema(version)
@@ -16,6 +17,10 @@ export function migrateConversationCatalog(database: DatabaseSync): void {
       PRAGMA user_version = 2;
       COMMIT;
     `)
+    version = 2
+  }
+  if (version === 2) {
+    migrateWorkspaceDirectorySummaries(database)
     return
   }
   if (version !== 0 || hasUserTables(database)) {
@@ -123,9 +128,54 @@ export function migrateConversationCatalog(database: DatabaseSync): void {
     ) STRICT;
     CREATE INDEX channel_deliveries_draft_idx
       ON channel_deliveries(draft_id, updated_at DESC, delivery_id DESC);
-    PRAGMA user_version = 2;
+    PRAGMA user_version = 3;
     COMMIT;
   `)
+}
+
+function migrateWorkspaceDirectorySummaries(database: DatabaseSync): void {
+  try {
+    database.exec('BEGIN IMMEDIATE')
+    const rows = database
+      .prepare(
+        `SELECT conversation_id, binding_json
+         FROM runtime_conversations
+         WHERE working_directory IS NULL`,
+      )
+      .all()
+    const update = database.prepare(
+      `UPDATE runtime_conversations
+       SET working_directory = ?
+       WHERE conversation_id = ? AND working_directory IS NULL`,
+    )
+    for (const row of rows) {
+      if (
+        !isRecord(row) ||
+        typeof row.conversation_id !== 'string' ||
+        typeof row.binding_json !== 'string'
+      ) {
+        throw new Error('conversation workspace migration row is invalid')
+      }
+      const binding = parseRuntimeConversationBinding(JSON.parse(row.binding_json) as unknown)
+      update.run(binding.workspacePath, row.conversation_id)
+    }
+    database.exec('PRAGMA user_version = 3')
+    database.exec('COMMIT')
+  } catch (cause) {
+    if (database.isTransaction) {
+      try {
+        database.exec('ROLLBACK')
+      } catch {
+        // Preserve the migration failure.
+      }
+    }
+    throw new MainDatabaseError(
+      'storageFailure',
+      'conversation workspace migration failed',
+      false,
+      { cause },
+    )
+  }
 }
 
 function unsupportedSchema(version: number): MainDatabaseError {

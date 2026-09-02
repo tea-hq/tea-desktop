@@ -35,6 +35,10 @@ export interface ConversationCommandService {
   getConversation(conversationId: string): Promise<ConversationDetail>
   loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage>
   createConversation(request: CreateConversationCommand): Promise<CreateConversationResponse>
+  relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail>
   appendConversationSources(
     conversationId: string,
     turnIndex: number,
@@ -116,6 +120,13 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
       },
       summary: result.summary,
     }
+  }
+
+  async relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail> {
+    return this.service.relocateConversationWorkspace(conversationId, workspacePath)
   }
 
   async appendConversationSources(

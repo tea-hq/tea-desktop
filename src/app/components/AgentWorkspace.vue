@@ -19,6 +19,8 @@ const {
   conversationProjectDirectories,
   collaborationModelOptions,
   errorText,
+  errorRetryable,
+  workspaceRecoveryAvailable,
   sendFromFullSurface,
   applyActiveRolePrompt,
   handleNew,
@@ -34,6 +36,7 @@ const {
   selectActivePermission,
   stopActiveConversation,
   retryActiveConversation,
+  recoverActiveConversationWorkspace,
   resolveActiveApproval,
 } = useTeaDesktopAppContext()
 const { t } = useI18n()
@@ -96,6 +99,8 @@ const { t } = useI18n()
       :loading-older="!collaborationWorkspace && conversation.historyLoadingMore"
       :has-older="!collaborationWorkspace && conversation.historyHasMore"
       :error="errorText"
+      :error-retryable="errorRetryable"
+      :workspace-recovery-available="workspaceRecoveryAvailable"
       :sources="collaborationWorkspace ? collaboration.stagedSources : []"
       :runtimes="collaborationWorkspace ? collaboration.runtimes : conversation.runtimes"
       :runtime-id="
@@ -118,6 +123,7 @@ const { t } = useI18n()
       @stop="stopActiveConversation"
       @load-older="conversation.loadOlderHistory()"
       @retry="retryActiveConversation"
+      @recover-workspace="recoverActiveConversationWorkspace"
       @remove-source="collaboration.removeStagedSource($event)"
       @select-runtime="selectActiveRuntime"
       @select-model="selectActiveModel"

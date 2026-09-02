@@ -52,10 +52,30 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
       else ui.localComposerAttachments.value = value
     },
   })
+  const activeConversationError = computed(() =>
+    ui.collaborationWorkspace.value
+      ? collaboration.error
+      : (conversation.historyError ?? conversation.error),
+  )
   const errorText = computed(() => {
-    const error = ui.collaborationWorkspace.value ? collaboration.error : conversation.error
+    const error = activeConversationError.value
     if (!error) return null
-    return error.kind === 'localized' ? t(error.key, error.params ?? {}) : error.message
+    if (error.kind === 'localized') return t(error.key, error.params ?? {})
+    return error.code === 'workspaceUnavailable'
+      ? t('messages.workspaceUnavailable')
+      : error.message
+  })
+  const errorRetryable = computed(() => {
+    const error = activeConversationError.value
+    return error?.kind === 'localized' || error?.retryable === true
+  })
+  const workspaceRecoveryAvailable = computed(() => {
+    const error = activeConversationError.value
+    return (
+      !ui.collaborationWorkspace.value &&
+      error?.kind === 'runtime' &&
+      error.code === 'workspaceUnavailable'
+    )
   })
   const collaborationErrorText = computed(() => {
     const error = collaboration.error
@@ -121,6 +141,8 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
     fullComposerText,
     fullComposerAttachments,
     errorText,
+    errorRetryable,
+    workspaceRecoveryAvailable,
     collaborationErrorText,
     dialogDraft,
     dialogDelivery,

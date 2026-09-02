@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import path from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 
 import type {
   ConversationPage,
@@ -151,6 +152,59 @@ export class ConversationCatalog {
       throw new ConversationCatalogError(
         'conflict',
         'conversation catalog identity is already in use',
+      )
+    }
+    return structuredClone(value)
+  }
+
+  relocateWorkspace(
+    conversationId: string,
+    binding: RuntimeConversationBinding,
+    updatedAt: number,
+  ): ConversationCatalogRecord {
+    requireText(conversationId, MAX_ID_CHARS)
+    validateTimestamp(updatedAt)
+    const existing = this.get(conversationId)
+    if (!existing) {
+      throw new ConversationCatalogError(
+        'unknownConversation',
+        `conversation is not cataloged: ${conversationId}`,
+      )
+    }
+    if (!sameBindingExceptWorkspace(existing.binding, binding)) throw invalidRequest()
+    const value = validateRecord({
+      ...existing,
+      summary: {
+        ...existing.summary,
+        workingDirectory: binding.workspacePath,
+        updatedAt: Math.max(existing.summary.updatedAt, updatedAt),
+      },
+      binding,
+      lastRestoreFailure: undefined,
+    })
+    const bindingJson = JSON.stringify(value.binding)
+    if (Buffer.byteLength(bindingJson, 'utf8') > MAX_BINDING_BYTES) throw invalidRequest()
+    let result: { changes: number | bigint }
+    try {
+      result = this.database.write((database) =>
+        database
+          .prepare(
+            `
+            UPDATE runtime_conversations
+            SET binding_json = ?, working_directory = ?, updated_at = ?,
+              last_restore_failure_code = NULL, last_restore_failed_at = NULL
+            WHERE conversation_id = ?
+          `,
+          )
+          .run(bindingJson, binding.workspacePath, value.summary.updatedAt, conversationId),
+      )
+    } catch (cause) {
+      throw catalogStorageError(cause)
+    }
+    if (result.changes !== 1 && result.changes !== 1n) {
+      throw new ConversationCatalogError(
+        'unknownConversation',
+        `conversation is not cataloged: ${conversationId}`,
       )
     }
     return structuredClone(value)
@@ -973,7 +1027,7 @@ function validateRecord(value: ConversationCatalogRecord): ConversationCatalogRe
   if (
     binding.runtimeId !== summary.runtimeId ||
     binding.nativeSessionId !== value.nativeSessionId ||
-    (summary.workingDirectory !== undefined && binding.workspacePath !== summary.workingDirectory)
+    binding.workspacePath !== summary.workingDirectory
   ) {
     throw invalidRequest()
   }
@@ -987,6 +1041,13 @@ function validateRecord(value: ConversationCatalogRecord): ConversationCatalogRe
     binding,
     ...(failure ? { lastRestoreFailure: failure } : {}),
   })
+}
+
+function sameBindingExceptWorkspace(
+  left: RuntimeConversationBinding,
+  right: RuntimeConversationBinding,
+): boolean {
+  return isDeepStrictEqual({ ...left, workspacePath: '' }, { ...right, workspacePath: '' })
 }
 
 function validateWorkingDirectory(value: unknown): asserts value is string {
