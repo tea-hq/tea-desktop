@@ -4,6 +4,7 @@ import {
   dialog,
   ipcMain,
   nativeTheme,
+  Notification,
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from 'electron'
@@ -30,6 +31,10 @@ import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
 import { ElectronCenterPluginService } from './services/centerPlugins'
 import { ElectronPluginProcessService } from './services/plugins'
 import { ElectronSettingsService } from './services/settings'
+import {
+  ChannelNotificationService,
+  type ChannelNotificationHandle,
+} from './services/channelNotifications'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 process.env.APP_ROOT = path.join(__dirname, '..')
@@ -45,6 +50,7 @@ let win: BrowserWindow | null = null
 let services: DesktopCommandServices | null = null
 let conversationHost: ElectronConversationHost | null = null
 let cloudConversationCommands: CloudConversationCommandService | null = null
+let channelNotifications: ChannelNotificationService | null = null
 let quitting = false
 const events = new DesktopEventPublisher(() => win?.webContents ?? null)
 
@@ -153,11 +159,39 @@ async function bootstrap(): Promise<void> {
   })
   const channel = new ElectronChannelService(
     async () => managedWorkspace.getImCredentials(),
-    (event) => events.publish('channel-event', event),
+    (event) => {
+      events.publish('channel-event', event)
+      void channelNotifications?.handleEvent(event)
+    },
     undefined,
     channelAttachments,
     { isKnownContact: (accountId) => centerAuth.isDirectoryContact(accountId) },
   )
+  channelNotifications = new ChannelNotificationService({
+    createNotification: (options) => {
+      const notification = new Notification(options)
+      const handle: ChannelNotificationHandle = {
+        show: () => notification.show(),
+        close: () => notification.close(),
+        onClick: (listener) => {
+          notification.on('click', listener)
+        },
+        onClose: (listener) => {
+          notification.on('close', listener)
+        },
+      }
+      return handle
+    },
+    getSettings: () => settings.snapshot().notifications,
+    isWindowFocused: () => Boolean(win && !win.isDestroyed() && win.isFocused()),
+    resolver: channel,
+    onActivate: () => {
+      if (!win || win.isDestroyed()) return
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    },
+  })
   const channelDrafts = new ElectronChannelDraftService(
     path.join(app.getPath('userData'), 'im-channel-drafts.json'),
   )
@@ -237,6 +271,7 @@ app.on('before-quit', (event) => {
     services
       ? (async () => {
           await services.channelMedia.dispose()
+          await channelNotifications?.dispose()
           await services.channel.dispose()
         })()
       : undefined,

@@ -11,14 +11,20 @@ const SETTINGS_SCHEMA_VERSION = 2
 const MAX_SETTINGS_BYTES = 64 * 1024
 
 export class ElectronSettingsService {
+  private currentSettings = defaultSettings()
+
   constructor(private readonly filePath: string) {}
+
+  snapshot(): AppSettings {
+    return structuredClone(this.currentSettings)
+  }
 
   async load(): Promise<AppSettings> {
     let bytes: Buffer
     try {
       bytes = await fs.readFile(this.filePath)
     } catch (error) {
-      if (isMissingFile(error)) return defaultSettings()
+      if (isMissingFile(error)) return this.replaceCurrent(defaultSettings())
       throw storageError('reading settings')
     }
 
@@ -40,7 +46,7 @@ export class ElectronSettingsService {
 
     const settings = normalizeAppSettings(stored.settings)
     if (!settings) return this.recoverCorrupt('settings payload is invalid')
-    return settings
+    return this.replaceCurrent(settings)
   }
 
   async update(settings: unknown): Promise<AppSettings> {
@@ -59,6 +65,7 @@ export class ElectronSettingsService {
       await fs.rm(temporary, { force: true }).catch(() => undefined)
       throw storageError('writing settings')
     }
+    this.currentSettings = structuredClone(value)
     return value
   }
 
@@ -70,6 +77,11 @@ export class ElectronSettingsService {
       throw serviceError('storageFailure', true, reason)
     }
     return defaultSettings()
+  }
+
+  private replaceCurrent(value: AppSettings): AppSettings {
+    this.currentSettings = structuredClone(value)
+    return structuredClone(value)
   }
 }
 
