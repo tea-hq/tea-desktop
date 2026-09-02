@@ -9,6 +9,7 @@ import WorkspaceSearchField from '@/app/components/WorkspaceSearchField.vue'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
 import ChannelForwardDialog from '@/features/channels/components/ChannelForwardDialog.vue'
 import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelMergedMessagesDialog.vue'
+import ChannelMediaViewer from '@/features/channels/components/ChannelMediaViewer.vue'
 import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelPinnedMessagesDialog.vue'
 import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
@@ -18,6 +19,7 @@ import type {
   Channel,
   ChannelDraft,
   ChannelMember,
+  ChannelMediaSaveState,
   ChannelPresence,
   ChannelVoicePlaybackRate,
   ChannelVoicePlaybackState,
@@ -30,6 +32,7 @@ import type {
   SavedMessage,
 } from '@/features/channels/contracts'
 import { createTextMessageContent } from '@/features/channels/messageContent'
+import { sameMessage } from '@/features/channels/projection'
 import { messageSelectionKey } from '@/features/channels/useChannelMessageSelection'
 import AgentDrawer from '@/features/collaboration/components/AgentDrawer.vue'
 import DraftEditorDialog from '@/features/collaboration/components/DraftEditorDialog.vue'
@@ -48,6 +51,8 @@ import type {
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
 import type { Delivery, Draft } from '@/types/channelCollaboration'
+import mediaReviewImageUrl from '@/assets/fixtures/channel-media-review.svg?url'
+import mediaReviewVideoUrl from '@/assets/fixtures/channel-media-review.mp4?url'
 
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
@@ -204,6 +209,139 @@ const voiceMessage: Message = {
   pinned: false,
   reactions: [],
 }
+const mediaImageMessage: Message = {
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-media-image',
+    messageServerId: 'server-media-image',
+  },
+  sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
+  sentAt: 1_787_843_500_000,
+  text: '[image: channel-media-review.svg]',
+  content: {
+    kind: 'image',
+    caption: 'Provider-neutral media workflow review',
+    media: {
+      url: mediaReviewImageUrl,
+      name: 'channel-media-review.svg',
+      mimeType: 'image/svg+xml',
+      size: 2_998,
+      width: 960,
+      height: 600,
+    },
+  },
+  state: 'active',
+  sentByCurrentUser: false,
+  pinned: false,
+  reactions: [],
+}
+const mediaVideoMessage: Message = {
+  ...mediaImageMessage,
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-media-video',
+    messageServerId: 'server-media-video',
+  },
+  sentAt: 1_787_843_560_000,
+  text: '[video: channel-media-review.mp4]',
+  content: {
+    kind: 'video',
+    caption: 'Two-second interaction walkthrough',
+    media: {
+      url: mediaReviewVideoUrl,
+      name: 'channel-media-review.mp4',
+      mimeType: 'video/mp4',
+      size: 17_000,
+      width: 960,
+      height: 600,
+      durationMs: 2_000,
+    },
+  },
+}
+const missingMediaMessage: Message = {
+  ...mediaImageMessage,
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-media-missing',
+    messageServerId: 'server-media-missing',
+  },
+  sentAt: 1_787_843_620_000,
+  text: '[file: rollout-checklist.pdf]',
+  content: {
+    kind: 'file',
+    caption: 'Attachment metadata remains visible when its source is unavailable.',
+    media: { name: 'rollout-checklist.pdf', mimeType: 'application/pdf', size: 84_000 },
+  },
+}
+const mediaMessages = [mediaImageMessage, mediaVideoMessage, missingMediaMessage]
+const isMediaFixture = computed(() => fixture.value.startsWith('media-'))
+
+function initialMediaSaveStates(): ChannelMediaSaveState[] {
+  const base: ChannelMediaSaveState = {
+    operationId: 'fixture-media-save',
+    messageRef: mediaImageMessage.ref,
+    status: 'choosing',
+    receivedBytes: 0,
+    retryable: false,
+  }
+  if (fixture.value === 'media-choosing') return [base]
+  if (fixture.value === 'media-saving')
+    return [{ ...base, status: 'saving', receivedBytes: 1_536, totalBytes: 2_998 }]
+  if (fixture.value === 'media-saved')
+    return [
+      {
+        ...base,
+        status: 'saved',
+        receivedBytes: 2_998,
+        totalBytes: 2_998,
+        fileName: 'channel-media-review.svg',
+        byteLength: 2_998,
+      },
+    ]
+  if (fixture.value === 'media-error')
+    return [
+      {
+        ...base,
+        status: 'failed',
+        errorCode: 'downloadFailed',
+        retryable: true,
+      },
+    ]
+  if (fixture.value === 'media-missing')
+    return [
+      {
+        ...base,
+        messageRef: missingMediaMessage.ref,
+        status: 'failed',
+        errorCode: 'mediaUnavailable',
+        retryable: false,
+      },
+    ]
+  return []
+}
+
+const fixtureMediaSaves = ref<ChannelMediaSaveState[]>(initialMediaSaveStates())
+const mediaViewerMessage = ref<Message | null>(
+  fixture.value === 'media-image-viewer'
+    ? mediaImageMessage
+    : fixture.value === 'media-video-viewer'
+      ? mediaVideoMessage
+      : null,
+)
+const mediaViewerIndex = computed(() =>
+  mediaViewerMessage.value
+    ? mediaMessages
+        .filter((message) => message.content.kind === 'image' || message.content.kind === 'video')
+        .findIndex((message) => sameMessage(message.ref, mediaViewerMessage.value!.ref))
+    : -1,
+)
+const mediaViewerSave = computed(() =>
+  mediaViewerMessage.value
+    ? (fixtureMediaSaves.value.find((state) =>
+        sameMessage(state.messageRef, mediaViewerMessage.value!.ref),
+      ) ?? null)
+    : null,
+)
 const isVoiceTranscriptionFixture = computed(() => fixture.value.startsWith('voice-transcription-'))
 const isVoicePlaybackFixture = computed(() => fixture.value.startsWith('voice-playback-'))
 const fixtureVoiceTranscripts = computed<ChannelVoiceTranscript[]>(() => {
@@ -384,13 +522,13 @@ const nestedMergedMessage: Message = {
   },
 }
 const archivedMessages: Message[] = [messages[0]!, messages[1]!, nestedMergedMessage]
-const timelineMessages = computed(() =>
-  fixture.value === 'merged-card'
-    ? [...messages, mergedMessage]
-    : isVoiceTranscriptionFixture.value || isVoicePlaybackFixture.value
-      ? [...messages, voiceMessage]
-      : messages,
-)
+const timelineMessages = computed(() => {
+  if (fixture.value === 'merged-card') return [...messages, mergedMessage]
+  if (isMediaFixture.value) return [...messages, ...mediaMessages]
+  if (isVoiceTranscriptionFixture.value || isVoicePlaybackFixture.value)
+    return [...messages, voiceMessage]
+  return messages
+})
 const selectingMessages = ref(fixture.value === 'message-selection')
 const selectedMessageKeys = computed(() =>
   selectingMessages.value ? messages.map(messageSelectionKey) : [],
@@ -734,6 +872,44 @@ function retryFixtureMergedMessages(): void {
   mergedViewerItems.value = archivedMessages
   mergedViewerCanGoBack.value = false
 }
+
+function openFixtureMedia(message: Message): void {
+  if (message.content.kind === 'image' || message.content.kind === 'video')
+    mediaViewerMessage.value = message
+}
+
+function navigateFixtureMedia(direction: -1 | 1): void {
+  const viewable = mediaMessages.filter(
+    (message) => message.content.kind === 'image' || message.content.kind === 'video',
+  )
+  const message = viewable[mediaViewerIndex.value + direction]
+  if (message) mediaViewerMessage.value = message
+}
+
+function saveFixtureMedia(message: Message): void {
+  fixtureMediaSaves.value = [
+    {
+      operationId: 'fixture-media-save-active',
+      messageRef: message.ref,
+      status: 'saving',
+      receivedBytes: 1_536,
+      totalBytes: message.content.kind === 'text' ? undefined : 2_998,
+      retryable: false,
+    },
+  ]
+}
+
+function cancelFixtureMediaSave(message: Message): void {
+  fixtureMediaSaves.value = [
+    {
+      operationId: 'fixture-media-save-cancelled',
+      messageRef: message.ref,
+      status: 'cancelled',
+      receivedBytes: 0,
+      retryable: false,
+    },
+  ]
+}
 </script>
 
 <template>
@@ -791,6 +967,8 @@ function retryFixtureMergedMessages(): void {
         :voice-playbacks="fixtureVoicePlaybacks"
         :voice-playback-rate="fixtureVoicePlaybackRate"
         :voice-playback-available="isVoicePlaybackFixture"
+        :media-saves="fixtureMediaSaves"
+        :media-saving-available="isMediaFixture"
         :outgoing-attempts="outgoingAttempts"
         :panel-open="drawerOpen"
         :loading="false"
@@ -820,10 +998,28 @@ function retryFixtureMergedMessages(): void {
         @retry-voice-playback="() => undefined"
         @seek-voice-playback="() => undefined"
         @set-voice-playback-rate="() => undefined"
+        @open-media="openFixtureMedia"
+        @save-media="saveFixtureMedia"
+        @cancel-media-save="cancelFixtureMediaSave"
+        @retry-media-save="saveFixtureMedia"
         @update-draft="imDraftText = $event.text"
         @retry-outgoing="() => undefined"
         @cancel-outgoing="() => undefined"
         @dismiss-outgoing="() => undefined"
+      />
+      <ChannelMediaViewer
+        :open="mediaViewerMessage !== null"
+        :message="mediaViewerMessage"
+        :can-go-previous="mediaViewerIndex > 0"
+        :can-go-next="mediaViewerIndex >= 0 && mediaViewerIndex < 1"
+        :save-state="mediaViewerSave"
+        :saving-available="isMediaFixture"
+        @close="mediaViewerMessage = null"
+        @previous="navigateFixtureMedia(-1)"
+        @next="navigateFixtureMedia(1)"
+        @save="mediaViewerMessage && saveFixtureMedia(mediaViewerMessage)"
+        @cancel-save="mediaViewerMessage && cancelFixtureMediaSave(mediaViewerMessage)"
+        @retry-save="mediaViewerMessage && saveFixtureMedia(mediaViewerMessage)"
       />
       <AgentDrawer
         :open="drawerOpen"
