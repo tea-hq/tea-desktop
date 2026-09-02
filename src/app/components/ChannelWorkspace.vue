@@ -32,7 +32,6 @@ import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelM
 import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import { useChannelMessageSelection } from '@/features/channels/useChannelMessageSelection'
 import { useChannelMergedMessageViewer } from '@/features/channels/useChannelMergedMessageViewer'
-import { beginChannelComposerSubmission } from '@/features/channels/channelComposerSubmission'
 
 const {
   centerAuth,
@@ -266,18 +265,17 @@ async function handleChannelSend(payload: {
 }): Promise<void> {
   const channelRef = channels.activeChannelRef
   if (!channelRef) return
-  const sends = beginChannelComposerSubmission(channels, {
+  const submission = await channels.beginComposerSubmission({
     text: payload.text,
     ...(payload.replyTo ? { replyTo: payload.replyTo.ref } : {}),
     attachments: payload.attachments,
     mentions: payload.mentions,
   })
-  if (!sends.length) return
+  if (!submission) return
 
   channelAttachments.value = []
   replyTo.value = null
-  await channels.clearDraft(channelRef).catch(() => undefined)
-  await Promise.allSettled(sends)
+  void submission.completion
 }
 
 function updateChannelDraft(payload: { text: string; mentions: MessageMention[] }): void {
@@ -717,6 +715,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
         : false
     "
     :draft-error-code="channels.draftErrorCode"
+    :draft-has-unresolved-delivery="channels.activeDraftHasUnresolvedDelivery"
     @forward-to-agent="forwardToAgent"
     @message-action="handleMessageAction"
     @send="handleChannelSend"

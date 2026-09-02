@@ -54,6 +54,7 @@ const props = withDefaults(
     draftMentions?: MessageMention[]
     draftSaving?: boolean
     draftErrorCode?: string | null
+    draftHasUnresolvedDelivery?: boolean
   }>(),
   {
     replyTo: null,
@@ -71,6 +72,7 @@ const props = withDefaults(
     draftMentions: () => [],
     draftSaving: false,
     draftErrorCode: null,
+    draftHasUnresolvedDelivery: false,
     outgoingAttempts: () => [],
   },
 )
@@ -646,7 +648,7 @@ watch(
           :label="t('channels.composer.send')"
           icon="i-mdi-arrow-up"
           appearance="primary"
-          :disabled="!draft.trim() && !attachments.length"
+          :disabled="draftHasUnresolvedDelivery || (!draft.trim() && !attachments.length)"
           @click="submitMessage"
         />
       </div>

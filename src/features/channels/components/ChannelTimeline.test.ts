@@ -192,6 +192,32 @@ describe('ChannelTimeline selection mode', () => {
     wrapper.unmount()
   })
 
+  it('prevents a duplicate send while the active draft has unresolved delivery', async () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+        draft: 'Still delivering',
+        draftHasUnresolvedDelivery: true,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('button[aria-label="Send message"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('textarea').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('renders an accessible local draft persistence error', () => {
     const wrapper = mount(ChannelTimeline, {
       props: {

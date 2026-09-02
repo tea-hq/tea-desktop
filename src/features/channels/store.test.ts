@@ -190,6 +190,28 @@ describe('useChannelsStore', () => {
     expect(draftClient.remove).toHaveBeenCalledWith(store.status.accountRef, 'product-collab')
   })
 
+  it('restores the in-memory draft when durable removal fails', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient({
+      remove: vi.fn(async () => {
+        throw { code: 'storageFailure', retryable: true }
+      }),
+    })
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+    store.updateDraft('product-collab', 'Recover this', [])
+    await store.flushDraft('product-collab')
+
+    await expect(store.clearDraft('product-collab')).rejects.toMatchObject({
+      code: 'storageFailure',
+    })
+
+    expect(store.activeDraft?.text).toBe('Recover this')
+    expect(store.draftErrorCode).toBe('storageFailure')
+  })
+
   it('keeps an initial empty catalog loading until conversation sync finishes', async () => {
     const transport = new MockChannelTransport()
     const listChannels = vi.spyOn(transport, 'listChannels')
@@ -464,6 +486,87 @@ describe('useChannelsStore', () => {
       text: 'Retry this',
       clientReference: firstRequest.idempotencyKey,
     })
+  })
+
+  it('keeps a durable composer draft until a failed delivery retry is confirmed', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+    const originalSend = transport.sendMessage.bind(transport)
+    vi.spyOn(transport, 'sendMessage')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+      .mockImplementation(originalSend)
+
+    const submission = await store.beginComposerSubmission({
+      text: 'Retry this draft',
+      attachments: [],
+      mentions: [],
+    })
+    await submission?.completion
+
+    expect(store.activeDraft?.text).toBe('Retry this draft')
+    expect(store.activeDraftHasUnresolvedDelivery).toBe(true)
+    expect(draftClient.remove).not.toHaveBeenCalled()
+
+    await store.retryOutgoingMessage(store.activeOutgoingAttempts[0]!.attemptId)
+
+    expect(store.activeDraft).toBeNull()
+    expect(store.activeDraftHasUnresolvedDelivery).toBe(false)
+    expect(draftClient.remove).toHaveBeenCalledWith(store.status.accountRef, 'product-collab')
+  })
+
+  it('clears a durable composer draft after a synchronous provider confirmation', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+
+    const submission = await store.beginComposerSubmission({
+      text: 'Confirm immediately',
+      attachments: [],
+      mentions: [],
+    })
+    await submission?.completion
+
+    expect(store.activeDraft).toBeNull()
+    expect(store.activeDraftHasUnresolvedDelivery).toBe(false)
+    expect(draftClient.remove).toHaveBeenCalledWith(store.status.accountRef, 'product-collab')
+  })
+
+  it('does not clear edits made after a composer submission starts', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+    const originalSend = transport.sendMessage.bind(transport)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'sendMessage').mockImplementationOnce(async (request) => {
+      await gate
+      return originalSend(request)
+    })
+
+    const submission = await store.beginComposerSubmission({
+      text: 'First draft',
+      attachments: [],
+      mentions: [],
+    })
+    expect(store.activeDraftHasUnresolvedDelivery).toBe(true)
+    store.updateDraft('product-collab', 'A new draft', [])
+    release()
+    await submission?.completion
+
+    expect(store.activeDraft?.text).toBe('A new draft')
+    expect(store.activeDraftHasUnresolvedDelivery).toBe(false)
   })
 
   it('keeps a non-retryable failure visible until it is dismissed', async () => {

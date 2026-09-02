@@ -41,6 +41,10 @@ import type {
   SendMessageResult,
 } from './contracts'
 import { ChannelTransportError } from './contracts'
+import {
+  prepareChannelComposerSubmission,
+  type ChannelComposerSubmission,
+} from './channelComposerSubmission'
 import { createTextMessageContent } from './messageContent'
 import {
   createChannelProjection,
@@ -60,6 +64,17 @@ interface MessageCursor {
   before: MessageCursorBoundary
   after: MessageCursorBoundary
   loadedLatest: boolean
+}
+
+interface DraftDeliveryBatch {
+  channelRef: ChannelRef
+  text: string
+  mentions: MessageMention[]
+  pendingAttemptIds: Set<string>
+}
+
+export interface ChannelComposerSubmissionExecution {
+  completion: Promise<void>
 }
 
 type MessageLoadDirection = 'before' | 'after'
@@ -103,6 +118,8 @@ export const useChannelsStore = defineStore('channels', () => {
   const initialConversationSyncFinished = ref(false)
   const loadingMessageRequests = reactive(new Map<string, number>())
   const outgoingAttempts = shallowReactive(new Map<string, OutgoingMessageAttempt>())
+  const draftDeliveryBatches = shallowReactive(new Map<string, DraftDeliveryBatch>())
+  const attemptDeliveryBatchIds = shallowReactive(new Map<string, string>())
   const mutatingMessage = ref(false)
   const loadingMergedMessages = ref(false)
   const mergedMessagesErrorCode = ref<string | null>(null)
@@ -152,6 +169,13 @@ export const useChannelsStore = defineStore('channels', () => {
   )
   const activeDraft = computed(() =>
     activeChannelRef.value ? (draftsByChannel.get(activeChannelRef.value) ?? null) : null,
+  )
+  const activeDraftHasUnresolvedDelivery = computed(() =>
+    [...outgoingAttempts.values()].some(
+      (attempt) =>
+        attempt.channelRef === activeChannelRef.value &&
+        attemptDeliveryBatchIds.has(attempt.attemptId),
+    ),
   )
   const draftSavingChannelRefs = computed(() => [...draftSavingRefs])
   const activeHasMoreMessages = computed(() =>
@@ -736,6 +760,61 @@ export const useChannelsStore = defineStore('channels', () => {
   ): Promise<SendMessageResult | null> {
     const channelRef = activeChannelRef.value
     if (!channelRef) return null
+    return startOutgoingContent(channelRef, content, replyTo, mentions).completion
+  }
+
+  async function beginComposerSubmission(
+    submission: ChannelComposerSubmission,
+  ): Promise<ChannelComposerSubmissionExecution | null> {
+    const channelRef = activeChannelRef.value
+    if (!channelRef || activeDraftHasUnresolvedDelivery.value) return null
+    const deliveries = prepareChannelComposerSubmission(submission)
+    if (!deliveries.length) return null
+
+    const generation = lifecycleGeneration
+    const durableText = submission.text.trim()
+    if (durableText && draftClient.value) {
+      updateDraft(channelRef, durableText, submission.mentions)
+      await flushDraft(channelRef)
+      if (generation !== lifecycleGeneration || activeChannelRef.value !== channelRef) return null
+    }
+
+    const attemptIds = deliveries.map((delivery) =>
+      createOutgoingAttempt(channelRef, delivery.content, delivery.replyTo, delivery.mentions),
+    )
+    if (durableText && draftClient.value) {
+      const batchId = randomOperationId()
+      const batch: DraftDeliveryBatch = {
+        channelRef,
+        text: durableText,
+        mentions: copyMessageMentions(submission.mentions),
+        pendingAttemptIds: new Set(attemptIds),
+      }
+      draftDeliveryBatches.set(batchId, batch)
+      for (const attemptId of attemptIds) attemptDeliveryBatchIds.set(attemptId, batchId)
+    }
+    const completions = attemptIds.map((attemptId) => executeOutgoingAttempt(attemptId))
+    return {
+      completion: Promise.allSettled(completions).then(() => undefined),
+    }
+  }
+
+  function startOutgoingContent(
+    channelRef: ChannelRef,
+    content: OutgoingMessageContent,
+    replyTo?: MessageRef,
+    mentions?: MessageMention[],
+  ): { attemptId: string; completion: Promise<SendMessageResult | null> } {
+    const attemptId = createOutgoingAttempt(channelRef, content, replyTo, mentions)
+    return { attemptId, completion: executeOutgoingAttempt(attemptId) }
+  }
+
+  function createOutgoingAttempt(
+    channelRef: ChannelRef,
+    content: OutgoingMessageContent,
+    replyTo?: MessageRef,
+    mentions?: MessageMention[],
+  ): string {
     const attemptId = randomOperationId()
     const operationId = randomOperationId()
     const attempt: OutgoingMessageAttempt = {
@@ -754,7 +833,7 @@ export const useChannelsStore = defineStore('channels', () => {
     }
     outgoingAttempts.set(attemptId, attempt)
     errorCode.value = null
-    return executeOutgoingAttempt(attemptId)
+    return attemptId
   }
 
   async function executeOutgoingAttempt(attemptId: string): Promise<SendMessageResult | null> {
@@ -784,6 +863,7 @@ export const useChannelsStore = defineStore('channels', () => {
       if (current?.idempotencyKey === attempt.idempotencyKey) {
         outgoingAttempts.delete(attemptId)
         await releaseOutgoingContent(attempt.content, picker)
+        await confirmDraftDeliveryAttempt(attemptId)
       }
       if (generation === lifecycleGeneration && transport.value === client) {
         return result
@@ -856,6 +936,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const attempt = outgoingAttempts.get(attemptId)
     if (!attempt || attempt.status === 'sending') return
     outgoingAttempts.delete(attemptId)
+    abandonDraftDeliveryAttempt(attemptId)
     await releaseOutgoingContent(attempt.content, attachmentPicker.value)
   }
 
@@ -1014,9 +1095,18 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function clearDraft(channelRef: ChannelRef): Promise<void> {
     if (!status.value.accountRef || !draftClient.value) return
+    const previous = draftsByChannel.get(channelRef)
     draftsByChannel.delete(channelRef)
     dirtyDraftRefs.add(channelRef)
-    await flushDraft(channelRef)
+    try {
+      await flushDraft(channelRef)
+    } catch (error) {
+      if (previous && !draftsByChannel.has(channelRef)) {
+        draftsByChannel.set(channelRef, previous)
+        dirtyDraftRefs.add(channelRef)
+      }
+      throw error
+    }
   }
 
   async function loadDrafts(accountRef: string): Promise<void> {
@@ -1316,6 +1406,7 @@ export const useChannelsStore = defineStore('channels', () => {
         if (!attempt) continue
         outgoingAttempts.delete(attempt.attemptId)
         void releaseOutgoingContent(attempt.content, attachmentPicker.value)
+        void confirmDraftDeliveryAttempt(attempt.attemptId)
       }
       return
     }
@@ -1323,6 +1414,7 @@ export const useChannelsStore = defineStore('channels', () => {
       for (const attempt of [...outgoingAttempts.values()]) {
         if (!event.channelRefs.includes(attempt.channelRef)) continue
         outgoingAttempts.delete(attempt.attemptId)
+        abandonDraftDeliveryAttempt(attempt.attemptId)
         void releaseOutgoingContent(attempt.content, attachmentPicker.value)
       }
     }
@@ -1331,6 +1423,7 @@ export const useChannelsStore = defineStore('channels', () => {
   async function clearOutgoingAttempts(picker: ChannelAttachmentPicker | null): Promise<void> {
     const attempts = [...outgoingAttempts.values()]
     outgoingAttempts.clear()
+    clearDraftDeliveryBatches()
     await Promise.allSettled(
       attempts.map((attempt) => releaseOutgoingContent(attempt.content, picker)),
     )
@@ -1346,6 +1439,40 @@ export const useChannelsStore = defineStore('channels', () => {
     loadingDrafts.value = false
     draftErrorCode.value = null
     loadedDraftAccountRef = null
+    clearDraftDeliveryBatches()
+  }
+
+  async function confirmDraftDeliveryAttempt(attemptId: string): Promise<void> {
+    const batchId = attemptDeliveryBatchIds.get(attemptId)
+    if (!batchId) return
+    attemptDeliveryBatchIds.delete(attemptId)
+    const batch = draftDeliveryBatches.get(batchId)
+    if (!batch) return
+    batch.pendingAttemptIds.delete(attemptId)
+    if (batch.pendingAttemptIds.size) return
+    draftDeliveryBatches.delete(batchId)
+    const draft = draftsByChannel.get(batch.channelRef)
+    if (!draft || !sameDraftContent(draft, batch.text, batch.mentions)) return
+    try {
+      await clearDraft(batch.channelRef)
+    } catch {
+      // Delivery is confirmed. The restored draft and stable error preserve recovery.
+    }
+  }
+
+  function abandonDraftDeliveryAttempt(attemptId: string): void {
+    const batchId = attemptDeliveryBatchIds.get(attemptId)
+    if (!batchId) return
+    const batch = draftDeliveryBatches.get(batchId)
+    if (batch)
+      for (const pendingAttemptId of batch.pendingAttemptIds)
+        attemptDeliveryBatchIds.delete(pendingAttemptId)
+    draftDeliveryBatches.delete(batchId)
+  }
+
+  function clearDraftDeliveryBatches(): void {
+    draftDeliveryBatches.clear()
+    attemptDeliveryBatchIds.clear()
   }
 
   function ensureMessageCursor(channelRef: ChannelRef): MessageCursor {
@@ -1505,6 +1632,7 @@ export const useChannelsStore = defineStore('channels', () => {
     activeOutgoingAttempts,
     drafts,
     activeDraft,
+    activeDraftHasUnresolvedDelivery,
     loadingDrafts,
     draftSavingChannelRefs,
     draftErrorCode,
@@ -1562,6 +1690,7 @@ export const useChannelsStore = defineStore('channels', () => {
     clearSavedMessages,
     sendText,
     sendContent,
+    beginComposerSubmission,
     pickAttachments,
     releaseAttachment,
     cancelSend,
@@ -1611,6 +1740,28 @@ function copyMessageMentions(mentions: MessageMention[]): MessageMention[] {
     label: mention.label,
     ranges: mention.ranges.map((range) => ({ start: range.start, end: range.end })),
   }))
+}
+
+function sameDraftContent(draft: ChannelDraft, text: string, mentions: MessageMention[]): boolean {
+  if (draft.text !== text || draft.mentions.length !== mentions.length) return false
+  return draft.mentions.every((mention, index) => {
+    const expected = mentions[index]
+    if (!expected || mention.target.kind !== expected.target.kind) return false
+    if (
+      mention.target.kind === 'user' &&
+      (expected.target.kind !== 'user' || mention.target.accountId !== expected.target.accountId)
+    )
+      return false
+    return (
+      mention.label === expected.label &&
+      mention.ranges.length === expected.ranges.length &&
+      mention.ranges.every(
+        (range, rangeIndex) =>
+          range.start === expected.ranges[rangeIndex]?.start &&
+          range.end === expected.ranges[rangeIndex]?.end,
+      )
+    )
+  })
 }
 
 function randomOperationId(): string {

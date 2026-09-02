@@ -1,15 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { beginChannelComposerSubmission } from './channelComposerSubmission'
+import { prepareChannelComposerSubmission } from './channelComposerSubmission'
 
-describe('beginChannelComposerSubmission', () => {
-  it('starts every attempt and binds reply context only to the first item', () => {
-    const first = Promise.resolve()
-    const second = Promise.resolve()
-    const sender = {
-      sendText: vi.fn(() => first),
-      sendContent: vi.fn(() => second),
-    }
+describe('prepareChannelComposerSubmission', () => {
+  it('prepares every attempt and binds reply context only to the first item', () => {
     const replyTo = { channelRef: 'channel', messageClientId: 'message' }
     const mentions = [
       {
@@ -19,35 +13,35 @@ describe('beginChannelComposerSubmission', () => {
       },
     ]
 
-    const sends = beginChannelComposerSubmission(sender, {
+    const deliveries = prepareChannelComposerSubmission({
       text: '@Lin review this',
       replyTo,
       mentions,
       attachments: [{ token: 'file-token', name: 'design.png', kind: 'image' }],
     })
 
-    expect(sends).toEqual([first, second])
-    expect(sender.sendText).toHaveBeenCalledWith('@Lin review this', replyTo, mentions)
-    expect(sender.sendContent).toHaveBeenCalledWith(
+    expect(deliveries).toEqual([
       {
-        kind: 'image',
-        media: {
-          source: { kind: 'localFile', token: 'file-token' },
-          name: 'design.png',
+        content: { kind: 'text', text: '@Lin review this' },
+        replyTo,
+        mentions,
+      },
+      {
+        content: {
+          kind: 'image',
+          media: {
+            source: { kind: 'localFile', token: 'file-token' },
+            name: 'design.png',
+          },
         },
       },
-      undefined,
-    )
+    ])
   })
 
   it('attaches reply context to the first media item when text is empty', () => {
-    const sender = {
-      sendText: vi.fn(async () => undefined),
-      sendContent: vi.fn(async () => undefined),
-    }
     const replyTo = { channelRef: 'channel', messageClientId: 'message' }
 
-    beginChannelComposerSubmission(sender, {
+    const deliveries = prepareChannelComposerSubmission({
       text: '',
       replyTo,
       mentions: [],
@@ -57,8 +51,10 @@ describe('beginChannelComposerSubmission', () => {
       ],
     })
 
-    expect(sender.sendText).not.toHaveBeenCalled()
-    expect(sender.sendContent).toHaveBeenNthCalledWith(1, expect.anything(), replyTo)
-    expect(sender.sendContent).toHaveBeenNthCalledWith(2, expect.anything(), undefined)
+    expect(deliveries).toMatchObject([
+      { content: { kind: 'file' }, replyTo },
+      { content: { kind: 'file' } },
+    ])
+    expect(deliveries[1]).not.toHaveProperty('replyTo')
   })
 })
