@@ -8,6 +8,7 @@ import type {
   Channel,
   ChannelAttachment,
   ChannelMember,
+  ChannelPresence,
   Message,
   MessageMention,
   MessageMentionTarget,
@@ -19,6 +20,7 @@ import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 import ChannelOutgoingMessageItem from './ChannelOutgoingMessageItem.vue'
+import ChannelPresenceIndicator from './ChannelPresenceIndicator.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
 import {
   isTimelineNearBottom,
@@ -55,6 +57,7 @@ const props = withDefaults(
     draftSaving?: boolean
     draftErrorCode?: string | null
     draftHasUnresolvedDelivery?: boolean
+    presence?: ChannelPresence | null
   }>(),
   {
     replyTo: null,
@@ -74,6 +77,7 @@ const props = withDefaults(
     draftErrorCode: null,
     draftHasUnresolvedDelivery: false,
     outgoingAttempts: () => [],
+    presence: null,
   },
 )
 const emit = defineEmits<{
@@ -383,6 +387,11 @@ watch(
             aria-hidden="true"
           />
           <h2 class="truncate text-base font-semibold text-fg">{{ channel.name }}</h2>
+          <ChannelPresenceIndicator
+            v-if="channel.kind === 'direct' && channel.directAccountId"
+            :availability="presence?.availability ?? 'unknown'"
+            size="inline"
+          />
           <span v-if="channel.memberCount" class="text-sm text-subtle">
             {{ t('channels.members', { count: channel.memberCount }) }}
           </span>

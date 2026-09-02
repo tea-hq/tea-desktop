@@ -587,6 +587,11 @@ export default {
       pinned: 'Pinned conversation',
       muted: 'Notifications muted',
     },
+    presence: {
+      online: 'Online',
+      offline: 'Offline',
+      unknown: 'Availability unknown',
+    },
     drafts: {
       label: 'Draft',
       saving: 'Saving draft',

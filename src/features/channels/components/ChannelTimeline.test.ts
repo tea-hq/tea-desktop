@@ -38,6 +38,41 @@ afterEach(() => {
 })
 
 describe('ChannelTimeline selection mode', () => {
+  it('shows availability in a direct header and omits it from a group header', async () => {
+    const direct: Channel = {
+      ...channel,
+      ref: 'lin-direct',
+      kind: 'direct',
+      directAccountId: 'lin',
+      name: 'Lin',
+    }
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel: direct,
+        presence: { accountId: 'lin', availability: 'offline', updatedAt: 2 },
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('header [data-channel-presence="offline"]').attributes('aria-label')).toBe(
+      'Offline',
+    )
+    await wrapper.setProps({ channel })
+    expect(wrapper.find('header [data-channel-presence]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('renders stable selection controls and emits forwarding intents', async () => {
     const wrapper = mount(ChannelTimeline, {
       props: {

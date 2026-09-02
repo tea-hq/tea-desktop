@@ -5,12 +5,17 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelDraft, ChannelStatus } from '../contracts'
+import type { Channel, ChannelDraft, ChannelPresence, ChannelStatus } from '../contracts'
 import ChannelSidebar from './ChannelSidebar.vue'
 
 const connectedStatus: ChannelStatus = { phase: 'connected', retryable: true }
 
-function mountSidebar(channels: Channel[], loading: boolean, drafts: ChannelDraft[] = []) {
+function mountSidebar(
+  channels: Channel[],
+  loading: boolean,
+  drafts: ChannelDraft[] = [],
+  presences: ChannelPresence[] = [],
+) {
   return mount(ChannelSidebar, {
     props: {
       channels,
@@ -18,6 +23,7 @@ function mountSidebar(channels: Channel[], loading: boolean, drafts: ChannelDraf
       status: connectedStatus,
       loading,
       drafts,
+      presences,
     },
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -95,5 +101,36 @@ describe('ChannelSidebar', () => {
     expect(wrapper.get('.channel-row__preview').text()).toContain('Draft')
     expect(wrapper.get('.channel-row__preview').text()).toContain('Review the release notes')
     expect(wrapper.text()).not.toContain('Last delivered message')
+  })
+
+  it('overlays availability on direct avatars without marking groups', () => {
+    const direct: Channel = {
+      ref: 'lin-direct',
+      kind: 'direct',
+      directAccountId: 'lin',
+      name: 'Lin',
+      description: 'Product design',
+      pinned: false,
+      muted: false,
+      unreadCount: 0,
+      updatedAt: 2,
+    }
+    const group: Channel = {
+      ...direct,
+      ref: 'product',
+      kind: 'group',
+      directAccountId: undefined,
+      name: 'Product',
+    }
+    const wrapper = mountSidebar(
+      [direct, group],
+      false,
+      [],
+      [{ accountId: 'lin', availability: 'online', updatedAt: 3 }],
+    )
+    const rows = wrapper.findAll('.channel-row')
+
+    expect(rows[0]!.get('[data-channel-presence="online"]').attributes('aria-label')).toBe('Online')
+    expect(rows[1]!.find('[data-channel-presence]').exists()).toBe(false)
   })
 })

@@ -549,6 +549,11 @@ export default {
       pinned: '已置顶会话',
       muted: '已开启消息免打扰',
     },
+    presence: {
+      online: '在线',
+      offline: '离线',
+      unknown: '在线状态未知',
+    },
     drafts: {
       label: '草稿',
       saving: '正在保存草稿',

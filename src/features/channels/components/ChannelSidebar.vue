@@ -3,8 +3,16 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaIconButton, TeaIconMenu, TeaInput, type TeaMenuItem } from '@/shared/ui'
 
-import type { Channel, ChannelDraft, ChannelRef, ChannelStatus } from '../contracts'
+import type {
+  Channel,
+  ChannelDraft,
+  ChannelPresence,
+  ChannelPresenceAvailability,
+  ChannelRef,
+  ChannelStatus,
+} from '../contracts'
 import ChannelAvatar from './ChannelAvatar.vue'
+import ChannelPresenceIndicator from './ChannelPresenceIndicator.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -14,8 +22,9 @@ const props = withDefaults(
     loading: boolean
     pendingRefs?: ChannelRef[]
     drafts?: ChannelDraft[]
+    presences?: ChannelPresence[]
   }>(),
-  { pendingRefs: () => [], drafts: () => [] },
+  { pendingRefs: () => [], drafts: () => [], presences: () => [] },
 )
 
 const emit = defineEmits<{
@@ -37,6 +46,9 @@ const filteredChannels = computed(() => {
   )
 })
 const pendingRefs = computed(() => new Set(props.pendingRefs))
+const presencesByAccount = computed(
+  () => new Map(props.presences.map((presence) => [presence.accountId, presence] as const)),
+)
 const draftsByChannel = computed(
   () =>
     new Map(
@@ -90,6 +102,12 @@ function selectConversationAction(channel: Channel, action: string): void {
 
 function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
+}
+
+function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
+  return channel.directAccountId
+    ? (presencesByAccount.value.get(channel.directAccountId)?.availability ?? 'unknown')
+    : 'unknown'
 }
 </script>
 
@@ -193,11 +211,19 @@ function formatTime(value: number): string {
             :aria-pressed="channel.ref === activeRef"
             @click="emit('select', channel.ref)"
           >
-            <ChannelAvatar
-              :channel-ref="channel.ref"
-              :name="channel.name"
-              :avatar-url="channel.avatarUrl"
-            />
+            <span class="relative size-8 shrink-0">
+              <ChannelAvatar
+                :channel-ref="channel.ref"
+                :name="channel.name"
+                :avatar-url="channel.avatarUrl"
+              />
+              <ChannelPresenceIndicator
+                v-if="channel.kind === 'direct' && channel.directAccountId"
+                class="absolute bottom-0 right-0"
+                :availability="presenceAvailability(channel)"
+                size="avatar"
+              />
+            </span>
             <span class="channel-row__details min-w-0">
               <span
                 class="block truncate text-sm leading-5 text-fg"

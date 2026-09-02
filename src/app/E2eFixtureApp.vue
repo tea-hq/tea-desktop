@@ -18,6 +18,7 @@ import type {
   Channel,
   ChannelDraft,
   ChannelMember,
+  ChannelPresence,
   ForwardMessageMode,
   Message,
   MessageReceiptDetails,
@@ -104,6 +105,35 @@ const channels: Channel[] = [
     lastMessagePreview: 'Type checks are green.',
   },
 ]
+const directChannel: Channel = {
+  ref: 'lin-direct',
+  kind: 'direct',
+  directAccountId: 'lin',
+  name: 'Lin Chen',
+  description: 'Product designer',
+  pinned: false,
+  muted: false,
+  unreadCount: 0,
+  updatedAt: 1_787_843_300_000,
+  lastMessagePreview: 'I will review the latest proposal.',
+}
+const isPresenceFixture = computed(() => fixture.value.startsWith('presence-'))
+const fixtureActiveChannel = computed(() =>
+  isPresenceFixture.value && fixture.value !== 'presence-group' ? directChannel : channel,
+)
+const fixtureChannels = computed(() =>
+  isPresenceFixture.value ? [directChannel, ...channels] : channels,
+)
+const fixturePresences = computed<ChannelPresence[]>(() => {
+  if (!isPresenceFixture.value) return []
+  const availability =
+    fixture.value === 'presence-offline'
+      ? 'offline'
+      : fixture.value === 'presence-unknown'
+        ? 'unknown'
+        : 'online'
+  return [{ accountId: 'lin', availability, updatedAt: 1_787_843_700_000 }]
+})
 const imDraftText = ref(fixture.value === 'im-draft' ? '@Lin review the release notes' : '')
 const imDrafts = computed<ChannelDraft[]>(() =>
   imDraftText.value.trim()
@@ -647,9 +677,10 @@ function retryFixtureMergedMessages(): void {
 
     <template v-if="activeMode === 'channels'">
       <ChannelSidebar
-        :channels="channelLoading ? [] : channels"
+        :channels="channelLoading ? [] : fixtureChannels"
         :drafts="imDrafts"
-        :active-ref="channel.ref"
+        :presences="fixturePresences"
+        :active-ref="fixtureActiveChannel.ref"
         :status="{ phase: 'connected', retryable: true }"
         :loading="channelLoading"
         :search-query="globalSearchQuery"
@@ -665,7 +696,8 @@ function retryFixtureMergedMessages(): void {
       />
       <ChannelTimeline
         v-else
-        :channel="channel"
+        :channel="fixtureActiveChannel"
+        :presence="fixtureActiveChannel.kind === 'direct' ? fixturePresences[0] : null"
         :messages="timelineMessages"
         :outgoing-attempts="outgoingAttempts"
         :panel-open="drawerOpen"
