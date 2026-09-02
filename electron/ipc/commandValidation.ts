@@ -31,6 +31,18 @@ export function readOptionalBoolean(value: unknown, name: string): boolean | und
   return value
 }
 
+export function readBoolean(value: unknown, name: string): boolean {
+  const result = readOptionalBoolean(value, name)
+  if (result === undefined) {
+    throw {
+      code: 'invalidRequest',
+      retryable: false,
+      message: `${name} must be a boolean`,
+    }
+  }
+  return result
+}
+
 export function readInteger(value: unknown, name: string): number {
   if (!Number.isInteger(value)) {
     throw {

@@ -20,6 +20,8 @@ export interface Channel {
   avatarUrl?: string
   description: string
   memberCount?: number
+  pinned: boolean
+  muted: boolean
   unreadCount: number
   updatedAt: number
   lastMessagePreview?: string
@@ -307,6 +309,9 @@ export type ChannelCapabilityId =
   | 'channel.details'
   | 'channel.members'
   | 'channel.manage'
+  | 'channel.pin'
+  | 'channel.mute'
+  | 'channel.hide'
   | 'profile.self'
   | 'message.history'
   | 'message.search'
@@ -583,6 +588,9 @@ export interface ChannelTransport {
   quickComment(request: QuickCommentRequest): Promise<void>
   getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails>
   openDirectConversation(accountId: string): Promise<ChannelRef>
+  setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void>
+  setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void>
+  hideChannel(channelRef: ChannelRef): Promise<void>
   markRead(channelRef: ChannelRef): Promise<void>
   subscribe(listener: ChannelEventListener): () => void
   dispose(): Promise<void>

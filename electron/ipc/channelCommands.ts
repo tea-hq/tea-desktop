@@ -4,7 +4,7 @@ import {
   type DesktopCommandHandlerGroup,
   type DesktopCommandHandlers,
 } from './commandRouter'
-import { readArray, readRecord, readString } from './commandValidation'
+import { readArray, readBoolean, readRecord, readString } from './commandValidation'
 
 export interface ChannelCommandServices {
   channel: ElectronChannelService
@@ -19,6 +19,7 @@ export function createChannelCommandHandlers(
     get_channel_descriptor: () => channel.descriptor(),
     get_channel_status: () => channel.status(),
     get_channel_self_profile: () => channel.selfProfile(),
+    get_channel_user_profiles: (args) => channel.userProfiles(readAccountIds(args.accountIds)),
     get_channel_user_profiles: (args) => channel.userProfiles(readAccountIds(args.accountIds)),
     open_direct_conversation: (args) =>
       channel.openDirectConversation(readString(args.accountId, 'accountId')),
@@ -67,6 +68,17 @@ export function createChannelCommandHandlers(
       channel.cancelMessageSend(readString(args.operationId, 'operationId')),
     select_channel_attachments: () => channel.selectAttachments(),
     mark_channel_read: (args) => channel.markRead(readString(args.channelRef, 'channelRef')),
+    set_channel_pinned: (args) =>
+      channel.setChannelPinned(
+        readString(args.channelRef, 'channelRef'),
+        readBoolean(args.pinned, 'pinned'),
+      ),
+    set_channel_muted: (args) =>
+      channel.setChannelMuted(
+        readString(args.channelRef, 'channelRef'),
+        readBoolean(args.muted, 'muted'),
+      ),
+    hide_channel: (args) => channel.hideChannel(readString(args.channelRef, 'channelRef')),
   } satisfies Partial<DesktopCommandHandlers>)
 }
 

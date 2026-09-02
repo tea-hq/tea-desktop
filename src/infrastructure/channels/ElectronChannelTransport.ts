@@ -56,6 +56,9 @@ const descriptor: ChannelTransportDescriptor = {
     'channel.details',
     'channel.members',
     'channel.manage',
+    'channel.pin',
+    'channel.mute',
+    'channel.hide',
     'message.history',
     'message.search',
     'message.send.text',
@@ -242,6 +245,18 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   async openDirectConversation(_accountId: string): Promise<ChannelRef> {
     return this.command('open_direct_conversation', { accountId: _accountId })
+  }
+
+  async setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void> {
+    await this.command('set_channel_pinned', { channelRef, pinned })
+  }
+
+  async setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void> {
+    await this.command('set_channel_muted', { channelRef, muted })
+  }
+
+  async hideChannel(channelRef: ChannelRef): Promise<void> {
+    await this.command('hide_channel', { channelRef })
   }
 
   async markRead(channelRef: ChannelRef): Promise<void> {

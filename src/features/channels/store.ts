@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, shallowRef } from 'vue'
 import type {
+  Channel,
   ChannelAttachment,
   ChannelAttachmentPicker,
   ChannelEvent,
@@ -35,6 +36,7 @@ import type {
   SearchMessagesRequest,
   SendMessageResult,
 } from './contracts'
+import { ChannelTransportError } from './contracts'
 import { createTextMessageContent } from './messageContent'
 import {
   createChannelProjection,
@@ -84,6 +86,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const savingMessage = ref(false)
   const removingSavedMessageId = ref<string | null>(null)
   const savedMessagesErrorCode = ref<string | null>(null)
+  const mutatingChannelRefs = reactive(new Set<ChannelRef>())
   const refreshingChannels = ref(false)
   const synchronizingChannels = ref(false)
   const channelCatalogReady = ref(true)
@@ -106,8 +109,14 @@ export const useChannelsStore = defineStore('channels', () => {
   let mergedMessagesOperationId = 0
 
   const channels = computed(() =>
-    [...projection.channels.values()].sort((left, right) => right.updatedAt - left.updatedAt),
+    [...projection.channels.values()].sort(
+      (left, right) =>
+        Number(right.pinned) - Number(left.pinned) ||
+        right.updatedAt - left.updatedAt ||
+        left.ref.localeCompare(right.ref),
+    ),
   )
+  const pendingChannelRefs = computed(() => [...mutatingChannelRefs])
   const activeChannel = computed(() =>
     activeChannelRef.value ? (projection.channels.get(activeChannelRef.value) ?? null) : null,
   )
@@ -143,6 +152,7 @@ export const useChannelsStore = defineStore('channels', () => {
     refreshingChannels.value = false
     synchronizingChannels.value = false
     loadingMessageRequests.clear()
+    mutatingChannelRefs.clear()
     channelCatalogReady.value = false
     initialConversationSyncFinished.value = false
     unsubscribe = value.subscribe((event) => {
@@ -803,6 +813,38 @@ export const useChannelsStore = defineStore('channels', () => {
     return channelRef
   }
 
+  async function setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void> {
+    await mutateChannel(
+      channelRef,
+      (client) => client.setChannelPinned(channelRef, pinned),
+      (channel) => ({ ...channel, pinned }),
+    )
+  }
+
+  async function setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void> {
+    await mutateChannel(
+      channelRef,
+      (client) => client.setChannelMuted(channelRef, muted),
+      (channel) => ({ ...channel, muted }),
+    )
+  }
+
+  async function markChannelRead(channelRef: ChannelRef): Promise<void> {
+    await mutateChannel(
+      channelRef,
+      (client) => client.markRead(channelRef),
+      (channel) => ({ ...channel, unreadCount: 0 }),
+    )
+  }
+
+  async function hideChannel(channelRef: ChannelRef): Promise<void> {
+    await mutateChannel(
+      channelRef,
+      (client) => client.hideChannel(channelRef),
+      () => null,
+    )
+  }
+
   async function dispose(): Promise<void> {
     lifecycleGeneration += 1
     unsubscribe?.()
@@ -821,6 +863,7 @@ export const useChannelsStore = defineStore('channels', () => {
     sendingProgress.value = 0
     activeSendOperationId.value = null
     mutatingMessage.value = false
+    mutatingChannelRefs.clear()
     errorCode.value = null
     status.value = { phase: 'disconnected', retryable: false }
     if (client) await client.dispose()
@@ -902,6 +945,12 @@ export const useChannelsStore = defineStore('channels', () => {
     }
     status.value = event.type === 'status.changed' ? event.status : status.value
     reduceChannelEvent(projection, event)
+    if (
+      event.type === 'channel.deleted' &&
+      activeChannelRef.value &&
+      event.channelRefs.includes(activeChannelRef.value)
+    )
+      activeChannelRef.value = null
     reconcileMessageCursors(event)
     reconcilePinnedMessages(event)
     if (event.type === 'status.changed') {
@@ -1078,6 +1127,37 @@ export const useChannelsStore = defineStore('channels', () => {
     }
   }
 
+  async function mutateChannel(
+    channelRef: ChannelRef,
+    operation: (client: ChannelTransport) => Promise<void>,
+    project: (channel: Channel) => Channel | null,
+  ): Promise<void> {
+    if (mutatingChannelRefs.has(channelRef)) return
+    const current = projection.channels.get(channelRef)
+    if (!current) throw new ChannelTransportError('invalidRequest', false)
+    const client = requireTransport()
+    const generation = lifecycleGeneration
+    mutatingChannelRefs.add(channelRef)
+    errorCode.value = null
+    try {
+      await operation(client)
+      if (generation !== lifecycleGeneration || transport.value !== client) return
+      const next = project(projection.channels.get(channelRef) ?? current)
+      if (next) projection.channels.set(channelRef, next)
+      else {
+        projection.channels.delete(channelRef)
+        projection.messagesByChannel.delete(channelRef)
+        messageCursors.delete(channelRef)
+        if (activeChannelRef.value === channelRef) activeChannelRef.value = null
+      }
+    } catch (error) {
+      if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
+      throw error
+    } finally {
+      if (generation === lifecycleGeneration) mutatingChannelRefs.delete(channelRef)
+    }
+  }
+
   return {
     channels,
     activeChannelRef,
@@ -1103,6 +1183,7 @@ export const useChannelsStore = defineStore('channels', () => {
     savingMessage,
     removingSavedMessageId,
     savedMessagesErrorCode,
+    pendingChannelRefs,
     sendingMessage,
     mutatingMessage,
     loadingMergedMessages,
@@ -1150,6 +1231,10 @@ export const useChannelsStore = defineStore('channels', () => {
     quickComment,
     getMessageReceiptDetails,
     openDirectConversation,
+    setChannelPinned,
+    setChannelMuted,
+    markChannelRead,
+    hideChannel,
     dispose,
   }
 })

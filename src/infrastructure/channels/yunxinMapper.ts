@@ -31,6 +31,8 @@ export function mapYunxinConversation(value: V2NIMConversation, targetId?: strin
     ...(value.type === 1 && targetId?.trim() ? { participantAccountId: targetId.trim() } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
     description: preview ?? '',
+    pinned: value.stickTop,
+    muted: value.mute === true,
     unreadCount: Math.max(0, value.unreadCount),
     updatedAt: value.updateTime || value.sortOrder || value.createTime,
     lastMessagePreview: preview,

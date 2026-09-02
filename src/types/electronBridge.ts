@@ -85,6 +85,9 @@ export const DESKTOP_COMMANDS = [
   'cancel_channel_message_send',
   'select_channel_attachments',
   'mark_channel_read',
+  'set_channel_pinned',
+  'set_channel_muted',
+  'hide_channel',
 ] as const
 
 export type DesktopCommand = (typeof DESKTOP_COMMANDS)[number]

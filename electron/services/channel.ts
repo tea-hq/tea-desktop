@@ -205,6 +205,18 @@ export class ElectronChannelService {
     await this.transport.markRead(channelRef)
   }
 
+  async setChannelPinned(channelRef: string, pinned: boolean): Promise<void> {
+    await this.transport.setChannelPinned(channelRef, pinned)
+  }
+
+  async setChannelMuted(channelRef: string, muted: boolean): Promise<void> {
+    await this.transport.setChannelMuted(channelRef, muted)
+  }
+
+  async hideChannel(channelRef: string): Promise<void> {
+    await this.transport.hideChannel(channelRef)
+  }
+
   async openDirectConversation(accountId: string): Promise<string> {
     return this.transport.openDirectConversation(accountId)
   }

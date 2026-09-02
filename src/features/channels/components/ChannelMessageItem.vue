@@ -106,7 +106,7 @@ function selectMessage(): void {
       @update:model-value="emit('toggleSelection')"
     />
     <div
-      class="flex max-w-[min(84%,44rem)] items-start gap-2"
+      class="flex min-w-0 max-w-[min(84%,44rem)] items-start gap-2"
       :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
     >
       <div
@@ -133,7 +133,7 @@ function selectMessage(): void {
         </div>
 
         <div
-          class="mt-1 flex min-w-0 items-start gap-1.5"
+          class="mt-1 flex min-w-0 max-w-full items-start gap-1.5"
           :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
         >
           <div

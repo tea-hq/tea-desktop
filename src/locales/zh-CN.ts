@@ -538,6 +538,17 @@ export default {
     recent: '最近',
     loading: '正在同步会话',
     noResults: '没有匹配的通道',
+    controls: {
+      actions: '{name} 的会话操作',
+      pin: '置顶会话',
+      unpin: '取消置顶',
+      mute: '消息免打扰',
+      unmute: '取消消息免打扰',
+      markRead: '标记为已读',
+      hide: '隐藏会话',
+      pinned: '已置顶会话',
+      muted: '已开启消息免打扰',
+    },
     details: {
       title: '通道详情',
       loading: '正在加载通道详情',

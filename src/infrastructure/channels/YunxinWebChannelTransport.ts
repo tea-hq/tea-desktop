@@ -159,6 +159,9 @@ const capabilities: ChannelCapability[] = [
   'channel.details',
   'channel.members',
   'channel.manage',
+  'channel.pin',
+  'channel.mute',
+  'channel.hide',
   'profile.self',
   'message.history',
   'message.search',
@@ -1153,6 +1156,46 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     }
   }
 
+  async setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void> {
+    if (typeof pinned !== 'boolean') throw new ChannelTransportError('invalidRequest', false)
+    const sdk = this.connectedSdk()
+    conversationIdentity(sdk, channelRef)
+    try {
+      await sdk.V2NIMConversationService.stickTopConversation(channelRef, pinned)
+      await this.emitControlledConversation(channelRef, { pinned })
+    } catch (error) {
+      if (error instanceof ChannelTransportError) throw error
+      throw new ChannelTransportError('transport', true)
+    }
+  }
+
+  async setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void> {
+    if (typeof muted !== 'boolean') throw new ChannelTransportError('invalidRequest', false)
+    const sdk = this.connectedSdk()
+    const identity = conversationIdentity(sdk, channelRef)
+    try {
+      if (identity.type === 'direct')
+        await sdk.V2NIMSettingService.setP2PMessageMuteMode(identity.targetId, muted ? 1 : 0)
+      else await sdk.V2NIMSettingService.setTeamMessageMuteMode(identity.targetId, 1, muted ? 1 : 0)
+      await this.emitControlledConversation(channelRef, { muted })
+    } catch (error) {
+      if (error instanceof ChannelTransportError) throw error
+      throw new ChannelTransportError('transport', true)
+    }
+  }
+
+  async hideChannel(channelRef: ChannelRef): Promise<void> {
+    const sdk = this.connectedSdk()
+    conversationIdentity(sdk, channelRef)
+    try {
+      await sdk.V2NIMConversationService.deleteConversation(channelRef, false)
+      this.emit({ type: 'channel.deleted', channelRefs: [channelRef] })
+    } catch (error) {
+      if (error instanceof ChannelTransportError) throw error
+      throw new ChannelTransportError('transport', true)
+    }
+  }
+
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     const sdk = this.connectedSdk()
     const message = this.rawMessageForRef(messageRef)
@@ -1454,6 +1497,17 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     if (channels.length) this.emit({ type: 'channel.upserted', channels })
   }
 
+  private async emitControlledConversation(
+    channelRef: ChannelRef,
+    preferences: Partial<Pick<Channel, 'pinned' | 'muted'>>,
+  ): Promise<void> {
+    const sdk = this.connectedSdk()
+    const value = await sdk.V2NIMConversationService.getConversation(channelRef)
+    const channel = this.mapConversation(value)
+    if (!channel) throw new ChannelTransportError('protocolFailure', false)
+    this.emit({ type: 'channel.upserted', channels: [{ ...channel, ...preferences }] })
+  }
+
   private mapConversation(value: V2NIMConversation) {
     let targetId: string | undefined
     try {
@@ -1646,6 +1700,23 @@ function sourceSessionId(sdk: YunxinSdk, channelRef: ChannelRef): string {
   }
 }
 
+function conversationIdentity(
+  sdk: YunxinSdk,
+  channelRef: ChannelRef,
+): { type: 'direct' | 'group'; targetId: string } {
+  let conversationType: number
+  let targetId: string
+  try {
+    conversationType = sdk.V2NIMConversationIdUtil.parseConversationType(channelRef)
+    targetId = sdk.V2NIMConversationIdUtil.parseConversationTargetId(channelRef).trim()
+  } catch {
+    throw new ChannelTransportError('invalidRequest', false)
+  }
+  if ((conversationType !== 1 && conversationType !== 2) || !targetId || targetId.length > 128)
+    throw new ChannelTransportError('unsupportedCapability', false)
+  return { type: conversationType === 1 ? 'direct' : 'group', targetId }
+}
+
 function readSdkVersion(sdk: YunxinSdk): string {
   const value = (sdk as unknown as { version?: unknown }).version
   return typeof value === 'string' ? value.slice(0, 100) : ''
@@ -1688,6 +1759,8 @@ function mapYunxinTeamChannel(team: V2NIMTeam, channelRef: ChannelRef): Channel 
     ...(team.avatar ? { avatarUrl: boundedTeamUrl(team.avatar) } : {}),
     description: boundedTeamText(team.intro || '', 1_024),
     memberCount: Math.max(0, team.memberCount),
+    pinned: false,
+    muted: false,
     unreadCount: 0,
     updatedAt: Date.now(),
   }

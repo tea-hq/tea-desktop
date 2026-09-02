@@ -76,6 +76,8 @@ const seedChannels: Channel[] = [
       'https://yx-web-nosdn.netease.im/common/2425b4cc058e5788867d63c322feb7ac/groupAvatar1.png',
     description: 'Tea 产品与研发协作',
     memberCount: 12,
+    pinned: true,
+    muted: false,
     unreadCount: 4,
     updatedAt: now,
   },
@@ -87,6 +89,8 @@ const seedChannels: Channel[] = [
       'https://yx-web-nosdn.netease.im/common/62c45692c9771ab388d43fea1c9d2758/groupAvatar2.png',
     description: 'Runtime contracts and adapters',
     memberCount: 7,
+    pinned: false,
+    muted: false,
     unreadCount: 0,
     updatedAt: now - minute * 60,
   },
@@ -96,6 +100,8 @@ const seedChannels: Channel[] = [
     name: '林晓',
     participantAccountId: 'lin',
     description: '产品设计',
+    pinned: false,
+    muted: true,
     unreadCount: 1,
     updatedAt: now - minute * 120,
   },
@@ -107,6 +113,8 @@ const seedChannels: Channel[] = [
       'https://yx-web-nosdn.netease.im/common/d1ed3c21d3f87a41568d17197760e663/groupAvatar3.png',
     description: '版本发布与质量跟踪',
     memberCount: 18,
+    pinned: false,
+    muted: false,
     unreadCount: 0,
     updatedAt: now - minute * 180,
   },
@@ -153,6 +161,9 @@ const capabilities: ChannelCapability[] = [
   'channel.details',
   'channel.members',
   'channel.manage',
+  'channel.pin',
+  'channel.mute',
+  'channel.hide',
   'profile.self',
   'message.history',
   'message.search',
@@ -342,6 +353,8 @@ export class MockChannelTransport implements ChannelTransport {
       name,
       description: request.description?.trim().slice(0, 1_024) ?? '',
       memberCount: members.length + 1,
+      pinned: false,
+      muted: false,
       unreadCount: 0,
       updatedAt: Date.now(),
     }
@@ -787,6 +800,33 @@ export class MockChannelTransport implements ChannelTransport {
   async openDirectConversation(accountId: string): Promise<ChannelRef> {
     if (!accountId.trim()) throw new ChannelTransportError('invalidRequest', false)
     return `direct-${accountId.trim()}`
+  }
+
+  async setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void> {
+    this.assertConnected()
+    const channel = this.channels.find((candidate) => candidate.ref === channelRef)
+    if (!channel || typeof pinned !== 'boolean')
+      throw new ChannelTransportError('invalidRequest', false)
+    channel.pinned = pinned
+    this.emit({ type: 'channel.upserted', channels: [structuredClone(channel)] })
+  }
+
+  async setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void> {
+    this.assertConnected()
+    const channel = this.channels.find((candidate) => candidate.ref === channelRef)
+    if (!channel || typeof muted !== 'boolean')
+      throw new ChannelTransportError('invalidRequest', false)
+    channel.muted = muted
+    this.emit({ type: 'channel.upserted', channels: [structuredClone(channel)] })
+  }
+
+  async hideChannel(channelRef: ChannelRef): Promise<void> {
+    this.assertConnected()
+    const index = this.channels.findIndex((candidate) => candidate.ref === channelRef)
+    if (index < 0) throw new ChannelTransportError('invalidRequest', false)
+    this.channels.splice(index, 1)
+    this.messages.delete(channelRef)
+    this.emit({ type: 'channel.deleted', channelRefs: [channelRef] })
   }
 
   async markRead(channelRef: ChannelRef): Promise<void> {

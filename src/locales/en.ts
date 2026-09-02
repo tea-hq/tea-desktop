@@ -576,6 +576,17 @@ export default {
     recent: 'Recent',
     loading: 'Syncing conversations',
     noResults: 'No matching channels',
+    controls: {
+      actions: 'Channel actions for {name}',
+      pin: 'Pin conversation',
+      unpin: 'Unpin conversation',
+      mute: 'Mute notifications',
+      unmute: 'Unmute notifications',
+      markRead: 'Mark as read',
+      hide: 'Hide conversation',
+      pinned: 'Pinned conversation',
+      muted: 'Notifications muted',
+    },
     details: {
       title: 'Channel details',
       loading: 'Loading channel details',

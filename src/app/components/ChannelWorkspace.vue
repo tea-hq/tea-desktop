@@ -147,6 +147,22 @@ function handleChannelSelect(channelRef: ChannelRef): void {
   void channels.selectChannel(channelRef).catch(() => undefined)
 }
 
+function setChannelPinned(channelRef: ChannelRef, pinned: boolean): void {
+  void channels.setChannelPinned(channelRef, pinned).catch(() => undefined)
+}
+
+function setChannelMuted(channelRef: ChannelRef, muted: boolean): void {
+  void channels.setChannelMuted(channelRef, muted).catch(() => undefined)
+}
+
+function markChannelRead(channelRef: ChannelRef): void {
+  void channels.markChannelRead(channelRef).catch(() => undefined)
+}
+
+function hideChannel(channelRef: ChannelRef): void {
+  void channels.hideChannel(channelRef).catch(() => undefined)
+}
+
 function openMessageSearch(): void {
   searchScope.value = channels.activeChannel?.ref ?? null
   channels.clearMessageSearch()
@@ -641,9 +657,14 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
     :loading="channels.loadingChannels"
+    :pending-refs="channels.pendingChannelRefs"
     @select="handleChannelSelect"
     @open-search="openGlobalMessageSearch"
     @open-saved="openSavedMessages"
+    @pin="setChannelPinned"
+    @mute="setChannelMuted"
+    @mark-read="markChannelRead"
+    @hide="hideChannel"
   />
   <ChannelTimeline
     v-if="channels.activeChannel"
