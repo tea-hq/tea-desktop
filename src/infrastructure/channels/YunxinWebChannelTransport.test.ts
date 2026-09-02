@@ -601,7 +601,7 @@ describe('YunxinWebChannelTransport', () => {
     const outgoing = message.sendMessage.mock.calls[0]![0]
     expect(JSON.parse(outgoing.serverExtension ?? '{}')).toEqual({
       source: 'tea',
-      teaClientReference: 'im-send:v1:mention',
+      teaDelivery: { version: 1, clientReference: 'im-send:v1:mention' },
       yxAitMsg: {
         lin: { text: '@Lin', segments: [{ start: 0, end: 4, broken: false }] },
       },

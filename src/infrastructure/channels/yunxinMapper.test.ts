@@ -101,7 +101,7 @@ describe('Yunxin DTO mapping', () => {
       serverExtension: JSON.stringify({
         version: 1,
         identity: 'tea-agent',
-        teaClientReference: 'im-send:v1:one',
+        teaDelivery: { version: 1, clientReference: 'im-send:v1:one' },
       }),
     } as V2NIMMessage
     expect(mapYunxinMessage(source, 'me')).toMatchObject({
@@ -111,7 +111,7 @@ describe('Yunxin DTO mapping', () => {
       serverExtension: {
         version: 1,
         identity: 'tea-agent',
-        teaClientReference: 'im-send:v1:one',
+        teaDelivery: { version: 1, clientReference: 'im-send:v1:one' },
       },
       clientReference: 'im-send:v1:one',
     })
@@ -119,6 +119,17 @@ describe('Yunxin DTO mapping', () => {
       content: { kind: 'image', caption: 'hello' },
       text: 'hello',
     })
+    expect(
+      mapYunxinMessage(
+        {
+          ...source,
+          serverExtension: JSON.stringify({
+            teaDelivery: { version: 2, clientReference: 'unsupported' },
+          }),
+        } as V2NIMMessage,
+        'me',
+      )?.clientReference,
+    ).toBeUndefined()
   })
 
   it('uses the provider self flag with an account fallback for restored messages', () => {

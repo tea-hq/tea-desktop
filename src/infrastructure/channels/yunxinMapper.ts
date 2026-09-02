@@ -80,7 +80,15 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
 
 function teaClientReference(extension: JsonValue | undefined): string | undefined {
   if (!extension || typeof extension !== 'object' || Array.isArray(extension)) return undefined
-  const value = extension.teaClientReference
+  const delivery = extension.teaDelivery
+  if (
+    !delivery ||
+    typeof delivery !== 'object' ||
+    Array.isArray(delivery) ||
+    delivery.version !== 1
+  )
+    return undefined
+  const value = delivery.clientReference
   return typeof value === 'string' && value.trim() && value.length <= 128 ? value : undefined
 }
 

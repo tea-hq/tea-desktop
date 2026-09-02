@@ -1830,7 +1830,10 @@ function withClientReference(
   if (!value) return extension
   if (value.length > 128 || (extension !== undefined && !isJsonRecord(extension)))
     throw new ChannelTransportError('invalidRequest', false)
-  return { ...(extension ?? {}), teaClientReference: value }
+  return {
+    ...(extension ?? {}),
+    teaDelivery: { version: 1, clientReference: value },
+  }
 }
 
 function isJsonRecord(value: JsonValue): value is Record<string, JsonValue> {
