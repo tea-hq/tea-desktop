@@ -1,6 +1,6 @@
 # ADR 0008: Provider-Neutral Real Channel Transport
 
-- Status: Accepted; credential activation amended by ADR 0016
+- Status: Accepted; credential activation amended by ADR 0016; message scope amended by ADR 0033
 - Date: 2026-08-21
 
 This document records the WebView provider integration. ADR 0016 replaces its
@@ -36,13 +36,13 @@ SDK login. The WebView transport keeps it in temporary memory only and never
 logs, persists, emits, or adds it to Agent context. Browser preview always uses
 mock credentials internal to the mock transport.
 
-Text, pages, extensions, nesting depth, arrays, attachments, and queued events are bounded before entering the projection. Phase 1 rejects attachments and unsupported message mutations. CSP permits only self/Tauri endpoints plus the confirmed Yunxin LBS and secure link endpoints; arbitrary network origins remain blocked.
+Text, pages, extensions, nesting depth, arrays, message content metadata, and queued events are bounded before entering the projection. Unsupported provider capabilities remain explicitly unavailable until their typed contract is verified; supported content is normalized by the mapper described in ADR 0033. CSP permits only self/Tauri endpoints plus the confirmed Yunxin LBS and secure link endpoints; arbitrary network origins remain blocked.
 
 ## Recovery and lifecycle
 
 Listeners are registered before login and removed symmetrically on disconnect/dispose. Reconnect events trigger an authoritative channel refresh while SDK sync events bound refresh timing. Duplicate callbacks are harmless because reducer identities are stable. Kicked-offline, authentication failure, account switch, explicit disconnect, and disposal clear all provider caches and projected channel/message state. Tokens never participate in replay.
 
-Quick comments are declared as an unavailable capability in phase 1. Notification mapping may update authoritative projection metadata, but no mutation UI is enabled until the exact SDK mutation contract is verified and covered by contract tests.
+Quick comments may be declared unavailable by an adapter until the exact SDK mutation contract is verified and covered by contract tests. This is an adapter capability state, not a product scope decision.
 
 ## Alternatives considered
 

@@ -87,16 +87,19 @@ The target invariant is:
   Codex.
 - Keep future `TauriChannelTransport` adoption transparent to stores and Vue.
 
-## Non-Goals
+## Current Boundaries
 
-- Cross-Channel conversations, evidence collection, or delivery.
 - One conversation that switches between Agent runtimes.
-- Automatic Channel history preload.
-- Semantic or vector search over Channel history.
-- Automatic Agent writes to a Channel.
-- Attachment content ingestion, file upload, voice, forwarding, or reactions.
 - Background autonomous monitoring of a Channel.
 - Sharing one local Agent conversation among multiple desktop users.
+
+The enterprise IM target includes the complete UIKit message surface: media
+attachments, voice and video, locations, custom/robot/call/notification
+messages, search, forwarding (including ordinary cross-Channel forwarding and
+forwarding to an Agent), replies, mentions, reactions, pins, collections,
+read details, and group/contact management. Binary upload/download and
+provider mutations remain behind typed transport capabilities and are never
+implemented in Vue components.
 
 ## Domain Model
 
@@ -358,8 +361,11 @@ The read-only tool supports:
 - reading a bounded recent or time-range page in the bound Channel;
 - continuing only with host-issued cursors from the same conversation scope.
 
-It does not support semantic search in this phase. It cannot send, modify,
-delete, pin, react, mark read, access attachments, or address another Channel.
+The history tool remains read-only: it cannot send, modify, delete, pin, react,
+mark read, or address another Channel. Structured content is exposed only as
+bounded safe text and attachment metadata; binary bytes and provider payloads
+never enter Agent input. Full message search and mutation workflows are
+separate typed use cases over the same provider-neutral contracts.
 
 The current ADR 0010 limits become per-turn limits: at most 6 calls, 10
 messages per call, 40 unique references, 32,000 returned message characters,
