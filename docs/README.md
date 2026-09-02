@@ -25,6 +25,9 @@ host is now Electron.
 - `docs/adr/0030-center-managed-declarative-http-plugins.md` records why Tea
   uses declarative HTTP plugins instead of a generic proxy or required MCP
   deployment.
+- `docs/adr/0045-provider-neutral-channel-media-workflows.md` defines received
+  media viewing and host-owned saving without exposing provider or filesystem
+  behavior to Vue.
 - `docs/plans/2026-08-28-acp-foundation.md` records the ACP foundation and
   runtime checkpoints.
 - `docs/plans/2026-08-28-acp-mcp-attachment.md` is the active ACP MCP
