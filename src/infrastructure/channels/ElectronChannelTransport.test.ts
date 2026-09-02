@@ -76,8 +76,51 @@ describe('ElectronChannelTransport', () => {
         'channel.pin',
         'channel.mute',
         'channel.hide',
+        'presence.subscribe',
       ]),
     )
+  })
+
+  it('replaces presence subscriptions through one allowlisted command', async () => {
+    mocks.invoke.mockResolvedValueOnce(undefined)
+    const transport = new ElectronChannelTransport()
+
+    await transport.setPresenceSubscriptions(['lin', 'meng'])
+
+    expect(mocks.invoke).toHaveBeenCalledWith('set_channel_presence_subscriptions', {
+      accountIds: ['lin', 'meng'],
+    })
+    await transport.dispose()
+  })
+
+  it('maps presence command failures to stable transport errors', async () => {
+    mocks.invoke.mockRejectedValueOnce({ code: 'notConnected', retryable: true })
+    const transport = new ElectronChannelTransport()
+
+    await expect(transport.setPresenceSubscriptions(['lin'])).rejects.toMatchObject({
+      code: 'notConnected',
+      retryable: true,
+    })
+    await transport.dispose()
+  })
+
+  it('forwards provider-neutral presence through the existing channel event listener', async () => {
+    const transport = new ElectronChannelTransport()
+    const listener = vi.fn()
+    transport.subscribe(listener)
+    const forward = mocks.listen.mock.calls[0]?.[1]
+    const event = {
+      type: 'presence.changed' as const,
+      sequence: 1,
+      occurredAt: 2,
+      presences: [{ accountId: 'lin', availability: 'online' as const, updatedAt: 2 }],
+    }
+
+    forward({ payload: event })
+
+    expect(mocks.listen).toHaveBeenCalledWith('channel-event', expect.any(Function))
+    expect(listener).toHaveBeenCalledWith(event)
+    await transport.dispose()
   })
 
   it('searches messages through an allowlisted Electron command', async () => {

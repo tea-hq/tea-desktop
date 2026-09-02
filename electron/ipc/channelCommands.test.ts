@@ -7,6 +7,7 @@ function channelService(): ElectronChannelService {
   return {
     setChannelPinned: vi.fn(async () => undefined),
     setChannelMuted: vi.fn(async () => undefined),
+    setPresenceSubscriptions: vi.fn(async () => undefined),
     hideChannel: vi.fn(async () => undefined),
     releaseAttachment: vi.fn(async () => undefined),
   } as never
@@ -34,6 +35,36 @@ describe('channel command handlers', () => {
       Promise.resolve().then(() => handler({ channelRef: 'channel', muted: 'yes' })),
     ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
     expect(channel.setChannelMuted).not.toHaveBeenCalled()
+  })
+
+  it('validates and delegates a bounded presence replace set', async () => {
+    const channel = channelService()
+    const handler = createChannelCommandHandlers({ channel }).handlers
+      .set_channel_presence_subscriptions!
+
+    await handler({ accountIds: ['lin', 'meng'] })
+
+    expect(channel.setPresenceSubscriptions).toHaveBeenCalledWith(['lin', 'meng'])
+  })
+
+  it('rejects malformed or unbounded presence payloads before delegation', async () => {
+    const channel = channelService()
+    const handler = createChannelCommandHandlers({ channel }).handlers
+      .set_channel_presence_subscriptions!
+
+    for (const accountIds of [
+      'lin',
+      [''],
+      ['line\nbreak'],
+      ['x'.repeat(513)],
+      Array.from({ length: 3_001 }, (_, index) => `account-${index}`),
+    ]) {
+      await expect(Promise.resolve().then(() => handler({ accountIds }))).rejects.toMatchObject({
+        code: 'invalidRequest',
+        retryable: false,
+      })
+    }
+    expect(channel.setPresenceSubscriptions).not.toHaveBeenCalled()
   })
 
   it('allows only a validated opaque attachment token across the release boundary', async () => {

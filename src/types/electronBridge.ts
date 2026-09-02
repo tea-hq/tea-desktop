@@ -88,6 +88,7 @@ export const DESKTOP_COMMANDS = [
   'mark_channel_read',
   'set_channel_pinned',
   'set_channel_muted',
+  'set_channel_presence_subscriptions',
   'hide_channel',
   'list_im_channel_drafts',
   'save_im_channel_draft',

@@ -59,6 +59,7 @@ const descriptor: ChannelTransportDescriptor = {
     'channel.pin',
     'channel.mute',
     'channel.hide',
+    'presence.subscribe',
     'message.history',
     'message.search',
     'message.send.text',
@@ -261,6 +262,10 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   async markRead(channelRef: ChannelRef): Promise<void> {
     await this.command('mark_channel_read', { channelRef })
+  }
+
+  async setPresenceSubscriptions(accountIds: string[]): Promise<void> {
+    await this.command('set_channel_presence_subscriptions', { accountIds })
   }
 
   subscribe(listener: ChannelEventListener): () => void {

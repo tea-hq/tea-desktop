@@ -77,6 +77,20 @@ describe('Electron preload bridge', () => {
     expect(electron.removeListener).toHaveBeenCalledWith(channel, wrapped)
   })
 
+  it('allows the provider-neutral presence command without exposing a new IPC channel', async () => {
+    electron.invoke.mockResolvedValueOnce({ ok: true, value: undefined })
+
+    await expect(
+      bridge.invoke('set_channel_presence_subscriptions', { accountIds: ['lin'] }),
+    ).resolves.toBeUndefined()
+
+    expect(electron.invoke).toHaveBeenCalledWith(
+      'tea:command',
+      'set_channel_presence_subscriptions',
+      { accountIds: ['lin'] },
+    )
+  })
+
   it('rejects commands and events outside the static allowlist', async () => {
     await expect(
       bridge.invoke('unknown' as Parameters<TeaDesktopBridge['invoke']>[0]),

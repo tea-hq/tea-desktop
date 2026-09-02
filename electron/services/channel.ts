@@ -214,6 +214,10 @@ export class ElectronChannelService {
     await this.transport.markRead(channelRef)
   }
 
+  async setPresenceSubscriptions(accountIds: string[]): Promise<void> {
+    await this.transport.setPresenceSubscriptions(accountIds)
+  }
+
   async setChannelPinned(channelRef: string, pinned: boolean): Promise<void> {
     await this.transport.setChannelPinned(channelRef, pinned)
   }

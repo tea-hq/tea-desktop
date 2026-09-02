@@ -20,7 +20,6 @@ export function createChannelCommandHandlers(
     get_channel_status: () => channel.status(),
     get_channel_self_profile: () => channel.selfProfile(),
     get_channel_user_profiles: (args) => channel.userProfiles(readAccountIds(args.accountIds)),
-    get_channel_user_profiles: (args) => channel.userProfiles(readAccountIds(args.accountIds)),
     open_direct_conversation: (args) =>
       channel.openDirectConversation(readString(args.accountId, 'accountId')),
     reconnect_channel: () => channel.connect(),
@@ -70,6 +69,8 @@ export function createChannelCommandHandlers(
     release_channel_attachment: (args) =>
       channel.releaseAttachment(readString(args.token, 'token')),
     mark_channel_read: (args) => channel.markRead(readString(args.channelRef, 'channelRef')),
+    set_channel_presence_subscriptions: (args) =>
+      channel.setPresenceSubscriptions(readPresenceAccountIds(args.accountIds)),
     set_channel_pinned: (args) =>
       channel.setChannelPinned(
         readString(args.channelRef, 'channelRef'),
@@ -94,4 +95,23 @@ function readAccountIds(value: unknown): string[] {
     throw { code: 'invalidRequest', retryable: false }
   }
   return values.map((item) => (item as string).trim())
+}
+
+function readPresenceAccountIds(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 3_000) throw invalidPresenceAccountIds()
+  return value.map((candidate) => {
+    if (typeof candidate !== 'string') throw invalidPresenceAccountIds()
+    const accountId = candidate.trim()
+    if (!accountId || accountId.length > 512 || /[\u0000-\u001f\u007f]/.test(accountId))
+      throw invalidPresenceAccountIds()
+    return accountId
+  })
+}
+
+function invalidPresenceAccountIds() {
+  return {
+    code: 'invalidRequest',
+    retryable: false,
+    message: 'accountIds must be a bounded string array',
+  }
 }
