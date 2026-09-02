@@ -9,6 +9,10 @@ import type {
   ChannelEvent,
   ChannelDetails,
   ChannelMemberPage,
+  ChannelMediaClient,
+  ChannelMediaSaveErrorCode,
+  ChannelMediaSaveProgressEvent,
+  ChannelMediaSaveState,
   ChannelPresence,
   ChannelRef,
   ChannelStatus,
@@ -50,6 +54,7 @@ import type {
 import {
   CHANNEL_VOICE_PLAYBACK_RATES,
   ChannelTransportError,
+  ChannelMediaClientError,
   ChannelVoicePlaybackClientError,
 } from './contracts'
 import {
@@ -102,6 +107,7 @@ const SAVED_MESSAGE_LIMIT = 50
 const MAX_CHANNEL_PAGES = 5
 const DRAFT_SAVE_DELAY_MS = 300
 const MAX_VOICE_PLAYBACK_BOOKMARKS = 128
+const MAX_MEDIA_SAVE_PROJECTIONS = 128
 const MAX_VOICE_DURATION_MS = 24 * 60 * 60 * 1_000
 
 export const useChannelsStore = defineStore('channels', () => {
@@ -109,6 +115,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const attachmentPicker = shallowRef<ChannelAttachmentPicker | null>(null)
   const draftClient = shallowRef<ChannelDraftClient | null>(null)
   const voicePlaybackClient = shallowRef<ChannelVoicePlaybackClient | null>(null)
+  const mediaClient = shallowRef<ChannelMediaClient | null>(null)
   const projection = reactive(createChannelProjection()) as unknown as ChannelProjection
   const status = ref<ChannelStatus>({ phase: 'disconnected', retryable: false })
   const activeChannelRef = ref<ChannelRef | null>(null)
@@ -149,6 +156,8 @@ export const useChannelsStore = defineStore('channels', () => {
   const presenceErrorCode = ref<string | null>(null)
   const voiceTranscriptsByMessage = reactive(new Map<string, ChannelVoiceTranscript>())
   const voicePlaybacksByMessage = reactive(new Map<string, ChannelVoicePlaybackState>())
+  const mediaSavesByMessage = reactive(new Map<string, ChannelMediaSaveState>())
+  const mediaViewerRef = ref<MessageRef | null>(null)
   const voicePlaybackRate = ref<ChannelVoicePlaybackRate>(1)
   let unsubscribe: (() => void) | null = null
   let refreshPromise: Promise<void> | null = null
@@ -169,6 +178,9 @@ export const useChannelsStore = defineStore('channels', () => {
   const voicePlaybackSources = new Map<string, string>()
   let voicePlaybackGeneration = 0
   let activeVoicePlaybackKey: string | null = null
+  const mediaSaveSources = new Map<string, string>()
+  let mediaSaveGeneration = 0
+  let activeMediaSaveOperationId: string | null = null
   const dirtyDraftRefs = new Set<ChannelRef>()
   const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
   const draftSavePromises = new Map<ChannelRef, Promise<void>>()
@@ -220,6 +232,32 @@ export const useChannelsStore = defineStore('channels', () => {
     ),
   )
   const voicePlaybackAvailable = computed(() => voicePlaybackClient.value !== null)
+  const activeMediaSaves = computed(() =>
+    [...mediaSavesByMessage.values()].filter(
+      (state) => state.messageRef.channelRef === activeChannelRef.value,
+    ),
+  )
+  const mediaSavingAvailable = computed(() => mediaClient.value !== null)
+  const viewableMediaMessages = computed(() =>
+    activeMessages.value.filter((message) => isViewableMediaMessage(message)),
+  )
+  const mediaViewerMessage = computed(() => {
+    const target = mediaViewerRef.value
+    if (!target) return null
+    return viewableMediaMessages.value.find((message) => sameMessage(message.ref, target)) ?? null
+  })
+  const mediaViewerIndex = computed(() => {
+    const target = mediaViewerRef.value
+    return target
+      ? viewableMediaMessages.value.findIndex((message) => sameMessage(message.ref, target))
+      : -1
+  })
+  const mediaViewerCanGoPrevious = computed(() => mediaViewerIndex.value > 0)
+  const mediaViewerCanGoNext = computed(
+    () =>
+      mediaViewerIndex.value >= 0 &&
+      mediaViewerIndex.value < viewableMediaMessages.value.length - 1,
+  )
   const activeOutgoingAttempts = computed(() =>
     [...outgoingAttempts.values()]
       .filter((attempt) => attempt.channelRef === activeChannelRef.value)
@@ -266,17 +304,23 @@ export const useChannelsStore = defineStore('channels', () => {
     picker?: ChannelAttachmentPicker,
     drafts?: ChannelDraftClient,
     playback?: ChannelVoicePlaybackClient,
+    media?: ChannelMediaClient,
   ): void {
     if (
       transport.value === value &&
       draftClient.value === drafts &&
-      voicePlaybackClient.value === playback
+      voicePlaybackClient.value === playback &&
+      mediaClient.value === media
     )
       return
     const previousPlayback = voicePlaybackClient.value
+    const previousMedia = mediaClient.value
     clearVoicePlaybackProjection()
+    clearMediaProjection(previousMedia)
     if (previousPlayback && previousPlayback !== playback) previousPlayback.dispose()
+    if (previousMedia && previousMedia !== media) void previousMedia.dispose()
     voicePlaybackClient.value = null
+    mediaClient.value = null
     lifecycleGeneration += 1
     const generation = lifecycleGeneration
     unsubscribe?.()
@@ -299,6 +343,7 @@ export const useChannelsStore = defineStore('channels', () => {
     clearProjection()
     clearDraftProjection()
     voicePlaybackClient.value = playback ?? null
+    mediaClient.value = media ?? null
   }
 
   async function connect(): Promise<void> {
@@ -341,6 +386,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const generation = lifecycleGeneration
     clearVoiceTranscriptProjection()
     clearVoicePlaybackProjection()
+    clearMediaProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     await client.disconnect()
@@ -399,6 +445,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (!projection.channels.has(channelRef)) return
     const previousChannelRef = activeChannelRef.value
     if (previousChannelRef && previousChannelRef !== channelRef) pauseVoicePlayback()
+    if (previousChannelRef && previousChannelRef !== channelRef) closeMediaViewer()
     if (previousChannelRef && previousChannelRef !== channelRef)
       await flushDraft(previousChannelRef).catch(() => undefined)
     const client = requireTransport()
@@ -1386,6 +1433,203 @@ export const useChannelsStore = defineStore('channels', () => {
     }
   }
 
+  function openMediaViewer(messageRef: MessageRef): void {
+    const message = messageForRef(messageRef)
+    if (!message || !isViewableMediaMessage(message))
+      throw new ChannelTransportError('invalidRequest', false)
+    mediaViewerRef.value = copyMessageRef(message.ref)
+  }
+
+  function closeMediaViewer(): void {
+    mediaViewerRef.value = null
+  }
+
+  function navigateMediaViewer(direction: -1 | 1): void {
+    if (direction !== -1 && direction !== 1)
+      throw new ChannelTransportError('invalidRequest', false)
+    const index = mediaViewerIndex.value
+    const message = index < 0 ? undefined : viewableMediaMessages.value[index + direction]
+    if (message) mediaViewerRef.value = copyMessageRef(message.ref)
+  }
+
+  async function saveMedia(messageRef: MessageRef): Promise<void> {
+    const client = mediaClient.value
+    if (!client) throw new ChannelTransportError('unsupportedCapability', false)
+    const target = mediaMessageTarget(messageRef)
+    if (activeMediaSaveOperationId) await cancelActiveMediaSave(client)
+    const operationId = `media-save:${randomOperationId()}`
+    const generation = ++mediaSaveGeneration
+    activeMediaSaveOperationId = operationId
+    mediaSaveSources.set(target.key, target.sourceSignature)
+    setMediaSaveState(target.key, {
+      operationId,
+      messageRef: target.messageRef,
+      status: 'choosing',
+      receivedBytes: 0,
+      retryable: false,
+    })
+    const listener = (event: ChannelMediaSaveProgressEvent) => {
+      if (!hasMediaSaveContext(client, generation, operationId)) return
+      const current = mediaSavesByMessage.get(target.key)
+      if (!current || current.operationId !== operationId) return
+      const receivedBytes = boundedMediaBytes(event.receivedBytes)
+      const totalBytes =
+        event.totalBytes === undefined ? undefined : boundedMediaBytes(event.totalBytes)
+      setMediaSaveState(target.key, {
+        ...current,
+        status: 'saving',
+        receivedBytes,
+        ...(totalBytes !== undefined ? { totalBytes } : {}),
+        retryable: false,
+      })
+    }
+    let operation: ReturnType<ChannelMediaClient['save']>
+    try {
+      operation = Promise.resolve(
+        client.save({ operationId, messageRef: target.messageRef }, listener),
+      )
+    } catch (error) {
+      operation = Promise.reject(error)
+    }
+    try {
+      const result = await operation
+      if (!hasMediaSaveContext(client, generation, operationId)) return
+      const current = mediaSavesByMessage.get(target.key)
+      if (!current || current.operationId !== operationId) return
+      if (result.status === 'cancelled') {
+        setMediaSaveState(target.key, {
+          ...current,
+          status: 'cancelled',
+          retryable: false,
+        })
+      } else {
+        setMediaSaveState(target.key, {
+          ...current,
+          status: 'saved',
+          receivedBytes: result.byteLength,
+          totalBytes: result.byteLength,
+          fileName: result.fileName,
+          byteLength: result.byteLength,
+          retryable: false,
+        })
+      }
+    } catch (error) {
+      if (hasMediaSaveContext(client, generation, operationId)) {
+        const current = mediaSavesByMessage.get(target.key)
+        const failure = mediaSaveFailure(error)
+        if (current && current.operationId === operationId)
+          setMediaSaveState(target.key, {
+            ...current,
+            status: 'failed',
+            errorCode: failure.errorCode,
+            retryable: failure.retryable,
+          })
+      }
+      throw error
+    } finally {
+      if (hasMediaSaveContext(client, generation, operationId)) activeMediaSaveOperationId = null
+    }
+  }
+
+  async function retryMediaSave(messageRef: MessageRef): Promise<void> {
+    const target = mediaMessageTarget(messageRef)
+    const current = mediaSavesByMessage.get(target.key)
+    if (!current || current.status !== 'failed' || !current.retryable)
+      throw new ChannelTransportError('invalidRequest', false)
+    await saveMedia(target.messageRef)
+  }
+
+  async function cancelMediaSave(messageRef: MessageRef): Promise<void> {
+    const client = mediaClient.value
+    if (!client) throw new ChannelTransportError('unsupportedCapability', false)
+    const target = mediaMessageTarget(messageRef)
+    const current = mediaSavesByMessage.get(target.key)
+    if (
+      !current ||
+      current.operationId !== activeMediaSaveOperationId ||
+      (current.status !== 'choosing' && current.status !== 'saving')
+    )
+      return
+    await cancelActiveMediaSave(client)
+  }
+
+  async function cancelActiveMediaSave(client: ChannelMediaClient): Promise<void> {
+    const operationId = activeMediaSaveOperationId
+    if (!operationId) return
+    const entry = [...mediaSavesByMessage].find(([, state]) => state.operationId === operationId)
+    mediaSaveGeneration += 1
+    activeMediaSaveOperationId = null
+    try {
+      await client.cancel(operationId)
+      if (entry)
+        setMediaSaveState(entry[0], {
+          ...entry[1],
+          status: 'cancelled',
+          retryable: false,
+        })
+    } catch (error) {
+      if (entry) {
+        const failure = mediaSaveFailure(error)
+        setMediaSaveState(entry[0], {
+          ...entry[1],
+          status: 'failed',
+          errorCode: failure.errorCode,
+          retryable: failure.retryable,
+        })
+      }
+      throw error
+    }
+  }
+
+  function hasMediaSaveContext(
+    client: ChannelMediaClient,
+    generation: number,
+    operationId: string,
+  ): boolean {
+    return (
+      mediaClient.value === client &&
+      mediaSaveGeneration === generation &&
+      activeMediaSaveOperationId === operationId
+    )
+  }
+
+  function setMediaSaveState(key: string, state: ChannelMediaSaveState): void {
+    mediaSavesByMessage.delete(key)
+    mediaSavesByMessage.set(key, {
+      ...state,
+      messageRef: copyMessageRef(state.messageRef),
+    })
+    while (mediaSavesByMessage.size > MAX_MEDIA_SAVE_PROJECTIONS) {
+      const oldest = mediaSavesByMessage.keys().next().value
+      if (typeof oldest !== 'string') break
+      mediaSavesByMessage.delete(oldest)
+      mediaSaveSources.delete(oldest)
+    }
+  }
+
+  function mediaMessageTarget(messageRef: MessageRef): {
+    key: string
+    messageRef: MessageRef
+    sourceSignature: string
+  } {
+    const message = messageForRef(messageRef)
+    if (!message || !isMediaMessage(message))
+      throw new ChannelTransportError('invalidRequest', false)
+    return {
+      key: messageKey(message.ref),
+      messageRef: copyMessageRef(message.ref),
+      sourceSignature: mediaSourceSignature(message),
+    }
+  }
+
+  function messageForRef(messageRef: MessageRef): Message | null {
+    return (
+      (projection.messagesByChannel.get(messageRef.channelRef) ?? []).find((message) =>
+        sameMessage(message.ref, messageRef),
+      ) ?? null
+    )
+  }
+
   async function getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     const client = requireTransport()
     try {
@@ -1586,6 +1830,8 @@ export const useChannelsStore = defineStore('channels', () => {
     clearPresenceProjection()
     clearVoiceTranscriptProjection()
     clearVoicePlaybackProjection()
+    const media = mediaClient.value
+    clearMediaProjection(media)
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     lifecycleGeneration += 1
@@ -1597,6 +1843,7 @@ export const useChannelsStore = defineStore('channels', () => {
     attachmentPicker.value = null
     draftClient.value = null
     voicePlaybackClient.value = null
+    mediaClient.value = null
     clearProjection()
     refreshPromise = null
     refreshingChannels.value = false
@@ -1610,7 +1857,7 @@ export const useChannelsStore = defineStore('channels', () => {
     clearDraftProjection()
     status.value = { phase: 'disconnected', retryable: false }
     playback?.dispose()
-    if (client) await client.dispose()
+    await Promise.all([media?.dispose(), client?.dispose()])
   }
 
   async function loadMessages(
@@ -1702,6 +1949,7 @@ export const useChannelsStore = defineStore('channels', () => {
     reconcilePresenceEvent(event)
     reconcileVoiceTranscripts(event)
     reconcileVoicePlayback(event)
+    reconcileMedia(event)
     if (event.type === 'status.changed') {
       if (event.status.phase !== 'connected') clearPresenceProjection()
       if (
@@ -1772,6 +2020,7 @@ export const useChannelsStore = defineStore('channels', () => {
     clearPresenceProjection()
     clearVoiceTranscriptProjection()
     clearVoicePlaybackProjection()
+    clearMediaProjection()
     void clearOutgoingAttempts(attachmentPicker.value)
   }
 
@@ -1898,6 +2147,85 @@ export const useChannelsStore = defineStore('channels', () => {
     voicePlaybacksByMessage.clear()
     voicePlaybackSources.clear()
     voicePlaybackRate.value = 1
+  }
+
+  function reconcileMedia(event: ChannelEvent): void {
+    if (event.type === 'message.deleted' || event.type === 'message.revoked') {
+      clearMediaForRefs(event.refs)
+      return
+    }
+    if (event.type === 'message.upserted') {
+      clearMediaForRefs(
+        event.messages
+          .filter((message) => {
+            const key = messageKey(message.ref)
+            const source = mediaSaveSources.get(key)
+            return Boolean(
+              source && (!isMediaMessage(message) || source !== mediaSourceSignature(message)),
+            )
+          })
+          .map((message) => message.ref),
+      )
+      const viewer = mediaViewerRef.value
+      const replacement = viewer
+        ? event.messages.find((message) => sameMessage(message.ref, viewer))
+        : undefined
+      if (replacement && !isViewableMediaMessage(replacement)) closeMediaViewer()
+      return
+    }
+    if (event.type === 'message.historyCleared') {
+      clearMediaForChannels([event.channelRef])
+      return
+    }
+    if (event.type === 'channel.deleted') clearMediaForChannels(event.channelRefs)
+  }
+
+  function clearMediaForRefs(refs: MessageRef[]): void {
+    const keys = [...mediaSavesByMessage]
+      .filter(([, state]) => refs.some((ref) => sameMessage(state.messageRef, ref)))
+      .map(([key]) => key)
+    const viewer = mediaViewerRef.value
+    if (viewer && refs.some((ref) => sameMessage(viewer, ref))) closeMediaViewer()
+    clearMediaKeys(keys)
+  }
+
+  function clearMediaForChannels(channelRefs: ChannelRef[]): void {
+    const values = new Set(channelRefs)
+    const keys = [...mediaSavesByMessage]
+      .filter(([, state]) => values.has(state.messageRef.channelRef))
+      .map(([key]) => key)
+    if (mediaViewerRef.value && values.has(mediaViewerRef.value.channelRef)) closeMediaViewer()
+    clearMediaKeys(keys)
+  }
+
+  function clearMediaKeys(keys: string[]): void {
+    if (!keys.length) return
+    const values = new Set(keys)
+    const active = activeMediaSaveOperationId
+      ? [...mediaSavesByMessage].find(
+          ([key, state]) => values.has(key) && state.operationId === activeMediaSaveOperationId,
+        )
+      : undefined
+    if (active) {
+      const operationId = active[1].operationId
+      mediaSaveGeneration += 1
+      activeMediaSaveOperationId = null
+      void mediaClient.value?.cancel(operationId).catch(() => undefined)
+    }
+    for (const key of values) {
+      mediaSavesByMessage.delete(key)
+      mediaSaveSources.delete(key)
+    }
+  }
+
+  function clearMediaProjection(client: ChannelMediaClient | null = mediaClient.value): void {
+    mediaSaveGeneration += 1
+    const operationId = activeMediaSaveOperationId
+    activeMediaSaveOperationId = null
+    if (operationId) void client?.cancel(operationId).catch(() => undefined)
+    mediaSavesByMessage.clear()
+    mediaSaveSources.clear()
+    closeMediaViewer()
   }
 
   function desiredPresenceAccountIds(): string[] {
@@ -2227,6 +2555,11 @@ export const useChannelsStore = defineStore('channels', () => {
     activeVoicePlaybacks,
     voicePlaybackRate,
     voicePlaybackAvailable,
+    activeMediaSaves,
+    mediaSavingAvailable,
+    mediaViewerMessage,
+    mediaViewerCanGoPrevious,
+    mediaViewerCanGoNext,
     activeOutgoingAttempts,
     drafts,
     activeDraft,
@@ -2309,6 +2642,12 @@ export const useChannelsStore = defineStore('channels', () => {
     pauseVoicePlayback,
     seekVoicePlayback,
     setVoicePlaybackRate,
+    openMediaViewer,
+    closeMediaViewer,
+    navigateMediaViewer,
+    saveMedia,
+    retryMediaSave,
+    cancelMediaSave,
     getMessageReceiptDetails,
     openDirectConversation,
     setChannelPinned,
@@ -2448,6 +2787,77 @@ function createMessageSearchState(): MessageSearchState {
 
 function messageKey(ref: MessageRef): string {
   return `${ref.channelRef}:${ref.messageServerId || ref.messageClientId}`
+}
+
+type MediaMessage = Message & {
+  content: Extract<Message['content'], { kind: 'image' | 'audio' | 'video' | 'file' }>
+}
+
+type ViewableMediaMessage = Message & {
+  content: Extract<Message['content'], { kind: 'image' | 'video' }>
+}
+
+function isMediaMessage(message: Message): message is MediaMessage {
+  return (
+    message.state === 'active' &&
+    (message.content.kind === 'image' ||
+      message.content.kind === 'audio' ||
+      message.content.kind === 'video' ||
+      message.content.kind === 'file')
+  )
+}
+
+function isViewableMediaMessage(message: Message): message is ViewableMediaMessage {
+  return (
+    message.state === 'active' &&
+    (message.content.kind === 'image' || message.content.kind === 'video') &&
+    Boolean(message.content.media.url?.trim())
+  )
+}
+
+function mediaSourceSignature(message: MediaMessage): string {
+  return JSON.stringify([
+    message.content.kind,
+    message.content.media.url?.trim() ?? '',
+    message.content.media.name?.trim() ?? '',
+    message.content.media.size ?? null,
+    message.content.media.extension?.trim() ?? '',
+  ])
+}
+
+function boundedMediaBytes(value: number): number {
+  return Number.isSafeInteger(value) ? Math.max(0, value) : 0
+}
+
+function mediaSaveFailure(error: unknown): {
+  errorCode: ChannelMediaSaveErrorCode
+  retryable: boolean
+} {
+  if (error instanceof ChannelMediaClientError)
+    return { errorCode: error.code, retryable: error.retryable }
+  const candidate =
+    typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown'
+  return {
+    errorCode: mediaSaveErrorCode(candidate),
+    retryable:
+      typeof error === 'object' && error !== null && 'retryable' in error
+        ? Boolean(error.retryable)
+        : true,
+  }
+}
+
+function mediaSaveErrorCode(value: string): ChannelMediaSaveErrorCode {
+  if (
+    value === 'invalidRequest' ||
+    value === 'messageUnavailable' ||
+    value === 'mediaUnavailable' ||
+    value === 'unsupportedProtocol' ||
+    value === 'tooLarge' ||
+    value === 'downloadFailed' ||
+    value === 'writeFailed'
+  )
+    return value
+  return 'unknown'
 }
 
 function boundedVoiceMilliseconds(value: number): number {

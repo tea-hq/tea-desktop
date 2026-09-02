@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
 import { MockChannelVoicePlaybackClient } from '@/infrastructure/channels/MockChannelVoicePlaybackClient'
+import { MockChannelMediaClient } from '@/infrastructure/channels/MockChannelMediaClient'
 import type {
   ChannelDraft,
   ChannelDraftClient,
@@ -10,6 +11,7 @@ import type {
   SaveChannelDraftRequest,
 } from './contracts'
 import { ChannelTransportError, ChannelVoicePlaybackClientError } from './contracts'
+import { ChannelMediaClientError } from './contracts'
 import { useChannelsStore } from './store'
 
 async function connectedStore(playback?: MockChannelVoicePlaybackClient) {
@@ -18,6 +20,64 @@ async function connectedStore(playback?: MockChannelVoicePlaybackClient) {
   store.configure(transport, undefined, undefined, playback)
   await store.connect()
   return { store, transport }
+}
+
+async function connectedMediaStore(media = new MockChannelMediaClient()) {
+  const transport = new MockChannelTransport()
+  const store = useChannelsStore()
+  store.configure(transport, undefined, undefined, undefined, media)
+  await store.connect()
+  return { store, transport, media }
+}
+
+async function addMediaMessage(
+  store: ReturnType<typeof useChannelsStore>,
+  transport: MockChannelTransport,
+  kind: 'image' | 'video' | 'file' = 'image',
+) {
+  await store.selectChannel('product-collab')
+  const extension = kind === 'image' ? 'png' : kind === 'video' ? 'mp4' : 'txt'
+  const result = await transport.sendMessage({
+    channelRef: 'product-collab',
+    content: {
+      kind,
+      media: {
+        source: { kind: 'localFile', token: `opaque-${kind}` },
+        name: `${kind}-${crypto.randomUUID()}.${extension}`,
+        mimeType: `${kind === 'file' ? 'text' : kind}/${extension}`,
+      },
+    },
+  })
+  const message = store.activeMessages.find(
+    (candidate) => candidate.ref.messageClientId === result.ref.messageClientId,
+  )
+  if (!message || (message.content.kind !== kind && kind !== 'file'))
+    throw new Error('media fixture missing')
+  if (
+    message.content.kind !== 'image' &&
+    message.content.kind !== 'video' &&
+    message.content.kind !== 'file'
+  )
+    throw new Error('media fixture invalid')
+  transport.emitForTest({
+    type: 'message.upserted',
+    messages: [
+      {
+        ...message,
+        ref: { ...message.ref },
+        sender: { ...message.sender },
+        content: {
+          ...message.content,
+          media: {
+            ...message.content.media,
+            url: `https://media.example.test/${result.ref.messageClientId}.${extension}`,
+          },
+        },
+        reactions: message.reactions.map((reaction) => ({ ...reaction })),
+      },
+    ],
+  })
+  return result.ref
 }
 
 async function addVoiceMessage(
@@ -536,6 +596,149 @@ describe('useChannelsStore', () => {
         (state) => state.messageRef.messageClientId === refs.at(-1)?.messageClientId,
       ),
     ).toBe(true)
+  })
+
+  it('owns one image or video viewer and navigates the current message window', async () => {
+    const { store, transport } = await connectedMediaStore()
+    const imageRef = await addMediaMessage(store, transport, 'image')
+    const videoRef = await addMediaMessage(store, transport, 'video')
+
+    store.openMediaViewer(imageRef)
+    expect(store.mediaViewerMessage?.ref).toEqual(imageRef)
+    expect(store.mediaViewerCanGoPrevious).toBe(false)
+    expect(store.mediaViewerCanGoNext).toBe(true)
+
+    store.navigateMediaViewer(1)
+    expect(store.mediaViewerMessage?.ref).toEqual(videoRef)
+    expect(store.mediaViewerCanGoPrevious).toBe(true)
+    expect(store.mediaViewerCanGoNext).toBe(false)
+
+    store.navigateMediaViewer(-1)
+    store.closeMediaViewer()
+    expect(store.mediaViewerMessage).toBeNull()
+
+    const fileRef = await addMediaMessage(store, transport, 'file')
+    expect(() => store.openMediaViewer(fileRef)).toThrowError(
+      expect.objectContaining({ code: 'invalidRequest' }),
+    )
+  })
+
+  it('projects media choosing, progress, and saved completion by message', async () => {
+    const { store, transport, media } = await connectedMediaStore()
+    const messageRef = await addMediaMessage(store, transport, 'image')
+
+    const saving = store.saveMedia(messageRef)
+    const request = media.requests[0]!
+    expect(store.activeMediaSaves).toEqual([
+      {
+        operationId: request.operationId,
+        messageRef,
+        status: 'choosing',
+        receivedBytes: 0,
+        retryable: false,
+      },
+    ])
+
+    media.emit({
+      operationId: request.operationId,
+      phase: 'saving',
+      receivedBytes: 10,
+      totalBytes: 20,
+    })
+    expect(store.activeMediaSaves[0]).toMatchObject({
+      status: 'saving',
+      receivedBytes: 10,
+      totalBytes: 20,
+    })
+    media.resolve(request.operationId, {
+      status: 'saved',
+      fileName: 'design.png',
+      byteLength: 20,
+    })
+
+    await saving
+    expect(store.activeMediaSaves[0]).toMatchObject({
+      status: 'saved',
+      fileName: 'design.png',
+      byteLength: 20,
+      retryable: false,
+    })
+  })
+
+  it('retries media failures, cancels explicitly, and ignores stale completions', async () => {
+    const { store, transport, media } = await connectedMediaStore()
+    const messageRef = await addMediaMessage(store, transport, 'video')
+    const first = store.saveMedia(messageRef)
+    const firstOperationId = media.requests[0]!.operationId
+    media.reject(firstOperationId, new ChannelMediaClientError('downloadFailed', true))
+
+    await expect(first).rejects.toMatchObject({ code: 'downloadFailed' })
+    expect(store.activeMediaSaves[0]).toMatchObject({
+      status: 'failed',
+      errorCode: 'downloadFailed',
+      retryable: true,
+    })
+
+    const retry = store.retryMediaSave(messageRef)
+    const retryOperationId = media.requests[1]!.operationId
+    expect(retryOperationId).not.toBe(firstOperationId)
+    await store.cancelMediaSave(messageRef)
+    await retry
+    expect(media.cancelRequests).toEqual([retryOperationId])
+    expect(store.activeMediaSaves[0]).toMatchObject({ status: 'cancelled', retryable: false })
+
+    media.resolve(firstOperationId, {
+      status: 'saved',
+      fileName: 'stale.mp4',
+      byteLength: 10,
+    })
+    expect(store.activeMediaSaves[0]?.status).toBe('cancelled')
+  })
+
+  it('clears affected media state on deletion and cancels active saves on dispose', async () => {
+    const { store, transport, media } = await connectedMediaStore()
+    const imageRef = await addMediaMessage(store, transport, 'image')
+    store.openMediaViewer(imageRef)
+    const saving = store.saveMedia(imageRef)
+    const operationId = media.requests[0]!.operationId
+
+    await store.deleteMessages([imageRef])
+    await saving
+    expect(store.mediaViewerMessage).toBeNull()
+    expect(store.activeMediaSaves).toEqual([])
+    expect(media.cancelRequests).toEqual([operationId])
+
+    const videoRef = await addMediaMessage(store, transport, 'video')
+    const late = store.saveMedia(videoRef)
+    const lateOperationId = media.requests.at(-1)!.operationId
+    await store.dispose()
+    await late
+    expect(media.cancelRequests).toContain(lateOperationId)
+    expect(store.activeMediaSaves).toEqual([])
+  })
+
+  it('bounds account-scoped media save projections to 128 messages', async () => {
+    const { store, transport, media } = await connectedMediaStore()
+    const refs: MessageRef[] = []
+    for (let index = 0; index < 129; index += 1) {
+      const messageRef = await addMediaMessage(store, transport, 'file')
+      refs.push(messageRef)
+      const saving = store.saveMedia(messageRef)
+      const operationId = media.requests.at(-1)!.operationId
+      media.resolve(operationId, {
+        status: 'saved',
+        fileName: `file-${index}.txt`,
+        byteLength: index,
+      })
+      await saving
+    }
+
+    expect(store.activeMediaSaves).toHaveLength(128)
+    expect(
+      store.activeMediaSaves.some(
+        (state) => state.messageRef.messageClientId === refs[0]?.messageClientId,
+      ),
+    ).toBe(false)
   })
 
   it('sorts pinned conversations before recency and applies explicit controls', async () => {
