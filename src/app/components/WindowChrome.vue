@@ -25,24 +25,15 @@
 
 .window-chrome__toolbar {
   display: flex;
-  width: min(34rem, calc(100% - 9rem));
+  width: min(40rem, calc(100% - 12rem));
   align-items: center;
   user-select: auto;
   -webkit-app-region: no-drag;
 }
 
-.window-chrome__toolbar :deep(input[type='search']) {
-  background: var(--tea-canvas);
-  border-color: var(--tea-line);
-}
-
-.window-chrome__toolbar :deep(input[type='search']:focus) {
-  border-color: var(--tea-fg);
-}
-
 @media (max-width: 640px) {
   .window-chrome__toolbar {
-    width: min(24rem, calc(100% - 6rem));
+    width: min(24rem, calc(100% - 3rem));
   }
 }
 </style>

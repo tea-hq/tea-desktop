@@ -12,7 +12,12 @@ sidebar field.
 ## Decision
 
 Use a compact controls-first topbar for both sidebars and a single global
-search field in the window Chrome. The channel sidebar no longer renders its
+search field in the window Chrome. The field is centered in window coordinates,
+uses a 40rem desktop maximum with reserved native-window control space, and
+expands to the responsive toolbar width rather than its intrinsic input width.
+The production shell and visual fixture share the same search-field component
+so screenshot geometry cannot diverge from the shipped layout. The channel
+sidebar no longer renders its
 own search field in the real workspace; the global query filters channels and
 keeps the connection state available as a labelled status dot in the same
 search affordance. The Agent sidebar removes the repeated title and places

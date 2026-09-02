@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { fullAgentProfile } from '@/app/composerProfiles'
 import WorkspaceRail from '@/app/components/WorkspaceRail.vue'
 import WindowChrome from '@/app/components/WindowChrome.vue'
+import WorkspaceSearchField from '@/app/components/WorkspaceSearchField.vue'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
@@ -25,7 +26,6 @@ import type {
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
 import type { Delivery, Draft } from '@/types/channelCollaboration'
-import { TeaInput } from '@/shared/ui'
 
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
@@ -397,20 +397,13 @@ function deliverDraft(): void {
 <template>
   <WindowChrome>
     <template #toolbar>
-      <div class="relative w-full" data-testid="fixture-global-search">
-        <span
-          class="i-mdi-magnify pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
-          aria-hidden="true"
-        />
-        <TeaInput
-          v-model="globalSearchQuery"
-          size="small"
-          type="search"
-          class="workspace-global-search__input min-h-9 pl-9 pr-3 text-sm"
-          :label="t('workspace.globalSearch')"
-          :placeholder="t('workspace.globalSearch')"
-        />
-      </div>
+      <WorkspaceSearchField
+        v-model="globalSearchQuery"
+        data-testid="fixture-global-search"
+        :label="t('workspace.globalSearch')"
+        :status-label="activeMode === 'channels' ? t('channels.connection.connected') : undefined"
+        :status-class="activeMode === 'channels' ? 'bg-success' : undefined"
+      />
     </template>
     <div class="flex h-full min-w-0 overflow-hidden bg-canvas text-fg" data-testid="e2e-app">
       <WorkspaceRail
