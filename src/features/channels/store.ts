@@ -13,6 +13,7 @@ import type {
   ChannelRef,
   ChannelStatus,
   ChannelTransport,
+  ChannelVoiceTranscript,
   DeleteMessagesRequest,
   CreateGroupRequest,
   UpdateGroupRequest,
@@ -127,6 +128,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const errorCode = ref<string | null>(null)
   const presenceByAccount = reactive(new Map<string, ChannelPresence>())
   const presenceErrorCode = ref<string | null>(null)
+  const voiceTranscriptsByMessage = reactive(new Map<string, ChannelVoiceTranscript>())
   let unsubscribe: (() => void) | null = null
   let refreshPromise: Promise<void> | null = null
   let lifecycleGeneration = 0
@@ -140,6 +142,7 @@ export const useChannelsStore = defineStore('channels', () => {
   let presenceGeneration = 0
   let presenceTargetKey: string | null = null
   let presenceSynchronization: Promise<void> = Promise.resolve()
+  const voiceTranscriptionOperations = new Map<string, Promise<void>>()
   const dirtyDraftRefs = new Set<ChannelRef>()
   const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
   const draftSavePromises = new Map<ChannelRef, Promise<void>>()
@@ -179,6 +182,11 @@ export const useChannelsStore = defineStore('channels', () => {
   })
   const activeMessages = computed(() =>
     activeChannelRef.value ? (projection.messagesByChannel.get(activeChannelRef.value) ?? []) : [],
+  )
+  const activeVoiceTranscripts = computed(() =>
+    [...voiceTranscriptsByMessage.values()].filter(
+      (transcript) => transcript.messageRef.channelRef === activeChannelRef.value,
+    ),
   )
   const activeOutgoingAttempts = computed(() =>
     [...outgoingAttempts.values()]
@@ -288,6 +296,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const client = transport.value
     if (!client) return
     const generation = lifecycleGeneration
+    clearVoiceTranscriptProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     await client.disconnect()
@@ -1050,6 +1059,63 @@ export const useChannelsStore = defineStore('channels', () => {
     await mutateMessage((client) => client.quickComment(request))
   }
 
+  async function transcribeVoice(messageRef: MessageRef): Promise<void> {
+    const client = requireTransport()
+    const message = (projection.messagesByChannel.get(messageRef.channelRef) ?? []).find(
+      (candidate) => sameMessage(candidate.ref, messageRef),
+    )
+    if (!message || message.state !== 'active' || message.content.kind !== 'audio')
+      throw new ChannelTransportError('invalidRequest', false)
+
+    const ref = copyMessageRef(message.ref)
+    const key = messageKey(ref)
+    if (voiceTranscriptsByMessage.get(key)?.status === 'ready') return
+    const pending = voiceTranscriptionOperations.get(key)
+    if (pending) return pending
+    if (
+      !client
+        .capabilities()
+        .some((capability) => capability.id === 'message.voice.transcribe' && capability.available)
+    )
+      throw new ChannelTransportError('unsupportedCapability', false)
+
+    const generation = lifecycleGeneration
+    voiceTranscriptsByMessage.set(key, {
+      messageRef: ref,
+      status: 'loading',
+      retryable: false,
+    })
+    let operation!: Promise<void>
+    operation = (async () => {
+      try {
+        const value = await client.transcribeVoice(ref)
+        const text = value.trim()
+        if (!text || text.length > 32_768) throw new ChannelTransportError('protocolFailure', false)
+        if (!hasVoiceTranscriptionContext(client, generation, key, operation)) return
+        voiceTranscriptsByMessage.set(key, {
+          messageRef: ref,
+          status: 'ready',
+          text,
+          retryable: false,
+        })
+      } catch (error) {
+        if (!hasVoiceTranscriptionContext(client, generation, key, operation)) return
+        voiceTranscriptsByMessage.set(key, {
+          messageRef: ref,
+          status: 'failed',
+          errorCode: transportErrorCode(error),
+          retryable: transportErrorRetryable(error),
+        })
+        throw error
+      } finally {
+        if (voiceTranscriptionOperations.get(key) === operation)
+          voiceTranscriptionOperations.delete(key)
+      }
+    })()
+    voiceTranscriptionOperations.set(key, operation)
+    return operation
+  }
+
   async function getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     const client = requireTransport()
     try {
@@ -1248,6 +1314,7 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function dispose(): Promise<void> {
     clearPresenceProjection()
+    clearVoiceTranscriptProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     lifecycleGeneration += 1
@@ -1359,6 +1426,7 @@ export const useChannelsStore = defineStore('channels', () => {
     reconcilePinnedMessages(event)
     reconcileOutgoingAttempts(event)
     reconcilePresenceEvent(event)
+    reconcileVoiceTranscripts(event)
     if (event.type === 'status.changed') {
       if (event.status.phase !== 'connected') clearPresenceProjection()
       if (
@@ -1427,7 +1495,63 @@ export const useChannelsStore = defineStore('channels', () => {
     loadingMergedMessages.value = false
     mergedMessagesErrorCode.value = null
     clearPresenceProjection()
+    clearVoiceTranscriptProjection()
     void clearOutgoingAttempts(attachmentPicker.value)
+  }
+
+  function hasVoiceTranscriptionContext(
+    client: ChannelTransport,
+    generation: number,
+    key: string,
+    operation: Promise<void>,
+  ): boolean {
+    return (
+      generation === lifecycleGeneration &&
+      transport.value === client &&
+      voiceTranscriptionOperations.get(key) === operation
+    )
+  }
+
+  function reconcileVoiceTranscripts(event: ChannelEvent): void {
+    if (event.type === 'message.deleted' || event.type === 'message.revoked') {
+      clearVoiceTranscriptsForRefs(event.refs)
+      return
+    }
+    if (event.type === 'message.upserted') {
+      clearVoiceTranscriptsForRefs(
+        event.messages
+          .filter((message) => message.state !== 'active' || message.content.kind !== 'audio')
+          .map((message) => message.ref),
+      )
+      return
+    }
+    if (event.type === 'message.historyCleared') {
+      clearVoiceTranscriptsForChannels([event.channelRef])
+      return
+    }
+    if (event.type === 'channel.deleted') clearVoiceTranscriptsForChannels(event.channelRefs)
+  }
+
+  function clearVoiceTranscriptsForRefs(refs: MessageRef[]): void {
+    for (const [key, transcript] of voiceTranscriptsByMessage) {
+      if (!refs.some((ref) => sameMessage(transcript.messageRef, ref))) continue
+      voiceTranscriptionOperations.delete(key)
+      voiceTranscriptsByMessage.delete(key)
+    }
+  }
+
+  function clearVoiceTranscriptsForChannels(channelRefs: ChannelRef[]): void {
+    const values = new Set(channelRefs)
+    for (const [key, transcript] of voiceTranscriptsByMessage) {
+      if (!values.has(transcript.messageRef.channelRef)) continue
+      voiceTranscriptionOperations.delete(key)
+      voiceTranscriptsByMessage.delete(key)
+    }
+  }
+
+  function clearVoiceTranscriptProjection(): void {
+    voiceTranscriptionOperations.clear()
+    voiceTranscriptsByMessage.clear()
   }
 
   function desiredPresenceAccountIds(): string[] {
@@ -1753,6 +1877,7 @@ export const useChannelsStore = defineStore('channels', () => {
     activeChannel,
     activePresence,
     activeMessages,
+    activeVoiceTranscripts,
     activeOutgoingAttempts,
     drafts,
     activeDraft,
@@ -1829,6 +1954,7 @@ export const useChannelsStore = defineStore('channels', () => {
     revokeMessage,
     pinMessage,
     quickComment,
+    transcribeVoice,
     getMessageReceiptDetails,
     openDirectConversation,
     setChannelPinned,
@@ -1854,6 +1980,21 @@ function transportErrorCode(error: unknown): string {
   return typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
     : 'transport'
+}
+
+function copyMessageRef(ref: MessageRef): MessageRef {
+  return {
+    channelRef: ref.channelRef,
+    messageClientId: ref.messageClientId,
+    ...(ref.messageServerId ? { messageServerId: ref.messageServerId } : {}),
+  }
+}
+
+function transportErrorRetryable(error: unknown): boolean {
+  return error instanceof ChannelTransportError ||
+    (typeof error === 'object' && error !== null && 'retryable' in error)
+    ? Boolean(error.retryable)
+    : true
 }
 
 function copyMessageMentions(mentions: MessageMention[]): MessageMention[] {
@@ -1911,11 +2052,7 @@ function messageReplySnapshot(ref: MessageRef, messages: Message[]): MessageRepl
 function outgoingAttemptFailure(error: unknown): { errorCode: string; retryable: boolean } {
   return {
     errorCode: transportErrorCode(error),
-    retryable:
-      error instanceof ChannelTransportError ||
-      (typeof error === 'object' && error !== null && 'retryable' in error)
-        ? Boolean(error.retryable)
-        : true,
+    retryable: transportErrorRetryable(error),
   }
 }
 

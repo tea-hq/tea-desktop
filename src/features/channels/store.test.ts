@@ -13,6 +13,27 @@ async function connectedStore() {
   return { store, transport }
 }
 
+async function addVoiceMessage(
+  store: ReturnType<typeof useChannelsStore>,
+  transport: MockChannelTransport,
+) {
+  await store.selectChannel('product-collab')
+  const result = await transport.sendMessage({
+    channelRef: 'product-collab',
+    content: {
+      kind: 'audio',
+      caption: 'Release update',
+      media: {
+        source: { kind: 'localFile', token: 'opaque-voice' },
+        name: 'release-update.aac',
+        mimeType: 'audio/aac',
+        durationMs: 2_400,
+      },
+    },
+  })
+  return result.ref
+}
+
 function createDraftClient(overrides: Partial<ChannelDraftClient> = {}) {
   return {
     list: vi.fn(async (): Promise<ChannelDraft[]> => []),
@@ -201,6 +222,120 @@ describe('useChannelsStore', () => {
 
     expect(store.presences).toEqual([])
     expect(store.presenceErrorCode).toBeNull()
+  })
+
+  it('coalesces concurrent voice transcription and reuses account-scoped success', async () => {
+    const { store, transport } = await connectedStore()
+    const messageRef = await addVoiceMessage(store, transport)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const transcribe = vi.spyOn(transport, 'transcribeVoice').mockImplementation(async () => {
+      await gate
+      return 'Review the release plan.'
+    })
+
+    const first = store.transcribeVoice(messageRef)
+    const second = store.transcribeVoice(structuredClone(messageRef))
+
+    expect(store.activeVoiceTranscripts).toEqual([
+      { messageRef, status: 'loading', retryable: false },
+    ])
+    expect(transcribe).toHaveBeenCalledTimes(1)
+
+    release()
+    await Promise.all([first, second])
+    expect(store.activeVoiceTranscripts).toEqual([
+      {
+        messageRef,
+        status: 'ready',
+        text: 'Review the release plan.',
+        retryable: false,
+      },
+    ])
+
+    await store.selectChannel('runtime-architecture')
+    expect(store.activeVoiceTranscripts).toEqual([])
+    await store.selectChannel('product-collab')
+    await store.transcribeVoice(messageRef)
+    expect(transcribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('projects retryable voice failures and replaces them after an explicit retry', async () => {
+    const { store, transport } = await connectedStore()
+    const messageRef = await addVoiceMessage(store, transport)
+    vi.spyOn(transport, 'transcribeVoice')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+      .mockResolvedValueOnce('Recovered transcript')
+
+    await expect(store.transcribeVoice(messageRef)).rejects.toMatchObject({ code: 'transport' })
+    expect(store.activeVoiceTranscripts).toEqual([
+      {
+        messageRef,
+        status: 'failed',
+        errorCode: 'transport',
+        retryable: true,
+      },
+    ])
+
+    await store.transcribeVoice(messageRef)
+    expect(store.activeVoiceTranscripts).toEqual([
+      { messageRef, status: 'ready', text: 'Recovered transcript', retryable: false },
+    ])
+  })
+
+  it('gates voice transcription by capability and active audio content', async () => {
+    const { store, transport } = await connectedStore()
+    const messageRef = await addVoiceMessage(store, transport)
+    const capabilities = transport
+      .capabilities()
+      .filter((capability) => capability.id !== 'message.voice.transcribe')
+    vi.spyOn(transport, 'capabilities').mockReturnValue(capabilities)
+    const transcribe = vi.spyOn(transport, 'transcribeVoice')
+
+    await expect(store.transcribeVoice(messageRef)).rejects.toMatchObject({
+      code: 'unsupportedCapability',
+      retryable: false,
+    })
+    await expect(store.transcribeVoice(store.activeMessages[0]!.ref)).rejects.toMatchObject({
+      code: 'invalidRequest',
+      retryable: false,
+    })
+    expect(transcribe).not.toHaveBeenCalled()
+    expect(store.activeVoiceTranscripts).toEqual([])
+  })
+
+  it('clears voice transcripts on revoke, delete, and a late account lifecycle result', async () => {
+    const { store, transport } = await connectedStore()
+    const revokedRef = await addVoiceMessage(store, transport)
+    await store.transcribeVoice(revokedRef)
+    expect(store.activeVoiceTranscripts).toHaveLength(1)
+
+    await store.revokeMessage(revokedRef)
+    expect(store.activeVoiceTranscripts).toEqual([])
+
+    const deletedRef = await addVoiceMessage(store, transport)
+    await store.transcribeVoice(deletedRef)
+    await store.deleteMessages([deletedRef])
+    expect(store.activeVoiceTranscripts).toEqual([])
+
+    const lateRef = await addVoiceMessage(store, transport)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'transcribeVoice').mockImplementationOnce(async () => {
+      await gate
+      return 'Late transcript'
+    })
+    const loading = store.transcribeVoice(lateRef)
+    await vi.waitFor(() => expect(store.activeVoiceTranscripts[0]?.status).toBe('loading'))
+
+    const disposing = store.dispose()
+    release()
+    await Promise.all([loading, disposing])
+    expect(store.activeVoiceTranscripts).toEqual([])
   })
 
   it('sorts pinned conversations before recency and applies explicit controls', async () => {
@@ -1032,13 +1167,16 @@ describe('useChannelsStore', () => {
 
   it('clears account-scoped projection on kicked-offline and disposes once', async () => {
     const { store, transport } = await connectedStore()
-    await store.selectChannel('product-collab')
+    const messageRef = await addVoiceMessage(store, transport)
+    await store.transcribeVoice(messageRef)
+    expect(store.activeVoiceTranscripts).toHaveLength(1)
     transport.emitForTest({
       type: 'status.changed',
       status: { phase: 'kickedOffline', retryable: false },
     })
     expect(store.channels).toEqual([])
     expect(store.activeChannelRef).toBeNull()
+    expect(store.activeVoiceTranscripts).toEqual([])
     await store.dispose()
     await store.dispose()
   })
