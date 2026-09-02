@@ -51,7 +51,7 @@ describe('channel projection', () => {
       hasMore: true,
     })
     reduceChannelEvent(projection, {
-      type: 'message.upserted',
+      type: 'message.received',
       sequence: 1,
       occurredAt: 3,
       messages: [message('other-client', 2, 's2', 'modified'), message('m3', 3, 's3')],
@@ -67,7 +67,7 @@ describe('channel projection', () => {
     const projection = createChannelProjection()
     expect(
       reduceChannelEvent(projection, {
-        type: 'message.upserted',
+        type: 'message.received',
         sequence: 2,
         occurredAt: 2,
         messages: [message('m2', 2)],

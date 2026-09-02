@@ -2042,7 +2042,7 @@ export const useChannelsStore = defineStore('channels', () => {
       clearVoiceTranscriptsForRefs(event.refs)
       return
     }
-    if (event.type === 'message.upserted') {
+    if (isMessageProjectionEvent(event)) {
       clearVoiceTranscriptsForRefs(
         event.messages
           .filter((message) => message.state !== 'active' || message.content.kind !== 'audio')
@@ -2087,7 +2087,7 @@ export const useChannelsStore = defineStore('channels', () => {
       clearVoicePlaybacksForRefs(event.refs)
       return
     }
-    if (event.type === 'message.upserted') {
+    if (isMessageProjectionEvent(event)) {
       clearVoicePlaybacksForRefs(
         event.messages
           .filter((message) => {
@@ -2154,7 +2154,7 @@ export const useChannelsStore = defineStore('channels', () => {
       clearMediaForRefs(event.refs)
       return
     }
-    if (event.type === 'message.upserted') {
+    if (isMessageProjectionEvent(event)) {
       clearMediaForRefs(
         event.messages
           .filter((message) => {
@@ -2455,7 +2455,7 @@ export const useChannelsStore = defineStore('channels', () => {
       )
       return
     }
-    if (event.type === 'message.upserted') {
+    if (isMessageProjectionEvent(event)) {
       pinnedMessages.value = pinnedMessages.value.map((value) => {
         const message = event.messages.find((candidate) =>
           sameMessage(candidate.ref, value.message.ref),
@@ -2667,6 +2667,12 @@ function createMessageCursor(): MessageCursor {
     after: { hasMore: false },
     loadedLatest: false,
   }
+}
+
+function isMessageProjectionEvent(
+  event: ChannelEvent,
+): event is Extract<ChannelEvent, { type: 'message.received' | 'message.upserted' }> {
+  return event.type === 'message.received' || event.type === 'message.upserted'
 }
 
 function transportErrorCode(error: unknown): string {

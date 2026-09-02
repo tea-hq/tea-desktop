@@ -560,6 +560,35 @@ describe('YunxinWebChannelTransport', () => {
     expect(sdk.V2NIMMessageService.sendMessage).toHaveBeenCalledTimes(1)
   })
 
+  it('distinguishes live receives, provider modifications, and local echoes', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+    const raw = (await message.getMessageListEx()).messages[0]
+    const incoming = {
+      ...raw,
+      isSelf: false,
+      senderId: 'member-a',
+      messageClientId: 'incoming-client',
+      messageServerId: 'incoming-server',
+    }
+
+    message.emit('onReceiveMessages', [incoming])
+    message.emit('onReceiveMessagesModified', [{ ...incoming, text: 'edited' }])
+    await transport.sendMessage({
+      channelRef: 'team|design',
+      content: { kind: 'text', text: 'local echo' },
+    })
+
+    expect(
+      events
+        .filter((event) => event.type === 'message.received' || event.type === 'message.upserted')
+        .map((event) => event.type),
+    ).toEqual(['message.received', 'message.upserted', 'message.upserted'])
+  })
+
   it('loads the current account profile from the Yunxin cloud', async () => {
     const { sdk, user } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })

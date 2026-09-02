@@ -1109,13 +1109,13 @@ describe('useChannelsStore', () => {
     expect(store.errorCode).toBeNull()
   })
 
-  it('merges out-of-order realtime events into the same projection', async () => {
+  it('merges live receives after earlier message mutations', async () => {
     const { store, transport } = await connectedStore()
     await store.selectChannel('product-collab')
     const latest = JSON.parse(JSON.stringify(store.activeMessages.at(-1)!))
     transport.emitForTest({ type: 'message.revoked', refs: [latest.ref] })
     transport.emitForTest({
-      type: 'message.upserted',
+      type: 'message.received',
       messages: [{ ...latest, text: 'updated', state: 'active' }],
     })
     expect(store.activeMessages.at(-1)).toMatchObject({ text: 'updated', state: 'active' })

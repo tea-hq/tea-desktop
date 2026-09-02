@@ -1436,8 +1436,10 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     this.emitChannels(values)
   private readonly onTotalUnreadCountChanged = (total: number) =>
     this.emit({ type: 'channel.totalUnreadChanged', total })
-  private readonly onReceiveMessages = (values: V2NIMMessage[]) => this.emitMessages(values)
-  private readonly onReceiveMessagesModified = (values: V2NIMMessage[]) => this.emitMessages(values)
+  private readonly onReceiveMessages = (values: V2NIMMessage[]) =>
+    this.emitMessages(values, 'message.received')
+  private readonly onReceiveMessagesModified = (values: V2NIMMessage[]) =>
+    this.emitMessages(values, 'message.upserted')
   private readonly onClearHistoryNotifications = (values: V2NIMClearHistoryNotification[]) =>
     values.forEach((value) =>
       this.emit({
@@ -1616,12 +1618,15 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     }
   }
 
-  private emitMessages(values: V2NIMMessage[]): void {
+  private emitMessages(
+    values: V2NIMMessage[],
+    type: 'message.received' | 'message.upserted' = 'message.upserted',
+  ): void {
     values.forEach((value) => this.rememberMessage(value))
     const messages = values
       .map((value) => mapYunxinMessage(value, this.selfAccount ?? ''))
       .filter((value) => value !== null)
-    if (messages.length) this.emit({ type: 'message.upserted', messages })
+    if (messages.length) this.emit({ type, messages })
   }
 
   private rememberMessage(value: V2NIMMessage): void {

@@ -688,6 +688,7 @@ export type ChannelEvent =
   | { type: 'channel.upserted'; sequence: number; occurredAt: number; channels: Channel[] }
   | { type: 'channel.deleted'; sequence: number; occurredAt: number; channelRefs: ChannelRef[] }
   | { type: 'channel.totalUnreadChanged'; sequence: number; occurredAt: number; total: number }
+  | { type: 'message.received'; sequence: number; occurredAt: number; messages: Message[] }
   | { type: 'message.upserted'; sequence: number; occurredAt: number; messages: Message[] }
   | { type: 'message.deleted'; sequence: number; occurredAt: number; refs: MessageRef[] }
   | { type: 'message.revoked'; sequence: number; occurredAt: number; refs: MessageRef[] }

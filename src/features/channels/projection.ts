@@ -63,6 +63,7 @@ export function reduceChannelEvent(
     case 'channel.totalUnreadChanged':
       projection.totalUnreadCount = event.total
       break
+    case 'message.received':
     case 'message.upserted':
       for (const messages of groupByChannel(event.messages).values()) {
         const channelRef = messages[0]!.ref.channelRef
