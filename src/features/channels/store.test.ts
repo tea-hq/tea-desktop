@@ -40,6 +40,169 @@ describe('useChannelsStore', () => {
     expect(store.status.accountRef).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it('derives presence targets only from direct conversations', async () => {
+    const transport = new MockChannelTransport()
+    const replace = vi.spyOn(transport, 'setPresenceSubscriptions')
+    const store = useChannelsStore()
+    store.configure(transport)
+
+    await store.connect()
+
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace).toHaveBeenCalledWith(['lin'])
+    expect(store.presences).toMatchObject([{ accountId: 'lin', availability: 'online' }])
+
+    await store.selectChannel('lin-direct')
+    expect(store.activePresence).toMatchObject({ accountId: 'lin', availability: 'online' })
+    await store.selectChannel('product-collab')
+    expect(store.activePresence).toBeNull()
+  })
+
+  it('replaces presence targets after direct catalog changes without duplicate calls', async () => {
+    const { store, transport } = await connectedStore()
+    const replace = vi.spyOn(transport, 'setPresenceSubscriptions')
+
+    transport.emitForTest({
+      type: 'channel.upserted',
+      channels: [
+        {
+          ref: 'new-group',
+          kind: 'group',
+          name: 'New group',
+          description: '',
+          memberCount: 2,
+          pinned: false,
+          muted: false,
+          unreadCount: 0,
+          updatedAt: 1,
+        },
+      ],
+    })
+    await Promise.resolve()
+    expect(replace).not.toHaveBeenCalled()
+
+    transport.emitForTest({
+      type: 'channel.upserted',
+      channels: [
+        {
+          ref: 'meng-direct',
+          kind: 'direct',
+          directAccountId: 'meng',
+          name: 'Meng',
+          description: '',
+          pinned: false,
+          muted: false,
+          unreadCount: 0,
+          updatedAt: 2,
+        },
+      ],
+    })
+    await vi.waitFor(() => expect(replace).toHaveBeenLastCalledWith(['lin', 'meng']))
+    const callCount = replace.mock.calls.length
+
+    transport.emitForTest({
+      type: 'channel.upserted',
+      channels: [{ ...store.channels.find((channel) => channel.ref === 'meng-direct')! }],
+    })
+    await Promise.resolve()
+    expect(replace).toHaveBeenCalledTimes(callCount)
+
+    transport.emitForTest({ type: 'channel.deleted', channelRefs: ['lin-direct'] })
+    await vi.waitFor(() => expect(replace).toHaveBeenLastCalledWith(['meng']))
+  })
+
+  it('projects only desired presence and rejects duplicate or out-of-order updates', async () => {
+    const { store, transport } = await connectedStore()
+    const initial = store.presences[0]!
+
+    transport.emitForTest({
+      type: 'presence.changed',
+      presences: [
+        { accountId: 'lin', availability: 'offline', updatedAt: initial.updatedAt - 1 },
+        { accountId: 'other', availability: 'online', updatedAt: initial.updatedAt + 1 },
+      ],
+    })
+    expect(store.presences).toEqual([initial])
+
+    transport.emitForTest({
+      type: 'presence.changed',
+      presences: [
+        { accountId: 'lin', availability: 'offline', updatedAt: initial.updatedAt + 2 },
+        { accountId: 'lin', availability: 'online', updatedAt: initial.updatedAt + 1 },
+      ],
+    })
+
+    expect(store.presences).toEqual([
+      { accountId: 'lin', availability: 'offline', updatedAt: initial.updatedAt + 2 },
+    ])
+  })
+
+  it('surfaces presence subscription failures and clears them after a retry', async () => {
+    const transport = new MockChannelTransport()
+    const replace = vi
+      .spyOn(transport, 'setPresenceSubscriptions')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+    const store = useChannelsStore()
+    store.configure(transport)
+
+    await store.connect()
+
+    expect(store.presenceErrorCode).toBe('transport')
+    expect(store.presences).toEqual([{ accountId: 'lin', availability: 'unknown', updatedAt: 0 }])
+    transport.emitForTest({
+      type: 'presence.subscriptionFailed',
+      errorCode: 'presenceSubscriptionFailed',
+    })
+    expect(store.presenceErrorCode).toBe('presenceSubscriptionFailed')
+
+    transport.emitForTest({
+      type: 'channel.upserted',
+      channels: [{ ...store.channels.find((channel) => channel.ref === 'lin-direct')! }],
+    })
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(store.presenceErrorCode).toBeNull())
+  })
+
+  it('clears transient presence and resubscribes the same targets after reconnect', async () => {
+    const { store, transport } = await connectedStore()
+    const replace = vi.spyOn(transport, 'setPresenceSubscriptions')
+
+    transport.emitForTest({
+      type: 'status.changed',
+      status: { phase: 'reconnecting', retryable: true },
+    })
+    expect(store.presences).toEqual([{ accountId: 'lin', availability: 'unknown', updatedAt: 0 }])
+
+    transport.emitForTest({
+      type: 'status.changed',
+      status: { phase: 'connected', accountRef: store.status.accountRef, retryable: false },
+    })
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith(['lin']))
+  })
+
+  it('does not publish a late presence failure after disposal', async () => {
+    const transport = new MockChannelTransport()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'setPresenceSubscriptions').mockImplementation(async () => {
+      await gate
+      throw new ChannelTransportError('transport', true)
+    })
+    const store = useChannelsStore()
+    store.configure(transport)
+    const connecting = store.connect()
+    await vi.waitFor(() => expect(transport.setPresenceSubscriptions).toHaveBeenCalledWith(['lin']))
+
+    const disposing = store.dispose()
+    release()
+    await Promise.all([connecting, disposing])
+
+    expect(store.presences).toEqual([])
+    expect(store.presenceErrorCode).toBeNull()
+  })
+
   it('sorts pinned conversations before recency and applies explicit controls', async () => {
     const { store, transport } = await connectedStore()
     const currentPinned = store.channels.find((channel) => channel.pinned)!

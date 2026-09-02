@@ -9,6 +9,7 @@ import type {
   ChannelEvent,
   ChannelDetails,
   ChannelMemberPage,
+  ChannelPresence,
   ChannelRef,
   ChannelStatus,
   ChannelTransport,
@@ -124,6 +125,8 @@ export const useChannelsStore = defineStore('channels', () => {
   const loadingMergedMessages = ref(false)
   const mergedMessagesErrorCode = ref<string | null>(null)
   const errorCode = ref<string | null>(null)
+  const presenceByAccount = reactive(new Map<string, ChannelPresence>())
+  const presenceErrorCode = ref<string | null>(null)
   let unsubscribe: (() => void) | null = null
   let refreshPromise: Promise<void> | null = null
   let lifecycleGeneration = 0
@@ -134,6 +137,9 @@ export const useChannelsStore = defineStore('channels', () => {
   let mergedMessagesOperationId = 0
   let draftLoadOperationId = 0
   let loadedDraftAccountRef: string | null = null
+  let presenceGeneration = 0
+  let presenceTargetKey: string | null = null
+  let presenceSynchronization: Promise<void> = Promise.resolve()
   const dirtyDraftRefs = new Set<ChannelRef>()
   const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
   const draftSavePromises = new Map<ChannelRef, Promise<void>>()
@@ -146,10 +152,31 @@ export const useChannelsStore = defineStore('channels', () => {
         left.ref.localeCompare(right.ref),
     ),
   )
+  const presences = computed(() =>
+    desiredPresenceAccountIds().map(
+      (accountId) =>
+        presenceByAccount.get(accountId) ?? {
+          accountId,
+          availability: 'unknown' as const,
+          updatedAt: 0,
+        },
+    ),
+  )
   const pendingChannelRefs = computed(() => [...mutatingChannelRefs])
   const activeChannel = computed(() =>
     activeChannelRef.value ? (projection.channels.get(activeChannelRef.value) ?? null) : null,
   )
+  const activePresence = computed(() => {
+    const accountId = activeChannel.value?.directAccountId
+    if (!accountId) return null
+    return (
+      presenceByAccount.get(accountId) ?? {
+        accountId,
+        availability: 'unknown' as const,
+        updatedAt: 0,
+      }
+    )
+  })
   const activeMessages = computed(() =>
     activeChannelRef.value ? (projection.messagesByChannel.get(activeChannelRef.value) ?? []) : [],
   )
@@ -296,6 +323,7 @@ export const useChannelsStore = defineStore('channels', () => {
           channelCatalogReady.value = true
         if (activeChannelRef.value && !projection.channels.has(activeChannelRef.value))
           activeChannelRef.value = null
+        await synchronizePresenceTargets()
         if (activeChannelRef.value && !projection.messagesByChannel.has(activeChannelRef.value)) {
           await loadMessages(activeChannelRef.value, 'before')
         }
@@ -1219,6 +1247,7 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   async function dispose(): Promise<void> {
+    clearPresenceProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     lifecycleGeneration += 1
@@ -1329,7 +1358,9 @@ export const useChannelsStore = defineStore('channels', () => {
     reconcileMessageCursors(event)
     reconcilePinnedMessages(event)
     reconcileOutgoingAttempts(event)
+    reconcilePresenceEvent(event)
     if (event.type === 'status.changed') {
+      if (event.status.phase !== 'connected') clearPresenceProjection()
       if (
         event.status.phase === 'kickedOffline' ||
         (event.status.phase === 'disconnected' && !event.status.retryable)
@@ -1377,6 +1408,8 @@ export const useChannelsStore = defineStore('channels', () => {
           progress: Math.max(0, Math.min(100, event.progress)),
         })
     }
+    if (event.type === 'channel.upserted' || event.type === 'channel.deleted')
+      void synchronizePresenceTargets()
   }
 
   function clearProjection(): void {
@@ -1393,7 +1426,95 @@ export const useChannelsStore = defineStore('channels', () => {
     clearSavedMessages()
     loadingMergedMessages.value = false
     mergedMessagesErrorCode.value = null
+    clearPresenceProjection()
     void clearOutgoingAttempts(attachmentPicker.value)
+  }
+
+  function desiredPresenceAccountIds(): string[] {
+    return [
+      ...new Set(
+        [...projection.channels.values()]
+          .filter((channel) => channel.kind === 'direct')
+          .map((channel) => channel.directAccountId?.trim())
+          .filter((accountId): accountId is string => Boolean(accountId)),
+      ),
+    ].sort((left, right) => left.localeCompare(right))
+  }
+
+  function synchronizePresenceTargets(): Promise<void> {
+    const client = transport.value
+    if (
+      !client ||
+      status.value.phase !== 'connected' ||
+      !channelCatalogReady.value ||
+      !client
+        .capabilities()
+        .some((capability) => capability.id === 'presence.subscribe' && capability.available)
+    ) {
+      return Promise.resolve()
+    }
+    const accountIds = desiredPresenceAccountIds()
+    const key = `${status.value.accountRef ?? ''}\0${accountIds.join('\0')}`
+    if (presenceTargetKey === key) return presenceSynchronization
+    presenceTargetKey = key
+    const lifecycle = lifecycleGeneration
+    const generation = presenceGeneration
+    const operation = presenceSynchronization
+      .catch(() => undefined)
+      .then(async () => {
+        if (!hasPresenceContext(client, lifecycle, generation) || presenceTargetKey !== key) return
+        try {
+          await client.setPresenceSubscriptions([...accountIds])
+          if (hasPresenceContext(client, lifecycle, generation) && presenceTargetKey === key)
+            presenceErrorCode.value = null
+        } catch (error) {
+          if (hasPresenceContext(client, lifecycle, generation) && presenceTargetKey === key) {
+            presenceTargetKey = null
+            presenceErrorCode.value = transportErrorCode(error)
+          }
+        }
+      })
+    presenceSynchronization = operation
+    return operation
+  }
+
+  function hasPresenceContext(
+    client: ChannelTransport,
+    lifecycle: number,
+    generation: number,
+  ): boolean {
+    return (
+      transport.value === client &&
+      lifecycleGeneration === lifecycle &&
+      presenceGeneration === generation &&
+      status.value.phase === 'connected'
+    )
+  }
+
+  function reconcilePresenceEvent(event: ChannelEvent): void {
+    if (event.type === 'presence.subscriptionFailed') {
+      if (status.value.phase === 'connected') {
+        presenceTargetKey = null
+        presenceErrorCode.value = event.errorCode
+      }
+      return
+    }
+    if (event.type !== 'presence.changed' || status.value.phase !== 'connected') return
+    const desired = new Set(desiredPresenceAccountIds())
+    for (const presence of event.presences) {
+      if (!desired.has(presence.accountId)) continue
+      const current = presenceByAccount.get(presence.accountId)
+      if (current && presence.updatedAt <= current.updatedAt) continue
+      presenceByAccount.set(presence.accountId, structuredClone(presence))
+    }
+  }
+
+  function clearPresenceProjection(): void {
+    presenceGeneration += 1
+    presenceTargetKey = null
+    presenceSynchronization = Promise.resolve()
+    presenceByAccount.clear()
+    presenceErrorCode.value = null
   }
 
   function reconcileOutgoingAttempts(event: ChannelEvent): void {
@@ -1615,6 +1736,7 @@ export const useChannelsStore = defineStore('channels', () => {
         messageCursors.delete(channelRef)
         if (activeChannelRef.value === channelRef) activeChannelRef.value = null
       }
+      void synchronizePresenceTargets()
     } catch (error) {
       if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
       throw error
@@ -1625,9 +1747,11 @@ export const useChannelsStore = defineStore('channels', () => {
 
   return {
     channels,
+    presences,
     activeChannelRef,
     highlightedMessageKey,
     activeChannel,
+    activePresence,
     activeMessages,
     activeOutgoingAttempts,
     drafts,
@@ -1660,6 +1784,7 @@ export const useChannelsStore = defineStore('channels', () => {
     loadingMergedMessages,
     mergedMessagesErrorCode,
     errorCode,
+    presenceErrorCode,
     configure,
     connect,
     disconnect,
