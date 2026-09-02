@@ -85,6 +85,7 @@ export const DESKTOP_COMMANDS = [
   'quick_comment_channel_message',
   'transcribe_channel_voice',
   'get_channel_message_receipt_details',
+  'load_channel_thread',
   'cancel_channel_message_send',
   'select_channel_attachments',
   'release_channel_attachment',

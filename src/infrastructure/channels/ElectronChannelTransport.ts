@@ -22,6 +22,7 @@ import type {
   Message,
   MessageRef,
   MessageReceiptDetails,
+  ChannelThread,
   MessageSearchPage,
   ModifyMessageRequest,
   DeleteMessagesRequest,
@@ -82,6 +83,7 @@ const descriptor: ChannelTransportDescriptor = {
     'message.pin.events',
     'message.receipt.events',
     'message.receipt.details',
+    'message.thread',
   ].map((id) => ({ id: id as ChannelCapability['id'], available: true })),
 }
 
@@ -247,6 +249,10 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     return this.command('get_channel_message_receipt_details', { messageRef })
+  }
+
+  async loadThread(messageRef: MessageRef): Promise<ChannelThread> {
+    return this.command('load_channel_thread', { messageRef })
   }
 
   async openDirectConversation(_accountId: string): Promise<ChannelRef> {

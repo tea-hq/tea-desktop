@@ -290,6 +290,29 @@ describe('MockChannelTransport', () => {
     expect(events.filter((type) => type === 'message.upserted').length).toBeGreaterThanOrEqual(3)
   })
 
+  it('projects replies as a deterministic message thread', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 20,
+    })
+    const root = page.items[0]!
+    await transport.replyMessage({
+      channelRef: 'product-collab',
+      replyTo: root.ref,
+      content: { kind: 'text', text: 'Follow-up' },
+    })
+
+    await expect(transport.loadThread(root.ref)).resolves.toMatchObject({
+      channelRef: 'product-collab',
+      root: { ref: root.ref },
+      replies: [{ text: 'Follow-up' }],
+      replyCount: 1,
+    })
+  })
+
   it('creates a merged card with an immutable loadable archive', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()

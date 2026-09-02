@@ -128,6 +128,17 @@ function createFakeSdk() {
       const value = rawMessage()
       return { messages: [value], anchorMessage: value, hasMore: false }
     }),
+    getThreadMessageList: vi.fn(
+      async (): Promise<{
+        message: ReturnType<typeof rawMessage>
+        timestamp: number
+        replyCount: number
+        replyList: ReturnType<typeof rawMessage>[]
+      }> => {
+        const value = rawMessage('thread root')
+        return { message: value, timestamp: value.createTime, replyCount: 0, replyList: [] }
+      },
+    ),
     searchCloudMessagesEx: vi.fn(async () => {
       const value = rawMessage('search hit')
       return {
@@ -625,6 +636,75 @@ describe('YunxinWebChannelTransport', () => {
 
     await transport.openDirectConversation('existing')
     expect(friend.addFriend).not.toHaveBeenCalled()
+  })
+
+  it('loads a bounded Yunxin thread through the provider-neutral root reference', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const root = (await message.getMessageListEx()).messages[0]
+    const reply = {
+      ...root,
+      messageClientId: 'reply-client',
+      messageServerId: 'reply-server',
+      senderId: 'other',
+      isSelf: false,
+      createTime: 9,
+      text: 'Thread reply',
+      threadReply: {
+        senderId: root.senderId,
+        receiverId: root.receiverId,
+        messageClientId: root.messageClientId,
+        messageServerId: root.messageServerId,
+        createTime: root.createTime,
+        conversationType: root.conversationType,
+        conversationId: root.conversationId,
+      },
+    }
+    vi.mocked(message.getThreadMessageList).mockResolvedValueOnce({
+      message: root,
+      timestamp: 9,
+      replyCount: 1,
+      replyList: [reply],
+    })
+
+    const result = await transport.loadThread(page.items[0]!.ref)
+
+    expect(message.getThreadMessageList).toHaveBeenCalledWith({
+      messageRefer: expect.objectContaining({
+        messageClientId: root.messageClientId,
+        messageServerId: root.messageServerId,
+        conversationId: root.conversationId,
+      }),
+      limit: 100,
+      direction: 1,
+    })
+    expect(result).toMatchObject({
+      channelRef: 'c1',
+      replyCount: 1,
+      updatedAt: 9,
+    })
+    expect(result.replies[0]).toMatchObject({ text: 'Thread reply', replyTo: expect.anything() })
+    expect(JSON.stringify(result)).not.toMatch(/threadMsgIdServer|messageRefer/)
+  })
+
+  it('rejects a malformed Yunxin thread result without rendering partial replies', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    vi.mocked(message.getThreadMessageList).mockResolvedValueOnce({
+      message: (await message.getMessageListEx()).messages[0],
+      timestamp: 1,
+      replyCount: 1_000_001,
+      replyList: [],
+    })
+
+    await expect(transport.loadThread(page.items[0]!.ref)).rejects.toMatchObject({
+      code: 'protocolFailure',
+      retryable: false,
+    })
   })
 
   it('rejects a direct contact that is absent from the Tea Center directory', async () => {

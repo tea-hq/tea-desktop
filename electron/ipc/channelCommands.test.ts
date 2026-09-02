@@ -10,6 +10,13 @@ function channelService(): ElectronChannelService {
     setChannelMuted: vi.fn(async () => undefined),
     setPresenceSubscriptions: vi.fn(async () => undefined),
     transcribeVoice: vi.fn(async () => 'Review the release plan.'),
+    loadThread: vi.fn(async () => ({
+      channelRef: 'channel',
+      root: { ref: { channelRef: 'channel', messageClientId: 'root' } },
+      replies: [],
+      replyCount: 0,
+      updatedAt: 1,
+    })),
     hideChannel: vi.fn(async () => undefined),
     releaseAttachment: vi.fn(async () => undefined),
   } as never
@@ -119,6 +126,21 @@ describe('channel command handlers', () => {
         Promise.resolve().then(() => handler({ messageRef: invalid })),
       ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
     }
+  })
+
+  it('validates and delegates a message-scoped thread load', async () => {
+    const channel = channelService()
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
+      .load_channel_thread!
+    const messageRef = { channelRef: 'channel', messageClientId: 'root-client' }
+
+    await expect(handler({ messageRef })).resolves.toMatchObject({ replyCount: 0 })
+    expect(channel.loadThread).toHaveBeenCalledWith(messageRef)
+    await expect(
+      Promise.resolve().then(() =>
+        handler({ messageRef: { channelRef: 'channel', messageClientId: '' } }),
+      ),
+    ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
   })
 
   it('fails closed when the service returns an invalid voice transcript', async () => {

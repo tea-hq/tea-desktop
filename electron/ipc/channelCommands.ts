@@ -69,6 +69,7 @@ export function createChannelCommandHandlers(
       readVoiceTranscript(await channel.transcribeVoice(readMessageRef(args.messageRef))),
     get_channel_message_receipt_details: (args) =>
       channel.getMessageReceiptDetails(readRecord(args.messageRef) as never),
+    load_channel_thread: (args) => channel.loadThread(readMessageRef(args.messageRef)),
     cancel_channel_message_send: (args) =>
       channel.cancelMessageSend(readString(args.operationId, 'operationId')),
     select_channel_attachments: () => channel.selectAttachments(),

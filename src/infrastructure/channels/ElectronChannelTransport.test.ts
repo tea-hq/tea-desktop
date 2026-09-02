@@ -73,6 +73,7 @@ describe('ElectronChannelTransport', () => {
         'message.quickComment',
         'message.voice.transcribe',
         'message.receipt.details',
+        'message.thread',
         'channel.manage',
         'channel.pin',
         'channel.mute',
@@ -106,6 +107,24 @@ describe('ElectronChannelTransport', () => {
     await expect(transport.transcribeVoice(messageRef)).resolves.toBe('Review the release plan.')
     expect(mocks.invoke).toHaveBeenCalledWith('transcribe_channel_voice', { messageRef })
     expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/voiceUrl|sceneName|sampleRate/)
+    await transport.dispose()
+  })
+
+  it('loads a thread through one message-scoped Electron command', async () => {
+    const messageRef = { channelRef: 'channel', messageClientId: 'root-client' }
+    const thread = {
+      channelRef: 'channel',
+      root: { ref: messageRef, text: 'Root' },
+      replies: [],
+      replyCount: 0,
+      updatedAt: 1,
+    }
+    mocks.invoke.mockResolvedValueOnce(thread)
+    const transport = new ElectronChannelTransport()
+
+    await expect(transport.loadThread(messageRef)).resolves.toEqual(thread)
+    expect(mocks.invoke).toHaveBeenCalledWith('load_channel_thread', { messageRef })
+    expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/threadMsg|messageRefer/)
     await transport.dispose()
   })
 

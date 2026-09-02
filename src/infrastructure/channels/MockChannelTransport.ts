@@ -23,6 +23,7 @@ import type {
   Message,
   MessagePage,
   MessageReceiptDetails,
+  ChannelThread,
   MessageSearchPage,
   MessageRef,
   UpdateGroupRequest,
@@ -189,6 +190,7 @@ const capabilities: ChannelCapability[] = [
   'message.pin.events',
   'message.receipt.events',
   'message.receipt.details',
+  'message.thread',
 ].map((id) => ({ id: id as ChannelCapability['id'], available: true }))
 
 export class MockChannelTransport implements ChannelTransport {
@@ -808,6 +810,26 @@ export class MockChannelTransport implements ChannelTransport {
       unread: [participants.yu, participants.chen].map((value) => structuredClone(value)),
       readCount: 2,
       unreadCount: 2,
+    }
+  }
+
+  async loadThread(messageRef: MessageRef): Promise<ChannelThread> {
+    this.assertConnected()
+    const root = this.findMessage(messageRef)
+    if (!root || root.state !== 'active') throw new ChannelTransportError('invalidRequest', false)
+    const replies = (this.messages.get(root.ref.channelRef) ?? [])
+      .filter((message) => message.replyTo && sameMessageRef(message.replyTo.ref, root.ref))
+      .sort(
+        (left, right) =>
+          left.sentAt - right.sentAt ||
+          left.ref.messageClientId.localeCompare(right.ref.messageClientId),
+      )
+    return {
+      channelRef: root.ref.channelRef,
+      root: structuredClone(root),
+      replies: structuredClone(replies),
+      replyCount: replies.length,
+      updatedAt: Math.max(root.sentAt, replies.at(-1)?.sentAt ?? root.sentAt),
     }
   }
 

@@ -26,6 +26,7 @@ import type {
   RevokeMessageRequest,
   MessagePage,
   MessageReceiptDetails,
+  ChannelThread,
   Message,
   MessageRef,
   MessageSearchPage,
@@ -223,6 +224,10 @@ export class ElectronChannelService implements ChannelNotificationSourceResolver
 
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     return this.transport.getMessageReceiptDetails(messageRef)
+  }
+
+  async loadThread(messageRef: MessageRef): Promise<ChannelThread> {
+    return this.transport.loadThread(messageRef)
   }
 
   async markRead(channelRef: string): Promise<void> {

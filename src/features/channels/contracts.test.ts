@@ -7,6 +7,7 @@ import type {
   ChannelDraftClient,
   ChannelEvent,
   ChannelPresence,
+  ChannelThread,
   ChannelTransport,
   ChannelVoicePlaybackClient,
   ChannelVoicePlaybackEvent,
@@ -94,6 +95,36 @@ describe('contact presence contracts', () => {
     expect(presence).not.toHaveProperty('statusType')
     expect(presence).not.toHaveProperty('serverExtension')
     await expect(transport.setPresenceSubscriptions(['lin'])).resolves.toBeUndefined()
+  })
+})
+
+describe('message thread contracts', () => {
+  it('keeps a root discussion provider-neutral and channel scoped', async () => {
+    const root = {
+      ref: { channelRef: 'channel-ref', messageClientId: 'root' },
+      sender: { id: 'sender', name: 'Sender', isCurrentUser: false },
+      sentAt: 1,
+      text: 'Decision',
+      content: { kind: 'text' as const, text: 'Decision' },
+      state: 'active' as const,
+      sentByCurrentUser: false,
+      pinned: false,
+      reactions: [],
+    }
+    const thread: ChannelThread = {
+      channelRef: 'channel-ref',
+      root,
+      replies: [],
+      replyCount: 0,
+      updatedAt: 1,
+    }
+    const transport: Pick<ChannelTransport, 'loadThread'> = {
+      loadThread: async () => structuredClone(thread),
+    }
+
+    expect(thread.channelRef).toBe(root.ref.channelRef)
+    expect(thread).not.toHaveProperty('threadMsgIdServer')
+    await expect(transport.loadThread(root.ref)).resolves.toEqual(thread)
   })
 })
 

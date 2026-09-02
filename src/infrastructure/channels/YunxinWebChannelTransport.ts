@@ -28,6 +28,7 @@ import type {
   Message,
   MessageReaction,
   MessageReceiptDetails,
+  ChannelThread,
   MessageRef,
   ModifyMessageRequest,
   OutgoingMessageContent,
@@ -204,6 +205,7 @@ const capabilities: ChannelCapability[] = [
   'message.pin.events',
   'message.receipt.events',
   'message.receipt.details',
+  'message.thread',
 ].map((id) => ({ id: id as ChannelCapability['id'], available: true }))
 
 export interface ResolvedMessageAttachment {
@@ -1345,6 +1347,67 @@ export class YunxinWebChannelTransport
       ),
       readCount: Math.max(0, detail.readReceipt.readCount),
       unreadCount: Math.max(0, detail.readReceipt.unreadCount),
+    }
+  }
+
+  async loadThread(messageRef: MessageRef): Promise<ChannelThread> {
+    const sdk = this.connectedSdk()
+    let root: V2NIMMessage
+    try {
+      root = this.rawMessageForRef(messageRef)
+    } catch (error) {
+      if (error instanceof ChannelTransportError) throw error
+      throw new ChannelTransportError('invalidRequest', false)
+    }
+    if (root.conversationId !== messageRef.channelRef || root.isDelete)
+      throw new ChannelTransportError('invalidRequest', false)
+
+    let result: Awaited<ReturnType<typeof sdk.V2NIMMessageService.getThreadMessageList>>
+    try {
+      result = await sdk.V2NIMMessageService.getThreadMessageList({
+        messageRefer: toYunxinRefer(root),
+        limit: 100,
+        direction: 1,
+      })
+    } catch {
+      throw new ChannelTransportError('transport', true)
+    }
+    if (
+      !result ||
+      !result.message ||
+      !Array.isArray(result.replyList) ||
+      result.replyList.length > 100 ||
+      !Number.isSafeInteger(result.replyCount) ||
+      result.replyCount < result.replyList.length ||
+      result.replyCount > 1_000_000 ||
+      !Number.isSafeInteger(result.timestamp) ||
+      result.timestamp < 0
+    )
+      throw new ChannelTransportError('protocolFailure', false)
+
+    const mappedRoot = mapYunxinMessage(result.message, this.selfAccount ?? '')
+    if (
+      !mappedRoot ||
+      mappedRoot.ref.channelRef !== messageRef.channelRef ||
+      !sameYunxinMessageRef(mappedRoot.ref, messageRef)
+    )
+      throw new ChannelTransportError('protocolFailure', false)
+    const replies = result.replyList.map((value) => mapYunxinMessage(value, this.selfAccount ?? ''))
+    if (replies.some((value) => value === null))
+      throw new ChannelTransportError('protocolFailure', false)
+    const mappedReplies = replies as Message[]
+    this.rememberMessage(result.message)
+    result.replyList.forEach((value) => this.rememberMessage(value))
+    return {
+      channelRef: messageRef.channelRef,
+      root: mappedRoot,
+      replies: mappedReplies,
+      replyCount: result.replyCount,
+      updatedAt: Math.max(
+        result.timestamp,
+        mappedRoot.sentAt,
+        ...mappedReplies.map((value) => value.sentAt),
+      ),
     }
   }
 

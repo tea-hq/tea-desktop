@@ -92,6 +92,15 @@ export interface MessageReceiptDetails {
   unreadCount: number
 }
 
+/** Provider-neutral projection of a message-rooted Channel discussion. */
+export interface ChannelThread {
+  channelRef: ChannelRef
+  root: Message
+  replies: Message[]
+  replyCount: number
+  updatedAt: number
+}
+
 export interface MessageReaction {
   type: number
   count: number
@@ -517,6 +526,7 @@ export type ChannelCapabilityId =
   | 'message.pin.events'
   | 'message.receipt.events'
   | 'message.receipt.details'
+  | 'message.thread'
 
 export interface ChannelCapability {
   id: ChannelCapabilityId
@@ -802,6 +812,7 @@ export interface ChannelTransport {
   quickComment(request: QuickCommentRequest): Promise<void>
   transcribeVoice(messageRef: MessageRef): Promise<string>
   getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails>
+  loadThread(messageRef: MessageRef): Promise<ChannelThread>
   openDirectConversation(accountId: string): Promise<ChannelRef>
   setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void>
   setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void>
