@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelThread, Message } from '../contracts'
+import type { Channel, ChannelAttachment, ChannelThread, Message } from '../contracts'
 import { createTextMessageContent } from '../messageContent'
 import ChannelThreadPanel from './ChannelThreadPanel.vue'
 
@@ -91,7 +91,16 @@ describe('ChannelThreadPanel', () => {
     dialog.querySelector<HTMLButtonElement>('button[aria-label="Send reply"]')!.click()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('send')).toEqual([['A follow-up reply']])
+    expect(wrapper.emitted('send')).toEqual([
+      [
+        {
+          text: 'A follow-up reply',
+          replyTo: null,
+          attachments: [],
+          mentions: [],
+        },
+      ],
+    ])
     dialog.querySelector<HTMLButtonElement>('button[aria-label="Close thread"]')!.click()
     expect(wrapper.emitted('close')).toEqual([[]])
     wrapper.unmount()
@@ -112,5 +121,53 @@ describe('ChannelThreadPanel', () => {
     await errorWrapper.vm.$nextTick()
     expect(errorWrapper.emitted('retry')).toEqual([[]])
     errorWrapper.unmount()
+  })
+
+  it('uses the shared composer for mentions and attachment lifecycle events', async () => {
+    const attachment: ChannelAttachment = {
+      token: 'attachment-1',
+      name: 'design.png',
+      kind: 'image',
+    }
+    const wrapper = mountPanel({
+      thread,
+      attachments: [attachment],
+      mentionMembers: [{ accountId: 'lin', name: 'Lin', role: 'member', chatBanned: false }],
+    })
+    const textarea = document.body.querySelector<HTMLTextAreaElement>('textarea')
+    if (!textarea) throw new Error('thread composer textarea missing')
+
+    textarea.value = '@li'
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('requestMentionMembers')).toEqual([[]])
+    document.body.querySelector<HTMLElement>('[role="option"]')?.click()
+    await wrapper.vm.$nextTick()
+    textarea.value = '@Lin review this'
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    document.body
+      .querySelector<HTMLButtonElement>('button[aria-label="Remove design.png"]')
+      ?.click()
+    document.body.querySelector<HTMLButtonElement>('button[aria-label="Send reply"]')?.click()
+
+    expect(wrapper.emitted('removeAttachment')).toEqual([['attachment-1']])
+    expect(wrapper.emitted('send')).toEqual([
+      [
+        {
+          text: '@Lin review this',
+          replyTo: null,
+          attachments: [attachment],
+          mentions: [
+            {
+              target: { kind: 'user', accountId: 'lin' },
+              label: '@Lin',
+              ranges: [{ start: 0, end: 4 }],
+            },
+          ],
+        },
+      ],
+    ])
+    wrapper.unmount()
   })
 })

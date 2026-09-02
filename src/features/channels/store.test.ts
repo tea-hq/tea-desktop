@@ -1151,6 +1151,45 @@ describe('useChannelsStore', () => {
     expect(store.activeThreadOutgoingAttempts).toEqual([])
   })
 
+  it('sends every thread delivery with the root and does not persist a channel draft', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const root = store.activeMessages[0]!
+    const reply = vi.spyOn(transport, 'replyMessage')
+
+    await store.openThread(root.ref)
+    await store.sendThreadSubmission({
+      text: '@Lin review this',
+      attachments: [
+        {
+          token: 'thread-attachment',
+          name: 'design.png',
+          kind: 'image',
+        },
+      ],
+      mentions: [
+        {
+          target: { kind: 'user', accountId: 'lin' },
+          label: '@Lin',
+          ranges: [{ start: 0, end: 4 }],
+        },
+      ],
+    })
+
+    expect(reply).toHaveBeenCalledTimes(2)
+    expect(reply.mock.calls[0]?.[0]).toMatchObject({
+      replyTo: root.ref,
+      content: { kind: 'text', text: '@Lin review this' },
+      mentions: [{ target: { kind: 'user', accountId: 'lin' } }],
+    })
+    expect(reply.mock.calls[1]?.[0]).toMatchObject({
+      replyTo: root.ref,
+      content: { kind: 'image' },
+    })
+    expect(store.activeDraft).toBeNull()
+    expect(store.activeThreadOutgoingAttempts).toEqual([])
+  })
+
   it('rejects a failed thread load and retries the selected root', async () => {
     const { store, transport } = await connectedStore()
     await store.selectChannel('product-collab')

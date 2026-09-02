@@ -1063,9 +1063,9 @@ function retryFixtureThread(): void {
   threadFixtureErrorCode.value = null
 }
 
-function sendFixtureThread(text: string): void {
+function sendFixtureThread(payload: { text: string }): void {
   const root = threadRootMessage.value
-  const normalized = text.trim()
+  const normalized = payload.text.trim()
   if (!normalized || !root || root.state !== 'active') return
   const index = fixtureThreadReplies.value.length + 1
   fixtureThreadReplies.value.push({

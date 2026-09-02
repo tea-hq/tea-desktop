@@ -2,8 +2,17 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { TeaDrawer, TeaIconButton, TeaTextarea } from '@/shared/ui'
-import type { Channel, ChannelThread, Message, OutgoingMessageAttempt } from '../contracts'
+import { TeaDrawer } from '@/shared/ui'
+import type {
+  Channel,
+  ChannelAttachment,
+  ChannelMember,
+  ChannelThread,
+  Message,
+  MessageMention,
+  OutgoingMessageAttempt,
+} from '../contracts'
+import ChannelComposer from './ChannelComposer.vue'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 import ChannelOutgoingMessageItem from './ChannelOutgoingMessageItem.vue'
 
@@ -15,45 +24,63 @@ const props = withDefaults(
     loading: boolean
     errorCode: string | null
     outgoingAttempts?: OutgoingMessageAttempt[]
+    attachments?: ChannelAttachment[]
+    mentionMembers?: ChannelMember[]
+    mentionMembersLoading?: boolean
   }>(),
-  { outgoingAttempts: () => [] },
+  {
+    outgoingAttempts: () => [],
+    attachments: () => [],
+    mentionMembers: () => [],
+    mentionMembersLoading: false,
+  },
 )
 
 const emit = defineEmits<{
   close: []
   retry: []
-  send: [text: string]
+  send: [
+    payload: {
+      text: string
+      replyTo: null
+      attachments: ChannelAttachment[]
+      mentions: MessageMention[]
+    },
+  ]
+  pickAttachments: []
+  removeAttachment: [token: string]
+  requestMentionMembers: []
+  updateDraft: [payload: { text: string; mentions: MessageMention[] }]
   retryOutgoing: [attemptId: string]
   cancelOutgoing: [attemptId: string]
   dismissOutgoing: [attemptId: string]
 }>()
 const { t } = useI18n()
 const draft = ref('')
+const draftMentions = ref<MessageMention[]>([])
 const sending = computed(() =>
   props.outgoingAttempts.some((attempt) => attempt.status === 'sending'),
 )
-const canSend = computed(() => Boolean(draft.value.trim()) && !sending.value)
 
 watch(
-  () => props.thread?.root.ref,
+  () => [props.rootMessage?.ref, props.thread?.root.ref],
   () => {
     draft.value = ''
+    draftMentions.value = []
   },
   { deep: true },
 )
 
-function submit(): void {
-  const text = draft.value.trim()
-  if (!text || sending.value) return
+function submit(payload: {
+  text: string
+  replyTo: Message | null
+  attachments: ChannelAttachment[]
+  mentions: MessageMention[]
+}): void {
+  if (!props.thread || sending.value) return
   draft.value = ''
-  emit('send', text)
-}
-
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-    event.preventDefault()
-    submit()
-  }
+  draftMentions.value = []
+  emit('send', { ...payload, replyTo: null })
 }
 </script>
 
@@ -162,27 +189,29 @@ function handleKeydown(event: KeyboardEvent): void {
     </div>
 
     <template #footer>
-      <div class="flex min-w-0 flex-1 items-end gap-2">
-        <TeaTextarea
-          v-model="draft"
-          class="min-w-0 flex-1"
-          size="compact"
-          auto-grow
-          :rows="1"
-          :label="t('channels.thread.reply')"
-          :placeholder="t('channels.thread.placeholder', { channel: channel.name })"
-          :disabled="sending || !thread"
-          @keydown="handleKeydown"
-        />
-        <TeaIconButton
-          size="small"
-          appearance="primary"
-          :label="t('channels.thread.send')"
-          icon="i-mdi-arrow-up"
-          :disabled="!canSend || !thread"
-          @click="submit"
-        />
-      </div>
+      <ChannelComposer
+        :channel="channel"
+        :draft="draft"
+        :draft-mentions="draftMentions"
+        :attachments="attachments"
+        :mention-members="mentionMembers"
+        :mention-members-loading="mentionMembersLoading"
+        :disabled="!thread || sending"
+        :send-label="t('channels.thread.send')"
+        :input-label="t('channels.thread.reply')"
+        :placeholder="t('channels.thread.placeholder', { channel: channel.name })"
+        @send="submit"
+        @pick-attachments="emit('pickAttachments')"
+        @remove-attachment="emit('removeAttachment', $event)"
+        @request-mention-members="emit('requestMentionMembers')"
+        @update-draft="
+          (payload) => {
+            draft = payload.text
+            draftMentions = payload.mentions
+            emit('updateDraft', payload)
+          }
+        "
+      />
     </template>
   </TeaDrawer>
 </template>

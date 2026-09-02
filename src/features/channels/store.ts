@@ -1752,6 +1752,39 @@ export const useChannelsStore = defineStore('channels', () => {
     return sendThreadContent(createTextMessageContent(trimmed), mentions)
   }
 
+  async function sendThreadSubmission(
+    submission: Omit<ChannelComposerSubmission, 'replyTo'>,
+  ): Promise<void> {
+    const root = threadRootRef.value
+    const channelRef = activeChannelRef.value
+    if (!root || !channelRef || root.channelRef !== channelRef) return
+    const deliveries = prepareChannelComposerSubmission(submission).map((delivery) => ({
+      ...delivery,
+      replyTo: root,
+    }))
+    if (!deliveries.length) return
+
+    const generation = lifecycleGeneration
+    const client = requireTransport()
+    const completions = deliveries.map(
+      (delivery) =>
+        startOutgoingContent(channelRef, delivery.content, delivery.replyTo, delivery.mentions)
+          .completion,
+    )
+    const results = await Promise.allSettled(completions)
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    )
+    if (failure) throw failure.reason
+    if (
+      generation === lifecycleGeneration &&
+      transport.value === client &&
+      threadRootRef.value &&
+      sameMessage(threadRootRef.value, root)
+    )
+      await openThread(root).catch(() => undefined)
+  }
+
   async function openDirectConversation(accountId: string): Promise<ChannelRef> {
     const client = requireTransport()
     const channelRef = await client.openDirectConversation(accountId)
@@ -2900,6 +2933,7 @@ export const useChannelsStore = defineStore('channels', () => {
     closeThread,
     sendThreadContent,
     sendThreadText,
+    sendThreadSubmission,
     openDirectConversation,
     setChannelPinned,
     setChannelMuted,

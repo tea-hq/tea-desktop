@@ -50,3 +50,16 @@ test('keeps revoked and deleted roots out of a normal thread state', async ({
   ).toHaveCount(0)
   await expect(page.getByRole('dialog', { name: 'Thread' })).toHaveCount(0)
 })
+
+test('keeps the Chinese thread composer usable at 390px', async ({ openFixture, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openFixture('thread-empty', { lang: 'zh-CN' })
+
+  await expect(page.getByRole('dialog', { name: '线程' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '在线程中回复' })).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false)
+})

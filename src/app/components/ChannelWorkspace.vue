@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTeaDesktopAppContext } from '@/app/teaDesktopContext'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
@@ -89,6 +89,7 @@ const pendingSavedRemoval = ref<SavedMessage | null>(null)
 const mentionMembers = shallowRef<ChannelMember[]>([])
 const mentionMembersChannelRef = ref<ChannelRef | null>(null)
 const mentionMembersLoading = ref(false)
+const threadAttachments = ref<ChannelAttachment[]>([])
 const receiptDetailsOpen = ref(false)
 const receiptDetailsMessage = ref<Message | null>(null)
 const receiptDetails = ref<MessageReceiptDetails | null>(null)
@@ -164,6 +165,7 @@ function handleChannelSelect(channelRef: ChannelRef): void {
   mentionMembersLoading.value = false
   closeReceiptDetails()
   releaseSelectedAttachments()
+  releaseThreadAttachments()
   replyTo.value = null
   searchOpen.value = false
   searchScope.value = null
@@ -459,8 +461,30 @@ async function pickChannelAttachments(): Promise<void> {
   }
 }
 
+async function pickThreadAttachments(): Promise<void> {
+  try {
+    const selected = await channels.pickAttachments()
+    const known = new Set(threadAttachments.value.map((attachment) => attachment.token))
+    const candidates = selected.filter((attachment) => !known.has(attachment.token))
+    const available = Math.max(0, 10 - threadAttachments.value.length)
+    threadAttachments.value = [...threadAttachments.value, ...candidates.slice(0, available)]
+    await Promise.allSettled(
+      candidates.slice(available).map((attachment) => channels.releaseAttachment(attachment.token)),
+    )
+  } catch {
+    // Preserve the store error state.
+  }
+}
+
 function removeChannelAttachment(token: string): void {
   channelAttachments.value = channelAttachments.value.filter(
+    (attachment) => attachment.token !== token,
+  )
+  void channels.releaseAttachment(token).catch(() => undefined)
+}
+
+function removeThreadAttachment(token: string): void {
+  threadAttachments.value = threadAttachments.value.filter(
     (attachment) => attachment.token !== token,
   )
   void channels.releaseAttachment(token).catch(() => undefined)
@@ -473,6 +497,22 @@ function releaseSelectedAttachments(): void {
     selected.map((attachment) => channels.releaseAttachment(attachment.token)),
   )
 }
+
+function releaseThreadAttachments(): void {
+  const selected = threadAttachments.value
+  threadAttachments.value = []
+  void Promise.allSettled(
+    selected.map((attachment) => channels.releaseAttachment(attachment.token)),
+  )
+}
+
+watch(
+  () => channels.threadRootRef,
+  (root) => {
+    if (!root) releaseThreadAttachments()
+  },
+  { deep: true },
+)
 
 function retryOutgoingMessage(attemptId: string): void {
   void channels.retryOutgoingMessage(attemptId).catch(() => undefined)
@@ -488,6 +528,7 @@ function dismissOutgoingMessage(attemptId: string): void {
 
 onBeforeUnmount(() => {
   releaseSelectedAttachments()
+  releaseThreadAttachments()
   channels.closeMediaViewer()
 })
 
@@ -506,6 +547,7 @@ function handleRefreshChannelMessages(): void {
 function handleMessageAction(payload: { message: Message; action: MessageAction }): void {
   if (payload.action === 'reply') replyTo.value = payload.message
   else if (payload.action === 'thread') {
+    releaseThreadAttachments()
     void channels.openThread(payload.message.ref).catch(() => undefined)
   } else if (payload.action === 'forward')
     openForwarding([payload.message], 'individual', channels.activeChannel?.name)
@@ -526,8 +568,24 @@ function handleMessageAction(payload: { message: Message; action: MessageAction 
   }
 }
 
-function handleThreadSend(text: string): void {
-  void channels.sendThreadText(text).catch(() => undefined)
+async function handleThreadSend(payload: {
+  text: string
+  replyTo: Message | null
+  attachments: ChannelAttachment[]
+  mentions: MessageMention[]
+}): Promise<void> {
+  const submission = channels.sendThreadSubmission({
+    text: payload.text,
+    attachments: payload.attachments,
+    mentions: payload.mentions,
+  })
+  threadAttachments.value = []
+  await submission.catch(() => undefined)
+}
+
+function closeThreadPanel(): void {
+  releaseThreadAttachments()
+  channels.closeThread()
 }
 
 const pendingMessage = ref<Message | null>(null)
@@ -873,9 +931,15 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :loading="channels.loadingThread"
     :error-code="channels.threadErrorCode"
     :outgoing-attempts="channels.activeThreadOutgoingAttempts"
-    @close="channels.closeThread()"
+    :attachments="threadAttachments"
+    :mention-members="mentionMembers"
+    :mention-members-loading="mentionMembersLoading"
+    @close="closeThreadPanel"
     @retry="channels.retryThread().catch(() => undefined)"
     @send="handleThreadSend"
+    @pick-attachments="pickThreadAttachments"
+    @remove-attachment="removeThreadAttachment"
+    @request-mention-members="loadMentionMembers"
     @retry-outgoing="retryOutgoingMessage"
     @cancel-outgoing="cancelOutgoingMessage"
     @dismiss-outgoing="dismissOutgoingMessage"
