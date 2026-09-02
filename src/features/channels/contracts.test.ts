@@ -8,6 +8,7 @@ import type {
   ChannelEvent,
   ChannelPresence,
   ChannelTransport,
+  ChannelVoiceTranscript,
   OutgoingMessageAttempt,
   SaveChannelDraftRequest,
 } from './contracts'
@@ -89,5 +90,33 @@ describe('contact presence contracts', () => {
     expect(presence).not.toHaveProperty('statusType')
     expect(presence).not.toHaveProperty('serverExtension')
     await expect(transport.setPresenceSubscriptions(['lin'])).resolves.toBeUndefined()
+  })
+})
+
+describe('voice transcription contracts', () => {
+  it('keep voice transcription provider-neutral and message scoped', async () => {
+    const messageRef = {
+      channelRef: 'channel-ref',
+      messageClientId: 'voice-client-id',
+      messageServerId: 'voice-server-id',
+    }
+    const transcript: ChannelVoiceTranscript = {
+      messageRef,
+      status: 'ready',
+      text: 'Review the release plan.',
+      retryable: false,
+    }
+    const capability: ChannelCapability = {
+      id: 'message.voice.transcribe',
+      available: true,
+    }
+    const transport: Pick<ChannelTransport, 'transcribeVoice'> = {
+      transcribeVoice: async () => transcript.text!,
+    }
+
+    expect(capability.id).toBe('message.voice.transcribe')
+    expect(transcript).not.toHaveProperty('voiceUrl')
+    expect(transcript).not.toHaveProperty('mimeType')
+    await expect(transport.transcribeVoice(messageRef)).resolves.toBe(transcript.text)
   })
 })

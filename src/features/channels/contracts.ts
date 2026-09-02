@@ -98,6 +98,17 @@ export interface MessageReaction {
   active: boolean
 }
 
+export type ChannelVoiceTranscriptionStatus = 'loading' | 'ready' | 'failed'
+
+/** Account-lifecycle projection of a user-requested voice transcription. */
+export interface ChannelVoiceTranscript {
+  messageRef: MessageRef
+  status: ChannelVoiceTranscriptionStatus
+  text?: string
+  errorCode?: string
+  retryable: boolean
+}
+
 /**
  * Provider-neutral media metadata. Local File/Blob handles deliberately do
  * not cross this boundary; upload orchestration belongs to a transport.
@@ -384,6 +395,7 @@ export type ChannelCapabilityId =
   | 'message.save'
   | 'message.save.list'
   | 'message.quickComment'
+  | 'message.voice.transcribe'
   | 'channel.read'
   | 'message.modify.events'
   | 'message.delete.events'
@@ -655,6 +667,7 @@ export interface ChannelTransport {
   revokeMessage(request: RevokeMessageRequest): Promise<void>
   pinMessage(request: PinMessageRequest): Promise<void>
   quickComment(request: QuickCommentRequest): Promise<void>
+  transcribeVoice(messageRef: MessageRef): Promise<string>
   getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails>
   openDirectConversation(accountId: string): Promise<ChannelRef>
   setChannelPinned(channelRef: ChannelRef, pinned: boolean): Promise<void>

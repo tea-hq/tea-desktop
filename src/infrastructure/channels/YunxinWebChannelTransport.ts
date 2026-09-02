@@ -111,6 +111,10 @@ import {
   YUNXIN_PRESENCE_RENEWAL_MS,
   type YunxinPresenceServicePort,
 } from './yunxinPresence'
+import {
+  mapYunxinVoiceToTextParams,
+  normalizeYunxinVoiceTranscript,
+} from './yunxinVoiceTranscription'
 
 export interface YunxinSdkFactory {
   create(appKey: string): YunxinSdk | Promise<YunxinSdk>
@@ -185,6 +189,7 @@ const capabilities: ChannelCapability[] = [
   'message.save',
   'message.save.list',
   'message.quickComment',
+  'message.voice.transcribe',
   'channel.read',
   'message.modify.events',
   'message.delete.events',
@@ -1093,6 +1098,22 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     } else {
       await sdk.V2NIMMessageService.removeQuickComment(toYunxinRefer(message), request.type)
     }
+  }
+
+  async transcribeVoice(messageRef: MessageRef): Promise<string> {
+    const sdk = this.connectedSdk()
+    const message = this.rawMessageForRef(messageRef)
+    const mapped = mapYunxinMessage(message, this.selfAccount ?? '')
+    if (!mapped || mapped.state !== 'active' || mapped.content.kind !== 'audio')
+      throw new ChannelTransportError('invalidRequest', false)
+    const params = mapYunxinVoiceToTextParams(message)
+    let transcript: unknown
+    try {
+      transcript = await sdk.V2NIMMessageService.voiceToText(params)
+    } catch {
+      throw new ChannelTransportError('transport', true)
+    }
+    return normalizeYunxinVoiceTranscript(transcript)
   }
 
   async openDirectConversation(accountId: string): Promise<ChannelRef> {

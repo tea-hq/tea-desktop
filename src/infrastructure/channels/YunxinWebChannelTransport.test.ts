@@ -241,6 +241,7 @@ function createFakeSdk() {
     unpinMessage: vi.fn(async () => undefined),
     addQuickComment: vi.fn(async () => undefined),
     removeQuickComment: vi.fn(async () => undefined),
+    voiceToText: vi.fn(async () => 'Review the release plan.'),
     sendP2PMessageReceipt: vi.fn(async (_message: ReturnType<typeof rawMessage>) => undefined),
     sendTeamMessageReceipts: vi.fn(async (_messages: ReturnType<typeof rawMessage>[]) => undefined),
     getTeamMessageReceiptDetail: vi.fn(async () => ({
@@ -675,6 +676,61 @@ describe('YunxinWebChannelTransport', () => {
     expect(message.removeQuickComment).toHaveBeenCalledWith(expect.anything(), 1)
     expect(message.revokeMessage).toHaveBeenCalledWith(expect.anything(), { postscript: 'updated' })
     expect(message.deleteMessages).toHaveBeenCalledWith([expect.anything()])
+  })
+
+  it('translates cached voice messages without exposing provider attachment fields', async () => {
+    const { sdk, message } = createFakeSdk()
+    const voice = {
+      conversationId: 'c1',
+      messageClientId: 'voice-client',
+      messageServerId: 'voice-server',
+      messageType: 2,
+      senderId: 'other',
+      receiverId: 'account-a',
+      createTime: 5,
+      isSelf: false,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: '',
+      attachment: {
+        url: 'https://cdn.example.test/voice.aac',
+        duration: 2_400,
+        sceneName: 'nim_voice',
+      },
+    }
+    message.getMessageListEx.mockResolvedValueOnce({
+      messages: [voice],
+      anchorMessage: voice,
+      hasMore: false,
+    })
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+
+    await expect(transport.transcribeVoice(page.items[0]!.ref)).resolves.toBe(
+      'Review the release plan.',
+    )
+    expect(message.voiceToText).toHaveBeenCalledWith({
+      voiceUrl: 'https://cdn.example.test/voice.aac',
+      duration: 2_400,
+      mimeType: 'aac',
+      sampleRate: '16000',
+      sceneName: 'nim_voice',
+    })
+
+    message.voiceToText.mockResolvedValueOnce(' ')
+    await expect(transport.transcribeVoice(page.items[0]!.ref)).rejects.toMatchObject({
+      code: 'protocolFailure',
+      retryable: false,
+    })
+    message.voiceToText.mockRejectedValueOnce(new Error('secret voice URL'))
+    await expect(transport.transcribeVoice(page.items[0]!.ref)).rejects.toMatchObject({
+      code: 'transport',
+      retryable: true,
+      message: 'transport',
+    })
   })
 
   it('maps reply and ordinary forwarding to provider calls', async () => {

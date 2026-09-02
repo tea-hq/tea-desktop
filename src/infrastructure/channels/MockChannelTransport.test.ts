@@ -17,6 +17,42 @@ describe('MockChannelTransport', () => {
     })
   })
 
+  it('transcribes active audio messages without exposing attachment parameters', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const sent = await transport.sendMessage({
+      channelRef: 'product-collab',
+      content: {
+        kind: 'audio',
+        caption: 'Voice note',
+        media: {
+          source: { kind: 'localFile', token: 'opaque-audio' },
+          name: 'release-note.aac',
+          mimeType: 'audio/aac',
+          durationMs: 2_000,
+        },
+      },
+    })
+    const input = structuredClone(sent.ref)
+
+    await expect(transport.transcribeVoice(input)).resolves.toBe('Transcript: Voice note')
+    input.messageClientId = 'changed-after-call'
+    await expect(
+      transport.transcribeVoice({
+        channelRef: 'product-collab',
+        messageClientId: 'missing',
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+
+    const text = await transport.sendMessage({
+      channelRef: 'product-collab',
+      content: { kind: 'text', text: 'Not a voice message' },
+    })
+    await expect(transport.transcribeVoice(text.ref)).rejects.toMatchObject({
+      code: 'invalidRequest',
+    })
+  })
+
   it('publishes deterministic provider-neutral presence from replace-set subscriptions', async () => {
     const transport = new MockChannelTransport()
     const events: Array<{ type: string; presences?: unknown[] }> = []

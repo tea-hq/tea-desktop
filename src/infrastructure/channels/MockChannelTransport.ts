@@ -181,6 +181,7 @@ const capabilities: ChannelCapability[] = [
   'message.save',
   'message.save.list',
   'message.quickComment',
+  'message.voice.transcribe',
   'channel.read',
   'message.modify.events',
   'message.delete.events',
@@ -783,6 +784,14 @@ export class MockChannelTransport implements ChannelTransport {
       ref: structuredClone(message.ref),
       reactions: structuredClone(reactions),
     })
+  }
+
+  async transcribeVoice(messageRef: MessageRef): Promise<string> {
+    this.assertConnected()
+    const message = this.findMessage(structuredClone(messageRef))
+    if (!message || message.state !== 'active' || message.content.kind !== 'audio')
+      throw new ChannelTransportError('invalidRequest', false)
+    return `Transcript: ${message.content.caption || message.content.media.name || 'Voice message'}`
   }
 
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
