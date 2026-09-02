@@ -23,6 +23,7 @@
 ### Task 1: Define The Draft Port
 
 **Files:**
+
 - Modify: `src/features/channels/contracts.ts`
 - Test: `src/features/channels/contracts.test.ts`
 
@@ -39,6 +40,7 @@ Add `ChannelDraft`, `SaveChannelDraftRequest`, and `ChannelDraftClient`. Do not 
 ### Task 2: Persist Drafts In Electron Main
 
 **Files:**
+
 - Create: `electron/services/channelDrafts.ts`
 - Create: `electron/services/channelDrafts.test.ts`
 - Create: `electron/ipc/channelDraftCommands.ts`
@@ -69,6 +71,7 @@ Add `list_im_channel_drafts`, `save_im_channel_draft`, and `remove_im_channel_dr
 ### Task 3: Add Renderer Draft Clients
 
 **Files:**
+
 - Create: `src/infrastructure/channels/ElectronChannelDraftClient.ts`
 - Create: `src/infrastructure/channels/ElectronChannelDraftClient.test.ts`
 - Create: `src/infrastructure/channels/MemoryChannelDraftClient.ts`
@@ -93,6 +96,7 @@ Run: `npx vitest run src/infrastructure/channels/ElectronChannelDraftClient.test
 ### Task 4: Make The Store The Draft Workflow Owner
 
 **Files:**
+
 - Modify: `src/features/channels/store.ts`
 - Modify: `src/features/channels/store.test.ts`
 
@@ -113,6 +117,7 @@ Load after the connected status exposes `accountRef`; clear projections on accou
 ### Task 5: Convert The Composer To Controlled State
 
 **Files:**
+
 - Modify: `src/features/channels/components/ChannelTimeline.vue`
 - Modify: `src/features/channels/components/ChannelTimeline.test.ts`
 - Modify: `src/app/components/ChannelWorkspace.vue`
@@ -134,6 +139,7 @@ Run: `npx vitest run src/features/channels/components/ChannelTimeline.test.ts sr
 ### Task 6: Show Slack-Style Draft Previews
 
 **Files:**
+
 - Modify: `src/features/channels/components/ChannelSidebar.vue`
 - Modify: `src/features/channels/components/ChannelSidebar.test.ts`
 - Modify: `src/locales/en.ts`
@@ -157,7 +163,8 @@ Run: `npx vitest run src/features/channels/components/ChannelSidebar.test.ts`.
 ### Task 7: Document And Verify
 
 **Files:**
-- Create: `docs/adr/0034-durable-im-channel-drafts.md`
+
+- Create: `docs/adr/0040-durable-im-channel-drafts.md`
 
 **Step 1: Record the decision**
 
