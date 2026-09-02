@@ -81,7 +81,7 @@ describe('ChannelMediaViewer', () => {
         media: { url: 'https://media.example.test/demo.mp4', name: 'demo.mp4' },
       },
     }
-    const wrapper = mountViewer(videoMessage)
+    mountViewer(videoMessage)
     const video = getTeleportedElement('video')
     expect(video.attributes('controls')).toBeDefined()
 

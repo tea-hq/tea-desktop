@@ -128,7 +128,8 @@ function mediaSize(content: MediaContent): string {
 }
 
 function mediaOpenLabel(content: Extract<MediaContent, { kind: 'image' | 'video' }>): string {
-  return t(`channels.message.media.${content.kind === 'image' ? 'openImage' : 'openVideo'}`)
+  if (content.kind === 'image') return t('channels.message.media.openImage')
+  return t('channels.message.media.openVideo')
 }
 
 function mediaAspectRatio(content: MediaContent): string {
