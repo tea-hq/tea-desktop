@@ -19,6 +19,7 @@ import type {
   ChannelDraft,
   ChannelMember,
   ChannelPresence,
+  ChannelVoiceTranscript,
   ForwardMessageMode,
   Message,
   MessageReceiptDetails,
@@ -177,6 +178,50 @@ const messages: Message[] = [
     receipt: { readCount: 12, unreadCount: 5 },
   },
 ]
+const voiceMessage: Message = {
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-voice',
+    messageServerId: 'server-voice',
+  },
+  sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
+  sentAt: 1_787_843_600_000,
+  text: '[audio: release-update.aac]',
+  content: {
+    kind: 'audio',
+    caption: 'Release readiness update',
+    media: { name: 'release-update.aac', mimeType: 'audio/aac', durationMs: 18_000 },
+  },
+  state: 'active',
+  sentByCurrentUser: false,
+  pinned: false,
+  reactions: [],
+}
+const isVoiceFixture = computed(() => fixture.value.startsWith('voice-transcription-'))
+const fixtureVoiceTranscripts = computed<ChannelVoiceTranscript[]>(() => {
+  if (!isVoiceFixture.value || fixture.value === 'voice-transcription-idle') return []
+  if (fixture.value === 'voice-transcription-loading') {
+    return [{ messageRef: voiceMessage.ref, status: 'loading', retryable: false }]
+  }
+  if (fixture.value === 'voice-transcription-error') {
+    return [
+      {
+        messageRef: voiceMessage.ref,
+        status: 'failed',
+        errorCode: 'transport',
+        retryable: true,
+      },
+    ]
+  }
+  return [
+    {
+      messageRef: voiceMessage.ref,
+      status: 'ready',
+      text: 'The release candidate is ready. Please review the rollout checklist before 4 PM.',
+      retryable: false,
+    },
+  ]
+})
 const outgoingAttempts = computed<OutgoingMessageAttempt[]>(() => {
   if (!fixture.value.startsWith('message-delivery')) return []
   const base = {
@@ -302,7 +347,11 @@ const nestedMergedMessage: Message = {
 }
 const archivedMessages: Message[] = [messages[0]!, messages[1]!, nestedMergedMessage]
 const timelineMessages = computed(() =>
-  fixture.value === 'merged-card' ? [...messages, mergedMessage] : messages,
+  fixture.value === 'merged-card'
+    ? [...messages, mergedMessage]
+    : isVoiceFixture.value
+      ? [...messages, voiceMessage]
+      : messages,
 )
 const selectingMessages = ref(fixture.value === 'message-selection')
 const selectedMessageKeys = computed(() =>
@@ -699,6 +748,8 @@ function retryFixtureMergedMessages(): void {
         :channel="fixtureActiveChannel"
         :presence="fixtureActiveChannel.kind === 'direct' ? fixturePresences[0] : null"
         :messages="timelineMessages"
+        :voice-transcripts="fixtureVoiceTranscripts"
+        :voice-transcription-available="isVoiceFixture"
         :outgoing-attempts="outgoingAttempts"
         :panel-open="drawerOpen"
         :loading="false"
@@ -723,6 +774,7 @@ function retryFixtureMergedMessages(): void {
         @forward-selection="openFixtureForwarding"
         @open-merged="openFixtureMergedMessage"
         @open-receipt-details="receiptDetailsOpen = true"
+        @transcribe-voice="() => undefined"
         @update-draft="imDraftText = $event.text"
         @retry-outgoing="() => undefined"
         @cancel-outgoing="() => undefined"

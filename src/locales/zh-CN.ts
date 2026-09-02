@@ -734,6 +734,13 @@ export default {
       editLabel: '消息内容',
       replyReference: '引用的消息',
       image: '图片',
+      voice: {
+        action: '转写语音',
+        loading: '正在转写语音',
+        label: '语音转写',
+        failed: '语音转写失败（{code}）。',
+        retry: '重试转写',
+      },
       replyingTo: '回复 {name}',
       cancelReply: '取消回复',
       reactionTitle: '添加反应',

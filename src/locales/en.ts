@@ -772,6 +772,13 @@ export default {
       editLabel: 'Message text',
       replyReference: 'Referenced message',
       image: 'Image',
+      voice: {
+        action: 'Transcribe audio',
+        loading: 'Transcribing audio',
+        label: 'Transcript',
+        failed: 'Could not transcribe audio ({code}).',
+        retry: 'Retry transcription',
+      },
       replyingTo: 'Replying to {name}',
       cancelReply: 'Cancel reply',
       reactionTitle: 'Add a reaction',

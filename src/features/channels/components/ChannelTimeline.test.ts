@@ -33,11 +33,60 @@ const selectedMessage: Message = {
   reactions: [],
 }
 
+const voiceMessage: Message = {
+  ...selectedMessage,
+  ref: { channelRef: channel.ref, messageClientId: 'message-voice' },
+  text: '[audio: release-update.aac]',
+  content: {
+    kind: 'audio',
+    caption: 'Release update',
+    media: { name: 'release-update.aac', durationMs: 2_400 },
+  },
+}
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
 
 describe('ChannelTimeline selection mode', () => {
+  it('routes message-scoped transcription intent and projection', async () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [voiceMessage],
+        voiceTranscriptionAvailable: true,
+        voiceTranscripts: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    await wrapper.get('button[aria-label="Transcribe audio"]').trigger('click')
+    expect(wrapper.emitted('transcribeVoice')).toEqual([[voiceMessage]])
+
+    await wrapper.setProps({
+      voiceTranscripts: [
+        {
+          messageRef: voiceMessage.ref,
+          status: 'ready',
+          text: 'Review the release plan.',
+          retryable: false,
+        },
+      ],
+    })
+    expect(wrapper.get('[data-voice-transcript]').text()).toContain('Review the release plan.')
+    wrapper.unmount()
+  })
+
   it('shows availability in a direct header and omits it from a group header', async () => {
     const direct: Channel = {
       ...channel,

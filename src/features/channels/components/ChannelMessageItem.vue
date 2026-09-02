@@ -5,7 +5,7 @@ import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 import { TeaButton, TeaCheckbox } from '@/shared/ui'
 import type { ConversationSummary } from '@/features/conversation/contracts'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
-import type { Message } from '../contracts'
+import type { ChannelVoiceTranscript, Message } from '../contracts'
 import ChannelMessageActions from './ChannelMessageActions.vue'
 import ChannelMergedMessageCard from './ChannelMergedMessageCard.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
@@ -23,8 +23,17 @@ const props = withDefaults(
     interactive?: boolean
     selectionMode?: boolean
     selected?: boolean
+    voiceTranscript?: ChannelVoiceTranscript | null
+    voiceTranscriptionAvailable?: boolean
   }>(),
-  { highlighted: false, interactive: true, selectionMode: false, selected: false },
+  {
+    highlighted: false,
+    interactive: true,
+    selectionMode: false,
+    selected: false,
+    voiceTranscript: null,
+    voiceTranscriptionAvailable: false,
+  },
 )
 const emit = defineEmits<{
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
@@ -32,6 +41,7 @@ const emit = defineEmits<{
   toggleSelection: []
   openMerged: []
   openReceiptDetails: []
+  transcribeVoice: []
 }>()
 const { t } = useI18n()
 
@@ -196,6 +206,76 @@ function selectMessage(): void {
               <p v-if="message.content.caption" class="mt-1 text-sm leading-5 text-fg">
                 {{ message.content.caption }}
               </p>
+              <div
+                v-if="
+                  message.content.kind === 'audio' &&
+                  (voiceTranscript ||
+                    (voiceTranscriptionAvailable && interactive && !selectionMode))
+                "
+                class="mt-2 min-w-0 border-t border-line-soft pt-1.5"
+              >
+                <div
+                  v-if="voiceTranscript?.status === 'loading'"
+                  class="flex min-h-8 items-center gap-2 text-xs text-subtle"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span
+                    class="i-mdi-loading size-4 shrink-0 animate-spin motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                  <span>{{ t('channels.message.voice.loading') }}</span>
+                </div>
+                <div
+                  v-else-if="voiceTranscript?.status === 'ready'"
+                  class="min-w-0 py-1"
+                  data-voice-transcript
+                >
+                  <div class="flex items-center gap-1.5 text-xs font-semibold text-dim">
+                    <span class="i-mdi-text-box-outline size-4 shrink-0" aria-hidden="true" />
+                    <span>{{ t('channels.message.voice.label') }}</span>
+                  </div>
+                  <p class="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-fg">
+                    {{ voiceTranscript.text }}
+                  </p>
+                </div>
+                <div
+                  v-else-if="voiceTranscript?.status === 'failed'"
+                  class="flex min-h-8 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-danger"
+                  role="alert"
+                >
+                  <span class="i-mdi-alert-circle-outline size-4 shrink-0" aria-hidden="true" />
+                  <span class="min-w-0 break-words">
+                    {{
+                      t('channels.message.voice.failed', {
+                        code: voiceTranscript.errorCode || 'transport',
+                      })
+                    }}
+                  </span>
+                  <TeaButton
+                    v-if="voiceTranscript.retryable && interactive && !selectionMode"
+                    appearance="ghost"
+                    size="small"
+                    class="min-h-7 px-2 text-xs"
+                    :aria-label="t('channels.message.voice.retry')"
+                    @click.stop="emit('transcribeVoice')"
+                  >
+                    <span class="i-mdi-refresh size-3.5" aria-hidden="true" />
+                    {{ t('channels.message.voice.retry') }}
+                  </TeaButton>
+                </div>
+                <TeaButton
+                  v-else
+                  appearance="ghost"
+                  size="small"
+                  class="min-h-7 px-2 text-xs"
+                  :aria-label="t('channels.message.voice.action')"
+                  @click.stop="emit('transcribeVoice')"
+                >
+                  <span class="i-mdi-text-box-search-outline size-4" aria-hidden="true" />
+                  {{ t('channels.message.voice.action') }}
+                </TeaButton>
+              </div>
             </template>
             <MarkdownContent v-else :source="message.text" compact tone="default" />
           </div>

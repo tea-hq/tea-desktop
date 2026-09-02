@@ -130,6 +130,12 @@ const reactionOptions = [
   { type: 6, label: '👀' },
 ] as const
 
+const voiceTranscriptionAvailable = computed(() =>
+  channels.capabilities.some(
+    (capability) => capability.id === 'message.voice.transcribe' && capability.available,
+  ),
+)
+
 function handleChannelSelect(channelRef: ChannelRef): void {
   mentionMembersGeneration += 1
   mentionMembers.value = []
@@ -346,6 +352,10 @@ async function openReceiptDetails(message: Message): Promise<void> {
 
 function retryReceiptDetails(): void {
   if (receiptDetailsMessage.value) void openReceiptDetails(receiptDetailsMessage.value)
+}
+
+function transcribeVoice(message: Message): void {
+  void channels.transcribeVoice(message.ref).catch(() => undefined)
 }
 
 async function pickChannelAttachments(): Promise<void> {
@@ -690,6 +700,8 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :messages="channels.activeMessages"
     :outgoing-attempts="channels.activeOutgoingAttempts"
     :presence="channels.activePresence"
+    :voice-transcripts="channels.activeVoiceTranscripts"
+    :voice-transcription-available="voiceTranscriptionAvailable"
     :highlighted-message-key="channels.highlightedMessageKey"
     :panel-open="settings.agentDrawerOpen"
     :loading="channels.loadingMessages"
@@ -738,6 +750,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @open-merged="openMergedMessage"
     @request-mention-members="loadMentionMembers"
     @open-receipt-details="openReceiptDetails"
+    @transcribe-voice="transcribeVoice"
     @update-draft="updateChannelDraft"
     @retry-outgoing="retryOutgoingMessage"
     @cancel-outgoing="cancelOutgoingMessage"

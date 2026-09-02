@@ -9,6 +9,7 @@ import type {
   ChannelAttachment,
   ChannelMember,
   ChannelPresence,
+  ChannelVoiceTranscript,
   Message,
   MessageMention,
   MessageMentionTarget,
@@ -18,6 +19,7 @@ import type { ForwardMessageMode } from '../contracts'
 import { collectMessageMentions, type SelectedMessageMention } from '../messageMentions'
 import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
 import { messageSelectionKey } from '../useChannelMessageSelection'
+import { sameMessage } from '../projection'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 import ChannelOutgoingMessageItem from './ChannelOutgoingMessageItem.vue'
 import ChannelPresenceIndicator from './ChannelPresenceIndicator.vue'
@@ -58,6 +60,8 @@ const props = withDefaults(
     draftErrorCode?: string | null
     draftHasUnresolvedDelivery?: boolean
     presence?: ChannelPresence | null
+    voiceTranscripts?: ChannelVoiceTranscript[]
+    voiceTranscriptionAvailable?: boolean
   }>(),
   {
     replyTo: null,
@@ -78,6 +82,8 @@ const props = withDefaults(
     draftHasUnresolvedDelivery: false,
     outgoingAttempts: () => [],
     presence: null,
+    voiceTranscripts: () => [],
+    voiceTranscriptionAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -118,6 +124,7 @@ const emit = defineEmits<{
   retryOutgoing: [attemptId: string]
   cancelOutgoing: [attemptId: string]
   dismissOutgoing: [attemptId: string]
+  transcribeVoice: [message: Message]
 }>()
 const { t } = useI18n()
 const selectedMentions = ref<SelectedMessageMention[]>([])
@@ -133,6 +140,13 @@ interface MentionOption {
   label: string
   name: string
   detail: string
+}
+
+function voiceTranscript(message: Message): ChannelVoiceTranscript | null {
+  return (
+    props.voiceTranscripts.find((transcript) => sameMessage(transcript.messageRef, message.ref)) ??
+    null
+  )
 }
 
 const mentionContext = computed(() => {
@@ -484,11 +498,14 @@ watch(
           :default-runtime-id="defaultRuntimeId"
           :selection-mode="selectionMode"
           :selected="isMessageSelected(message)"
+          :voice-transcript="voiceTranscript(message)"
+          :voice-transcription-available="voiceTranscriptionAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
           @action="(action) => emit('messageAction', { message, action })"
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
           @open-receipt-details="emit('openReceiptDetails', message)"
+          @transcribe-voice="emit('transcribeVoice', message)"
         />
         <ChannelOutgoingMessageItem
           v-for="attempt in outgoingAttempts"
