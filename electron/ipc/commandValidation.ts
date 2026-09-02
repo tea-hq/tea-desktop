@@ -19,6 +19,18 @@ export function readString(value: unknown, name: string): string {
   return value
 }
 
+export function readOptionalBoolean(value: unknown, name: string): boolean | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'boolean') {
+    throw {
+      code: 'invalidRequest',
+      retryable: false,
+      message: `${name} must be a boolean`,
+    }
+  }
+  return value
+}
+
 export function readInteger(value: unknown, name: string): number {
   if (!Number.isInteger(value)) {
     throw {

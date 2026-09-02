@@ -10,7 +10,7 @@ import type {
   EnterpriseDirectory,
 } from '../../src/features/auth/contracts'
 import { SIGNED_OUT_STATE } from '../../src/features/auth/contracts'
-import type { DirectoryUser } from '../../src/features/directory/contracts'
+import type { DirectoryListOptions, DirectoryUser } from '../../src/features/directory/contracts'
 import { JsonStore } from './jsonStore'
 import {
   handoffProofPayload,
@@ -45,6 +45,20 @@ interface PendingLogin {
   callbackPath: string
 }
 
+interface DirectoryCache {
+  tenantId: string
+  fetchedAt: number
+  users: DirectoryUser[]
+}
+
+interface DirectoryRequest {
+  tenantId: string
+  generation: number
+  operation: Promise<{ schemaVersion: 1; users: DirectoryUser[] }>
+}
+
+const DIRECTORY_CACHE_TTL_MS = 30_000
+
 export type AuthStateEmitter = (state: CenterAuthState) => void
 
 export class ElectronCenterAuthService {
@@ -54,10 +68,14 @@ export class ElectronCenterAuthService {
   private accessToken: string | null = null
   private pending: PendingLogin | null = null
   private generation = 0
+  private directoryCache: DirectoryCache | null = null
+  private directoryRequest: DirectoryRequest | null = null
+  private directoryGeneration = 0
 
   constructor(
     filePath: string,
     private readonly emitState: AuthStateEmitter,
+    private readonly now: () => number = Date.now,
   ) {
     this.store = new JsonStore(filePath, {
       schemaVersion: 1,
@@ -176,6 +194,7 @@ export class ElectronCenterAuthService {
     ++this.generation
     this.pending?.server.close()
     this.pending = null
+    this.clearDirectoryCache()
     this.setState({
       phase: 'signedOut',
       bootstrap: null,
@@ -209,6 +228,7 @@ export class ElectronCenterAuthService {
   async logout(): Promise<CenterAuthState> {
     const token = this.accessToken
     this.accessToken = null
+    this.clearDirectoryCache()
     await this.cancelLogin()
     if (token)
       await this.request('/v1/endpoint-sessions/current', {
@@ -254,15 +274,55 @@ export class ElectronCenterAuthService {
     return centerOrigin()
   }
 
-  async listDirectoryUsers(): Promise<{
+  async listDirectoryUsers(options: DirectoryListOptions = {}): Promise<{
     schemaVersion: number
     users: DirectoryUser[]
   }> {
-    const response = await this.authenticatedRequest<{
-      schemaVersion: number
-      users: DirectoryUser[]
-    }>('/v1/endpoint/directory/users')
-    return response
+    const tenantId = this.state.bootstrap?.tenant.id
+    if (!tenantId) throw serviceError('recoveryRequired', false)
+    const forceRefresh = options.forceRefresh === true
+    const generation = this.directoryGeneration
+    const cached = this.directoryCache
+    const age = cached ? this.now() - cached.fetchedAt : Number.POSITIVE_INFINITY
+    if (
+      !forceRefresh &&
+      cached?.tenantId === tenantId &&
+      age >= 0 &&
+      age < DIRECTORY_CACHE_TTL_MS
+    ) {
+      return cloneDirectoryResponse(cached.users)
+    }
+    const currentRequest = this.directoryRequest
+    if (currentRequest?.tenantId === tenantId && currentRequest.generation === generation) {
+      return structuredClone(await currentRequest.operation)
+    }
+
+    const operation = (async (): Promise<{ schemaVersion: 1; users: DirectoryUser[] }> => {
+      const response = await this.authenticatedRequest<unknown>('/v1/endpoint/directory/users')
+      const normalized = normalizeDirectoryUsersResponse(response, this.state.bootstrap?.tenant)
+      if (generation === this.directoryGeneration && this.state.bootstrap?.tenant.id === tenantId) {
+        this.directoryCache = {
+          tenantId,
+          fetchedAt: this.now(),
+          users: structuredClone(normalized.users),
+        }
+      }
+      return normalized
+    })()
+    const request: DirectoryRequest = { tenantId, generation, operation }
+    this.directoryRequest = request
+    try {
+      return structuredClone(await operation)
+    } finally {
+      if (this.directoryRequest === request) this.directoryRequest = null
+    }
+  }
+
+  async isDirectoryContact(accountId: string): Promise<boolean> {
+    const target = accountId.trim()
+    if (!target || target.length > 128) return false
+    const response = await this.listDirectoryUsers()
+    return response.users.some((user) => user.im?.account === target)
   }
 
   async listAgentRoles(): Promise<unknown> {
@@ -420,6 +480,7 @@ export class ElectronCenterAuthService {
   }
 
   private async acceptBootstrap(bootstrap: EndpointBootstrap): Promise<void> {
+    this.clearDirectoryCache()
     const enterprise: EnterpriseDirectory = {
       organizationDomain: bootstrap.tenant.domain,
       displayName: bootstrap.tenant.displayName,
@@ -430,7 +491,7 @@ export class ElectronCenterAuthService {
       phase: 'authenticated',
       enterprise,
       bootstrap,
-      lastValidatedAt: Date.now(),
+      lastValidatedAt: this.now(),
       errorCode: null,
     }
     this.file.cachedState = structuredClone(this.state)
@@ -440,6 +501,7 @@ export class ElectronCenterAuthService {
 
   private async invalidate(error: unknown): Promise<void> {
     this.accessToken = null
+    this.clearDirectoryCache()
     this.file.encryptedRefresh = undefined
     this.file.cachedState = undefined
     await this.persist()
@@ -498,6 +560,11 @@ export class ElectronCenterAuthService {
 
   private async persist(): Promise<void> {
     await this.store.save(this.file)
+  }
+
+  private clearDirectoryCache(): void {
+    this.directoryGeneration += 1
+    this.directoryCache = null
   }
 
   private async request<T = unknown>(
@@ -615,6 +682,109 @@ function isAbortError(error: unknown): boolean {
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function cloneDirectoryResponse(users: DirectoryUser[]): {
+  schemaVersion: 1
+  users: DirectoryUser[]
+} {
+  return { schemaVersion: 1, users: structuredClone(users) }
+}
+
+export function normalizeDirectoryUsersResponse(
+  value: unknown,
+  expectedTenant?: { id: string; domain: string; displayName: string },
+): { schemaVersion: 1; users: DirectoryUser[] } {
+  if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.users))
+    throw serviceError('protocolFailure', false)
+  if (value.users.length > 10_000) throw serviceError('protocolFailure', false)
+  const users: DirectoryUser[] = []
+  const centerIds = new Set<string>()
+  const accounts = new Set<string>()
+  for (const candidate of value.users) {
+    if (!isRecord(candidate)) throw serviceError('protocolFailure', false)
+    const tenant = readDirectoryTenant(candidate.tenant)
+    const center = readDirectoryCenter(candidate.center)
+    const oidc = readDirectoryOidc(candidate.oidc)
+    const im = readDirectoryIm(candidate.im)
+    if (
+      expectedTenant &&
+      (tenant.id !== expectedTenant.id || tenant.domain !== expectedTenant.domain)
+    )
+      throw serviceError('protocolFailure', false)
+    if (centerIds.has(center.userId) || accounts.has(im.account))
+      throw serviceError('protocolFailure', false)
+    centerIds.add(center.userId)
+    accounts.add(im.account)
+    users.push({ tenant, center, oidc, im })
+  }
+  return { schemaVersion: 1, users }
+}
+
+function readDirectoryTenant(value: unknown): DirectoryUser['tenant'] {
+  if (!isRecord(value)) throw serviceError('protocolFailure', false)
+  const id = requiredDirectoryText(value.id, 128)
+  const domain = requiredDirectoryText(value.domain, 253).toLocaleLowerCase('en')
+  const displayName = requiredDirectoryText(value.displayName, 200)
+  if (!/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(domain))
+    throw serviceError('protocolFailure', false)
+  return { id, domain, displayName }
+}
+
+function readDirectoryCenter(value: unknown): DirectoryUser['center'] {
+  if (!isRecord(value)) throw serviceError('protocolFailure', false)
+  return {
+    userId: requiredDirectoryText(value.userId, 128),
+    displayName: requiredDirectoryText(value.displayName, 200),
+  }
+}
+
+function readDirectoryOidc(value: unknown): DirectoryUser['oidc'] {
+  if (!isRecord(value) || typeof value.emailVerified !== 'boolean')
+    throw serviceError('protocolFailure', false)
+  const avatarUrl = optionalDirectoryAvatar(value.avatarUrl)
+  const email = optionalDirectoryText(value.email, 320)
+  return {
+    subject: requiredDirectoryText(value.subject, 512),
+    preferredUsername: requiredDirectoryText(value.preferredUsername, 320),
+    ...(email ? { email } : {}),
+    emailVerified: value.emailVerified,
+    ...(avatarUrl ? { avatarUrl } : {}),
+  }
+}
+
+function readDirectoryIm(value: unknown): { provider: 'yunxin'; account: string; status: string } {
+  if (!isRecord(value) || value.provider !== 'yunxin') throw serviceError('protocolFailure', false)
+  return {
+    provider: 'yunxin',
+    account: requiredDirectoryText(value.account, 128),
+    status: requiredDirectoryText(value.status, 64),
+  }
+}
+
+function requiredDirectoryText(value: unknown, maximum: number): string {
+  const result = optionalDirectoryText(value, maximum)
+  if (!result) throw serviceError('protocolFailure', false)
+  return result
+}
+
+function optionalDirectoryText(value: unknown, maximum: number): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const result = value.trim()
+  if (!result || result.length > maximum || /[\u0000-\u001f\u007f]/.test(result)) return undefined
+  return result
+}
+
+function optionalDirectoryAvatar(value: unknown): string | undefined {
+  const result = optionalDirectoryText(value, 2_048)
+  if (!result) return undefined
+  try {
+    const url = new URL(result)
+    if (url.protocol !== 'https:' || url.username || url.password) return undefined
+    return url.toString()
+  } catch {
+    return undefined
+  }
 }
 function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
   if (!server.listening) return Promise.resolve()

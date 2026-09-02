@@ -30,7 +30,11 @@ export async function verifyTransportContract(transport: ChannelTransport): Prom
   expect(page.items).toEqual([...page.items].sort((left, right) => left.sentAt - right.sentAt))
   await transport.markRead(channelRef)
 
-  const request = { channelRef, text: 'contract message', idempotencyKey: 'contract-key' }
+  const request = {
+    channelRef,
+    content: { kind: 'text' as const, text: 'contract message' },
+    idempotencyKey: 'contract-key',
+  }
   const first = await transport.sendMessage(request)
   const duplicate = await transport.sendMessage(request)
   expect(duplicate).toEqual(first)

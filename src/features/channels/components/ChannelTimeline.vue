@@ -4,28 +4,55 @@ import { useI18n } from 'vue-i18n'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 import { TeaButton, TeaIconButton, TeaTextarea } from '@/shared/ui'
 
-import type { Channel, ChannelUserProfile, Message } from '../contracts'
+import type { Channel, ChannelAttachment, Message } from '../contracts'
+import type { ForwardMessageMode } from '../contracts'
+import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
+import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelMessageItem from './ChannelMessageItem.vue'
+import type { MessageAction } from './ChannelMessageActions.vue'
 import {
   isTimelineNearBottom,
   restorePrependScrollTop,
   type TimelineScrollSnapshot,
 } from './channelTimelineScroll'
 
-const props = defineProps<{
-  channel: Channel
-  messages: Message[]
-  panelOpen: boolean
-  loading: boolean
-  hasMore: boolean
-  sending: boolean
-  activeConversation: ConversationSummary | null
-  recentConversations: ConversationSummary[]
-  currentSessionAvailable: boolean
-  runtimes: RuntimeDescriptor[]
-  defaultRuntimeId: string | null
-  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
-}>()
+const props = withDefaults(
+  defineProps<{
+    channel: Channel
+    messages: Message[]
+    panelOpen: boolean
+    loading: boolean
+    hasMore: boolean
+    hasMoreNewer?: boolean
+    highlightedMessageKey?: string | null
+    sending: boolean
+    activeConversation: ConversationSummary | null
+    recentConversations: ConversationSummary[]
+    currentSessionAvailable: boolean
+    runtimes: RuntimeDescriptor[]
+    defaultRuntimeId: string | null
+    replyTo?: Message | null
+    attachments?: ChannelAttachment[]
+    sendingProgress?: number
+    selectionMode?: boolean
+    selectedMessageKeys?: string[]
+    selectedCount?: number
+    canForwardIndividual?: boolean
+    canForwardMerged?: boolean
+  }>(),
+  {
+    replyTo: null,
+    hasMoreNewer: false,
+    highlightedMessageKey: null,
+    attachments: () => [],
+    sendingProgress: 0,
+    selectionMode: false,
+    selectedMessageKeys: () => [],
+    selectedCount: 0,
+    canForwardIndividual: false,
+    canForwardMerged: false,
+  },
+)
 const emit = defineEmits<{
   forwardToAgent: [
     payload: {
@@ -34,9 +61,23 @@ const emit = defineEmits<{
       id?: string
     },
   ]
+  messageAction: [payload: { message: Message; action: MessageAction }]
   togglePanel: []
-  send: [text: string]
+  send: [payload: { text: string; replyTo: Message | null; attachments: ChannelAttachment[] }]
+  pickAttachments: []
+  removeAttachment: [token: string]
+  cancelReply: []
+  showDetails: []
   loadMore: []
+  loadNewer: []
+  refreshMessages: []
+  openSearch: []
+  openPinned: []
+  toggleMessageSelection: [message: Message]
+  selectAllVisible: []
+  cancelSelection: []
+  forwardSelection: [mode: ForwardMessageMode]
+  openMerged: [message: Message]
 }>()
 const { t } = useI18n()
 const draft = ref('')
@@ -45,9 +86,24 @@ const initialScrollPending = ref(true)
 const prependSnapshot = ref<(TimelineScrollSnapshot & { messageCount: number }) | null>(null)
 
 function submitMessage(): void {
-  if (!draft.value.trim()) return
-  emit('send', draft.value.trim())
+  if (!draft.value.trim() && !props.attachments.length) return
+  emit('send', {
+    text: draft.value.trim(),
+    replyTo: props.replyTo,
+    attachments: props.attachments,
+  })
   draft.value = ''
+}
+
+function attachmentIcon(kind: ChannelAttachment['kind']): string {
+  if (kind === 'image') return 'i-mdi-image-outline'
+  if (kind === 'audio') return 'i-mdi-music-note-outline'
+  if (kind === 'video') return 'i-mdi-video-outline'
+  return 'i-mdi-file-outline'
+}
+
+function isMessageSelected(message: Message): boolean {
+  return props.selectedMessageKeys.includes(messageSelectionKey(message))
 }
 
 function requestOlderMessages(): void {
@@ -111,12 +167,28 @@ watch(
     prependSnapshot.value = null
   },
 )
+
+watch(
+  () => props.highlightedMessageKey,
+  async (value) => {
+    if (!value) return
+    await nextTick()
+    const element = container.value
+    const target = element
+      ? [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find(
+          (candidate) => candidate.dataset.messageKey === value,
+        )
+      : undefined
+    if (target && typeof target.scrollIntoView === 'function')
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  },
+)
 </script>
 
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-canvas px-4 sm:px-6"
+      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
     >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -133,11 +205,30 @@ watch(
         <p class="mt-0.5 truncate text-sm text-subtle">{{ channel.description }}</p>
       </div>
       <div class="flex items-center gap-1">
-        <TeaIconButton size="small" :label="t('channels.searchInChannel')" icon="i-mdi-magnify" />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.searchInChannel')"
+          icon="i-mdi-magnify"
+          @click="emit('openSearch')"
+        />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.pinned.open')"
+          icon="i-mdi-pin-outline"
+          @click="emit('openPinned')"
+        />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.refreshMessages')"
+          icon="i-mdi-refresh"
+          :disabled="loading"
+          @click="emit('refreshMessages')"
+        />
         <TeaIconButton
           size="small"
           :label="t('channels.channelDetails')"
           icon="i-mdi-information-outline"
+          @click="emit('showDetails')"
         />
         <TeaIconButton
           size="small"
@@ -187,20 +278,133 @@ watch(
           v-for="(message, index) in messages"
           :key="message.ref.messageServerId || message.ref.messageClientId"
           :message="message"
+          :highlighted="
+            highlightedMessageKey ===
+            `${message.ref.channelRef}:${message.ref.messageServerId || message.ref.messageClientId}`
+          "
           :menu-open-up="index >= messages.length - 2"
           :active-conversation="activeConversation"
           :recent-conversations="recentConversations"
           :current-session-available="currentSessionAvailable"
           :runtimes="runtimes"
           :default-runtime-id="defaultRuntimeId"
-          :user-profiles="userProfiles"
+          :selection-mode="selectionMode"
+          :selected="isMessageSelected(message)"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
+          @action="(action) => emit('messageAction', { message, action })"
+          @toggle-selection="emit('toggleMessageSelection', message)"
+          @open-merged="emit('openMerged', message)"
         />
+        <div v-if="hasMoreNewer" class="flex justify-center pt-2">
+          <TeaButton appearance="ghost" size="small" :disabled="loading" @click="emit('loadNewer')">
+            {{ loading ? t('channels.history.loadingNewer') : t('channels.history.loadNewer') }}
+          </TeaButton>
+        </div>
       </div>
     </div>
 
-    <div class="channel-composer-bar shrink-0 px-3 py-2.5 sm:px-4">
+    <div v-if="selectionMode" class="channel-selection-bar shrink-0 px-3 py-2.5 sm:px-4">
+      <div class="channel-selection-shell mx-auto w-full max-w-4xl">
+        <div class="flex min-w-0 items-center gap-2">
+          <TeaIconButton
+            size="small"
+            :label="t('channels.selection.cancel')"
+            icon="i-mdi-close"
+            @click="emit('cancelSelection')"
+          />
+          <span class="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
+            {{
+              t('channels.selection.count', { count: selectedCount, limit: FORWARD_MESSAGE_LIMIT })
+            }}
+          </span>
+          <TeaButton appearance="ghost" size="small" @click="emit('selectAllVisible')">
+            {{ t('channels.selection.selectAll') }}
+          </TeaButton>
+        </div>
+        <div class="channel-selection-actions flex items-center justify-end gap-2">
+          <TeaButton
+            size="small"
+            :disabled="!canForwardIndividual"
+            @click="emit('forwardSelection', 'individual')"
+          >
+            <span class="i-mdi-forward size-4" aria-hidden="true" />
+            {{ t('channels.selection.individual') }}
+          </TeaButton>
+          <TeaButton
+            appearance="primary"
+            size="small"
+            :disabled="!canForwardMerged"
+            @click="emit('forwardSelection', 'merged')"
+          >
+            <span class="i-mdi-file-multiple-outline size-4" aria-hidden="true" />
+            {{ t('channels.selection.merged') }}
+          </TeaButton>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="channel-composer-bar relative shrink-0 px-3 py-2.5 sm:px-4">
       <div class="channel-composer-shell mx-auto flex w-full max-w-4xl items-end gap-2">
+        <div
+          v-if="replyTo"
+          class="absolute mb-[3.25rem] flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-card border border-line bg-panel px-3 py-2 text-xs text-subtle"
+        >
+          <span class="i-mdi-reply-outline size-4 shrink-0" aria-hidden="true" />
+          <span class="min-w-0 flex-1 truncate">
+            {{ t('channels.message.replyingTo', { name: replyTo.sender.name }) }}:
+            {{ replyTo.text }}
+          </span>
+          <TeaIconButton
+            size="small"
+            :label="t('channels.message.cancelReply')"
+            icon="i-mdi-close"
+            @click="emit('cancelReply')"
+          />
+        </div>
+        <div
+          v-if="attachments.length"
+          class="absolute bottom-full left-3 right-3 mb-2 flex max-w-4xl flex-wrap gap-1.5 rounded-card border border-line bg-panel px-2 py-1.5 sm:left-4 sm:right-4 sm:mx-auto"
+        >
+          <div
+            v-for="attachment in attachments"
+            :key="attachment.token"
+            class="flex min-w-0 max-w-full items-center gap-1 rounded-pill bg-muted px-2 py-1 text-xs text-fg"
+          >
+            <span
+              :class="[attachmentIcon(attachment.kind), 'size-3.5 shrink-0']"
+              aria-hidden="true"
+            />
+            <span class="max-w-48 truncate">{{ attachment.name }}</span>
+            <TeaIconButton
+              size="small"
+              :label="t('channels.composer.removeAttachment', { name: attachment.name })"
+              icon="i-mdi-close"
+              @click="emit('removeAttachment', attachment.token)"
+            />
+          </div>
+        </div>
+        <div
+          v-if="sending && sendingProgress > 0 && sendingProgress < 100"
+          class="absolute bottom-full left-3 right-3 mb-1 h-1 overflow-hidden rounded-pill bg-muted sm:left-4 sm:right-4 sm:mx-auto sm:max-w-4xl"
+          role="progressbar"
+          :aria-valuenow="sendingProgress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-label="t('channels.composer.uploadProgress')"
+        >
+          <span
+            class="block h-full bg-fg transition-[width]"
+            :style="{ width: `${sendingProgress}%` }"
+          />
+        </div>
+        <TeaIconButton
+          class="channel-composer-attach"
+          size="small"
+          :label="t('channels.composer.addAttachment')"
+          icon="i-mdi-paperclip"
+          :disabled="sending"
+          @click="emit('pickAttachments')"
+        />
         <TeaTextarea
           v-model="draft"
           class="channel-composer-input min-w-0 flex-1"
@@ -218,7 +422,7 @@ watch(
           :label="t('channels.composer.send')"
           icon="i-mdi-arrow-up"
           appearance="primary"
-          :disabled="!draft.trim() || sending"
+          :disabled="(!draft.trim() && !attachments.length) || sending"
           @click="submitMessage"
         />
       </div>
@@ -229,7 +433,19 @@ watch(
 <style scoped>
 .channel-composer-bar {
   border-top: 1px solid var(--tea-line-soft);
-  background: var(--tea-canvas);
+  background: var(--tea-panel);
+}
+.channel-selection-bar {
+  min-height: 6.5rem;
+  border-top: 1px solid var(--tea-line-soft);
+  background: var(--tea-panel);
+}
+.channel-selection-shell {
+  display: grid;
+  gap: 0.5rem;
+}
+.channel-selection-actions {
+  min-width: 0;
 }
 .channel-composer-shell {
   border: 1px solid var(--tea-line-soft);
@@ -254,5 +470,17 @@ watch(
 }
 .channel-composer-send {
   margin-bottom: 0.125rem;
+}
+.channel-composer-attach {
+  margin-bottom: 0.125rem;
+}
+@media (min-width: 640px) {
+  .channel-selection-bar {
+    min-height: 3.75rem;
+  }
+  .channel-selection-shell {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
 }
 </style>

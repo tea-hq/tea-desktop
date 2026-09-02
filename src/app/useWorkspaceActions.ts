@@ -144,7 +144,10 @@ export function useWorkspaceActions(
   }
 
   async function messageDirectoryUser(user: DirectoryUser): Promise<void> {
-    if (!user.im?.account) return
+    if (user.im?.provider !== 'yunxin' || !user.im.account) {
+      ui.directoryActionError.value = 'directory.errors.imNotSynchronized'
+      return
+    }
     try {
       ui.directoryActionError.value = null
       await channels.openDirectConversation(user.im.account)

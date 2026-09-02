@@ -1,8 +1,8 @@
 import { hasElectronBridge, invoke } from '../electronBridge'
-import type { DirectoryClient } from '@/features/directory/contracts'
+import type { DirectoryClient, DirectoryListOptions } from '@/features/directory/contracts'
 
 export class ElectronDirectoryClient implements DirectoryClient {
-  async listUsers(): Promise<{
+  async listUsers(options?: DirectoryListOptions): Promise<{
     schemaVersion: number
     users: import('@/features/directory/contracts').DirectoryUser[]
   }> {
@@ -20,6 +20,6 @@ export class ElectronDirectoryClient implements DirectoryClient {
     if (!hasElectronBridge()) {
       return { schemaVersion: 1, users: [] }
     }
-    return invoke('list_center_directory_users')
+    return invoke('list_center_directory_users', options)
   }
 }

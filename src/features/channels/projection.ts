@@ -6,6 +6,7 @@ import type {
   MessagePage,
   MessageRef,
 } from './contracts'
+import { redactMessageContent } from './messageContent'
 
 export const DEFAULT_MESSAGE_LIMIT = 500
 
@@ -77,6 +78,7 @@ export function reduceChannelEvent(
         ...message,
         state: 'revoked',
         text: '',
+        content: redactMessageContent(),
       }))
       break
     case 'message.historyCleared': {

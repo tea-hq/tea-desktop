@@ -1,5 +1,6 @@
 import type { Message } from '@/features/channels/contracts'
 import type { ChannelSourceInput } from '@/types/channelCollaboration'
+import { messageContentToText } from '@/features/channels/messageContent'
 
 const MAX_SOURCE_TEXT_CHARS = 4_000
 
@@ -12,7 +13,10 @@ export function messageToChannelSource(
     senderName: message.sender.name.trim().slice(0, 128),
     sentAt: message.sentAt,
     sentByCurrentUser: message.sentByCurrentUser,
-    text: message.state === 'revoked' ? '' : message.text.trim().slice(0, MAX_SOURCE_TEXT_CHARS),
+    text:
+      message.state === 'revoked'
+        ? ''
+        : messageContentToText(message.content).trim().slice(0, MAX_SOURCE_TEXT_CHARS),
     capturedAt,
     state: message.state,
   }

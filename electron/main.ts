@@ -14,6 +14,7 @@ import { TeaCenterCloudRunnerClient } from '../src/infrastructure/cloud/cloudRun
 import { ElectronCatalogService } from './services/catalog'
 import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
+import { ElectronChannelAttachmentService } from './services/channelAttachments'
 import { ElectronCredentialService } from './services/credentials'
 import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
 import { ElectronCenterPluginService } from './services/centerPlugins'
@@ -131,9 +132,21 @@ async function bootstrap(): Promise<void> {
     path.join(app.getPath('userData'), 'credentials.json'),
   )
   const pluginProcesses = new ElectronPluginProcessService(catalog, credentials)
+  const channelAttachments = new ElectronChannelAttachmentService(async () => {
+    const options: OpenDialogOptions = {
+      properties: ['openFile', 'multiSelections'],
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options)
+    return result.canceled ? [] : result.filePaths
+  })
   const channel = new ElectronChannelService(
     async () => managedWorkspace.getImCredentials(),
     (event) => events.publish('channel-event', event),
+    undefined,
+    channelAttachments,
+    { isKnownContact: (accountId) => centerAuth.isDirectoryContact(accountId) },
   )
 
   const commandServices: DesktopCommandServices = {

@@ -167,7 +167,7 @@ export function useWorkspaceRuntime(
         userProfiles.configure(environment.transport)
         profile.configure(environment.transport, userProfiles)
         profile.setCenterProfile(workspaceProfile)
-        channels.configure(environment.transport)
+        channels.configure(environment.transport, environment.attachmentPicker)
         collaboration.configure(conversationClient, environment.transport)
         conversation.configure(conversationClient)
         const bootstrap = centerAuth.state.bootstrap

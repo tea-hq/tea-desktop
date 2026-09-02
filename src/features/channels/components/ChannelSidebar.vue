@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TeaButton, TeaInput } from '@/shared/ui'
+import { TeaButton, TeaIconButton, TeaInput } from '@/shared/ui'
 
-import type { Channel, ChannelRef, ChannelStatus, ChannelUserProfile } from '../contracts'
+import type { Channel, ChannelRef, ChannelStatus } from '../contracts'
 import ChannelAvatar from './ChannelAvatar.vue'
 
 const props = defineProps<{
@@ -11,23 +11,15 @@ const props = defineProps<{
   activeRef: ChannelRef | null
   status: ChannelStatus
   loading: boolean
-  searchQuery?: string
-  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 
 const emit = defineEmits<{
   select: [channelRef: ChannelRef]
-  'update:searchQuery': [value: string]
+  openSearch: []
+  openSaved: []
 }>()
 const { t } = useI18n()
-const localQuery = ref('')
-const query = computed({
-  get: () => props.searchQuery ?? localQuery.value,
-  set: (value: string) => {
-    if (props.searchQuery === undefined) localQuery.value = value
-    else emit('update:searchQuery', value)
-  },
-})
+const query = ref('')
 const filteredChannels = computed(() => {
   const value = query.value.trim().toLocaleLowerCase()
   if (!value) return props.channels
@@ -39,35 +31,17 @@ const filteredChannels = computed(() => {
 function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
 }
-
-function profileFor(channel: Channel): ChannelUserProfile | null {
-  const accountId = channel.participantAccountId?.trim()
-  return accountId ? (props.userProfiles?.get(accountId) ?? null) : null
-}
 </script>
 
 <template>
   <aside
-    class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-canvas sm:flex"
-    :aria-label="t('channels.title')"
+    class="hidden h-full w-[288px] shrink-0 flex-col border-r border-line-soft bg-panel sm:flex"
   >
-    <div
-      v-if="searchQuery === undefined"
-      class="border-b border-line-soft bg-canvas px-3 pb-3 pt-4 sm:px-4"
-    >
-      <div class="channel-search-wrap relative">
-        <TeaInput
-          v-model="query"
-          class="pr-10"
-          type="search"
-          size="small"
-          :label="t('channels.search')"
-          :placeholder="t('channels.search')"
-          :disabled="loading && channels.length === 0"
-        />
+    <div class="px-2 pb-1.5 pt-3">
+      <div class="flex h-7 items-center gap-2">
+        <h1 class="truncate text-lg font-semibold text-fg">{{ t('channels.title') }}</h1>
         <span
-          role="img"
-          class="channel-sidebar__status pointer-events-none absolute right-3 top-1/2 size-1.5 -translate-y-1/2 rounded-full"
+          class="size-1.5 shrink-0 rounded-full"
           :class="
             loading && channels.length === 0
               ? 'animate-pulse bg-muted motion-reduce:animate-none'
@@ -77,21 +51,42 @@ function profileFor(channel: Channel): ChannelUserProfile | null {
                   ? 'bg-danger'
                   : 'bg-muted'
           "
-          :aria-label="
-            loading && channels.length === 0
-              ? t('channels.loading')
-              : t(`channels.connection.${status.phase}`)
-          "
           :title="
             loading && channels.length === 0
               ? t('channels.loading')
               : t(`channels.connection.${status.phase}`)
           "
         />
+        <TeaIconButton
+          class="ml-auto"
+          size="small"
+          :label="t('channels.saved.open')"
+          icon="i-mdi-bookmark-outline"
+          :disabled="loading && channels.length === 0"
+          @click="emit('openSaved')"
+        />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.searchAllMessages')"
+          icon="i-mdi-magnify"
+          :disabled="loading && channels.length === 0"
+          @click="emit('openSearch')"
+        />
       </div>
+      <TeaInput
+        v-model="query"
+        class="mt-2"
+        type="search"
+        size="small"
+        :label="t('channels.search')"
+        :placeholder="t('channels.search')"
+        :disabled="loading && channels.length === 0"
+      />
     </div>
 
-    <div class="channel-list-scroll-area flex-1 overflow-y-auto bg-canvas px-2 pb-2 pt-3">
+    <div
+      class="channel-list-scroll-area flex-1 overflow-y-auto border-t border-line-soft bg-canvas px-2 pb-2 pt-3"
+    >
       <div
         v-if="loading && channels.length === 0"
         class="pt-0.5"
@@ -138,8 +133,6 @@ function profileFor(channel: Channel): ChannelUserProfile | null {
             :channel-ref="channel.ref"
             :name="channel.name"
             :avatar-url="channel.avatarUrl"
-            :account-id="channel.participantAccountId"
-            :user-profile="profileFor(channel)"
           />
           <span class="channel-row__details min-w-0">
             <span

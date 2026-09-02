@@ -16,6 +16,7 @@ import {
   channelHistoryToolDefinition,
 } from '@/features/conversation/hostToolCatalog'
 import type { ChannelSourceInput } from '@/types/channelCollaboration'
+import { messageContentToText } from '@/features/channels/messageContent'
 
 const MAX_CALLS = 6
 const MAX_MESSAGES_PER_CALL = 10
@@ -164,23 +165,25 @@ function parseArguments(value: Record<string, ConversationJson>): ParsedArgument
 }
 
 function sanitizeMessage(message: Message): SanitizedMessage {
+  const text = message.state === 'revoked' ? '' : messageContentToText(message.content)
   return {
     ref: modelCursor(message.ref),
     sender: message.sender.name.trim().slice(0, 128),
     sentAt: message.sentAt,
     sentByCurrentUser: message.sentByCurrentUser,
     state: message.state,
-    text: message.state === 'revoked' ? '' : message.text.trim().slice(0, MAX_MESSAGE_CHARS),
+    text: text.trim().slice(0, MAX_MESSAGE_CHARS),
   }
 }
 
 function toSourceInput(message: Message): ChannelSourceInput {
+  const text = message.state === 'revoked' ? '' : messageContentToText(message.content)
   return {
     messageRef: { ...message.ref },
     senderName: message.sender.name.trim().slice(0, 128),
     sentAt: message.sentAt,
     sentByCurrentUser: message.sentByCurrentUser,
-    text: message.state === 'revoked' ? '' : message.text.trim().slice(0, MAX_MESSAGE_CHARS),
+    text: text.trim().slice(0, MAX_MESSAGE_CHARS),
     capturedAt: Date.now(),
     state: message.state,
   }

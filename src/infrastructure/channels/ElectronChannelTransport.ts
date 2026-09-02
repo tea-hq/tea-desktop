@@ -3,19 +3,45 @@ import type { DesktopCommand } from '@/types/electronBridge'
 
 import type {
   ChannelCapability,
+  Channel,
+  ChannelDetails,
+  ChannelMemberPage,
   ChannelEventListener,
   ChannelPage,
   ChannelRef,
   ChannelSelfProfile,
   ChannelUserProfile,
   ChannelStatus,
+  CreateGroupRequest,
   ChannelTransport,
   ChannelTransportDescriptor,
   ListChannelsRequest,
+  ListChannelMembersRequest,
+  ListSavedMessagesRequest,
   LoadMessagesRequest,
+  Message,
+  MessageRef,
+  MessageSearchPage,
+  ModifyMessageRequest,
+  DeleteMessagesRequest,
+  PinMessageRequest,
+  PinnedMessage,
+  SavedMessage,
+  SavedMessagePage,
+  SaveMessageRequest,
+  QuickCommentRequest,
+  ReplyMessageRequest,
+  ForwardMessageRequest,
+  ForwardMessageResult,
+  GroupMemberMuteRequest,
+  GroupMemberRoleRequest,
+  GroupMembersRequest,
+  RevokeMessageRequest,
   MessagePage,
   SendMessageRequest,
   SendMessageResult,
+  SearchMessagesRequest,
+  UpdateGroupRequest,
 } from '@/features/channels/contracts'
 import { ChannelTransportError } from '@/features/channels/contracts'
 
@@ -26,19 +52,30 @@ const descriptor: ChannelTransportDescriptor = {
   capabilities: [
     'channel.list',
     'profile.self',
+    'channel.details',
+    'channel.members',
+    'channel.manage',
     'message.history',
+    'message.search',
     'message.send.text',
+    'message.send.media',
+    'message.reply',
+    'message.forward',
+    'message.modify',
+    'message.delete',
+    'message.revoke',
+    'message.pin',
+    'message.pin.list',
+    'message.save',
+    'message.save.list',
+    'message.quickComment',
     'channel.read',
     'message.modify.events',
     'message.delete.events',
     'message.revoke.events',
     'message.pin.events',
     'message.receipt.events',
-  ]
-    .map((id) => ({ id: id as ChannelCapability['id'], available: true }))
-    .concat([
-      { id: 'message.quickComment', available: false, reason: 'notVerified' },
-    ] as ChannelCapability[]),
+  ].map((id) => ({ id: id as ChannelCapability['id'], available: true })),
 }
 
 export class ElectronChannelTransport implements ChannelTransport {
@@ -93,12 +130,108 @@ export class ElectronChannelTransport implements ChannelTransport {
     return this.command('list_channels', { request })
   }
 
+  async getChannelDetails(channelRef: ChannelRef): Promise<ChannelDetails> {
+    return this.command('get_channel_details', { channelRef })
+  }
+
+  async listChannelMembers(request: ListChannelMembersRequest): Promise<ChannelMemberPage> {
+    return this.command('list_channel_members', { request })
+  }
+
+  async createGroup(request: CreateGroupRequest): Promise<Channel> {
+    return this.command('create_channel_group', { request })
+  }
+
+  async updateGroup(request: UpdateGroupRequest): Promise<void> {
+    await this.command('update_channel_group', { request })
+  }
+
+  async inviteGroupMembers(request: GroupMembersRequest): Promise<{ failedAccountIds: string[] }> {
+    return this.command('invite_channel_group_members', { request })
+  }
+
+  async removeGroupMembers(request: GroupMembersRequest): Promise<void> {
+    await this.command('remove_channel_group_members', { request })
+  }
+
+  async leaveGroup(channelRef: ChannelRef): Promise<void> {
+    await this.command('leave_channel_group', { channelRef })
+  }
+
+  async dismissGroup(channelRef: ChannelRef): Promise<void> {
+    await this.command('dismiss_channel_group', { channelRef })
+  }
+
+  async setGroupMemberRole(request: GroupMemberRoleRequest): Promise<void> {
+    await this.command('set_channel_group_member_role', { request })
+  }
+
+  async setGroupMemberMute(request: GroupMemberMuteRequest): Promise<void> {
+    await this.command('set_channel_group_member_mute', { request })
+  }
+
   async loadMessages(request: LoadMessagesRequest): Promise<MessagePage> {
     return this.command('load_channel_messages', { request })
   }
 
+  async searchMessages(request: SearchMessagesRequest): Promise<MessageSearchPage> {
+    return this.command('search_channel_messages', { request })
+  }
+
+  async listPinnedMessages(channelRef: ChannelRef): Promise<PinnedMessage[]> {
+    return this.command('list_pinned_channel_messages', { channelRef })
+  }
+
+  async saveMessage(request: SaveMessageRequest): Promise<SavedMessage> {
+    return this.command('save_channel_message', { request })
+  }
+
+  async listSavedMessages(request: ListSavedMessagesRequest): Promise<SavedMessagePage> {
+    return this.command('list_saved_channel_messages', { request })
+  }
+
+  async removeSavedMessage(savedMessageId: string): Promise<void> {
+    await this.command('remove_saved_channel_message', { savedMessageId })
+  }
+
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResult> {
     return this.command('send_channel_message', { request })
+  }
+
+  async replyMessage(request: ReplyMessageRequest): Promise<SendMessageResult> {
+    return this.command('reply_channel_message', { request })
+  }
+
+  async cancelMessageSend(operationId: string): Promise<void> {
+    await this.command('cancel_channel_message_send', { operationId })
+  }
+
+  async forwardMessage(request: ForwardMessageRequest): Promise<ForwardMessageResult> {
+    return this.command('forward_channel_message', { request })
+  }
+
+  async loadMergedMessages(messageRef: MessageRef): Promise<Message[]> {
+    return this.command('load_merged_channel_messages', { messageRef })
+  }
+
+  async modifyMessage(request: ModifyMessageRequest): Promise<void> {
+    await this.command('modify_channel_message', { request })
+  }
+
+  async deleteMessages(request: DeleteMessagesRequest): Promise<void> {
+    await this.command('delete_channel_messages', { request })
+  }
+
+  async revokeMessage(request: RevokeMessageRequest): Promise<void> {
+    await this.command('revoke_channel_message', { request })
+  }
+
+  async pinMessage(request: PinMessageRequest): Promise<void> {
+    await this.command('pin_channel_message', { request })
+  }
+
+  async quickComment(request: QuickCommentRequest): Promise<void> {
+    await this.command('quick_comment_channel_message', { request })
   }
 
   async openDirectConversation(_accountId: string): Promise<ChannelRef> {

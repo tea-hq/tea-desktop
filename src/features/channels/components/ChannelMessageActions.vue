@@ -6,13 +6,15 @@ import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversa
 import { TeaIconButton, TeaMenu, type TeaMenuItem } from '@/shared/ui'
 import ChannelAgentMenu from './ChannelAgentMenu.vue'
 
-type MessageAction = 'reply' | 'forward' | 'reaction' | 'revoke' | 'delete'
+export type MessageAction =
+  'reply' | 'forward' | 'select' | 'reaction' | 'edit' | 'pin' | 'save' | 'revoke' | 'delete'
 type OpenMenu = 'agent' | 'more'
 
 const props = defineProps<{
   openUp: boolean
   sentByCurrentUser: boolean
   messageState: 'active' | 'revoked'
+  pinned?: boolean
   activeConversation: ConversationSummary | null
   recentConversations: ConversationSummary[]
   currentSessionAvailable: boolean
@@ -37,9 +39,27 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
       { value: 'reply', label: t('channels.message.reply'), icon: 'i-mdi-reply-outline' },
       { value: 'forward', label: t('channels.message.forward'), icon: 'i-mdi-forward' },
       {
+        value: 'select',
+        label: t('channels.selection.select'),
+        icon: 'i-mdi-checkbox-multiple-marked-outline',
+      },
+      {
         value: 'reaction',
         label: t('channels.message.quickReaction'),
         icon: 'i-mdi-emoticon-plus-outline',
+      },
+      ...(props.sentByCurrentUser
+        ? [{ value: 'edit', label: t('channels.message.edit'), icon: 'i-mdi-pencil-outline' }]
+        : []),
+      {
+        value: 'pin',
+        label: props.pinned ? t('channels.message.unpin') : t('channels.message.pin'),
+        icon: props.pinned ? 'i-mdi-pin-off-outline' : 'i-mdi-pin-outline',
+      },
+      {
+        value: 'save',
+        label: t('channels.message.save'),
+        icon: 'i-mdi-bookmark-plus-outline',
       },
       { value: 'separator:destructive', label: '', separator: true },
     )
@@ -95,7 +115,11 @@ function selectMessageAction(value: string): void {
   if (
     value === 'reply' ||
     value === 'forward' ||
+    value === 'select' ||
     value === 'reaction' ||
+    value === 'edit' ||
+    value === 'pin' ||
+    value === 'save' ||
     value === 'revoke' ||
     value === 'delete'
   ) {
