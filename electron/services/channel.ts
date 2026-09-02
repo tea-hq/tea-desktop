@@ -5,6 +5,8 @@ import type {
   ChannelPage,
   ChannelDetails,
   ChannelMemberPage,
+  ChannelNotificationContext,
+  ChannelNotificationSourceResolver,
   ChannelStatus,
   ChannelUserProfile,
   ChannelTransportDescriptor,
@@ -51,7 +53,7 @@ import type { ChannelMediaSource } from '../../src/infrastructure/channels/chann
 
 export type ChannelEventEmitter = (event: ChannelEvent) => void
 
-export class ElectronChannelService {
+export class ElectronChannelService implements ChannelNotificationSourceResolver {
   private readonly transport: YunxinWebChannelTransport
 
   constructor(
@@ -96,6 +98,10 @@ export class ElectronChannelService {
 
   async getChannelDetails(channelRef: string): Promise<ChannelDetails> {
     return this.transport.getChannelDetails(channelRef)
+  }
+
+  async resolveNotificationContext(channelRef: string): Promise<ChannelNotificationContext> {
+    return this.transport.resolveNotificationContext(channelRef)
   }
 
   async listChannelMembers(request: ListChannelMembersRequest): Promise<ChannelMemberPage> {

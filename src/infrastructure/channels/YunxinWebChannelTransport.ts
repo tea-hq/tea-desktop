@@ -9,6 +9,8 @@ import type {
   ChannelPage,
   ChannelMember,
   ChannelMemberPage,
+  ChannelNotificationContext,
+  ChannelNotificationSourceResolver,
   ChannelRef,
   ChannelSelfProfile,
   ChannelUserProfile,
@@ -220,7 +222,9 @@ const denyAllContactDirectory: ChannelContactDirectory = {
   isKnownContact: async () => false,
 }
 
-export class YunxinWebChannelTransport implements ChannelTransport {
+export class YunxinWebChannelTransport
+  implements ChannelTransport, ChannelNotificationSourceResolver
+{
   private sdk: YunxinSdk | null = null
   private currentStatus: ChannelStatus = { phase: 'disconnected', retryable: false }
   private listeners = new Set<ChannelEventListener>()
@@ -438,6 +442,27 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     const identity = teamIdentity(sdk, channelRef)
     const team = await sdk.V2NIMTeamService.getTeamInfo(identity.teamId, identity.teamType)
     return mapTeamDetails(team, channelRef)
+  }
+
+  async resolveNotificationContext(channelRef: ChannelRef): Promise<ChannelNotificationContext> {
+    const normalizedRef = channelRef.trim()
+    if (!normalizedRef || normalizedRef.length > 512 || normalizedRef.includes('\0'))
+      throw new ChannelTransportError('invalidRequest', false)
+    try {
+      const sdk = this.connectedSdk()
+      const conversation = await sdk.V2NIMConversationService.getConversation(normalizedRef)
+      const channel = this.mapConversation(conversation)
+      if (!channel || channel.ref !== normalizedRef || !channel.name.trim())
+        throw new ChannelTransportError('protocolFailure', false)
+      return {
+        channelRef: normalizedRef,
+        channelName: channel.name,
+        muted: channel.muted,
+      }
+    } catch (error) {
+      if (error instanceof ChannelTransportError) throw error
+      throw new ChannelTransportError('transport', true)
+    }
   }
 
   async listChannelMembers(request: ListChannelMembersRequest): Promise<ChannelMemberPage> {

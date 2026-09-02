@@ -560,6 +560,16 @@ export interface ChannelDetails {
   chatBanned: boolean
 }
 
+export interface ChannelNotificationContext {
+  channelRef: ChannelRef
+  channelName: string
+  muted: boolean
+}
+
+export interface ChannelNotificationSourceResolver {
+  resolveNotificationContext(channelRef: ChannelRef): Promise<ChannelNotificationContext>
+}
+
 export interface ListChannelMembersRequest {
   channelRef: ChannelRef
   limit: number

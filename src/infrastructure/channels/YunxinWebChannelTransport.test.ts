@@ -1233,6 +1233,58 @@ describe('YunxinWebChannelTransport', () => {
     )
   })
 
+  it('resolves notification context from the authoritative conversation state', async () => {
+    const { sdk, conversation } = createFakeSdk()
+    conversation.getConversation.mockResolvedValueOnce({
+      conversationId: 'team|design',
+      type: 2,
+      name: 'Design team',
+      mute: true,
+      stickTop: false,
+      localExtension: '',
+      serverExtension: '',
+      unreadCount: 2,
+      sortOrder: 4,
+      createTime: 1,
+      updateTime: 4,
+      lastReadTime: 0,
+    } as never)
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.resolveNotificationContext('team|design')).resolves.toEqual({
+      channelRef: 'team|design',
+      channelName: 'Design team',
+      muted: true,
+    })
+    expect(conversation.getConversation).toHaveBeenCalledWith('team|design')
+  })
+
+  it('fails closed when notification context is unavailable or malformed', async () => {
+    const { sdk, conversation } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+
+    await expect(transport.resolveNotificationContext('team|design')).rejects.toMatchObject({
+      code: 'notConnected',
+    })
+
+    await transport.connect()
+    conversation.getConversation.mockRejectedValueOnce(new Error('provider unavailable'))
+    await expect(transport.resolveNotificationContext('team|design')).rejects.toMatchObject({
+      code: 'transport',
+      retryable: true,
+    })
+    conversation.getConversation.mockResolvedValueOnce({
+      conversationId: 'team|design',
+      type: 0,
+      name: 'invalid',
+    } as never)
+    await expect(transport.resolveNotificationContext('team|design')).rejects.toMatchObject({
+      code: 'protocolFailure',
+      retryable: false,
+    })
+  })
+
   it('keeps group management behind provider-neutral requests', async () => {
     const { sdk, conversation } = createFakeSdk()
     // The fake service intentionally models only the methods used by this test.
