@@ -15,6 +15,8 @@ import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelP
 import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
+import ChannelThreadPanel from '@/features/channels/components/ChannelThreadPanel.vue'
+import type { MessageAction } from '@/features/channels/components/ChannelMessageActions.vue'
 import type {
   Channel,
   ChannelDraft,
@@ -24,6 +26,7 @@ import type {
   ChannelVoicePlaybackRate,
   ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
+  ChannelThread,
   ForwardMessageMode,
   Message,
   MessageReceiptDetails,
@@ -205,6 +208,86 @@ const messages: Message[] = [
     receipt: { readCount: 12, unreadCount: 5 },
   },
 ]
+const isThreadFixture = computed(() => fixture.value.startsWith('thread-'))
+const threadReplyFixtures: Message[] = [
+  {
+    ref: {
+      channelRef: channel.ref,
+      messageClientId: 'thread-reply-1',
+      messageServerId: 'thread-server-1',
+    },
+    sender: { id: 'current', name: 'Jing', isCurrentUser: true },
+    sentAt: 1_787_843_700_000,
+    text: 'Keep the decision attached to its source message.',
+    content: createTextMessageContent('Keep the decision attached to its source message.'),
+    replyTo: {
+      ref: messages[0]!.ref,
+      senderName: messages[0]!.sender.name,
+      text: messages[0]!.text,
+    },
+    state: 'active',
+    sentByCurrentUser: true,
+    pinned: false,
+    reactions: [],
+  },
+  {
+    ref: {
+      channelRef: channel.ref,
+      messageClientId: 'thread-reply-2',
+      messageServerId: 'thread-server-2',
+    },
+    sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
+    sentAt: 1_787_843_760_000,
+    text: 'I will use this thread for the review follow-up.',
+    content: createTextMessageContent('I will use this thread for the review follow-up.'),
+    replyTo: {
+      ref: messages[0]!.ref,
+      senderName: messages[0]!.sender.name,
+      text: messages[0]!.text,
+    },
+    state: 'active',
+    sentByCurrentUser: false,
+    pinned: false,
+    reactions: [],
+  },
+]
+const fixtureThreadReplies = ref<Message[]>(
+  fixture.value === 'thread-replies' ? structuredClone(threadReplyFixtures) : [],
+)
+const threadFixtureLoading = ref(fixture.value === 'thread-loading')
+const threadFixtureErrorCode = ref<string | null>(
+  fixture.value === 'thread-error' ? 'transport' : null,
+)
+const threadOpen = ref(
+  isThreadFixture.value &&
+    fixture.value !== 'thread-root-revoked' &&
+    fixture.value !== 'thread-root-deleted',
+)
+const threadRootMessage = computed(() => {
+  if (fixture.value === 'thread-root-deleted') return null
+  if (fixture.value === 'thread-root-revoked')
+    return {
+      ...messages[0]!,
+      text: '',
+      content: { kind: 'redacted' as const, reason: 'revoked' as const },
+      state: 'revoked' as const,
+    }
+  return messages[0]!
+})
+const fixtureThread = computed<ChannelThread | null>(() => {
+  if (!isThreadFixture.value || threadFixtureLoading.value || threadFixtureErrorCode.value)
+    return null
+  const root = threadRootMessage.value
+  if (!root || root.state !== 'active') return null
+  const replies = fixtureThreadReplies.value
+  return {
+    channelRef: channel.ref,
+    root,
+    replies,
+    replyCount: replies.length,
+    updatedAt: Math.max(root.sentAt, replies.at(-1)?.sentAt ?? root.sentAt),
+  }
+})
 const voiceMessage: Message = {
   ref: {
     channelRef: channel.ref,
@@ -542,7 +625,11 @@ const nestedMergedMessage: Message = {
   },
 }
 const archivedMessages: Message[] = [messages[0]!, messages[1]!, nestedMergedMessage]
-const timelineMessages = computed(() => {
+const timelineMessages = computed<Message[]>(() => {
+  if (isThreadFixture.value) {
+    const root = threadRootMessage.value
+    return root ? [root, ...messages.slice(1)] : messages.slice(1)
+  }
   if (fixture.value === 'merged-card') return [...messages, mergedMessage]
   if (isMediaFixture.value) return [...messages, ...mediaMessages]
   if (isVoiceTranscriptionFixture.value || isVoicePlaybackFixture.value)
@@ -961,6 +1048,46 @@ function updateFixtureDefaultRuntime(runtimeId: string): void {
 function updateFixtureDefaultModel(model: string): void {
   fixtureSettings.conversationDefaults.model = model
 }
+
+function openFixtureThread(message: Message): void {
+  if (!isThreadFixture.value || message.state !== 'active') return
+  threadOpen.value = true
+  threadFixtureLoading.value = false
+  threadFixtureErrorCode.value = null
+  fixtureThreadReplies.value =
+    fixture.value === 'thread-replies' ? structuredClone(threadReplyFixtures) : []
+}
+
+function retryFixtureThread(): void {
+  threadFixtureLoading.value = false
+  threadFixtureErrorCode.value = null
+}
+
+function sendFixtureThread(text: string): void {
+  const root = threadRootMessage.value
+  const normalized = text.trim()
+  if (!normalized || !root || root.state !== 'active') return
+  const index = fixtureThreadReplies.value.length + 1
+  fixtureThreadReplies.value.push({
+    ref: {
+      channelRef: channel.ref,
+      messageClientId: `thread-reply-${index + 2}`,
+    },
+    sender: { id: 'current', name: 'Jing', isCurrentUser: true },
+    sentAt: 1_787_843_800_000 + index,
+    text: normalized,
+    content: createTextMessageContent(normalized),
+    replyTo: { ref: root.ref, senderName: root.sender.name, text: root.text },
+    state: 'active',
+    sentByCurrentUser: true,
+    pinned: false,
+    reactions: [],
+  })
+}
+
+function handleFixtureMessageAction(payload: { message: Message; action: MessageAction }): void {
+  if (payload.action === 'thread') openFixtureThread(payload.message)
+}
 </script>
 
 <template>
@@ -1008,6 +1135,7 @@ function updateFixtureDefaultModel(model: string): void {
         :channel="fixtureActiveChannel"
         :presence="fixtureActiveChannel.kind === 'direct' ? fixturePresences[0] : null"
         :messages="timelineMessages"
+        :thread-available="isThreadFixture"
         :voice-transcripts="fixtureVoiceTranscripts"
         :voice-transcription-available="isVoiceTranscriptionFixture"
         :voice-playbacks="fixtureVoicePlaybacks"
@@ -1033,6 +1161,7 @@ function updateFixtureDefaultModel(model: string): void {
         :mention-members-loading="false"
         :draft="imDraftText"
         @toggle-panel="drawerOpen = !drawerOpen"
+        @message-action="handleFixtureMessageAction"
         @toggle-message-selection="() => undefined"
         @select-all-visible="selectingMessages = true"
         @cancel-selection="selectingMessages = false"
@@ -1052,6 +1181,18 @@ function updateFixtureDefaultModel(model: string): void {
         @retry-outgoing="() => undefined"
         @cancel-outgoing="() => undefined"
         @dismiss-outgoing="() => undefined"
+      />
+      <ChannelThreadPanel
+        v-if="threadOpen"
+        :channel="fixtureActiveChannel"
+        :root-message="threadRootMessage"
+        :thread="fixtureThread"
+        :loading="threadFixtureLoading"
+        :error-code="threadFixtureErrorCode"
+        :outgoing-attempts="[]"
+        @close="threadOpen = false"
+        @retry="retryFixtureThread"
+        @send="sendFixtureThread"
       />
       <ChannelMediaViewer
         :open="mediaViewerMessage !== null"

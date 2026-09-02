@@ -70,4 +70,3 @@ for the adapter only. Tea owns the thread interaction and visual density.
 - Component tests cover the action entry point, root/reply rendering,
   loading/error/empty states, accessible retry/close/send controls, and
   390px English/Chinese layout fixtures.
-
