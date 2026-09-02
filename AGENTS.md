@@ -1,8 +1,8 @@
 # Tea Desktop Engineering Guide
 
-`CLAUDE.md` symlinks here. Edit `AGENTS.md` only, read every applicable file,
-and keep each below 8 KiB. Put public invariants in the narrowest file; keep
-private material out of the repository.
+`CLAUDE.md` symlinks here. Edit `AGENTS.md` only; read applicable files and
+keep each below 8 KiB. Put public invariants in the narrowest file and keep
+private material out.
 
 ## Project
 
@@ -18,10 +18,10 @@ branches for unreleased experiments.
 ## Compatibility
 
 `1.0` is the compatibility boundary. Before then, replace incorrect
-experimental interfaces and schemas directly; do not add aliases, forward
-readers, duplicate fields, fallback state machines, or WIP migration code.
-Before a public contract or persisted format stabilizes, document versioning,
-migration, deprecation, rollback, and recovery.
+experimental interfaces and schemas directly; no aliases, forward readers,
+duplicate fields, fallback state machines, or WIP migrations.
+Before stable contracts or persisted formats, document versioning, migration,
+deprecation, rollback, and recovery.
 
 ## Ownership And Dependency Direction
 
@@ -160,7 +160,10 @@ Icon actions need accessible names and, when unclear, tooltips. Verify loading,
 empty, stale, error, approval, streaming, focus, disabled, reduced motion, and
 390px English/Chinese layouts without overlap.
 
-## Commits
+## Git
+
+Use Gitflow names: `feature/`, `bugfix/`, `hotfix/`, or `release/`, plus a
+lowercase kebab-case name. No personal or tool prefixes.
 
 Use Conventional Commits with an English imperative subject no longer than 72
 characters. Use `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, or
