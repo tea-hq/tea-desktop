@@ -100,13 +100,17 @@ describe('ChannelMessageActions', () => {
     expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
       'Reply',
       'Forward',
+      'Select messages',
       'Quick reaction',
+      'Edit message',
+      'Pin message',
+      'Save message',
       'Revoke message',
       'Delete message',
     ])
-    expect(menu.findAll('[role="menuitem"]')[4]?.classes()).toContain('text-danger')
+    expect(menu.findAll('[role="menuitem"]')[8]?.classes()).toContain('text-danger')
 
-    await menu.findAll('[role="menuitem"]')[4]!.trigger('click')
+    await menu.findAll('[role="menuitem"]')[8]!.trigger('click')
     expect(wrapper.emitted('action')).toEqual([['delete']])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
   })

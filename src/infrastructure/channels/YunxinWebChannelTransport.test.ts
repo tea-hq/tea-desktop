@@ -10,6 +10,8 @@ import type {
   ManagedImCredentialClient,
   ManagedImCredentials,
 } from './electronManagedImCredentials'
+import type { YunxinMergedArchiveLoader } from './yunxinMergedMessages'
+import { decodeYunxinMergedMessagePayload } from './yunxinMergedMessages'
 
 type Listener = (...args: never[]) => void
 
@@ -77,9 +79,32 @@ function createFakeSdk() {
       updateTime: 4,
       lastReadTime: 0,
     })),
+    createConversation: vi.fn(async (conversationId: string) => ({
+      conversationId,
+      type: 1,
+      name: 'Contact',
+      stickTop: false,
+      localExtension: '',
+      serverExtension: '',
+      unreadCount: 0,
+      sortOrder: 1,
+      createTime: 1,
+      updateTime: 1,
+      lastReadTime: 0,
+    })),
     markConversationRead: vi.fn(async () => Date.now()),
   })
   let sendCount = 0
+  let uploadedArchive = ''
+  let collectionCount = 0
+  let collections: Array<{
+    collectionId: string
+    collectionType: number
+    collectionData: string
+    uniqueId?: string
+    createTime: number
+    updateTime: number
+  }> = []
   const rawMessage = (text = 'history') => ({
     conversationId: 'c1',
     messageClientId: `m${sendCount + 1}`,
@@ -100,17 +125,119 @@ function createFakeSdk() {
       const value = rawMessage()
       return { messages: [value], anchorMessage: value, hasMore: false }
     }),
-    sendMessage: vi.fn(async (value: { text?: string; serverExtension?: string }) => {
-      sendCount += 1
+    searchCloudMessagesEx: vi.fn(async () => {
+      const value = rawMessage('search hit')
       return {
-        message: {
-          ...rawMessage(value.text),
-          messageClientId: `sent-${sendCount}`,
-          messageServerId: `server-${sendCount}`,
-          serverExtension: value.serverExtension,
-        },
+        count: 1,
+        items: [{ conversationId: 'c1', messages: [value], count: 1 }],
+        hasMore: false,
       }
     }),
+    getPinnedMessageList: vi.fn(async () => {
+      const value = rawMessage('pinned message')
+      return [
+        {
+          messageRefer: {
+            conversationId: value.conversationId,
+            messageClientId: value.messageClientId,
+            messageServerId: value.messageServerId,
+            senderId: value.senderId,
+            receiverId: value.receiverId,
+            createTime: value.createTime,
+            conversationType: value.conversationType,
+          },
+          opeartorId: 'account-a',
+          createTime: 10,
+          updateTime: 10,
+        },
+      ]
+    }),
+    getMessageListByRefers: vi.fn(async () => [rawMessage('pinned message')]),
+    addCollection: vi.fn(
+      async (params: { collectionType: number; collectionData: string; uniqueId?: string }) => {
+        const existing = collections.find((value) => value.uniqueId === params.uniqueId)
+        collectionCount += 1
+        const value = {
+          collectionId: existing?.collectionId ?? `collection-${collectionCount}`,
+          ...params,
+          createTime: existing?.createTime ?? collectionCount,
+          updateTime: collectionCount,
+        }
+        collections = [
+          value,
+          ...collections.filter((candidate) => candidate.collectionId !== value.collectionId),
+        ]
+        return value
+      },
+    ),
+    getCollectionListExByOption: vi.fn(
+      async (option: { limit: number; anchorCollection?: { collectionId: string } }) => {
+        const start = option.anchorCollection
+          ? collections.findIndex(
+              (value) => value.collectionId === option.anchorCollection?.collectionId,
+            ) + 1
+          : 0
+        return {
+          totalCount: collections.length,
+          collectionList: collections.slice(start, start + option.limit),
+        }
+      },
+    ),
+    removeCollections: vi.fn(async (values: Array<{ collectionId: string }>) => {
+      const ids = new Set(values.map((value) => value.collectionId))
+      const before = collections.length
+      collections = collections.filter((value) => !ids.has(value.collectionId))
+      return before - collections.length
+    }),
+    sendMessage: vi.fn(
+      async (
+        value: ReturnType<typeof rawMessage> & {
+          attachment?: { raw?: string }
+          serverExtension?: string
+        },
+        channelRef: string,
+      ) => {
+        sendCount += 1
+        return {
+          message: {
+            ...rawMessage(value.text),
+            ...value,
+            conversationId: channelRef,
+            messageClientId: `sent-${sendCount}`,
+            messageServerId: `server-${sendCount}`,
+            serverExtension: value.serverExtension,
+          },
+        }
+      },
+    ),
+    replyMessage: vi.fn(
+      async (value: { text?: string }, original: ReturnType<typeof rawMessage>) => {
+        sendCount += 1
+        return {
+          message: {
+            ...rawMessage(value.text),
+            messageClientId: `reply-${sendCount}`,
+            messageServerId: `reply-server-${sendCount}`,
+            threadReply: {
+              senderId: original.senderId,
+              receiverId: original.receiverId,
+              messageClientId: original.messageClientId,
+              messageServerId: original.messageServerId,
+              createTime: original.createTime,
+              conversationType: original.conversationType,
+              conversationId: original.conversationId,
+            },
+          },
+        }
+      },
+    ),
+    modifyMessage: vi.fn(async () => undefined),
+    deleteMessages: vi.fn(async () => undefined),
+    revokeMessage: vi.fn(async () => undefined),
+    pinMessage: vi.fn(async () => undefined),
+    unpinMessage: vi.fn(async () => undefined),
+    addQuickComment: vi.fn(async () => undefined),
+    removeQuickComment: vi.fn(async () => undefined),
   })
   const user = Object.assign(new FakeService(), {
     getUserListFromCloud: vi.fn(async () => [
@@ -123,19 +250,92 @@ function createFakeSdk() {
       },
     ]),
   })
+  const friend = Object.assign(new FakeService(), {
+    checkFriend: vi.fn(async (accountIds: string[]) =>
+      Object.fromEntries(accountIds.map((accountId) => [accountId, accountId === 'existing'])),
+    ),
+    addFriend: vi.fn(async () => undefined),
+  })
+  const team = Object.assign(new FakeService(), {
+    getTeamInfo: vi.fn(async () => ({
+      teamId: 'design',
+      teamType: 1,
+      name: 'Design team',
+      ownerAccountId: 'account-a',
+      memberLimit: 200,
+      memberCount: 2,
+      intro: 'Design decisions',
+      announcement: 'Keep decisions visible.',
+      chatBannedMode: 0,
+    })),
+    getTeamMemberList: vi.fn(async () => ({
+      finished: true,
+      nextToken: '',
+      memberList: [
+        {
+          teamId: 'design',
+          teamType: 1,
+          accountId: 'account-a',
+          memberRole: 1,
+          teamNick: 'Me',
+          joinTime: 1,
+          inTeam: true,
+          chatBanned: false,
+        },
+      ],
+    })),
+  })
   const sdk = {
     V2NIMLoginService: login,
     V2NIMConversationService: conversation,
     V2NIMMessageService: message,
     V2NIMUserService: user,
-    V2NIMMessageCreator: { createTextMessage: (text: string) => rawMessage(text) },
+    V2NIMFriendService: friend,
+    V2NIMTeamService: team,
+    V2NIMMessageCreator: {
+      createTextMessage: (text: string) => rawMessage(text),
+      createForwardMessage: vi.fn((value: ReturnType<typeof rawMessage>) => rawMessage(value.text)),
+      createCustomMessage: vi.fn((text: string, raw: string) => ({
+        ...rawMessage(text),
+        messageType: 100,
+        attachment: { raw },
+      })),
+    },
+    V2NIMMessageConverter: {
+      messageSerialization: vi.fn((value: ReturnType<typeof rawMessage>) => JSON.stringify(value)),
+      messageDeserialization: vi.fn((value: string) => JSON.parse(value)),
+    },
     V2NIMConversationIdUtil: {
+      p2pConversationId: (accountId: string) => `p2p|${accountId}`,
+      teamConversationId: (teamId: string) => `team|${teamId}`,
+      parseConversationType: (conversationId: string) =>
+        conversationId.startsWith('p2p|') ? 1 : 2,
       parseConversationTargetId: (conversationId: string) =>
         conversationId.split('|').at(-1) ?? conversationId,
     },
+    V2NIMStorageService: {
+      createUploadFileTask: vi.fn((params: { fileObj: File }) => ({
+        taskId: 'upload-1',
+        uploadParams: params,
+      })),
+      uploadFile: vi.fn(async (task: { uploadParams: { fileObj: File } }) => {
+        uploadedArchive = await task.uploadParams.fileObj.text()
+        return 'https://yx.example.test/mergedMsgs.txt'
+      }),
+    },
+    version: '10.9.81',
     destroy: vi.fn(async () => undefined),
   }
-  return { sdk, login, conversation, message, user }
+  return {
+    sdk,
+    login,
+    conversation,
+    message,
+    user,
+    friend,
+    team,
+    getUploadedArchive: () => uploadedArchive,
+  }
 }
 
 const credentials: ManagedImCredentials = {
@@ -151,8 +351,17 @@ function credentialClient(value: ManagedImCredentials = credentials): ManagedImC
 function createTransport(
   factory: YunxinSdkFactory,
   client: ManagedImCredentialClient = credentialClient(),
+  mergedArchiveLoader?: YunxinMergedArchiveLoader,
 ): YunxinWebChannelTransport {
-  return new YunxinWebChannelTransport(client, factory)
+  return new YunxinWebChannelTransport(
+    client,
+    factory,
+    undefined,
+    {
+      isKnownContact: async () => true,
+    },
+    mergedArchiveLoader,
+  )
 }
 
 describe('YunxinWebChannelTransport', () => {
@@ -224,20 +433,385 @@ describe('YunxinWebChannelTransport', () => {
     expect(transport.capabilities()).toContainEqual({ id: 'profile.self', available: true })
   })
 
-  it('loads requested provider-neutral profiles as a batch', async () => {
-    const { sdk, user } = createFakeSdk()
-    user.getUserListFromCloud.mockResolvedValueOnce([
-      { accountId: 'account-a', name: 'A', email: '', avatar: '', createTime: 1 },
-      { accountId: 'account-b', name: 'B', email: '', avatar: '', createTime: 1 },
-    ])
+  it('automatically creates the Yunxin friend relation before opening a P2P conversation', async () => {
+    const { sdk, friend, conversation } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     await transport.connect()
 
-    await expect(transport.getUserProfiles(['account-a', 'account-b'])).resolves.toEqual([
-      { accountId: 'account-a', name: 'A' },
-      { accountId: 'account-b', name: 'B' },
+    await expect(transport.openDirectConversation('new-contact')).resolves.toBe('p2p|new-contact')
+    expect(friend.checkFriend).toHaveBeenCalledWith(['new-contact'])
+    expect(friend.addFriend).toHaveBeenCalledWith('new-contact', {
+      addMode: 1,
+      postscript: '',
+    })
+    expect(conversation.createConversation).toHaveBeenCalledWith('p2p|new-contact')
+  })
+
+  it('does not add an existing Yunxin friend again', async () => {
+    const { sdk, friend } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await transport.openDirectConversation('existing')
+    expect(friend.addFriend).not.toHaveBeenCalled()
+  })
+
+  it('rejects a direct contact that is absent from the Tea Center directory', async () => {
+    const { sdk, friend } = createFakeSdk()
+    const directory = { isKnownContact: vi.fn(async () => false) }
+    const transport = new YunxinWebChannelTransport(
+      credentialClient(),
+      { create: () => sdk as never },
+      undefined,
+      directory,
+    )
+    await transport.connect()
+
+    await expect(transport.openDirectConversation('unknown-contact')).rejects.toMatchObject({
+      code: 'invalidRequest',
+    })
+    expect(directory.isKnownContact).toHaveBeenCalledWith('unknown-contact')
+    expect(friend.checkFriend).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a Center directory is not configured', async () => {
+    const { sdk, friend } = createFakeSdk()
+    const transport = new YunxinWebChannelTransport(credentialClient(), {
+      create: () => sdk as never,
+    })
+    await transport.connect()
+
+    await expect(transport.openDirectConversation('existing')).rejects.toMatchObject({
+      code: 'invalidRequest',
+    })
+    expect(friend.checkFriend).not.toHaveBeenCalled()
+  })
+
+  it('validates group targets against the Tea Center directory before Yunxin calls', async () => {
+    const { sdk, team } = createFakeSdk()
+    const directory = {
+      isKnownContact: vi.fn(async (accountId: string) => accountId !== 'blocked'),
+    }
+    const transport = new YunxinWebChannelTransport(
+      credentialClient(),
+      { create: () => sdk as never },
+      undefined,
+      directory,
+    )
+    await transport.connect()
+
+    await expect(
+      transport.createGroup({ name: 'Project', memberAccountIds: ['blocked'] }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+    await expect(
+      transport.inviteGroupMembers({ channelRef: 'team|design', accountIds: ['blocked'] }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+    expect(directory.isKnownContact).toHaveBeenNthCalledWith(1, 'blocked')
+    expect(directory.isKnownContact).toHaveBeenNthCalledWith(2, 'blocked')
+    expect((team as unknown as Record<string, unknown>).createTeam).toBeUndefined()
+    expect((team as unknown as Record<string, unknown>).inviteMember).toBeUndefined()
+  })
+
+  it('keeps message mutations behind the provider-neutral request types', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const messageRef = page.items[0]!.ref
+
+    await transport.modifyMessage({ messageRef, text: 'edited' })
+    await transport.pinMessage({ messageRef, pinned: true })
+    await transport.pinMessage({ messageRef, pinned: false })
+    await transport.quickComment({ messageRef, type: 1, active: true })
+    await transport.quickComment({ messageRef, type: 1, active: false })
+    await transport.revokeMessage({ messageRef, postscript: 'updated' })
+    await transport.deleteMessages({ messageRefs: [messageRef] })
+
+    expect(message.modifyMessage).toHaveBeenCalledWith(expect.anything(), { text: 'edited' })
+    expect(message.pinMessage).toHaveBeenCalledOnce()
+    expect(message.unpinMessage).toHaveBeenCalledOnce()
+    expect(message.addQuickComment).toHaveBeenCalledWith(expect.anything(), 1)
+    expect(message.removeQuickComment).toHaveBeenCalledWith(expect.anything(), 1)
+    expect(message.revokeMessage).toHaveBeenCalledWith(expect.anything(), { postscript: 'updated' })
+    expect(message.deleteMessages).toHaveBeenCalledWith([expect.anything()])
+  })
+
+  it('maps reply and ordinary forwarding to provider calls', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const messageRef = page.items[0]!.ref
+
+    await transport.replyMessage({
+      channelRef: 'c1',
+      replyTo: messageRef,
+      content: { kind: 'text', text: 'reply' },
+    })
+    await transport.forwardMessage({
+      messageRefs: [messageRef],
+      targetChannelRefs: ['team|design'],
+      mode: 'individual',
+    })
+
+    expect(message.replyMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ messageConfig: { readReceiptEnabled: true } }),
+    )
+    expect(message.sendMessage).toHaveBeenCalledTimes(1)
+    expect(sdk.V2NIMMessageCreator.createForwardMessage).toHaveBeenCalledWith(expect.anything())
+  })
+
+  it('uploads an interoperable merged archive and loads it through the converter', async () => {
+    const { sdk, message, getUploadedArchive } = createFakeSdk()
+    const loader = { load: vi.fn(async () => getUploadedArchive()) }
+    const transport = createTransport({ create: () => sdk as never }, credentialClient(), loader)
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const source = page.items[0]!
+
+    const result = await transport.forwardMessage({
+      messageRefs: [source.ref],
+      targetChannelRefs: ['team|design'],
+      mode: 'merged',
+      sourceChannelName: 'Source channel',
+      comment: 'Review this',
+    })
+
+    expect(result.messages).toHaveLength(2)
+    expect(sdk.V2NIMStorageService.uploadFile).toHaveBeenCalledOnce()
+    expect(getUploadedArchive().split('\n')).toHaveLength(2)
+    const createCustomMessage = sdk.V2NIMMessageCreator.createCustomMessage
+    const payload = decodeYunxinMergedMessagePayload(createCustomMessage.mock.calls[0]![1])
+    expect(payload).toMatchObject({
+      type: 101,
+      data: { depth: 1, sessionId: 'c1', sessionName: 'Source channel' },
+    })
+    expect(await transport.loadMergedMessages(result.messages[0]!.ref)).toMatchObject([
+      { ref: source.ref, text: source.text },
     ])
-    expect(user.getUserListFromCloud).toHaveBeenCalledWith(['account-a', 'account-b'])
+    expect(loader.load).toHaveBeenCalledWith('https://yx.example.test/mergedMsgs.txt')
+    expect(message.sendMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a merged archive whose checksum no longer matches', async () => {
+    const { sdk } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never }, credentialClient(), {
+      load: vi.fn(async () => 'tampered'),
+    })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const result = await transport.forwardMessage({
+      messageRefs: [page.items[0]!.ref],
+      targetChannelRefs: ['team|design'],
+      mode: 'merged',
+    })
+
+    await expect(transport.loadMergedMessages(result.messages[0]!.ref)).rejects.toMatchObject({
+      code: 'protocolFailure',
+    })
+  })
+
+  it('maps an oversized merged archive to a non-retryable protocol failure', async () => {
+    const { sdk } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never }, credentialClient(), {
+      load: vi.fn(async () => {
+        throw new Error('mergedMessageArchiveTooLarge')
+      }),
+    })
+    await transport.connect()
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    const result = await transport.forwardMessage({
+      messageRefs: [page.items[0]!.ref],
+      targetChannelRefs: ['team|design'],
+      mode: 'merged',
+    })
+
+    await expect(transport.loadMergedMessages(result.messages[0]!.ref)).rejects.toMatchObject({
+      code: 'protocolFailure',
+      retryable: false,
+    })
+  })
+
+  it('resolves media tokens inside the adapter and publishes upload progress', async () => {
+    const { sdk, message } = createFakeSdk()
+    const createImageMessage = vi.fn((file: string, name?: string) => ({
+      conversationId: 'c1',
+      messageClientId: 'pending-image',
+      messageServerId: '',
+      messageType: 1,
+      senderId: 'account-a',
+      receiverId: 'other',
+      createTime: 3,
+      isSelf: true,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: '',
+      attachment: { url: 'https://cdn.example.test/design.png', name: name ?? file },
+    }))
+    Object.assign(sdk.V2NIMMessageCreator, {
+      createImageMessage,
+    })
+    const resolver = {
+      resolve: vi.fn(async (token: string) =>
+        token === 'file-token'
+          ? { path: '/private/design.png', name: 'design.png', mimeType: 'image/png' }
+          : null,
+      ),
+      release: vi.fn(),
+    }
+    const transport = new YunxinWebChannelTransport(
+      credentialClient(),
+      { create: () => sdk as never },
+      resolver,
+      { isKnownContact: async () => true },
+    )
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+    const raw = (await sdk.V2NIMMessageService.getMessageListEx()).messages[0]
+    message.sendMessage.mockImplementationOnce((async (...args: unknown[]) => {
+      const progress = args[3] as ((value: number) => void) | undefined
+      progress?.(42)
+      progress?.(100)
+      return {
+        message: {
+          ...raw,
+          messageType: 1,
+          attachment: { url: 'https://cdn.example.test/design.png', name: 'design.png' },
+        },
+      }
+    }) as never)
+
+    await transport.sendMessage({
+      channelRef: 'c1',
+      content: {
+        kind: 'image',
+        media: { source: { kind: 'localFile', token: 'file-token' }, name: 'design.png' },
+      },
+      operationId: 'upload-1',
+    })
+
+    expect(resolver.resolve).toHaveBeenCalledWith('file-token')
+    expect(resolver.release).toHaveBeenCalledWith('file-token')
+    expect(createImageMessage).toHaveBeenCalledWith(
+      '/private/design.png',
+      'design.png',
+      undefined,
+      undefined,
+      undefined,
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'message.sendProgress',
+        operationId: 'upload-1',
+        progress: 42,
+      }),
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'message.sendProgress',
+        operationId: 'upload-1',
+        progress: 100,
+      }),
+    )
+  })
+
+  it('keeps group details and members behind the Yunxin adapter', async () => {
+    const { sdk, team } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.getChannelDetails('team|design')).resolves.toMatchObject({
+      channelRef: 'team|design',
+      name: 'Design team',
+      ownerAccountId: 'account-a',
+      memberCount: 2,
+    })
+    await expect(
+      transport.listChannelMembers({ channelRef: 'team|design', limit: 50 }),
+    ).resolves.toMatchObject({
+      channelRef: 'team|design',
+      items: [{ accountId: 'account-a', role: 'owner' }],
+      hasMore: false,
+    })
+    expect(team.getTeamInfo).toHaveBeenCalledWith('design', 1)
+    expect(team.getTeamMemberList).toHaveBeenCalledWith(
+      'design',
+      1,
+      expect.objectContaining({ roleQueryType: 0, limit: 50 }),
+    )
+  })
+
+  it('keeps group management behind provider-neutral requests', async () => {
+    const { sdk, conversation } = createFakeSdk()
+    // The fake service intentionally models only the methods used by this test.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const team = sdk.V2NIMTeamService as unknown as Record<string, any>
+    team.createTeam = vi.fn(async (params: Record<string, unknown>, invitees: string[]) => ({
+      team: {
+        teamId: 'new-team',
+        teamType: 1,
+        name: params.name,
+        intro: params.intro ?? '',
+        announcement: params.announcement ?? '',
+        memberCount: invitees.length + 1,
+        ownerAccountId: 'account-a',
+        memberLimit: 200,
+        chatBannedMode: 0,
+      },
+      failedList: [],
+    }))
+    team.updateTeamInfo = vi.fn(async () => undefined)
+    team.inviteMember = vi.fn(async () => ['not-found'])
+    team.kickMember = vi.fn(async () => undefined)
+    team.leaveTeam = vi.fn(async () => undefined)
+    team.dismissTeam = vi.fn(async () => undefined)
+    team.updateTeamMemberRole = vi.fn(async () => undefined)
+    team.setTeamMemberChatBannedStatus = vi.fn(async () => undefined)
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(
+      transport.createGroup({
+        name: 'New team',
+        memberAccountIds: ['member-a'],
+        description: 'Shared work',
+        announcement: 'Keep decisions visible.',
+      }),
+    ).resolves.toMatchObject({ ref: 'team|new-team', kind: 'group', memberCount: 2 })
+    await transport.updateGroup({
+      channelRef: 'team|design',
+      name: 'Design v2',
+      chatBanned: true,
+    })
+    await expect(
+      transport.inviteGroupMembers({ channelRef: 'team|design', accountIds: ['member-a'] }),
+    ).resolves.toEqual({ failedAccountIds: ['not-found'] })
+    await transport.removeGroupMembers({ channelRef: 'team|design', accountIds: ['member-a'] })
+    await transport.setGroupMemberRole({
+      channelRef: 'team|design',
+      accountIds: ['member-a'],
+      role: 'manager',
+    })
+    await transport.setGroupMemberMute({
+      channelRef: 'team|design',
+      accountId: 'member-a',
+      chatBanned: true,
+    })
+
+    expect(conversation.createConversation).toHaveBeenCalledWith('team|new-team')
+    expect(team.updateTeamInfo).toHaveBeenCalledWith(
+      'design',
+      1,
+      expect.objectContaining({ name: 'Design v2', chatBannedMode: 1 }),
+    )
+    expect(team.kickMember).toHaveBeenCalledWith('design', 1, ['member-a'])
+    expect(team.updateTeamMemberRole).toHaveBeenCalledWith('design', 1, ['member-a'], 2)
+    expect(team.setTeamMemberChatBannedStatus).toHaveBeenCalledWith('design', 1, 'member-a', true)
   })
 
   it('rejects a cloud profile for a different account', async () => {
@@ -429,6 +1003,95 @@ describe('YunxinWebChannelTransport', () => {
     expect(after.items.map((value) => value.ref.messageClientId)).toEqual(['older', 'newer'])
     expect(after.hasMore).toBe(true)
     expect(after.nextAnchor?.messageClientId).toBe('newer')
+  })
+
+  it('maps cloud search results without exposing Yunxin response groups', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(
+      transport.searchMessages({ channelRef: 'c1', keyword: 'search', limit: 20 }),
+    ).resolves.toMatchObject({
+      totalCount: 1,
+      hasMore: false,
+      items: [{ ref: { channelRef: 'c1' }, text: 'search hit' }],
+    })
+    expect(message.searchCloudMessagesEx).toHaveBeenCalledWith({
+      conversationId: 'c1',
+      keywordList: ['search'],
+      limit: 20,
+      direction: 0,
+    })
+  })
+
+  it('resolves pinned references into provider-neutral messages', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.listPinnedMessages('c1')).resolves.toMatchObject([
+      {
+        message: { ref: { channelRef: 'c1' }, text: 'pinned message', pinned: true },
+        pinnedByAccountId: 'account-a',
+        pinnedAt: 10,
+      },
+    ])
+    expect(message.getPinnedMessageList).toHaveBeenCalledWith('c1')
+    expect(message.getMessageListByRefers).toHaveBeenCalledWith([
+      expect.objectContaining({ conversationId: 'c1' }),
+    ])
+  })
+
+  it('saves, pages, and removes provider-neutral saved messages', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const history = await transport.loadMessages({
+      channelRef: 'c1',
+      direction: 'before',
+      limit: 1,
+    })
+
+    const saved = await transport.saveMessage({
+      messageRef: history.items[0]!.ref,
+      sourceChannelName: 'Product',
+    })
+    const duplicate = await transport.saveMessage({ messageRef: history.items[0]!.ref })
+    const page = await transport.listSavedMessages({ limit: 1 })
+
+    expect(duplicate.id).toBe(saved.id)
+    expect(page).toMatchObject({
+      totalCount: 1,
+      hasMore: false,
+      items: [{ id: saved.id, message: { text: 'history' } }],
+    })
+    expect(message.getCollectionListExByOption).toHaveBeenCalledWith({
+      collectionType: 0,
+      direction: 0,
+      limit: 1,
+    })
+    await transport.removeSavedMessage(saved.id)
+    await expect(transport.listSavedMessages({ limit: 10 })).resolves.toMatchObject({
+      totalCount: 0,
+      items: [],
+    })
+  })
+
+  it('maps the provider collection limit to a stable error code', async () => {
+    const { sdk, message } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    const history = await transport.loadMessages({
+      channelRef: 'c1',
+      direction: 'before',
+      limit: 1,
+    })
+    message.addCollection.mockRejectedValueOnce({ code: 189301 })
+
+    await expect(
+      transport.saveMessage({ messageRef: history.items[0]!.ref }),
+    ).rejects.toMatchObject({ code: 'limitExceeded', retryable: false })
   })
 
   it('rejects an anchor that is not in provider memory', async () => {

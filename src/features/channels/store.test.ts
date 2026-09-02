@@ -78,6 +78,90 @@ describe('useChannelsStore', () => {
     expect(markRead).toHaveBeenCalledWith('product-collab')
   })
 
+  it('keeps before and after cursors independent while loading a message window', async () => {
+    const { store, transport } = await connectedStore()
+    const originalLoadMessages = transport.loadMessages.bind(transport)
+    const initial = await originalLoadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 50,
+    })
+    const older = {
+      ...initial.items[0]!,
+      ref: {
+        channelRef: 'product-collab',
+        messageClientId: 'm-099',
+        messageServerId: 's-099',
+      },
+      sentAt: initial.items[0]!.sentAt - 1,
+      text: 'older',
+    }
+    const newer = {
+      ...initial.items.at(-1)!,
+      ref: {
+        channelRef: 'product-collab',
+        messageClientId: 'm-106',
+        messageServerId: 's-106',
+      },
+      sentAt: initial.items.at(-1)!.sentAt + 1,
+      text: 'newer',
+    }
+    vi.spyOn(transport, 'loadMessages').mockImplementation(async (request) => {
+      if (request.direction === 'before' && !request.anchorMessage)
+        return { ...initial, hasMore: true, nextAnchor: initial.items[0]!.ref }
+      if (request.direction === 'before')
+        return {
+          channelRef: request.channelRef,
+          items: [older],
+          hasMore: false,
+          nextAnchor: older.ref,
+        }
+      expect(request.direction).toBe('after')
+      expect(request.anchorMessage).toEqual(initial.items.at(-1)!.ref)
+      return {
+        channelRef: request.channelRef,
+        items: [newer],
+        hasMore: false,
+        nextAnchor: newer.ref,
+      }
+    })
+
+    await store.selectChannel('product-collab')
+    await store.loadOlderMessages()
+    expect(store.activeHasMoreMessages).toBe(false)
+
+    await store.loadNewerMessages(true)
+    expect(store.activeMessages.map((message) => message.ref.messageClientId)).toEqual([
+      'm-099',
+      'm-101',
+      'm-102',
+      'm-103',
+      'm-104',
+      'm-105',
+      'm-106',
+    ])
+    expect(store.activeHasMoreMessages).toBe(false)
+  })
+
+  it('reanchors pagination when a cursor message is deleted', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const latest = store.activeMessages.at(-1)!
+    const latestRef = JSON.parse(JSON.stringify(latest.ref))
+    transport.emitForTest({ type: 'message.deleted', refs: [latestRef] })
+    const reanchored = store.activeMessages.at(-1)!.ref
+
+    const loadMessages = vi.spyOn(transport, 'loadMessages')
+    await store.loadNewerMessages(true)
+
+    expect(loadMessages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        direction: 'after',
+        anchorMessage: reanchored,
+      }),
+    )
+  })
+
   it('does not skip a channel selected while another history request is pending', async () => {
     const { store, transport } = await connectedStore()
     const originalLoadMessages = transport.loadMessages.bind(transport)
@@ -154,6 +238,173 @@ describe('useChannelsStore', () => {
     expect(store.activeMessages.at(-1)?.text).toBe('Hello')
   })
 
+  it('searches the active channel and jumps to a result anchor', async () => {
+    const { store } = await connectedStore()
+    await store.selectChannel('product-collab')
+
+    await store.searchMessages('Agent')
+
+    expect(store.messageSearch.totalCount).toBe(4)
+    expect(store.messageSearch.items).toHaveLength(4)
+    const target = store.messageSearch.items[0]!
+    await store.jumpToMessage(target.ref)
+    expect(store.activeChannelRef).toBe('product-collab')
+    expect(store.highlightedMessageKey).toBe(
+      `product-collab:${target.ref.messageServerId || target.ref.messageClientId}`,
+    )
+    expect(store.activeMessages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ ref: target.ref })]),
+    )
+  })
+
+  it('loads pinned messages and reconciles an unpin event', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const target = store.activeMessages[0]!
+    await transport.pinMessage({ messageRef: target.ref, pinned: true })
+
+    await store.loadPinnedMessages()
+
+    expect(store.pinnedMessages).toMatchObject([{ message: { ref: target.ref, pinned: true } }])
+    await transport.pinMessage({ messageRef: target.ref, pinned: false })
+    expect(store.pinnedMessages).toEqual([])
+  })
+
+  it('preserves pin facts when an upsert refreshes pinned message content', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    await store.sendText('pinned by me')
+    const target = store.activeMessages.at(-1)!
+    await transport.pinMessage({ messageRef: target.ref, pinned: true })
+    await store.loadPinnedMessages()
+
+    await transport.modifyMessage({
+      messageRef: target.ref,
+      text: 'updated pinned message',
+    })
+
+    expect(store.pinnedMessages).toMatchObject([
+      {
+        message: { ref: target.ref, text: 'updated pinned message', pinned: true },
+        pinnedByAccountId: 'me',
+      },
+    ])
+  })
+
+  it('saves, reloads, and removes a provider-owned saved message', async () => {
+    const { store } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const target = store.activeMessages[0]!
+
+    await store.saveMessage(target.ref, store.activeChannel?.name)
+    expect(store.savedMessages).toMatchObject([
+      {
+        message: { ref: target.ref },
+        sourceChannelName: store.activeChannel?.name,
+      },
+    ])
+
+    store.clearSavedMessages()
+    await store.loadSavedMessages()
+    expect(store.savedMessagesTotalCount).toBe(1)
+    expect(store.savedMessages[0]?.message.ref).toEqual(target.ref)
+
+    await store.removeSavedMessage(store.savedMessages[0]!.id)
+    expect(store.savedMessages).toEqual([])
+    expect(store.savedMessagesTotalCount).toBe(0)
+  })
+
+  it('deduplicates appended saved-message pages', async () => {
+    const { store, transport } = await connectedStore()
+    const messagePage = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 2,
+    })
+    const [firstMessage, secondMessage] = messagePage.items
+    const first = {
+      id: 'saved-1',
+      message: firstMessage!,
+      savedAt: 2,
+    }
+    const second = {
+      id: 'saved-2',
+      message: secondMessage!,
+      savedAt: 1,
+    }
+    vi.spyOn(transport, 'listSavedMessages')
+      .mockResolvedValueOnce({
+        items: [first],
+        totalCount: 2,
+        hasMore: true,
+        nextCursor: 'cursor-1',
+      })
+      .mockResolvedValueOnce({
+        items: [{ ...first, savedAt: 3 }, second],
+        totalCount: 2,
+        hasMore: false,
+      })
+
+    await store.loadSavedMessages()
+    await store.loadMoreSavedMessages()
+
+    expect(store.savedMessages.map((value) => value.id)).toEqual(['saved-1', 'saved-2'])
+    expect(store.savedMessages[0]?.savedAt).toBe(3)
+    expect(store.savedMessagesHasMore).toBe(false)
+  })
+
+  it('rejects a saved-message response after the account lifecycle is disposed', async () => {
+    const { store, transport } = await connectedStore()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'listSavedMessages').mockImplementation(async () => {
+      await gate
+      return { items: [], totalCount: 0, hasMore: false }
+    })
+
+    const loading = store.loadSavedMessages()
+    await store.dispose()
+    release()
+    await loading
+
+    expect(store.savedMessages).toEqual([])
+    expect(store.loadingSavedMessages).toBe(false)
+  })
+
+  it('keeps attachment picking provider-neutral and sends structured media', async () => {
+    const transport = new MockChannelTransport()
+    const picker = {
+      pick: vi.fn(async () => [
+        {
+          token: 'preview:file-1',
+          name: 'design.png',
+          mimeType: 'image/png',
+          size: 12,
+          extension: 'png',
+          kind: 'image' as const,
+        },
+      ]),
+    }
+    const store = useChannelsStore()
+    store.configure(transport, picker)
+    await store.connect()
+    await store.selectChannel('product-collab')
+
+    const [attachment] = await store.pickAttachments()
+    await store.sendContent({
+      kind: 'image',
+      media: { source: { kind: 'localFile', token: attachment!.token }, name: attachment!.name },
+    })
+
+    expect(picker.pick).toHaveBeenCalledOnce()
+    expect(store.activeMessages.at(-1)?.content).toMatchObject({
+      kind: 'image',
+      media: { name: 'design.png' },
+    })
+  })
+
   it('clears account-scoped projection on kicked-offline and disposes once', async () => {
     const { store, transport } = await connectedStore()
     await store.selectChannel('product-collab')
@@ -193,5 +444,54 @@ describe('useChannelsStore', () => {
     expect(store.channels).toEqual([])
     expect(store.status.phase).toBe('disconnected')
     expect(store.loadingChannels).toBe(false)
+  })
+
+  it('forwards an ordered multi-message request and loads its merged snapshot', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const selected = store.activeMessages.slice(0, 2)
+    const forward = vi.spyOn(transport, 'forwardMessage')
+
+    const result = await store.forwardMessage({
+      messageRefs: selected.map((message) => message.ref),
+      targetChannelRefs: ['runtime-architecture'],
+      mode: 'merged',
+      sourceChannelName: 'Product collaboration',
+    })
+
+    expect(forward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'merged',
+        messageRefs: selected.map((message) => message.ref),
+      }),
+    )
+    await expect(store.loadMergedMessages(result.messages[0]!.ref)).resolves.toEqual(selected)
+    expect(store.loadingMergedMessages).toBe(false)
+    expect(store.mergedMessagesErrorCode).toBeNull()
+  })
+
+  it('rejects merged-history results from a stale transport lifecycle', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const selected = store.activeMessages[0]!
+    const forwarded = await store.forwardMessage({
+      messageRefs: [selected.ref],
+      targetChannelRefs: ['runtime-architecture'],
+      mode: 'merged',
+    })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'loadMergedMessages').mockImplementation(async () => {
+      await gate
+      return structuredClone([selected])
+    })
+
+    const loading = store.loadMergedMessages(forwarded.messages[0]!.ref)
+    store.configure(new MockChannelTransport())
+    release()
+
+    await expect(loading).resolves.toEqual([])
   })
 })

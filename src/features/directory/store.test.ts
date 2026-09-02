@@ -49,4 +49,15 @@ describe('directory store', () => {
     expect(store.phase).toBe('stale')
     expect(store.users).toHaveLength(1)
   })
+
+  it('forwards an explicit force refresh request', async () => {
+    setActivePinia(createPinia())
+    const listUsers = vi.fn(async () => ({ schemaVersion: 1, users: [user] }))
+    const store = useDirectoryStore()
+    store.configure({ listUsers })
+
+    await store.refresh(true)
+
+    expect(listUsers).toHaveBeenCalledWith({ forceRefresh: true })
+  })
 })

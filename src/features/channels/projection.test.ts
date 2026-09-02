@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Channel, Message } from './contracts'
+import { createTextMessageContent } from './messageContent'
 import {
   createChannelProjection,
   mergeMessagePage,
@@ -22,6 +23,7 @@ function message(clientId: string, sentAt: number, serverId?: string, text = cli
     sender: { id: 'u1', name: 'User', isCurrentUser: false },
     sentAt,
     text,
+    content: createTextMessageContent(text),
     state: 'active',
     sentByCurrentUser: false,
     pinned: false,

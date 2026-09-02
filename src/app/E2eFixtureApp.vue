@@ -7,9 +7,21 @@ import WorkspaceRail from '@/app/components/WorkspaceRail.vue'
 import WindowChrome from '@/app/components/WindowChrome.vue'
 import WorkspaceSearchField from '@/app/components/WorkspaceSearchField.vue'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
+import ChannelForwardDialog from '@/features/channels/components/ChannelForwardDialog.vue'
+import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelMergedMessagesDialog.vue'
+import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelPinnedMessagesDialog.vue'
+import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
-import type { Channel, Message } from '@/features/channels/contracts'
+import type {
+  Channel,
+  ForwardMessageMode,
+  Message,
+  PinnedMessage,
+  SavedMessage,
+} from '@/features/channels/contracts'
+import { createTextMessageContent } from '@/features/channels/messageContent'
+import { messageSelectionKey } from '@/features/channels/useChannelMessageSelection'
 import AgentDrawer from '@/features/collaboration/components/AgentDrawer.vue'
 import DraftEditorDialog from '@/features/collaboration/components/DraftEditorDialog.vue'
 import type { AgentDrawerChannelState } from '@/features/collaboration/agentDrawerContracts'
@@ -89,6 +101,9 @@ const messages: Message[] = [
     sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
     sentAt: 1_787_843_000_000,
     text: 'Can we move Agent collaboration into a drawer and keep the Channel timeline clean?',
+    content: createTextMessageContent(
+      'Can we move Agent collaboration into a drawer and keep the Channel timeline clean?',
+    ),
     state: 'active',
     sentByCurrentUser: false,
     pinned: false,
@@ -99,12 +114,100 @@ const messages: Message[] = [
     sender: { id: 'current', name: 'Jing', isCurrentUser: true },
     sentAt: 1_787_843_300_000,
     text: 'Yes. The same conversation surface will be reused in drawer and full workspace modes.',
+    content: createTextMessageContent(
+      'Yes. The same conversation surface will be reused in drawer and full workspace modes.',
+    ),
     state: 'active',
     sentByCurrentUser: true,
     pinned: false,
     reactions: [],
   },
 ]
+const mergedMessage: Message = {
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-merged',
+    messageServerId: 'server-merged',
+  },
+  sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
+  sentAt: 1_787_843_500_000,
+  text: 'Product design chat history',
+  content: {
+    kind: 'merged',
+    sourceChannelName: 'Product design',
+    abstracts: [
+      {
+        senderAccountId: 'designer',
+        senderName: 'Lin',
+        text: 'Keep the Channel timeline focused on collaboration.',
+      },
+      {
+        senderAccountId: 'current',
+        senderName: 'Jing',
+        text: 'The Agent drawer can preserve the complete work context.',
+      },
+    ],
+    depth: 1,
+  },
+  state: 'active',
+  sentByCurrentUser: false,
+  pinned: false,
+  reactions: [],
+}
+const nestedMergedMessage: Message = {
+  ...mergedMessage,
+  ref: {
+    channelRef: channel.ref,
+    messageClientId: 'message-merged-nested',
+    messageServerId: 'server-merged-nested',
+  },
+  sender: { id: 'engineer', name: 'Kai', isCurrentUser: false },
+  text: 'Engineering chat history',
+  content: {
+    kind: 'merged',
+    sourceChannelName: 'Engineering',
+    abstracts: [
+      {
+        senderAccountId: 'engineer',
+        senderName: 'Kai',
+        text: 'The provider-neutral boundary is ready for review.',
+      },
+    ],
+    depth: 2,
+  },
+}
+const archivedMessages: Message[] = [messages[0]!, messages[1]!, nestedMergedMessage]
+const timelineMessages = computed(() =>
+  fixture.value === 'merged-card' ? [...messages, mergedMessage] : messages,
+)
+const selectingMessages = ref(fixture.value === 'message-selection')
+const selectedMessageKeys = computed(() =>
+  selectingMessages.value ? messages.map(messageSelectionKey) : [],
+)
+const forwardingMessages = ref<Message[]>(
+  fixture.value === 'message-forwarding' ? [...messages] : [],
+)
+const forwardingMode = ref<ForwardMessageMode>('merged')
+const mergedViewerMessage = ref<Message | null>(
+  fixture.value.startsWith('merged-') && fixture.value !== 'merged-card' ? mergedMessage : null,
+)
+const mergedViewerItems = ref<Message[]>(fixture.value === 'merged-viewer' ? archivedMessages : [])
+const mergedViewerLoading = ref(fixture.value === 'merged-loading')
+const mergedViewerErrorCode = ref<string | null>(
+  fixture.value === 'merged-error' ? 'archive_checksum_mismatch' : null,
+)
+const mergedViewerCanGoBack = ref(false)
+const pinnedMessages: PinnedMessage[] = messages.map((message, index) => ({
+  message: { ...message, pinned: true },
+  pinnedByAccountId: index === 0 ? 'designer' : 'current',
+  pinnedAt: message.sentAt + 60_000,
+}))
+const savedMessages: SavedMessage[] = messages.map((message, index) => ({
+  id: `saved-${index + 1}`,
+  message,
+  sourceChannelName: channel.name,
+  savedAt: message.sentAt + 120_000,
+}))
 const activeTurn: ConversationTurn = {
   id: 'turn-1',
   user: { id: 'prompt-1', text: 'Review the Agent drawer proposal.', attachments: [] },
@@ -401,6 +504,25 @@ function deliverDraft(): void {
     updatedAt: Date.now(),
   }
 }
+function openFixtureForwarding(mode: ForwardMessageMode): void {
+  forwardingMode.value = mode
+  forwardingMessages.value = [...messages]
+}
+function openFixtureMergedMessage(message: Message): void {
+  if (message.content.kind !== 'merged') return
+  const nested = message.ref.messageClientId === nestedMergedMessage.ref.messageClientId
+  mergedViewerMessage.value = message
+  mergedViewerItems.value = nested ? [] : archivedMessages
+  mergedViewerLoading.value = false
+  mergedViewerErrorCode.value = null
+  mergedViewerCanGoBack.value = nested
+}
+function retryFixtureMergedMessages(): void {
+  mergedViewerLoading.value = false
+  mergedViewerErrorCode.value = null
+  mergedViewerItems.value = archivedMessages
+  mergedViewerCanGoBack.value = false
+}
 </script>
 
 <template>
@@ -429,136 +551,184 @@ function deliverDraft(): void {
         "
       />
 
-      <template v-if="activeMode === 'channels'">
-        <ChannelSidebar
-          :channels="channelLoading ? [] : channels"
-          :active-ref="channel.ref"
-          :status="{ phase: 'connected', retryable: true }"
-          :loading="channelLoading"
-          :search-query="globalSearchQuery"
-        />
-        <ChannelConnectionPanel
-          v-if="channelLoading"
-          :status="{ phase: 'connected', retryable: true }"
-          :error-code="null"
-          managed-phase="ready"
-          im-status="ready"
-          :channels-loading="true"
-          :pending="false"
-        />
-        <ChannelTimeline
-          v-else
-          :channel="channel"
-          :messages="messages"
-          :panel-open="drawerOpen"
-          :loading="false"
-          :has-more="true"
-          :sending="false"
-          :active-conversation="conversations[0] ?? null"
-          :recent-conversations="conversations.slice(0, 4)"
-          :current-session-available="true"
-          :runtimes="availableRuntimes"
-          :default-runtime-id="runtime.id"
-          @toggle-panel="drawerOpen = !drawerOpen"
-        />
-        <AgentDrawer
-          :open="drawerOpen"
-          :state="drawerState"
-          :conversations="visibleConversations"
+    <template v-if="activeMode === 'channels'">
+      <ChannelSidebar
+        :channels="channelLoading ? [] : channels"
+        :active-ref="channel.ref"
+        :status="{ phase: 'connected', retryable: true }"
+        :loading="channelLoading"
+        :search-query="globalSearchQuery"
+      />
+      <ChannelConnectionPanel
+        v-if="channelLoading"
+        :status="{ phase: 'connected', retryable: true }"
+        :error-code="null"
+        managed-phase="ready"
+        im-status="ready"
+        :channels-loading="true"
+        :pending="false"
+      />
+      <ChannelTimeline
+        v-else
+        :channel="channel"
+        :messages="timelineMessages"
+        :panel-open="drawerOpen"
+        :loading="false"
+        :has-more="true"
+        :sending="false"
+        :active-conversation="conversations[0] ?? null"
+        :recent-conversations="conversations.slice(0, 4)"
+        :current-session-available="true"
+        :runtimes="availableRuntimes"
+        :default-runtime-id="runtime.id"
+        :selection-mode="selectingMessages"
+        :selected-message-keys="selectedMessageKeys"
+        :selected-count="selectedMessageKeys.length"
+        :can-forward-individual="selectedMessageKeys.length > 0"
+        :can-forward-merged="selectedMessageKeys.length > 0"
+        @toggle-panel="drawerOpen = !drawerOpen"
+        @toggle-message-selection="() => undefined"
+        @select-all-visible="selectingMessages = true"
+        @cancel-selection="selectingMessages = false"
+        @forward-selection="openFixtureForwarding"
+        @open-merged="openFixtureMergedMessage"
+      />
+      <AgentDrawer
+        :open="drawerOpen"
+        :state="drawerState"
+        :conversations="visibleConversations"
+        :turns="turns"
+        :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
+        :runtimes="availableRuntimes"
+        :default-runtime-id="runtime.id"
+        :model-options="fixtureModelOptions"
+        :roles="fixtureRoles"
+        @close="drawerOpen = false"
+        @create="createSession"
+        @create-with-runtime="createSessionWithRuntime"
+        @select="selectSession"
+        @view-all="drawerState.listMode = 'all'"
+        @update-query="drawerState.query = $event"
+        @update-text="drawerState.draft.text = $event"
+        @update-attachments="drawerState.draft.attachments = $event"
+        @select-runtime="drawerState.draft.runtimeId = $event"
+        @select-model="drawerState.draft.model = $event"
+        @select-permission="drawerState.draft.permissionMode = $event"
+        @select-role="drawerState.draft.roleId = $event"
+        @apply-role-prompt="drawerState.draft.text = injectPrompt(drawerState.draft.text, $event)"
+        @send="send"
+        @back="drawerState.phase = 'index'"
+        @expand="activeMode = 'agent'"
+        @create-draft="draftDialogOpen = true"
+      />
+      <ChannelPinnedMessagesDialog
+        :open="fixture === 'pinned-messages'"
+        :channel-name="channel.name"
+        :items="pinnedMessages"
+        :loading="false"
+        :error-code="null"
+      />
+      <ChannelSavedMessagesDialog
+        :open="fixture === 'saved-messages'"
+        :items="savedMessages"
+        :total-count="savedMessages.length"
+        :loading="false"
+        :loading-more="false"
+        :has-more="true"
+        :error-code="null"
+        :removing-id="null"
+      />
+      <ChannelForwardDialog
+        :open="forwardingMessages.length > 0"
+        :messages="forwardingMessages"
+        :channels="channels"
+        :initial-mode="forwardingMode"
+        :pending="false"
+        @close="forwardingMessages = []"
+        @confirm="forwardingMessages = []"
+      />
+      <ChannelMergedMessagesDialog
+        :open="mergedViewerMessage !== null"
+        :message="mergedViewerMessage"
+        :items="mergedViewerItems"
+        :loading="mergedViewerLoading"
+        :error-code="mergedViewerErrorCode"
+        :can-go-back="mergedViewerCanGoBack"
+        @close="mergedViewerMessage = null"
+        @retry="retryFixtureMergedMessages"
+        @back="openFixtureMergedMessage(mergedMessage)"
+        @open-merged="openFixtureMergedMessage"
+      />
+    </template>
+
+    <DirectoryPage
+      v-else-if="activeMode === 'directory'"
+      :users="filteredDirectoryUsers"
+      :total-count="directoryUsers.length"
+      tenant-name="Tea Product Studio"
+      phase="ready"
+      :error-key="null"
+      :query="directoryQuery"
+      :action-error="null"
+      @update:query="directoryQuery = $event"
+      @message="directoryMessageUser = $event"
+    />
+
+    <TaskWorkspace v-else-if="activeMode === 'tasks'" :search-query="globalSearchQuery" />
+
+    <template v-else>
+      <ConversationSidebar
+        :conversations="conversations"
+        :active-id="conversations[0]?.conversationId ?? null"
+        :runtimes="availableRuntimes"
+        :default-runtime-id="runtime.id"
+        :loading="false"
+        :loading-more="false"
+        :error="null"
+        :has-more="false"
+        :filter="{ kind: 'all' }"
+        :search-query="globalSearchQuery"
+        @new="createFullSession"
+      />
+      <main class="min-w-0 flex-1">
+        <AgentConversationSurface
+          v-model:text="fullText"
+          v-model:attachments="fullAttachments"
+          :profile="fullAgentProfile"
+          title="Agent drawer architecture"
+          :runtime-label="
+            availableRuntimes.find((value) => value.id === fullRuntimeId)?.displayName
+          "
           :turns="turns"
-          :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
+          collaboration
+          has-older
           :runtimes="availableRuntimes"
-          :default-runtime-id="runtime.id"
+          :runtime-id="fullRuntimeId"
           :model-options="fixtureModelOptions"
-          :roles="fixtureRoles"
-          @close="drawerOpen = false"
-          @create="createSession"
-          @create-with-runtime="createSessionWithRuntime"
-          @select="selectSession"
-          @view-all="drawerState.listMode = 'all'"
-          @update-query="drawerState.query = $event"
-          @update-text="drawerState.draft.text = $event"
-          @update-attachments="drawerState.draft.attachments = $event"
-          @select-runtime="drawerState.draft.runtimeId = $event"
-          @select-model="drawerState.draft.model = $event"
-          @select-permission="drawerState.draft.permissionMode = $event"
-          @select-role="drawerState.draft.roleId = $event"
-          @apply-role-prompt="drawerState.draft.text = injectPrompt(drawerState.draft.text, $event)"
-          @send="send"
-          @back="drawerState.phase = 'index'"
-          @expand="activeMode = 'agent'"
+        :model="fullModel"
+        :permission-mode="fullPermissionMode"
+        :new-conversation="turns.length === 0"
+        :roles="fixtureRoles"
+        :role-id="fullRoleId"
+        @select-runtime="fullRuntimeId = $event"
+        @send="send"
+          @select-model="fullModel = $event"
+          @select-permission="fullPermissionMode = $event"
           @create-draft="draftDialogOpen = true"
+          @select-role="fullRoleId = $event"
+          @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
         />
-      </template>
+      </main>
+    </template>
 
-      <DirectoryPage
-        v-else-if="activeMode === 'directory'"
-        :users="filteredDirectoryUsers"
-        :total-count="directoryUsers.length"
-        tenant-name="Tea Product Studio"
-        phase="ready"
-        :error-key="null"
-        :query="directoryQuery"
-        :action-error="null"
-        @update:query="directoryQuery = $event"
-        @message="directoryMessageUser = $event"
-      />
-
-      <TaskWorkspace v-else-if="activeMode === 'tasks'" :search-query="globalSearchQuery" />
-
-      <template v-else>
-        <ConversationSidebar
-          :conversations="conversations"
-          :active-id="conversations[0]?.conversationId ?? null"
-          :runtimes="availableRuntimes"
-          :default-runtime-id="runtime.id"
-          :loading="false"
-          :loading-more="false"
-          :error="null"
-          :has-more="false"
-          :filter="{ kind: 'all' }"
-          :search-query="globalSearchQuery"
-          @new="createFullSession"
-        />
-        <main class="min-w-0 flex-1">
-          <AgentConversationSurface
-            v-model:text="fullText"
-            v-model:attachments="fullAttachments"
-            :profile="fullAgentProfile"
-            title="Agent drawer architecture"
-            :runtime-label="
-              availableRuntimes.find((value) => value.id === fullRuntimeId)?.displayName
-            "
-            :turns="turns"
-            collaboration
-            has-older
-            :runtimes="availableRuntimes"
-            :runtime-id="fullRuntimeId"
-            :model-options="fixtureModelOptions"
-            :model="fullModel"
-            :permission-mode="fullPermissionMode"
-            :new-conversation="turns.length === 0"
-            :roles="fixtureRoles"
-            :role-id="fullRoleId"
-            @select-runtime="fullRuntimeId = $event"
-            @send="send"
-            @select-model="fullModel = $event"
-            @select-permission="fullPermissionMode = $event"
-            @create-draft="draftDialogOpen = true"
-            @select-role="fullRoleId = $event"
-            @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
-          />
-        </main>
-      </template>
-
-      <DraftEditorDialog
-        :open="draftDialogOpen"
-        :draft="draft"
-        :delivery="delivery"
-        @close="draftDialogOpen = false"
-        @save="saveDraft"
-        @deliver="deliverDraft"
-      />
+    <DraftEditorDialog
+      :open="draftDialogOpen"
+      :draft="draft"
+      :delivery="delivery"
+      @close="draftDialogOpen = false"
+      @save="saveDraft"
+      @deliver="deliverDraft"
+    />
     </div>
   </WindowChrome>
 </template>

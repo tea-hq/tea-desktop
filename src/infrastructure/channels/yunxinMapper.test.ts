@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { V2NIMConversation } from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMConversationService'
 import type { V2NIMMessage } from 'nim-web-sdk-ng/dist/v2/NIM_BROWSER_SDK/V2NIMMessageService'
-import { mapYunxinConversation, mapYunxinMessage, serializeServerExtension } from './yunxinMapper'
+import {
+  mapYunxinConversation,
+  mapYunxinMessage,
+  mapYunxinMessageContent,
+  serializeServerExtension,
+} from './yunxinMapper'
 
 describe('Yunxin DTO mapping', () => {
   it('maps supported conversations without leaking source objects', () => {
@@ -98,7 +103,10 @@ describe('Yunxin DTO mapping', () => {
       sentByCurrentUser: true,
       serverExtension: { version: 1, identity: 'tea-agent' },
     })
-    expect(mapYunxinMessage({ ...source, messageType: 1 } as V2NIMMessage, 'me')).toBeNull()
+    expect(mapYunxinMessage({ ...source, messageType: 1 } as V2NIMMessage, 'me')).toMatchObject({
+      content: { kind: 'image', caption: 'hello' },
+      text: 'hello',
+    })
   })
 
   it('uses the provider self flag with an account fallback for restored messages', () => {
@@ -122,6 +130,143 @@ describe('Yunxin DTO mapping', () => {
     expect(
       mapYunxinMessage({ ...source, senderId: 'other' } as V2NIMMessage, 'me')?.sentByCurrentUser,
     ).toBe(false)
+  })
+
+  it('normalizes every supported Yunxin content type without exposing SDK objects', () => {
+    expect(
+      mapYunxinMessageContent({
+        messageType: 1,
+        attachment: { url: 'https://a.test/i.png', name: 'i.png', width: 20, height: 10 },
+      }),
+    ).toEqual({
+      kind: 'image',
+      media: { url: 'https://a.test/i.png', name: 'i.png', width: 20, height: 10 },
+    })
+    expect(
+      mapYunxinMessageContent({ messageType: 2, attachment: { duration: 1_200 } }),
+    ).toMatchObject({ kind: 'audio', media: { durationMs: 1_200 } })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 3,
+        attachment: { duration: 2_000, width: 800, height: 600 },
+      }),
+    ).toMatchObject({ kind: 'video', media: { durationMs: 2_000, width: 800, height: 600 } })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 4,
+        attachment: { latitude: 1, longitude: 2, address: 'Office' },
+      }),
+    ).toEqual({ kind: 'location', latitude: 1, longitude: 2, address: 'Office' })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 5,
+        attachment: { type: 3, targetIds: ['u1'], serverExtension: '{"kind":"team"}' },
+      }),
+    ).toEqual({
+      kind: 'notification',
+      notificationType: 3,
+      targetIds: ['u1'],
+      data: { kind: 'team' },
+    })
+    expect(
+      mapYunxinMessageContent({ messageType: 6, attachment: { name: 'report.pdf', size: 12 } }),
+    ).toMatchObject({ kind: 'file', media: { name: 'report.pdf', size: 12 } })
+    expect(mapYunxinMessageContent({ messageType: 7, text: 'call' })).toEqual({
+      kind: 'avchat',
+      text: 'call',
+    })
+    expect(mapYunxinMessageContent({ messageType: 10, text: 'tip' })).toEqual({
+      kind: 'tips',
+      text: 'tip',
+    })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 11,
+        text: 'bot',
+        attachment: { raw: '{"answer":true}' },
+      }),
+    ).toEqual({ kind: 'robot', text: 'bot', data: { answer: true } })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 12,
+        attachment: {
+          type: 1,
+          channelId: 'ch',
+          status: 2,
+          durations: [{ accountId: 'u1', duration: 300 }],
+          text: 'ended',
+        },
+      }),
+    ).toEqual({
+      kind: 'call',
+      callType: 1,
+      channelId: 'ch',
+      status: 2,
+      durations: [{ accountId: 'u1', durationMs: 300 }],
+      text: 'ended',
+    })
+    expect(
+      mapYunxinMessageContent({
+        messageType: 100,
+        subType: 7,
+        text: 'custom',
+        attachment: { raw: '{"v":1}' },
+      }),
+    ).toEqual({ kind: 'custom', subtype: 7, text: 'custom', raw: '{"v":1}', data: { v: 1 } })
+    expect(mapYunxinMessageContent({ messageType: 999, subType: 2, text: 'future' })).toEqual({
+      kind: 'unknown',
+      providerType: 999,
+      subtype: 2,
+      text: 'future',
+    })
+  })
+
+  it('maps merged-forward custom payloads and archived sender metadata', () => {
+    const raw = JSON.stringify({
+      type: 101,
+      data: {
+        abstracts: [{ userAccId: 'u1', senderNick: 'Alice', content: 'Decision' }],
+        depth: 2,
+        sessionId: 'team|source',
+        sessionName: 'Design team',
+        md5: 'checksum',
+        url: 'https://yx.example.test/mergedMsgs.txt',
+      },
+    })
+    expect(
+      mapYunxinMessageContent({ messageType: 100, text: '[Chat history]', attachment: { raw } }),
+    ).toEqual({
+      kind: 'merged',
+      sourceChannelName: 'Design team',
+      abstracts: [{ senderAccountId: 'u1', senderName: 'Alice', text: 'Decision' }],
+      depth: 2,
+    })
+
+    const archived = {
+      conversationId: 'c1',
+      messageClientId: 'm3',
+      messageServerId: 's3',
+      messageType: 0,
+      senderId: 'u1',
+      receiverId: 'other',
+      createTime: 3,
+      isSelf: false,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: 'archived',
+      serverExtension: JSON.stringify({
+        mergedMessageNickKey: 'Alice',
+        mergedMessageAvatarKey: 'https://yx.example.test/alice.png',
+      }),
+    } as V2NIMMessage
+    expect(mapYunxinMessage(archived, 'me')?.sender).toEqual({
+      id: 'u1',
+      name: 'Alice',
+      avatarUrl: 'https://yx.example.test/alice.png',
+      isCurrentUser: false,
+    })
   })
 
   it('rejects oversized or deeply nested outgoing extensions', () => {

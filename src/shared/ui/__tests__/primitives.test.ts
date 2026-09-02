@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import TeaButton from '../TeaButton.vue'
 import TeaChoiceButton from '../TeaChoiceButton.vue'
+import TeaCheckbox from '../TeaCheckbox.vue'
 import TeaDialog from '../TeaDialog.vue'
 import TeaDrawer from '../TeaDrawer.vue'
 import TeaEmptyState from '../TeaEmptyState.vue'
@@ -26,6 +27,21 @@ function mountTea(component: Component, options: MountingOptions<never> = {}) {
 }
 
 describe('Tea primitives', () => {
+  it('keeps checkboxes controlled with accessible and disabled states', async () => {
+    const wrapper = mountTea(TeaCheckbox, {
+      props: { modelValue: false, label: 'Select Product' },
+    })
+    const input = wrapper.get<HTMLInputElement>('input[type="checkbox"]')
+
+    expect(input.attributes('aria-label')).toBe('Select Product')
+    await input.setValue(true)
+    expect(wrapper.emitted('update:modelValue')).toEqual([[true]])
+    expect(input.element.checked).toBe(true)
+
+    await wrapper.setProps({ disabled: true })
+    expect(input.attributes('disabled')).toBeDefined()
+  })
+
   it('keeps inputs controlled and forwards invalid and accessible states', async () => {
     const wrapper = mountTea(TeaInput, {
       props: { modelValue: 'before', label: 'Workspace name', invalid: true },

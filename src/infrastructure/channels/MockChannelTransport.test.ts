@@ -7,14 +7,13 @@ describe('MockChannelTransport', () => {
     await verifyTransportContract(new MockChannelTransport())
   })
 
-  it('declares quick comments unavailable', () => {
+  it('declares quick comments as a typed mutation capability', () => {
     const capability = new MockChannelTransport()
       .capabilities()
       .find((value) => value.id === 'message.quickComment')
     expect(capability).toEqual({
       id: 'message.quickComment',
-      available: false,
-      reason: 'notVerified',
+      available: true,
     })
   })
 
@@ -29,14 +28,24 @@ describe('MockChannelTransport', () => {
     })
   })
 
-  it('loads multiple provider-neutral user profiles in one request', async () => {
+  it('provides normalized group details and member pages', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()
-
-    await expect(transport.getUserProfiles(['meng', 'lin'])).resolves.toEqual([
-      { accountId: 'meng', name: '孟凡' },
-      { accountId: 'lin', name: '林晓' },
-    ])
+    await expect(transport.getChannelDetails('product-collab')).resolves.toMatchObject({
+      channelRef: 'product-collab',
+      memberCount: 12,
+      memberLimit: 200,
+    })
+    await expect(
+      transport.listChannelMembers({ channelRef: 'product-collab', limit: 2 }),
+    ).resolves.toMatchObject({
+      items: [
+        { accountId: 'me', role: 'owner' },
+        { accountId: 'meng', role: 'manager' },
+      ],
+      hasMore: true,
+      nextCursor: '2',
+    })
   })
 
   it('pages before and after an anchor without returning the anchor', async () => {
@@ -70,6 +79,62 @@ describe('MockChannelTransport', () => {
     expect(after.nextAnchor).toEqual(after.items[0]!.ref)
   })
 
+  it('searches cloud messages with provider-neutral pagination', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+
+    const first = await transport.searchMessages({
+      channelRef: 'product-collab',
+      keyword: 'Agent',
+      limit: 1,
+    })
+    expect(first.totalCount).toBe(4)
+    expect(first.items).toHaveLength(1)
+    expect(first.items[0]?.text).toContain('Agent')
+    expect(first.hasMore).toBe(true)
+
+    const second = await transport.searchMessages({
+      channelRef: 'product-collab',
+      keyword: 'Agent',
+      limit: 1,
+      cursor: first.nextCursor,
+    })
+    expect(second.items).toHaveLength(1)
+    expect(second.hasMore).toBe(true)
+    expect(
+      new Set([first.items[0]?.ref.messageClientId, second.items[0]?.ref.messageClientId]).size,
+    ).toBe(2)
+  })
+
+  it('saves messages idempotently, pages the catalog, and removes entries', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 2,
+    })
+
+    const first = await transport.saveMessage({
+      messageRef: page.items[0]!.ref,
+      sourceChannelName: 'Product',
+    })
+    const duplicate = await transport.saveMessage({ messageRef: page.items[0]!.ref })
+    await transport.saveMessage({ messageRef: page.items[1]!.ref })
+
+    expect(duplicate.id).toBe(first.id)
+    await expect(transport.listSavedMessages({ limit: 1 })).resolves.toMatchObject({
+      totalCount: 2,
+      hasMore: true,
+      items: [{ id: expect.any(String) }],
+    })
+    await transport.removeSavedMessage(first.id)
+    await expect(transport.listSavedMessages({ limit: 10 })).resolves.toMatchObject({
+      totalCount: 1,
+      hasMore: false,
+    })
+  })
+
   it('rejects unknown anchors and invalid limits', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()
@@ -88,6 +153,176 @@ describe('MockChannelTransport', () => {
         channelRef: 'product-collab',
         direction: 'after',
         limit: 101,
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+  })
+
+  it('executes typed message mutations and emits authoritative events', async () => {
+    const transport = new MockChannelTransport()
+    const events: string[] = []
+    transport.subscribe((event) => events.push(event.type))
+    await transport.connect()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 5,
+    })
+    const target = page.items.find((message) => message.sentByCurrentUser)!.ref
+
+    await transport.modifyMessage({ messageRef: target, text: 'edited' })
+    await transport.pinMessage({ messageRef: target, pinned: true })
+    await expect(transport.listPinnedMessages('product-collab')).resolves.toMatchObject([
+      { message: { ref: target, pinned: true } },
+    ])
+    await transport.quickComment({ messageRef: target, type: 1, active: true })
+    await transport.revokeMessage({ messageRef: target })
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        'message.upserted',
+        'message.pinChanged',
+        'message.reactionsChanged',
+        'message.revoked',
+      ]),
+    )
+    await transport.deleteMessages({ messageRefs: [target] })
+    expect(events.at(-1)).toBe('message.deleted')
+  })
+
+  it('replies to a loaded message and forwards it to multiple channels', async () => {
+    const transport = new MockChannelTransport()
+    const events: string[] = []
+    transport.subscribe((event) => events.push(event.type))
+    await transport.connect()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 5,
+    })
+    const original = page.items[0]!
+
+    const reply = await transport.replyMessage({
+      channelRef: 'product-collab',
+      replyTo: original.ref,
+      content: { kind: 'text', text: 'Acknowledged' },
+      idempotencyKey: 'reply-1',
+    })
+    const duplicate = await transport.replyMessage({
+      channelRef: 'product-collab',
+      replyTo: original.ref,
+      content: { kind: 'text', text: 'Acknowledged' },
+      idempotencyKey: 'reply-1',
+    })
+
+    expect(duplicate).toEqual(reply)
+    const afterReply = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 20,
+    })
+    expect(afterReply.items.at(-1)?.replyTo).toMatchObject({
+      ref: original.ref,
+      senderName: original.sender.name,
+    })
+
+    const second = page.items[1]!
+    const forwarded = await transport.forwardMessage({
+      messageRefs: [original.ref, second.ref],
+      targetChannelRefs: ['runtime-architecture', 'tea-release'],
+      mode: 'individual',
+      comment: 'Context',
+    })
+    expect(forwarded.messages).toHaveLength(6)
+    expect(events.filter((type) => type === 'message.upserted').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('creates a merged card with an immutable loadable archive', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const page = await transport.loadMessages({
+      channelRef: 'product-collab',
+      direction: 'before',
+      limit: 5,
+    })
+    const selected = page.items.slice(0, 3)
+
+    const result = await transport.forwardMessage({
+      messageRefs: selected.map((message) => message.ref),
+      targetChannelRefs: ['runtime-architecture'],
+      mode: 'merged',
+      sourceChannelName: 'Product collaboration',
+    })
+    const target = await transport.loadMessages({
+      channelRef: 'runtime-architecture',
+      direction: 'before',
+      limit: 10,
+    })
+    const card = target.items.at(-1)!
+    expect(card.content).toMatchObject({
+      kind: 'merged',
+      sourceChannelName: 'Product collaboration',
+      depth: 1,
+    })
+    expect(await transport.loadMergedMessages(result.messages[0]!.ref)).toEqual(selected)
+
+    await transport.deleteMessages({ messageRefs: selected.map((message) => message.ref) })
+    expect(await transport.loadMergedMessages(card.ref)).toEqual(selected)
+  })
+
+  it('rejects unsupported individual content and merged depth overflow', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    const sent = await transport.sendMessage({
+      channelRef: 'product-collab',
+      content: {
+        kind: 'call',
+        callType: 1,
+        channelId: 'call',
+        status: 2,
+        durations: [],
+        text: 'Call',
+      },
+    })
+    await expect(
+      transport.forwardMessage({
+        messageRefs: [sent.ref],
+        targetChannelRefs: ['runtime-architecture'],
+        mode: 'individual',
+      }),
+    ).rejects.toMatchObject({ code: 'unsupportedCapability' })
+
+    const first = await transport.forwardMessage({
+      messageRefs: [sent.ref],
+      targetChannelRefs: ['runtime-architecture'],
+      mode: 'merged',
+    })
+    const second = await transport.forwardMessage({
+      messageRefs: [first.messages[0]!.ref],
+      targetChannelRefs: ['tea-release'],
+      mode: 'merged',
+    })
+    const third = await transport.forwardMessage({
+      messageRefs: [second.messages[0]!.ref],
+      targetChannelRefs: ['runtime-architecture'],
+      mode: 'merged',
+    })
+    await expect(
+      transport.forwardMessage({
+        messageRefs: [third.messages[0]!.ref],
+        targetChannelRefs: ['tea-release'],
+        mode: 'merged',
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest' })
+  })
+
+  it('rejects a reply target from another channel', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+    await expect(
+      transport.replyMessage({
+        channelRef: 'product-collab',
+        replyTo: { channelRef: 'other', messageClientId: 'missing' },
+        content: { kind: 'text', text: 'nope' },
       }),
     ).rejects.toMatchObject({ code: 'invalidRequest' })
   })
