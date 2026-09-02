@@ -924,6 +924,18 @@ export default {
       light: '浅色',
       dark: '深色',
     },
+    notifications: {
+      title: '通知',
+      description: '管理频道新消息的桌面提醒。',
+      enabled: '显示桌面通知',
+      sound: '播放通知声音',
+      preview: {
+        title: '预览内容',
+        message: '消息内容',
+        sender: '仅发送者',
+        hidden: '隐藏',
+      },
+    },
     defaultAgent: {
       title: '默认 Agent',
       description: '新建会话时优先使用该 Agent。',

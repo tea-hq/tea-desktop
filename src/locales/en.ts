@@ -964,6 +964,18 @@ export default {
       light: 'Light',
       dark: 'Dark',
     },
+    notifications: {
+      title: 'Notifications',
+      description: 'Control desktop alerts for new channel messages.',
+      enabled: 'Show desktop notifications',
+      sound: 'Play a notification sound',
+      preview: {
+        title: 'Preview',
+        message: 'Message',
+        sender: 'Sender',
+        hidden: 'Hidden',
+      },
+    },
     defaultAgent: {
       title: 'Default Agent',
       description: 'Used when you start a new conversation.',

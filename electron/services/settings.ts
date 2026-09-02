@@ -1,10 +1,13 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import type { AppSettings } from '../../src/features/settings/contracts'
+import type {
+  AppSettings,
+  NotificationPreviewPreference,
+} from '../../src/features/settings/contracts'
 import { THEME_PREFERENCES, type ThemePreference } from '../../src/types/theme'
 
-const SETTINGS_SCHEMA_VERSION = 1
+const SETTINGS_SCHEMA_VERSION = 2
 const MAX_SETTINGS_BYTES = 64 * 1024
 
 export class ElectronSettingsService {
@@ -74,6 +77,7 @@ export function defaultSettings(): AppSettings {
   return {
     locale: 'system',
     theme: 'system',
+    notifications: { enabled: true, sound: true, preview: 'message' },
     conversationDefaults: { runtimeId: 'external.claude', model: null },
     layout: { leftSidebarOpen: true, agentDrawerOpen: false },
   }
@@ -82,12 +86,17 @@ export function defaultSettings(): AppSettings {
 function normalizeAppSettings(value: unknown): AppSettings | null {
   if (!isRecord(value)) return null
   const locale = value.locale
-  const theme = value.theme === undefined ? 'system' : value.theme
+  const theme = value.theme
+  const notifications = value.notifications
   const defaults = value.conversationDefaults
   const layout = value.layout
   if (
     !(locale === 'system' || locale === 'en' || locale === 'zh-CN') ||
     !isThemePreference(theme) ||
+    !isRecord(notifications) ||
+    typeof notifications.enabled !== 'boolean' ||
+    typeof notifications.sound !== 'boolean' ||
+    !isNotificationPreviewPreference(notifications.preview) ||
     !isRecord(defaults) ||
     typeof defaults.runtimeId !== 'string' ||
     defaults.runtimeId.trim().length === 0 ||
@@ -99,7 +108,6 @@ function normalizeAppSettings(value: unknown): AppSettings | null {
     return null
   const model = defaults.model
   if (
-    model !== undefined &&
     model !== null &&
     (typeof model !== 'string' || model.trim().length === 0 || model.length > 512)
   )
@@ -107,15 +115,24 @@ function normalizeAppSettings(value: unknown): AppSettings | null {
   return {
     locale,
     theme,
+    notifications: {
+      enabled: notifications.enabled,
+      sound: notifications.sound,
+      preview: notifications.preview,
+    },
     conversationDefaults: {
       runtimeId: defaults.runtimeId,
-      model: typeof model === 'string' ? model : null,
+      model,
     },
     layout: {
       leftSidebarOpen: layout.leftSidebarOpen,
       agentDrawerOpen: layout.agentDrawerOpen,
     },
   }
+}
+
+function isNotificationPreviewPreference(value: unknown): value is NotificationPreviewPreference {
+  return value === 'message' || value === 'sender' || value === 'hidden'
 }
 
 function isThemePreference(value: unknown): value is ThemePreference {

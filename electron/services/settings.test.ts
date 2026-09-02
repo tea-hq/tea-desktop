@@ -24,16 +24,17 @@ describe('ElectronSettingsService', () => {
     const settings = {
       locale: 'zh-CN' as const,
       theme: 'dark' as const,
+      notifications: { enabled: true, sound: false, preview: 'sender' as const },
       conversationDefaults: { runtimeId: 'external.codex', model: 'provider/model-a' },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
 
     await expect(service.update(settings)).resolves.toEqual(settings)
     await expect(service.load()).resolves.toEqual(settings)
-    await expect(readFile(filePath, 'utf8')).resolves.toContain('"schemaVersion": 1')
+    await expect(readFile(filePath, 'utf8')).resolves.toContain('"schemaVersion": 2')
   })
 
-  it('normalizes settings written before the default model was added', async () => {
+  it('rejects the replaced version 1 schema without migrating it', async () => {
     const filePath = await settingsPath()
     await writeFile(
       filePath,
@@ -41,7 +42,7 @@ describe('ElectronSettingsService', () => {
         schemaVersion: 1,
         settings: {
           locale: 'en',
-          theme: undefined,
+          theme: 'system',
           conversationDefaults: { runtimeId: 'external.claude' },
           layout: { leftSidebarOpen: true, agentDrawerOpen: false },
         },
@@ -49,14 +50,15 @@ describe('ElectronSettingsService', () => {
     )
     const service = new ElectronSettingsService(filePath)
 
-    await expect(service.load()).resolves.toMatchObject({
-      conversationDefaults: { runtimeId: 'external.claude', model: null },
+    await expect(service.load()).rejects.toMatchObject({
+      code: 'unsupportedSchema',
+      retryable: false,
     })
   })
 
   it('rejects unsupported schemas without silently downgrading them', async () => {
     const filePath = await settingsPath()
-    await writeFile(filePath, JSON.stringify({ schemaVersion: 2, settings: defaultSettings() }))
+    await writeFile(filePath, JSON.stringify({ schemaVersion: 3, settings: defaultSettings() }))
     const service = new ElectronSettingsService(filePath)
 
     await expect(service.load()).rejects.toMatchObject({
@@ -72,6 +74,23 @@ describe('ElectronSettingsService', () => {
       code: 'invalidRequest',
       retryable: false,
     })
+  })
+
+  it('rejects incomplete or invalid notification settings', async () => {
+    const service = new ElectronSettingsService(await settingsPath())
+
+    await expect(
+      service.update({
+        ...defaultSettings(),
+        notifications: { enabled: true, sound: true, preview: 'everything' },
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
+    await expect(
+      service.update({
+        ...defaultSettings(),
+        notifications: { enabled: true, preview: 'message' },
+      }),
+    ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
   })
 
   it('preserves corrupt settings and returns defaults', async () => {
