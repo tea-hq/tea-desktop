@@ -4,6 +4,8 @@ import type {
   Channel,
   ChannelAttachment,
   ChannelAttachmentPicker,
+  ChannelDraft,
+  ChannelDraftClient,
   ChannelEvent,
   ChannelDetails,
   ChannelMemberPage,
@@ -63,10 +65,12 @@ type MessageLoadDirection = 'before' | 'after'
 const INITIAL_MESSAGE_LIMIT = 50
 const SAVED_MESSAGE_LIMIT = 50
 const MAX_CHANNEL_PAGES = 5
+const DRAFT_SAVE_DELAY_MS = 300
 
 export const useChannelsStore = defineStore('channels', () => {
   const transport = shallowRef<ChannelTransport | null>(null)
   const attachmentPicker = shallowRef<ChannelAttachmentPicker | null>(null)
+  const draftClient = shallowRef<ChannelDraftClient | null>(null)
   const projection = reactive(createChannelProjection()) as unknown as ChannelProjection
   const status = ref<ChannelStatus>({ phase: 'disconnected', retryable: false })
   const activeChannelRef = ref<ChannelRef | null>(null)
@@ -87,6 +91,10 @@ export const useChannelsStore = defineStore('channels', () => {
   const removingSavedMessageId = ref<string | null>(null)
   const savedMessagesErrorCode = ref<string | null>(null)
   const mutatingChannelRefs = reactive(new Set<ChannelRef>())
+  const draftsByChannel = reactive(new Map<ChannelRef, ChannelDraft>())
+  const draftSavingRefs = reactive(new Set<ChannelRef>())
+  const loadingDrafts = ref(false)
+  const draftErrorCode = ref<string | null>(null)
   const refreshingChannels = ref(false)
   const synchronizingChannels = ref(false)
   const channelCatalogReady = ref(true)
@@ -107,6 +115,11 @@ export const useChannelsStore = defineStore('channels', () => {
   let pinnedMessagesOperationId = 0
   let savedMessagesOperationId = 0
   let mergedMessagesOperationId = 0
+  let draftLoadOperationId = 0
+  let loadedDraftAccountRef: string | null = null
+  const dirtyDraftRefs = new Set<ChannelRef>()
+  const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
+  const draftSavePromises = new Map<ChannelRef, Promise<void>>()
 
   const channels = computed(() =>
     [...projection.channels.values()].sort(
@@ -123,6 +136,16 @@ export const useChannelsStore = defineStore('channels', () => {
   const activeMessages = computed(() =>
     activeChannelRef.value ? (projection.messagesByChannel.get(activeChannelRef.value) ?? []) : [],
   )
+  const drafts = computed(() =>
+    [...draftsByChannel.values()].sort(
+      (left, right) =>
+        right.updatedAt - left.updatedAt || left.channelRef.localeCompare(right.channelRef),
+    ),
+  )
+  const activeDraft = computed(() =>
+    activeChannelRef.value ? (draftsByChannel.get(activeChannelRef.value) ?? null) : null,
+  )
+  const draftSavingChannelRefs = computed(() => [...draftSavingRefs])
   const activeHasMoreMessages = computed(() =>
     activeChannelRef.value
       ? (messageCursors.get(activeChannelRef.value)?.before.hasMore ?? false)
@@ -139,14 +162,19 @@ export const useChannelsStore = defineStore('channels', () => {
   )
   const loadingMessages = computed(() => loadingMessageRequests.size > 0)
 
-  function configure(value: ChannelTransport, picker?: ChannelAttachmentPicker): void {
-    if (transport.value === value) return
+  function configure(
+    value: ChannelTransport,
+    picker?: ChannelAttachmentPicker,
+    drafts?: ChannelDraftClient,
+  ): void {
+    if (transport.value === value && draftClient.value === drafts) return
     lifecycleGeneration += 1
     const generation = lifecycleGeneration
     unsubscribe?.()
     if (transport.value) void transport.value.dispose()
     transport.value = value
     attachmentPicker.value = picker ?? null
+    draftClient.value = drafts ?? null
     status.value = value.status()
     refreshPromise = null
     refreshingChannels.value = false
@@ -159,6 +187,7 @@ export const useChannelsStore = defineStore('channels', () => {
       if (generation === lifecycleGeneration && transport.value === value) handleEvent(event)
     })
     clearProjection()
+    clearDraftProjection()
   }
 
   async function connect(): Promise<void> {
@@ -173,10 +202,17 @@ export const useChannelsStore = defineStore('channels', () => {
       await client.connect()
       if (generation !== lifecycleGeneration || transport.value !== client) return
       const nextStatus = client.status()
-      if (status.value.accountRef && status.value.accountRef !== nextStatus.accountRef)
+      if (status.value.accountRef && status.value.accountRef !== nextStatus.accountRef) {
         clearProjection()
+        clearDraftProjection()
+      }
       status.value = nextStatus
-      await refreshChannels()
+      await Promise.all([
+        refreshChannels(),
+        nextStatus.accountRef
+          ? loadDrafts(nextStatus.accountRef).catch(() => undefined)
+          : Promise.resolve(),
+      ])
     } catch (error) {
       status.value = client.status()
       errorCode.value = status.value.errorCode ?? transportErrorCode(error)
@@ -192,6 +228,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const client = transport.value
     if (!client) return
     const generation = lifecycleGeneration
+    await flushAllDrafts()
     await client.disconnect()
     if (generation !== lifecycleGeneration || transport.value !== client) return
     clearProjection()
@@ -245,6 +282,9 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function selectChannel(channelRef: ChannelRef): Promise<void> {
     if (!projection.channels.has(channelRef)) return
+    const previousChannelRef = activeChannelRef.value
+    if (previousChannelRef && previousChannelRef !== channelRef)
+      await flushDraft(previousChannelRef).catch(() => undefined)
     const client = requireTransport()
     const generation = lifecycleGeneration
     errorCode.value = null
@@ -845,13 +885,152 @@ export const useChannelsStore = defineStore('channels', () => {
     )
   }
 
+  function updateDraft(channelRef: ChannelRef, text: string, mentions: MessageMention[]): void {
+    const accountRef = status.value.accountRef
+    if (
+      !accountRef ||
+      loadedDraftAccountRef !== accountRef ||
+      !draftClient.value ||
+      !projection.channels.has(channelRef)
+    )
+      return
+    draftsByChannel.set(channelRef, {
+      accountRef,
+      channelRef,
+      text,
+      mentions: copyMessageMentions(mentions),
+      updatedAt: Date.now(),
+    })
+    dirtyDraftRefs.add(channelRef)
+    draftErrorCode.value = null
+    scheduleDraftSave(channelRef)
+  }
+
+  async function clearDraft(channelRef: ChannelRef): Promise<void> {
+    if (!status.value.accountRef || !draftClient.value) return
+    draftsByChannel.delete(channelRef)
+    dirtyDraftRefs.add(channelRef)
+    await flushDraft(channelRef)
+  }
+
+  async function loadDrafts(accountRef: string): Promise<void> {
+    const client = draftClient.value
+    if (!client) return
+    if (loadedDraftAccountRef !== accountRef) {
+      clearDraftProjection()
+      loadedDraftAccountRef = accountRef
+    }
+    const generation = lifecycleGeneration
+    const operationId = ++draftLoadOperationId
+    loadingDrafts.value = true
+    draftErrorCode.value = null
+    try {
+      const values = await client.list(accountRef)
+      if (
+        generation !== lifecycleGeneration ||
+        draftClient.value !== client ||
+        operationId !== draftLoadOperationId ||
+        status.value.accountRef !== accountRef
+      )
+        return
+      draftsByChannel.clear()
+      for (const draft of values) {
+        if (draft.accountRef === accountRef) draftsByChannel.set(draft.channelRef, draft)
+      }
+    } catch (error) {
+      if (generation === lifecycleGeneration && operationId === draftLoadOperationId)
+        draftErrorCode.value = transportErrorCode(error)
+      throw error
+    } finally {
+      if (generation === lifecycleGeneration && operationId === draftLoadOperationId)
+        loadingDrafts.value = false
+    }
+  }
+
+  function scheduleDraftSave(channelRef: ChannelRef): void {
+    const existing = draftSaveTimers.get(channelRef)
+    if (existing) clearTimeout(existing)
+    draftSaveTimers.set(
+      channelRef,
+      setTimeout(() => {
+        draftSaveTimers.delete(channelRef)
+        void flushDraft(channelRef).catch(() => undefined)
+      }, DRAFT_SAVE_DELAY_MS),
+    )
+  }
+
+  async function flushDraft(channelRef: ChannelRef): Promise<void> {
+    const timer = draftSaveTimers.get(channelRef)
+    if (timer) {
+      clearTimeout(timer)
+      draftSaveTimers.delete(channelRef)
+    }
+    const current = draftSavePromises.get(channelRef)
+    if (current) return current
+    if (!dirtyDraftRefs.has(channelRef)) return
+    const client = draftClient.value
+    const accountRef = status.value.accountRef
+    if (!client || !accountRef) return
+    const generation = lifecycleGeneration
+    const operation = (async () => {
+      draftSavingRefs.add(channelRef)
+      while (
+        generation === lifecycleGeneration &&
+        draftClient.value === client &&
+        status.value.accountRef === accountRef &&
+        dirtyDraftRefs.has(channelRef)
+      ) {
+        dirtyDraftRefs.delete(channelRef)
+        const draft = draftsByChannel.get(channelRef)
+        try {
+          if (draft?.text.trim()) {
+            await client.save({
+              accountRef,
+              channelRef,
+              text: draft.text,
+              mentions: copyMessageMentions(draft.mentions),
+            })
+          } else {
+            await client.remove(accountRef, channelRef)
+          }
+          if (generation === lifecycleGeneration && status.value.accountRef === accountRef)
+            draftErrorCode.value = null
+        } catch (error) {
+          if (
+            generation === lifecycleGeneration &&
+            draftClient.value === client &&
+            status.value.accountRef === accountRef
+          ) {
+            dirtyDraftRefs.add(channelRef)
+            draftErrorCode.value = transportErrorCode(error)
+          }
+          throw error
+        }
+      }
+    })().finally(() => {
+      draftSavingRefs.delete(channelRef)
+      draftSavePromises.delete(channelRef)
+      if (dirtyDraftRefs.has(channelRef) && status.value.accountRef !== accountRef)
+        scheduleDraftSave(channelRef)
+    })
+    draftSavePromises.set(channelRef, operation)
+    return operation
+  }
+
+  async function flushAllDrafts(): Promise<void> {
+    const channelRefs = new Set([...dirtyDraftRefs, ...draftSaveTimers.keys()])
+    await Promise.allSettled([...channelRefs].map((channelRef) => flushDraft(channelRef)))
+  }
+
   async function dispose(): Promise<void> {
+    await flushAllDrafts()
     lifecycleGeneration += 1
     unsubscribe?.()
     unsubscribe = null
     const client = transport.value
     transport.value = null
     attachmentPicker.value = null
+    draftClient.value = null
     clearProjection()
     refreshPromise = null
     refreshingChannels.value = false
@@ -865,6 +1044,7 @@ export const useChannelsStore = defineStore('channels', () => {
     mutatingMessage.value = false
     mutatingChannelRefs.clear()
     errorCode.value = null
+    clearDraftProjection()
     status.value = { phase: 'disconnected', retryable: false }
     if (client) await client.dispose()
   }
@@ -940,6 +1120,7 @@ export const useChannelsStore = defineStore('channels', () => {
       status.value.accountRef !== event.status.accountRef
     ) {
       clearProjection()
+      clearDraftProjection()
       channelCatalogReady.value = false
       initialConversationSyncFinished.value = false
     }
@@ -975,7 +1156,10 @@ export const useChannelsStore = defineStore('channels', () => {
         channelCatalogReady.value = false
         initialConversationSyncFinished.value = false
       }
-      if (event.status.phase === 'connected') void refreshChannels().catch(() => undefined)
+      if (event.status.phase === 'connected') {
+        void refreshChannels().catch(() => undefined)
+        if (event.status.accountRef) void loadDrafts(event.status.accountRef).catch(() => undefined)
+      }
     } else if (event.type === 'sync.started') {
       synchronizingChannels.value = true
       if (projection.channels.size === 0) channelCatalogReady.value = false
@@ -1008,6 +1192,18 @@ export const useChannelsStore = defineStore('channels', () => {
     clearSavedMessages()
     loadingMergedMessages.value = false
     mergedMessagesErrorCode.value = null
+  }
+
+  function clearDraftProjection(): void {
+    draftLoadOperationId += 1
+    for (const timer of draftSaveTimers.values()) clearTimeout(timer)
+    draftSaveTimers.clear()
+    dirtyDraftRefs.clear()
+    draftsByChannel.clear()
+    draftSavingRefs.clear()
+    loadingDrafts.value = false
+    draftErrorCode.value = null
+    loadedDraftAccountRef = null
   }
 
   function ensureMessageCursor(channelRef: ChannelRef): MessageCursor {
@@ -1164,6 +1360,11 @@ export const useChannelsStore = defineStore('channels', () => {
     highlightedMessageKey,
     activeChannel,
     activeMessages,
+    drafts,
+    activeDraft,
+    loadingDrafts,
+    draftSavingChannelRefs,
+    draftErrorCode,
     activeHasMoreMessages,
     activeHasMoreNewerMessages,
     status,
@@ -1235,6 +1436,9 @@ export const useChannelsStore = defineStore('channels', () => {
     setChannelMuted,
     markChannelRead,
     hideChannel,
+    updateDraft,
+    flushDraft,
+    clearDraft,
     dispose,
   }
 })
@@ -1251,6 +1455,17 @@ function transportErrorCode(error: unknown): string {
   return typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
     : 'transport'
+}
+
+function copyMessageMentions(mentions: MessageMention[]): MessageMention[] {
+  return mentions.map((mention) => ({
+    target:
+      mention.target.kind === 'channel'
+        ? { kind: 'channel' }
+        : { kind: 'user', accountId: mention.target.accountId },
+    label: mention.label,
+    ranges: mention.ranges.map((range) => ({ start: range.start, end: range.end })),
+  }))
 }
 
 function randomOperationId(): string {

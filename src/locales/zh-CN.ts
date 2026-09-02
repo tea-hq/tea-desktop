@@ -549,6 +549,11 @@ export default {
       pinned: '已置顶会话',
       muted: '已开启消息免打扰',
     },
+    drafts: {
+      label: '草稿',
+      saving: '正在保存草稿',
+      saveError: '草稿无法保存到本地（{code}）。请保持窗口打开后重试。',
+    },
     details: {
       title: '通道详情',
       loading: '正在加载通道详情',

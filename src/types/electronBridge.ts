@@ -88,6 +88,9 @@ export const DESKTOP_COMMANDS = [
   'set_channel_pinned',
   'set_channel_muted',
   'hide_channel',
+  'list_im_channel_drafts',
+  'save_im_channel_draft',
+  'remove_im_channel_draft',
 ] as const
 
 export type DesktopCommand = (typeof DESKTOP_COMMANDS)[number]

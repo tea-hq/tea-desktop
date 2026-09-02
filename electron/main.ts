@@ -15,6 +15,7 @@ import { ElectronCatalogService } from './services/catalog'
 import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
 import { ElectronChannelAttachmentService } from './services/channelAttachments'
+import { ElectronChannelDraftService } from './services/channelDrafts'
 import { ElectronCredentialService } from './services/credentials'
 import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
 import { ElectronCenterPluginService } from './services/centerPlugins'
@@ -148,6 +149,9 @@ async function bootstrap(): Promise<void> {
     channelAttachments,
     { isKnownContact: (accountId) => centerAuth.isDirectoryContact(accountId) },
   )
+  const channelDrafts = new ElectronChannelDraftService(
+    path.join(app.getPath('userData'), 'im-channel-drafts.json'),
+  )
 
   const commandServices: DesktopCommandServices = {
     settings,
@@ -158,6 +162,7 @@ async function bootstrap(): Promise<void> {
     credentials,
     pluginProcesses,
     channel,
+    channelDrafts,
     selectDirectory: async () => {
       const options: OpenDialogOptions = {
         properties: ['openDirectory', 'createDirectory'],
@@ -178,7 +183,11 @@ async function bootstrap(): Promise<void> {
   await centerAuth.initialize()
   await centerPlugins.synchronize().catch(() => undefined)
   await managedWorkspace.refresh().catch(() => undefined)
-  await Promise.all([catalog.initialize(), conversationHost.initialize()])
+  await Promise.all([
+    catalog.initialize(),
+    conversationHost.initialize(),
+    channelDrafts.initialize(),
+  ])
   createWindow()
 }
 

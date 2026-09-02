@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaIconButton, TeaIconMenu, TeaInput, type TeaMenuItem } from '@/shared/ui'
 
-import type { Channel, ChannelRef, ChannelStatus } from '../contracts'
+import type { Channel, ChannelDraft, ChannelRef, ChannelStatus } from '../contracts'
 import ChannelAvatar from './ChannelAvatar.vue'
 
 const props = withDefaults(
@@ -13,8 +13,9 @@ const props = withDefaults(
     status: ChannelStatus
     loading: boolean
     pendingRefs?: ChannelRef[]
+    drafts?: ChannelDraft[]
   }>(),
-  { pendingRefs: () => [] },
+  { pendingRefs: () => [], drafts: () => [] },
 )
 
 const emit = defineEmits<{
@@ -36,6 +37,14 @@ const filteredChannels = computed(() => {
   )
 })
 const pendingRefs = computed(() => new Set(props.pendingRefs))
+const draftsByChannel = computed(
+  () =>
+    new Map(
+      props.drafts
+        .filter((draft) => draft.text.trim())
+        .map((draft) => [draft.channelRef, draft] as const),
+    ),
+)
 
 function conversationMenuItems(channel: Channel): TeaMenuItem[] {
   const disabled = pendingRefs.value.has(channel.ref)
@@ -196,10 +205,19 @@ function formatTime(value: number): string {
                 >{{ channel.name }}</span
               >
               <span
-                class="channel-row__preview mt-0.5 block truncate text-xs leading-4"
-                :class="channel.unreadCount ? 'text-dim' : 'text-subtle'"
-                >{{ channel.lastMessagePreview || channel.description }}</span
+                class="channel-row__preview mt-0.5 flex min-w-0 items-center gap-1 text-xs leading-4"
               >
+                <span
+                  v-if="draftsByChannel.has(channel.ref)"
+                  class="shrink-0 font-semibold text-danger"
+                  >{{ t('channels.drafts.label') }}</span
+                >
+                <span class="truncate" :class="channel.unreadCount ? 'text-dim' : 'text-subtle'">{{
+                  draftsByChannel.get(channel.ref)?.text.trim() ||
+                  channel.lastMessagePreview ||
+                  channel.description
+                }}</span>
+              </span>
             </span>
             <span class="grid h-full min-w-0 content-center justify-items-end gap-1">
               <span class="whitespace-nowrap text-xs tabular-nums text-subtle">{{

@@ -263,6 +263,8 @@ async function handleChannelSend(payload: {
   attachments: ChannelAttachment[]
   mentions: MessageMention[]
 }): Promise<void> {
+  const channelRef = channels.activeChannelRef
+  if (!channelRef) return
   try {
     let replyRef = payload.replyTo?.ref
     if (payload.text) {
@@ -287,9 +289,15 @@ async function handleChannelSend(payload: {
       replyRef = undefined
     }
     replyTo.value = null
+    await channels.clearDraft(channelRef)
   } catch {
     // The store exposes the stable error code to the connection panel.
   }
+}
+
+function updateChannelDraft(payload: { text: string; mentions: MessageMention[] }): void {
+  const channelRef = channels.activeChannelRef
+  if (channelRef) channels.updateDraft(channelRef, payload.text, payload.mentions)
 }
 
 async function loadMentionMembers(): Promise<void> {
@@ -654,6 +662,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
 <template>
   <ChannelSidebar
     :channels="channels.channels"
+    :drafts="channels.drafts"
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
     :loading="channels.loadingChannels"
@@ -691,6 +700,14 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :can-forward-merged="mergedEligibility.eligible"
     :mention-members="mentionMembers"
     :mention-members-loading="mentionMembersLoading"
+    :draft="channels.activeDraft?.text ?? ''"
+    :draft-mentions="channels.activeDraft?.mentions ?? []"
+    :draft-saving="
+      channels.activeChannelRef
+        ? channels.draftSavingChannelRefs.includes(channels.activeChannelRef)
+        : false
+    "
+    :draft-error-code="channels.draftErrorCode"
     @forward-to-agent="forwardToAgent"
     @message-action="handleMessageAction"
     @send="handleChannelSend"
@@ -711,6 +728,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @open-merged="openMergedMessage"
     @request-mention-members="loadMentionMembers"
     @open-receipt-details="openReceiptDetails"
+    @update-draft="updateChannelDraft"
   />
   <ChannelSelectionPlaceholder
     v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0"

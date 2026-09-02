@@ -587,6 +587,11 @@ export default {
       pinned: 'Pinned conversation',
       muted: 'Notifications muted',
     },
+    drafts: {
+      label: 'Draft',
+      saving: 'Saving draft',
+      saveError: 'Draft could not be saved locally ({code}). Keep this window open and try again.',
+    },
     details: {
       title: 'Channel details',
       loading: 'Loading channel details',

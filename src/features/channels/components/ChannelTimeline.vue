@@ -49,6 +49,10 @@ const props = withDefaults(
     canForwardMerged?: boolean
     mentionMembers?: ChannelMember[]
     mentionMembersLoading?: boolean
+    draft?: string
+    draftMentions?: MessageMention[]
+    draftSaving?: boolean
+    draftErrorCode?: string | null
   }>(),
   {
     replyTo: null,
@@ -63,6 +67,10 @@ const props = withDefaults(
     canForwardMerged: false,
     mentionMembers: () => [],
     mentionMembersLoading: false,
+    draft: '',
+    draftMentions: () => [],
+    draftSaving: false,
+    draftErrorCode: null,
   },
 )
 const emit = defineEmits<{
@@ -99,9 +107,9 @@ const emit = defineEmits<{
   openMerged: [message: Message]
   requestMentionMembers: []
   openReceiptDetails: [message: Message]
+  updateDraft: [payload: { text: string; mentions: MessageMention[] }]
 }>()
 const { t } = useI18n()
-const draft = ref('')
 const selectedMentions = ref<SelectedMessageMention[]>([])
 const activeMentionIndex = ref(0)
 const requestedMentionChannel = ref('')
@@ -119,12 +127,12 @@ interface MentionOption {
 
 const mentionContext = computed(() => {
   if (props.channel.kind !== 'group') return null
-  const match = draft.value.match(/(?:^|\s)@([^\s@]*)$/u)
+  const match = props.draft.match(/(?:^|\s)@([^\s@]*)$/u)
   if (!match) return null
   return {
     query: (match[1] ?? '').toLocaleLowerCase(),
-    start: draft.value.length - (match[1]?.length ?? 0) - 1,
-    end: draft.value.length,
+    start: props.draft.length - (match[1]?.length ?? 0) - 1,
+    end: props.draft.length,
   }
 })
 
@@ -160,7 +168,7 @@ const mentionOptions = computed<MentionOption[]>(() => {
 const mentionMenuOpen = computed(() => mentionContext.value !== null)
 
 function submitMessage(): void {
-  const text = draft.value.trim()
+  const text = props.draft.trim()
   if (!text && !props.attachments.length) return
   emit('send', {
     text,
@@ -168,21 +176,36 @@ function submitMessage(): void {
     attachments: props.attachments,
     mentions: collectMessageMentions(text, selectedMentions.value),
   })
-  draft.value = ''
-  selectedMentions.value = []
 }
 
 function selectMention(option: MentionOption): void {
   const context = mentionContext.value
   if (!context) return
-  draft.value = `${draft.value.slice(0, context.start)}${option.label} ${draft.value.slice(context.end)}`
-  selectedMentions.value = [
+  const text = `${props.draft.slice(0, context.start)}${option.label} ${props.draft.slice(context.end)}`
+  const mentions = [
     ...selectedMentions.value.filter(
       (value) => mentionTargetKey(value.target) !== mentionTargetKey(option.target),
     ),
     { target: option.target, label: option.label },
   ]
+  selectedMentions.value = mentions
+  emitDraft(text, mentions)
   activeMentionIndex.value = 0
+}
+
+function updateDraftText(text: string): void {
+  const mentions = collectMessageMentions(text, selectedMentions.value).map(
+    ({ target, label }) => ({
+      target,
+      label,
+    }),
+  )
+  selectedMentions.value = mentions
+  emitDraft(text, mentions)
+}
+
+function emitDraft(text: string, mentions = selectedMentions.value): void {
+  emit('updateDraft', { text, mentions: collectMessageMentions(text, mentions) })
 }
 
 function handleComposerKeydown(event: KeyboardEvent): void {
@@ -203,7 +226,7 @@ function handleComposerKeydown(event: KeyboardEvent): void {
     }
     if (event.key === 'Escape') {
       event.preventDefault()
-      draft.value = draft.value.replace(/@([^\s@]*)$/u, '$1')
+      updateDraftText(props.draft.replace(/@([^\s@]*)$/u, '$1'))
       return
     }
   }
@@ -243,7 +266,7 @@ function requestOlderMessages(): void {
 watch(
   () => props.channel.ref,
   async () => {
-    selectedMentions.value = []
+    selectedMentions.value = props.draftMentions.map(({ target, label }) => ({ target, label }))
     requestedMentionChannel.value = ''
     initialScrollPending.value = true
     prependSnapshot.value = null
@@ -254,6 +277,14 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => props.draftMentions,
+  (mentions) => {
+    selectedMentions.value = mentions.map(({ target, label }) => ({ target, label }))
+  },
+  { deep: true },
 )
 
 watch(
@@ -588,13 +619,14 @@ watch(
           @click="emit('pickAttachments')"
         />
         <TeaTextarea
-          v-model="draft"
+          :model-value="draft"
           class="channel-composer-input min-w-0 flex-1"
           size="compact"
           auto-grow
           :rows="1"
           :label="t('channels.composer.placeholder', { channel: channel.name })"
           :placeholder="t('channels.composer.placeholder', { channel: channel.name })"
+          @update:model-value="updateDraftText"
           @keydown="handleComposerKeydown"
         />
         <TeaIconButton
@@ -607,6 +639,12 @@ watch(
           @click="submitMessage"
         />
       </div>
+      <p v-if="draftErrorCode" class="mx-auto mt-1 max-w-4xl text-xs text-danger" role="alert">
+        {{ t('channels.drafts.saveError', { code: draftErrorCode }) }}
+      </p>
+      <p v-else-if="draftSaving" class="sr-only" role="status">
+        {{ t('channels.drafts.saving') }}
+      </p>
     </div>
   </section>
 </template>

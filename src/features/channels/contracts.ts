@@ -53,6 +53,28 @@ export interface MessageMention {
   ranges: MessageMentionRange[]
 }
 
+/** A human-authored IM composer draft, independent from Agent delivery drafts. */
+export interface ChannelDraft {
+  accountRef: string
+  channelRef: ChannelRef
+  text: string
+  mentions: MessageMention[]
+  updatedAt: number
+}
+
+export interface SaveChannelDraftRequest {
+  accountRef: string
+  channelRef: ChannelRef
+  text: string
+  mentions: MessageMention[]
+}
+
+export interface ChannelDraftClient {
+  list(accountRef: string): Promise<ChannelDraft[]>
+  save(request: SaveChannelDraftRequest): Promise<ChannelDraft>
+  remove(accountRef: string, channelRef: ChannelRef): Promise<void>
+}
+
 export interface MessageReceiptDetails {
   messageRef: MessageRef
   read: Participant[]

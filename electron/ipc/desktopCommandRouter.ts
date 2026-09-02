@@ -10,13 +10,18 @@ import {
   type WorkspaceCommandOptions,
   type WorkspaceCommandServices,
 } from './workspaceCommands'
+import {
+  createChannelDraftCommandHandlers,
+  type ChannelDraftCommandServices,
+} from './channelDraftCommands'
 
 export interface DesktopCommandServices
   extends
     WorkspaceCommandServices,
     ConversationCommandServices,
     CatalogCommandServices,
-    ChannelCommandServices {}
+    ChannelCommandServices,
+    ChannelDraftCommandServices {}
 
 export function createDesktopCommandRouter(
   services: DesktopCommandServices,
@@ -27,5 +32,6 @@ export function createDesktopCommandRouter(
     createConversationCommandHandlers(services),
     createCatalogCommandHandlers(services),
     createChannelCommandHandlers(services),
+    createChannelDraftCommandHandlers(services),
   ])
 }
