@@ -9,6 +9,8 @@ import type {
   ChannelAttachment,
   ChannelMember,
   ChannelPresence,
+  ChannelVoicePlaybackRate,
+  ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
   Message,
   MessageMention,
@@ -60,6 +62,9 @@ const props = withDefaults(
     draftErrorCode?: string | null
     draftHasUnresolvedDelivery?: boolean
     presence?: ChannelPresence | null
+    voicePlaybacks?: ChannelVoicePlaybackState[]
+    voicePlaybackRate?: ChannelVoicePlaybackRate
+    voicePlaybackAvailable?: boolean
     voiceTranscripts?: ChannelVoiceTranscript[]
     voiceTranscriptionAvailable?: boolean
   }>(),
@@ -82,6 +87,9 @@ const props = withDefaults(
     draftHasUnresolvedDelivery: false,
     outgoingAttempts: () => [],
     presence: null,
+    voicePlaybacks: () => [],
+    voicePlaybackRate: 1,
+    voicePlaybackAvailable: false,
     voiceTranscripts: () => [],
     voiceTranscriptionAvailable: false,
   },
@@ -125,6 +133,10 @@ const emit = defineEmits<{
   cancelOutgoing: [attemptId: string]
   dismissOutgoing: [attemptId: string]
   transcribeVoice: [message: Message]
+  toggleVoicePlayback: [message: Message]
+  retryVoicePlayback: [message: Message]
+  seekVoicePlayback: [payload: { message: Message; positionMs: number }]
+  setVoicePlaybackRate: [rate: ChannelVoicePlaybackRate]
 }>()
 const { t } = useI18n()
 const selectedMentions = ref<SelectedMessageMention[]>([])
@@ -146,6 +158,12 @@ function voiceTranscript(message: Message): ChannelVoiceTranscript | null {
   return (
     props.voiceTranscripts.find((transcript) => sameMessage(transcript.messageRef, message.ref)) ??
     null
+  )
+}
+
+function voicePlayback(message: Message): ChannelVoicePlaybackState | null {
+  return (
+    props.voicePlaybacks.find((playback) => sameMessage(playback.messageRef, message.ref)) ?? null
   )
 }
 
@@ -500,12 +518,19 @@ watch(
           :selected="isMessageSelected(message)"
           :voice-transcript="voiceTranscript(message)"
           :voice-transcription-available="voiceTranscriptionAvailable"
+          :voice-playback="voicePlayback(message)"
+          :voice-playback-rate="voicePlaybackRate"
+          :voice-playback-available="voicePlaybackAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
           @action="(action) => emit('messageAction', { message, action })"
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
           @open-receipt-details="emit('openReceiptDetails', message)"
           @transcribe-voice="emit('transcribeVoice', message)"
+          @toggle-voice-playback="emit('toggleVoicePlayback', message)"
+          @retry-voice-playback="emit('retryVoicePlayback', message)"
+          @seek-voice-playback="(positionMs) => emit('seekVoicePlayback', { message, positionMs })"
+          @set-voice-playback-rate="emit('setVoicePlaybackRate', $event)"
         />
         <ChannelOutgoingMessageItem
           v-for="attempt in outgoingAttempts"

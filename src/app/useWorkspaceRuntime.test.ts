@@ -15,6 +15,7 @@ vi.mock('@/infrastructure/channels/channelComposition', () => ({
     transport: {},
     attachmentPicker: {},
     draftClient: {},
+    voicePlaybackClient: {},
   })),
 }))
 
@@ -141,7 +142,7 @@ describe('useWorkspaceRuntime', () => {
     expect(workspaceLifecycle.enter).toHaveBeenCalledOnce()
     expect(managedRuntime.refresh).toHaveBeenCalledOnce()
     expect(connectChannel).toHaveBeenCalledOnce()
-    expect(channels.configure).toHaveBeenCalledWith({}, {}, {})
+    expect(channels.configure).toHaveBeenCalledWith({}, {}, {}, {})
     expect(order).toEqual(['workspace-enter', 'workspace-ready', 'managed-refresh', 'im-connect'])
 
     centerAuth.state = { ...centerAuth.state, errorCode: 'centerUnavailable' }

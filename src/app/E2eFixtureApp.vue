@@ -19,6 +19,8 @@ import type {
   ChannelDraft,
   ChannelMember,
   ChannelPresence,
+  ChannelVoicePlaybackRate,
+  ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
   ForwardMessageMode,
   Message,
@@ -190,16 +192,22 @@ const voiceMessage: Message = {
   content: {
     kind: 'audio',
     caption: 'Release readiness update',
-    media: { name: 'release-update.aac', mimeType: 'audio/aac', durationMs: 18_000 },
+    media: {
+      url: 'https://media.example.test/release-update.aac',
+      name: 'release-update.aac',
+      mimeType: 'audio/aac',
+      durationMs: 18_000,
+    },
   },
   state: 'active',
   sentByCurrentUser: false,
   pinned: false,
   reactions: [],
 }
-const isVoiceFixture = computed(() => fixture.value.startsWith('voice-transcription-'))
+const isVoiceTranscriptionFixture = computed(() => fixture.value.startsWith('voice-transcription-'))
+const isVoicePlaybackFixture = computed(() => fixture.value.startsWith('voice-playback-'))
 const fixtureVoiceTranscripts = computed<ChannelVoiceTranscript[]>(() => {
-  if (!isVoiceFixture.value || fixture.value === 'voice-transcription-idle') return []
+  if (!isVoiceTranscriptionFixture.value || fixture.value === 'voice-transcription-idle') return []
   if (fixture.value === 'voice-transcription-loading') {
     return [{ messageRef: voiceMessage.ref, status: 'loading', retryable: false }]
   }
@@ -221,6 +229,36 @@ const fixtureVoiceTranscripts = computed<ChannelVoiceTranscript[]>(() => {
       retryable: false,
     },
   ]
+})
+const fixtureVoicePlaybackRate = computed<ChannelVoicePlaybackRate>(() =>
+  fixture.value === 'voice-playback-playing' || fixture.value === 'voice-playback-paused' ? 1.5 : 1,
+)
+const fixtureVoicePlaybacks = computed<ChannelVoicePlaybackState[]>(() => {
+  if (!isVoicePlaybackFixture.value || fixture.value === 'voice-playback-idle') return []
+  const base = {
+    messageRef: voiceMessage.ref,
+    durationMs: 18_000,
+    playbackRate: fixtureVoicePlaybackRate.value,
+    retryable: false,
+  }
+  if (fixture.value === 'voice-playback-loading') {
+    return [{ ...base, status: 'loading', positionMs: 0 }]
+  }
+  if (fixture.value === 'voice-playback-playing') {
+    return [{ ...base, status: 'playing', positionMs: 6_000 }]
+  }
+  if (fixture.value === 'voice-playback-error') {
+    return [
+      {
+        ...base,
+        status: 'failed',
+        positionMs: 4_000,
+        errorCode: 'network',
+        retryable: true,
+      },
+    ]
+  }
+  return [{ ...base, status: 'paused', positionMs: 9_000 }]
 })
 const outgoingAttempts = computed<OutgoingMessageAttempt[]>(() => {
   if (!fixture.value.startsWith('message-delivery')) return []
@@ -349,7 +387,7 @@ const archivedMessages: Message[] = [messages[0]!, messages[1]!, nestedMergedMes
 const timelineMessages = computed(() =>
   fixture.value === 'merged-card'
     ? [...messages, mergedMessage]
-    : isVoiceFixture.value
+    : isVoiceTranscriptionFixture.value || isVoicePlaybackFixture.value
       ? [...messages, voiceMessage]
       : messages,
 )
@@ -749,7 +787,10 @@ function retryFixtureMergedMessages(): void {
         :presence="fixtureActiveChannel.kind === 'direct' ? fixturePresences[0] : null"
         :messages="timelineMessages"
         :voice-transcripts="fixtureVoiceTranscripts"
-        :voice-transcription-available="isVoiceFixture"
+        :voice-transcription-available="isVoiceTranscriptionFixture"
+        :voice-playbacks="fixtureVoicePlaybacks"
+        :voice-playback-rate="fixtureVoicePlaybackRate"
+        :voice-playback-available="isVoicePlaybackFixture"
         :outgoing-attempts="outgoingAttempts"
         :panel-open="drawerOpen"
         :loading="false"
@@ -775,6 +816,10 @@ function retryFixtureMergedMessages(): void {
         @open-merged="openFixtureMergedMessage"
         @open-receipt-details="receiptDetailsOpen = true"
         @transcribe-voice="() => undefined"
+        @toggle-voice-playback="() => undefined"
+        @retry-voice-playback="() => undefined"
+        @seek-voice-playback="() => undefined"
+        @set-voice-playback-rate="() => undefined"
         @update-draft="imDraftText = $event.text"
         @retry-outgoing="() => undefined"
         @cancel-outgoing="() => undefined"

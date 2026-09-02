@@ -40,7 +40,11 @@ const voiceMessage: Message = {
   content: {
     kind: 'audio',
     caption: 'Release update',
-    media: { name: 'release-update.aac', durationMs: 2_400 },
+    media: {
+      url: 'https://media.example.test/release-update.aac',
+      name: 'release-update.aac',
+      durationMs: 2_400,
+    },
   },
 }
 
@@ -49,6 +53,69 @@ afterEach(() => {
 })
 
 describe('ChannelTimeline selection mode', () => {
+  it('routes message-scoped playback projection and typed intent', async () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [voiceMessage],
+        voicePlaybackAvailable: true,
+        voicePlaybackRate: 1,
+        voicePlaybacks: [
+          {
+            messageRef: voiceMessage.ref,
+            status: 'paused',
+            positionMs: 1_000,
+            durationMs: 2_400,
+            playbackRate: 1,
+            retryable: false,
+          },
+        ],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    await wrapper.get('button[aria-label="Play audio"]').trigger('click')
+    await wrapper.get('input[aria-label="Audio position"]').setValue(1_500)
+    await wrapper.get('[role="combobox"][aria-label="Playback speed"]').trigger('click')
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text() === '1.5x')!
+      .trigger('click')
+
+    expect(wrapper.emitted('toggleVoicePlayback')).toEqual([[voiceMessage]])
+    expect(wrapper.emitted('seekVoicePlayback')).toEqual([
+      [{ message: voiceMessage, positionMs: 1_500 }],
+    ])
+    expect(wrapper.emitted('setVoicePlaybackRate')).toEqual([[1.5]])
+
+    await wrapper.setProps({
+      voicePlaybacks: [
+        {
+          messageRef: voiceMessage.ref,
+          status: 'failed',
+          positionMs: 1_500,
+          durationMs: 2_400,
+          playbackRate: 1.5,
+          errorCode: 'network',
+          retryable: true,
+        },
+      ],
+    })
+    await wrapper.get('button[aria-label="Retry audio playback"]').trigger('click')
+    expect(wrapper.emitted('retryVoicePlayback')).toEqual([[voiceMessage]])
+    wrapper.unmount()
+  })
+
   it('routes message-scoped transcription intent and projection', async () => {
     const wrapper = mount(ChannelTimeline, {
       props: {

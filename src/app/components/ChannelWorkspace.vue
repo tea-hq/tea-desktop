@@ -12,6 +12,7 @@ import type {
   ChannelAttachment,
   ChannelMember,
   ChannelRef,
+  ChannelVoicePlaybackRate,
   ForwardMessageMode,
   Message,
   MessageMention,
@@ -358,6 +359,26 @@ function transcribeVoice(message: Message): void {
   void channels.transcribeVoice(message.ref).catch(() => undefined)
 }
 
+function toggleVoicePlayback(message: Message): void {
+  void channels.toggleVoicePlayback(message.ref).catch(() => undefined)
+}
+
+function retryVoicePlayback(message: Message): void {
+  void channels.retryVoicePlayback(message.ref).catch(() => undefined)
+}
+
+function seekVoicePlayback(payload: { message: Message; positionMs: number }): void {
+  try {
+    channels.seekVoicePlayback(payload.message.ref, payload.positionMs)
+  } catch {
+    // A concurrent message lifecycle event may make a visible row stale.
+  }
+}
+
+function setVoicePlaybackRate(rate: ChannelVoicePlaybackRate): void {
+  channels.setVoicePlaybackRate(rate)
+}
+
 async function pickChannelAttachments(): Promise<void> {
   try {
     const selected = await channels.pickAttachments()
@@ -702,6 +723,9 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :presence="channels.activePresence"
     :voice-transcripts="channels.activeVoiceTranscripts"
     :voice-transcription-available="voiceTranscriptionAvailable"
+    :voice-playbacks="channels.activeVoicePlaybacks"
+    :voice-playback-rate="channels.voicePlaybackRate"
+    :voice-playback-available="channels.voicePlaybackAvailable"
     :highlighted-message-key="channels.highlightedMessageKey"
     :panel-open="settings.agentDrawerOpen"
     :loading="channels.loadingMessages"
@@ -751,6 +775,10 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @request-mention-members="loadMentionMembers"
     @open-receipt-details="openReceiptDetails"
     @transcribe-voice="transcribeVoice"
+    @toggle-voice-playback="toggleVoicePlayback"
+    @retry-voice-playback="retryVoicePlayback"
+    @seek-voice-playback="seekVoicePlayback"
+    @set-voice-playback-rate="setVoicePlaybackRate"
     @update-draft="updateChannelDraft"
     @retry-outgoing="retryOutgoingMessage"
     @cancel-outgoing="cancelOutgoingMessage"
