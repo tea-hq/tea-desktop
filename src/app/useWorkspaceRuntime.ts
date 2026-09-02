@@ -172,6 +172,7 @@ export function useWorkspaceRuntime(
           environment.attachmentPicker,
           environment.draftClient,
           environment.voicePlaybackClient,
+          environment.mediaClient,
         )
         collaboration.configure(conversationClient, environment.transport)
         conversation.configure(conversationClient)

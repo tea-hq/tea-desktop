@@ -27,12 +27,14 @@ import ChannelForwardDialog from '@/features/channels/components/ChannelForwardD
 import ChannelReactionDialog from '@/features/channels/components/ChannelReactionDialog.vue'
 import ChannelDetailsDialog from '@/features/channels/components/ChannelDetailsDialog.vue'
 import ChannelMessageSearchDialog from '@/features/channels/components/ChannelMessageSearchDialog.vue'
+import ChannelMediaViewer from '@/features/channels/components/ChannelMediaViewer.vue'
 import ChannelPinnedMessagesDialog from '@/features/channels/components/ChannelPinnedMessagesDialog.vue'
 import ChannelSavedMessagesDialog from '@/features/channels/components/ChannelSavedMessagesDialog.vue'
 import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelMergedMessagesDialog.vue'
 import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import { useChannelMessageSelection } from '@/features/channels/useChannelMessageSelection'
 import { useChannelMergedMessageViewer } from '@/features/channels/useChannelMergedMessageViewer'
+import { sameMessage } from '@/features/channels/projection'
 
 const {
   centerAuth,
@@ -136,6 +138,13 @@ const voiceTranscriptionAvailable = computed(() =>
     (capability) => capability.id === 'message.voice.transcribe' && capability.available,
   ),
 )
+const mediaViewerSave = computed(() => {
+  const message = channels.mediaViewerMessage
+  if (!message) return null
+  return (
+    channels.activeMediaSaves.find((state) => sameMessage(state.messageRef, message.ref)) ?? null
+  )
+})
 
 function handleChannelSelect(channelRef: ChannelRef): void {
   mentionMembersGeneration += 1
@@ -150,6 +159,7 @@ function handleChannelSelect(channelRef: ChannelRef): void {
   pinnedOpen.value = false
   closeForwarding()
   closeMergedViewer()
+  channels.closeMediaViewer()
   channels.clearMessageSearch()
   void channels.selectChannel(channelRef).catch(() => undefined)
 }
@@ -379,6 +389,49 @@ function setVoicePlaybackRate(rate: ChannelVoicePlaybackRate): void {
   channels.setVoicePlaybackRate(rate)
 }
 
+function openMedia(message: Message): void {
+  try {
+    channels.openMediaViewer(message.ref)
+  } catch {
+    // A concurrent message lifecycle event may make a visible row stale.
+  }
+}
+
+function navigateMediaViewer(direction: -1 | 1): void {
+  try {
+    channels.navigateMediaViewer(direction)
+  } catch {
+    // Viewer state is ephemeral and may be cleared by a concurrent message event.
+  }
+}
+
+function saveMedia(message: Message): void {
+  void channels.saveMedia(message.ref).catch(() => undefined)
+}
+
+function retryMediaSave(message: Message): void {
+  void channels.retryMediaSave(message.ref).catch(() => undefined)
+}
+
+function cancelMediaSave(message: Message): void {
+  void channels.cancelMediaSave(message.ref).catch(() => undefined)
+}
+
+function saveViewerMedia(): void {
+  const message = channels.mediaViewerMessage
+  if (message) saveMedia(message)
+}
+
+function retryViewerMediaSave(): void {
+  const message = channels.mediaViewerMessage
+  if (message) retryMediaSave(message)
+}
+
+function cancelViewerMediaSave(): void {
+  const message = channels.mediaViewerMessage
+  if (message) cancelMediaSave(message)
+}
+
 async function pickChannelAttachments(): Promise<void> {
   try {
     const selected = await channels.pickAttachments()
@@ -421,7 +474,10 @@ function dismissOutgoingMessage(attemptId: string): void {
   void channels.dismissOutgoingMessage(attemptId).catch(() => undefined)
 }
 
-onBeforeUnmount(releaseSelectedAttachments)
+onBeforeUnmount(() => {
+  releaseSelectedAttachments()
+  channels.closeMediaViewer()
+})
 
 function handleLoadMoreChannels(): void {
   void channels.loadOlderMessages().catch(() => undefined)
@@ -726,6 +782,8 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :voice-playbacks="channels.activeVoicePlaybacks"
     :voice-playback-rate="channels.voicePlaybackRate"
     :voice-playback-available="channels.voicePlaybackAvailable"
+    :media-saves="channels.activeMediaSaves"
+    :media-saving-available="channels.mediaSavingAvailable"
     :highlighted-message-key="channels.highlightedMessageKey"
     :panel-open="settings.agentDrawerOpen"
     :loading="channels.loadingMessages"
@@ -779,6 +837,10 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @retry-voice-playback="retryVoicePlayback"
     @seek-voice-playback="seekVoicePlayback"
     @set-voice-playback-rate="setVoicePlaybackRate"
+    @open-media="openMedia"
+    @save-media="saveMedia"
+    @cancel-media-save="cancelMediaSave"
+    @retry-media-save="retryMediaSave"
     @update-draft="updateChannelDraft"
     @retry-outgoing="retryOutgoingMessage"
     @cancel-outgoing="cancelOutgoingMessage"
@@ -839,6 +901,20 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @select-permission="selectCollaborationPermission"
     @select-role="selectCollaborationRole"
     @apply-role-prompt="applyCollaborationRolePrompt"
+  />
+  <ChannelMediaViewer
+    :open="channels.mediaViewerMessage !== null"
+    :message="channels.mediaViewerMessage"
+    :can-go-previous="channels.mediaViewerCanGoPrevious"
+    :can-go-next="channels.mediaViewerCanGoNext"
+    :save-state="mediaViewerSave"
+    :saving-available="channels.mediaSavingAvailable"
+    @close="channels.closeMediaViewer()"
+    @previous="navigateMediaViewer(-1)"
+    @next="navigateMediaViewer(1)"
+    @save="saveViewerMedia"
+    @cancel-save="cancelViewerMediaSave"
+    @retry-save="retryViewerMediaSave"
   />
   <ChannelMessageSearchDialog
     v-if="searchOpen || channels.activeChannel"
