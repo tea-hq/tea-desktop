@@ -27,11 +27,35 @@ import type {
   Draft,
   MessageRef,
 } from '@/types/channelCollaboration'
+import type {
+  CloudRunnerTag,
+  RunnerRegistrationCommand,
+  RunnerRegistrationCommandInput,
+  RunnerTokenView,
+} from '../../../packages/runner/src/protocol'
 import type { DesktopEvent, DesktopEventPayloadMap } from '@/types/electronBridge'
 
 export class ElectronConversationClient implements ConversationClient {
   async listRuntimes(): Promise<RuntimeDescriptor[]> {
     return invoke<RuntimeDescriptor[]>('list_conversation_runtimes')
+  }
+
+  async listRunnerTags(): Promise<CloudRunnerTag[]> {
+    return invoke<CloudRunnerTag[]>('list_cloud_runner_tags')
+  }
+
+  async listRunnerTokens(): Promise<RunnerTokenView[]> {
+    return invoke<RunnerTokenView[]>('list_cloud_runner_tokens')
+  }
+
+  async resetPersonalRunnerToken(): Promise<RunnerTokenView> {
+    return invoke<RunnerTokenView>('reset_personal_runner_token')
+  }
+
+  async createRunnerRegistrationCommand(
+    input: RunnerRegistrationCommandInput = {},
+  ): Promise<RunnerRegistrationCommand> {
+    return invoke<RunnerRegistrationCommand>('create_cloud_runner_registration_command', input)
   }
 
   async listConversations(request: ListConversationsRequest): Promise<ConversationPage> {
@@ -61,6 +85,13 @@ export class ElectronConversationClient implements ConversationClient {
         : { workingDirectory: options.workingDirectory }),
       channelBinding: options?.channelBinding,
       hostTools: (options?.hostTools ?? []).map(({ name, version }) => ({ name, version })),
+      ...(options.executionTarget === undefined
+        ? {}
+        : { executionTarget: options.executionTarget }),
+      ...(options.providerId === undefined ? {} : { providerId: options.providerId }),
+      ...(options.modelId === undefined ? {} : { modelId: options.modelId }),
+      ...(options.runnerTags === undefined ? {} : { runnerTags: options.runnerTags }),
+      ...(options.permissionMode === undefined ? {} : { permissionMode: options.permissionMode }),
     })
   }
 

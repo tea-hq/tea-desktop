@@ -10,6 +10,7 @@ import type {
 } from '../../src/types/channelCollaboration'
 import type { ConversationCommandService } from '../conversation/commandService'
 import type { RuntimeHostToolReference } from '../conversation/service'
+import type { RunnerRegistrationCommandInput } from '../../packages/runner/src/protocol'
 import {
   defineCommandHandlers,
   type DesktopCommandHandlerGroup,
@@ -35,6 +36,14 @@ export function createConversationCommandHandlers(
 
   return defineCommandHandlers('conversation', {
     list_conversation_runtimes: () => conversation.listRuntimes(),
+    list_cloud_runner_tags: () => conversation.listRunnerTags?.() ?? [],
+    list_cloud_runner_tokens: () => conversation.listRunnerTokens?.() ?? [],
+    reset_personal_runner_token: () =>
+      conversation.resetPersonalRunnerToken?.() ??
+      Promise.reject({ code: 'unavailable', retryable: true }),
+    create_cloud_runner_registration_command: (args) =>
+      conversation.createRunnerRegistrationCommand?.(readRunnerRegistrationCommandInput(args)) ??
+      Promise.reject({ code: 'unavailable', retryable: true }),
     list_conversations: (args) =>
       conversation.listConversations(
         readRecord(args.request) as unknown as ListConversationsRequest,
@@ -61,6 +70,21 @@ export function createConversationCommandHandlers(
         hostTools: readArray(args.hostTools, 'hostTools').map((value) =>
           readHostToolReference(value),
         ),
+        executionTarget:
+          args.executionTarget === undefined
+            ? undefined
+            : readExecutionTarget(args.executionTarget),
+        providerId:
+          args.providerId === undefined ? undefined : readString(args.providerId, 'providerId'),
+        modelId: args.modelId === undefined ? undefined : readString(args.modelId, 'modelId'),
+        runnerTags:
+          args.runnerTags === undefined
+            ? undefined
+            : readArray(args.runnerTags, 'runnerTags').map((value) =>
+                readString(value, 'runnerTag'),
+              ),
+        permissionMode:
+          args.permissionMode === undefined ? undefined : readPermissionMode(args.permissionMode),
       }),
     relocate_conversation_workspace: (args) =>
       conversation.relocateConversationWorkspace(
@@ -140,6 +164,20 @@ export function createConversationCommandHandlers(
     delete_conversation: (args) =>
       conversation.remove(readString(args.conversationId, 'conversationId')),
   } satisfies Partial<DesktopCommandHandlers>)
+}
+
+function readExecutionTarget(value: unknown): 'local' | 'cloud' {
+  const target = readString(value, 'executionTarget')
+  if (target !== 'local' && target !== 'cloud') throw { code: 'invalidRequest', retryable: false }
+  return target
+}
+
+function readRunnerRegistrationCommandInput(
+  args: Record<string, unknown>,
+): RunnerRegistrationCommandInput {
+  const input: RunnerRegistrationCommandInput = {}
+  if (args.tokenId !== undefined) input.tokenId = readString(args.tokenId, 'tokenId')
+  return input
 }
 
 function readHostToolReference(value: unknown): RuntimeHostToolReference {

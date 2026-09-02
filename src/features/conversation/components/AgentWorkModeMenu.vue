@@ -17,7 +17,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: AgentWorkMode] }>()
 const { t } = useI18n()
 const options = computed(() => [
   { value: 'local' as const, label: t('composer.agentMode.local') },
-  { value: 'cloud' as const, label: t('composer.agentMode.cloud'), disabled: true },
+  { value: 'cloud' as const, label: t('composer.agentMode.cloud') },
 ])
 </script>
 

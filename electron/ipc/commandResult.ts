@@ -14,12 +14,14 @@ export async function settleDesktopCommand(
 
 export function normalizeDesktopCommandError(value: unknown): DesktopCommandError {
   const candidate = isRecord(value) ? value : undefined
-  const code =
+  const explicitCode =
     typeof candidate?.code === 'string' && /^[A-Za-z0-9._:-]{1,128}$/.test(candidate.code)
       ? candidate.code
-      : 'internal'
+      : undefined
+  const hasExplicitCode = explicitCode !== undefined
+  const code = explicitCode ?? 'internal'
   const message =
-    code === 'internal' || typeof candidate?.message !== 'string'
+    (!hasExplicitCode && code === 'internal') || typeof candidate?.message !== 'string'
       ? undefined
       : boundedMessage(candidate.message)
   return {

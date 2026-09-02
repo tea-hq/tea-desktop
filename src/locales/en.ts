@@ -7,6 +7,8 @@ export default {
   },
   common: {
     close: 'Close',
+    copy: 'Copy',
+    copied: 'Copied',
   },
   auth: {
     enterprise: {
@@ -151,6 +153,24 @@ export default {
       notConnected: 'Connect the messaging account before refreshing this profile.',
       unsupported: 'This messaging runtime does not provide live self-profile lookup.',
       loadFailed: 'The latest messaging profile could not be loaded.',
+    },
+    runnerTokens: {
+      eyebrow: 'Cloud execution',
+      title: 'Runner registration tokens',
+      description:
+        'Tenant tokens are visible to tenant members; personal tokens are visible only to you. Use one to register a cloud Runner on a server.',
+      refresh: 'Refresh tokens',
+      resetPersonal: 'Reset personal token',
+      loading: 'Loading Runner tokens',
+      empty: 'No Runner tokens are visible to this account.',
+      offline: 'Runner tokens are unavailable while Center is offline.',
+      commandTitle: 'One-command registration',
+      commandDescription:
+        'The command uses npx to fetch the Runner package, writes its configuration on the target machine, asks for the machine name and a default tag when needed, and starts the Runner as a background service.',
+      createCommand: 'Generate registration command',
+      commandLoading: 'Generating the default registration command…',
+      selectToken: 'A registration command will appear when an active token is available.',
+      scope: { tenant: 'Tenant token', group: 'Group or department token', user: 'Personal token' },
     },
   },
   management: {
@@ -602,6 +622,9 @@ export default {
     noProject: 'No project',
     newProject: 'New project',
     selectAgentMode: 'Select Agent mode',
+    selectRunnerTag: 'Select runner tag',
+    chooseRunnerTag: 'Choose a runner tag',
+    runnerTagAvailability: '{tag} ({available} available, {busy} busy)',
     agentMode: {
       local: 'Local',
       cloud: 'Cloud',

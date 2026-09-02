@@ -15,6 +15,7 @@ import AgentConversationComposer from './AgentConversationComposer.vue'
 import AgentConversationHeader from './AgentConversationHeader.vue'
 import AgentConversationThread from './AgentConversationThread.vue'
 import type { AgentWorkMode } from './AgentWorkModeMenu.vue'
+import type { CloudRunnerTag } from '../../../../packages/runner/src/protocol'
 
 const composer = ref<InstanceType<typeof AgentConversationComposer> | null>(null)
 
@@ -41,6 +42,8 @@ const props = defineProps<{
   workingDirectory?: string | null
   projectDirectories?: string[]
   agentMode?: AgentWorkMode
+  runnerTags?: string[]
+  cloudRunnerTags?: CloudRunnerTag[]
   newConversation?: boolean
   sources?: ChannelSourceInput[]
   runtimes: RuntimeDescriptor[]
@@ -82,6 +85,7 @@ const emit = defineEmits<{
   'update:workingDirectory': [value: string | null]
   'new-project': []
   'update:agentMode': [value: AgentWorkMode]
+  'update:runnerTag': [value: string]
   selectRuntime: [value: string]
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
@@ -140,6 +144,8 @@ const emit = defineEmits<{
       :working-directory="workingDirectory"
       :project-directories="projectDirectories"
       :agent-mode="agentMode"
+      :runner-tags="runnerTags"
+      :cloud-runner-tags="cloudRunnerTags"
       :new-conversation="newConversation"
       :sources="sources"
       :runtimes="runtimes"
@@ -154,6 +160,7 @@ const emit = defineEmits<{
       @update:working-directory="emit('update:workingDirectory', $event)"
       @new-project="emit('new-project')"
       @update:agent-mode="emit('update:agentMode', $event)"
+      @update:runner-tag="emit('update:runnerTag', $event)"
       @select-runtime="emit('selectRuntime', $event)"
       @select-model="emit('selectModel', $event)"
       @select-permission="emit('selectPermission', $event)"

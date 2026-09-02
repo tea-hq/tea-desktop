@@ -18,6 +18,10 @@ import type {
   SendMessageOptions,
 } from './contracts'
 import type { ChannelSourceInput, MessageRef } from '@/types/channelCollaboration'
+import type {
+  RunnerRegistrationCommand,
+  RunnerTokenView,
+} from '../../../packages/runner/src/protocol'
 import { mergeHistoryTurns, useConversationStore } from './store'
 
 const runtime: RuntimeDescriptor = {
@@ -40,6 +44,7 @@ class FakeClient {
   subscriptionCalls: string[] = []
   createCalls = 0
   lastCreateOptions: CreateConversationOptions | null = null
+  createError: unknown = null
   sendCalls = 0
   cancelCalls = 0
   listRequests: ListConversationsRequest[] = []
@@ -53,6 +58,32 @@ class FakeClient {
   historyFailure: unknown = null
   relocationCalls: Array<{ conversationId: string; workspacePath: string }> = []
   workspacePaths = new Map<string, string>()
+
+  async listRunnerTokens(): Promise<RunnerTokenView[]> {
+    return [
+      {
+        tokenId: 'tenant-token',
+        scope: 'tenant',
+        scopeId: 'tenant-1',
+        secret: 'tenant-secret',
+        createdAt: '2026-09-01T00:00:00Z',
+      },
+    ]
+  }
+
+  async createRunnerRegistrationCommand(): Promise<RunnerRegistrationCommand> {
+    return {
+      tokenId: 'tenant-token',
+      scope: 'tenant',
+      scopeId: 'tenant-1',
+      centerUrl: 'https://center.test',
+      command: "npx --yes @tea/runner register --token 'tenant-secret' --install-service",
+    }
+  }
+
+  async listRunnerTags() {
+    return [{ tag: 'gpu', available: 1, busy: 0, scope: 'tenant' as const }]
+  }
 
   setRuntimes(r: RuntimeDescriptor[]): void {
     this.runtimes = r
@@ -96,6 +127,7 @@ class FakeClient {
   async createConversation(runtimeId: string, options: CreateConversationOptions) {
     this.createCalls++
     this.lastCreateOptions = structuredClone(options)
+    if (this.createError) throw this.createError
     const handle = { conversationId: `conv-${this.createCalls}`, runtimeId }
     return {
       handle,
@@ -253,6 +285,66 @@ describe('useConversationStore', () => {
     await store.loadRuntimes()
     expect(store.runtimes).toHaveLength(1)
     expect(store.error).toBeNull()
+  })
+
+  it('auto-generates the default runner command when tokens load', async () => {
+    const fake = new FakeClient()
+    const store = useConversationStore()
+    store.configure(fake)
+
+    await store.loadRunnerTokens()
+
+    expect(store.cloudRunnerTokens).toHaveLength(1)
+    expect(store.cloudRunnerRegistrationCommand).toMatchObject({
+      tokenId: 'tenant-token',
+      command: expect.stringContaining('--install-service'),
+    })
+    expect(store.cloudRunnerTokensError).toBeNull()
+  })
+
+  it('sends cloud target, provider/model, and tag when creating a cloud conversation', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([runtime])
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+    store.setExecutionTarget('cloud')
+    store.selectModel('openai/gpt-5.6-sol')
+    store.selectRunnerTag('gpu')
+
+    await store.createConversation()
+
+    expect(fake.lastCreateOptions).toMatchObject({
+      executionTarget: 'cloud',
+      providerId: 'openai',
+      modelId: 'gpt-5.6-sol',
+      runnerTags: ['gpu'],
+    })
+  })
+
+  it('preserves a cloud conversation creation failure on the first send', async () => {
+    const fake = new FakeClient()
+    fake.setRuntimes([runtime])
+    fake.createError = {
+      code: 'pending',
+      retryable: true,
+      message: 'no runner is available for the requested tags',
+    }
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRuntimes()
+    store.setExecutionTarget('cloud')
+    store.selectModel('openai/gpt-5.6-sol')
+    store.selectRunnerTag('gpu')
+
+    await expect(store.sendMessage('hello')).resolves.toBe(false)
+
+    expect(store.conversationId).toBeNull()
+    expect(fake.sendCalls).toBe(0)
+    expect(store.error).toEqual({
+      kind: 'runtime',
+      message: 'no runner is available for the requested tags',
+    })
   })
 
   it('initializes and extends the catalog with keyset pages', async () => {
@@ -810,6 +902,34 @@ describe('useConversationStore', () => {
 
     await store.selectConversation('background')
     expect(store.completedConversationIds.has('background')).toBe(false)
+  })
+
+  it('clears background activity when a terminal message delta completes the run', async () => {
+    const fake = new FakeClient()
+    fake.pages = [
+      {
+        items: [summaryFor('background', 2)],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ]
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.initializeConversationList()
+
+    fake.emit('background', {
+      conversationId: 'background',
+      sequence: 1,
+      event: { type: 'runStarted' },
+    })
+    fake.emit('background', {
+      conversationId: 'background',
+      sequence: 2,
+      event: { type: 'messageDelta', text: 'done', terminal: true },
+    })
+
+    expect(store.runningConversationIds.has('background')).toBe(false)
+    expect(store.completedConversationIds.has('background')).toBe(true)
   })
 
   it('keeps partial assistant text before appending a failure tip', async () => {

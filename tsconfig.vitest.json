@@ -6,6 +6,11 @@
     "components.d.ts",
     "auto-imports.d.ts",
     "src/**/*",
+    "packages/runner/src/protocol.ts",
+    "packages/runner/src/runner.ts",
+    "packages/runner/src/acp.ts",
+    "packages/runner/src/defaults.ts",
+    "packages/runner/src/logger.ts",
     "scripts/**/*.test.ts",
     "tests/unit/**/*.ts"
   ],

@@ -15,7 +15,9 @@
     "src/types/theme.ts",
     "src/features/*/contracts.ts",
     "src/features/conversation/hostToolCatalog.ts",
-    "src/features/conversation/timelineReducer.ts"
+    "src/features/conversation/timelineReducer.ts",
+    "src/infrastructure/cloud/**/*.ts",
+    "packages/runner/src/*.ts"
   ],
   "compilerOptions": {
     "composite": true,

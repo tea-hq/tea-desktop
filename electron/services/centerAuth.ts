@@ -231,6 +231,29 @@ export class ElectronCenterAuthService {
     return structuredClone(this.state)
   }
 
+  /** Main-process-only access for Center-owned adapters. The token is never
+   * exposed through preload or renderer storage. */
+  async cloudAccessToken(): Promise<string> {
+    if (!this.accessToken) {
+      const refresh = this.loadSecret(this.file.encryptedRefresh)
+      if (!refresh) throw serviceError('recoveryRequired', false)
+      await this.refreshSession(refresh)
+    }
+    if (!this.accessToken) throw serviceError('recoveryRequired', false)
+    return this.accessToken
+  }
+
+  async refreshCloudAccessToken(): Promise<string> {
+    const refresh = this.loadSecret(this.file.encryptedRefresh)
+    if (!refresh) throw serviceError('recoveryRequired', false)
+    await this.refreshSession(refresh)
+    return this.cloudAccessToken()
+  }
+
+  centerOriginValue(): string | null {
+    return centerOrigin()
+  }
+
   async listDirectoryUsers(): Promise<{
     schemaVersion: number
     users: DirectoryUser[]

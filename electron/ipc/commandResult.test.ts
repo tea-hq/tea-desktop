@@ -28,6 +28,20 @@ describe('desktop command results', () => {
     )
   })
 
+  it('preserves messages from explicitly typed internal failures', () => {
+    expect(
+      normalizeDesktopCommandError({
+        code: 'internal',
+        retryable: true,
+        message: 'cloud runner state is temporarily unavailable',
+      }),
+    ).toEqual({
+      code: 'internal',
+      retryable: true,
+      message: 'cloud runner state is temporarily unavailable',
+    })
+  })
+
   it('returns successful values unchanged', async () => {
     const result = await settleDesktopCommand(() => ({ conversationId: 'conversation-1' }))
     expect(unwrapDesktopCommandResult(result)).toEqual({ conversationId: 'conversation-1' })

@@ -14,6 +14,12 @@ import type {
   PermissionMode,
   RuntimeDescriptor,
 } from './contracts'
+import type {
+  CloudRunnerTag,
+  RunnerRegistrationCommand,
+  RunnerRegistrationCommandInput,
+  RunnerTokenView,
+} from '../../../packages/runner/src/protocol'
 import {
   cancelConversationTurn,
   completeApproval,
@@ -40,6 +46,13 @@ export const useConversationStore = defineStore('conversation', () => {
   const activeRuntimeId = ref<string | null>(null)
   const selectedModel = ref('default')
   const workingDirectory = ref<string | null>(null)
+  const executionTarget = ref<'local' | 'cloud'>('local')
+  const runnerTags = ref<string[]>([])
+  const cloudRunnerTags = ref<CloudRunnerTag[]>([])
+  const cloudRunnerTokens = ref<RunnerTokenView[]>([])
+  const cloudRunnerRegistrationCommand = ref<RunnerRegistrationCommand | null>(null)
+  const cloudRunnerTokensLoading = ref(false)
+  const cloudRunnerTokensError = ref<string | null>(null)
   const permissionMode = ref<PermissionMode>('default')
   const conversationId = ref<string | null>(null)
   const turns = ref<ConversationTurn[]>([])
@@ -151,11 +164,87 @@ export const useConversationStore = defineStore('conversation', () => {
       ) {
         activeRuntimeId.value = resolveNewConversationRuntime()
       }
+      void loadRunnerTags()
     } catch {
       error.value = localizedError('errors.runtimeListFailed')
     } finally {
       if (generation === lifecycleGeneration) loading.value = false
     }
+  }
+
+  async function loadRunnerTags(): Promise<void> {
+    const configured = client
+    if (!configured?.listRunnerTags) {
+      cloudRunnerTags.value = []
+      return
+    }
+    try {
+      cloudRunnerTags.value = await configured.listRunnerTags()
+      if (runnerTags.value.length === 0 && cloudRunnerTags.value.length > 0) {
+        runnerTags.value = [cloudRunnerTags.value[0]!.tag]
+      }
+    } catch {
+      cloudRunnerTags.value = []
+    }
+  }
+
+  async function loadRunnerTokens(): Promise<void> {
+    const configured = client
+    if (!configured?.listRunnerTokens) {
+      cloudRunnerTokens.value = []
+      cloudRunnerRegistrationCommand.value = null
+      return
+    }
+    cloudRunnerTokensLoading.value = true
+    cloudRunnerTokensError.value = null
+    cloudRunnerRegistrationCommand.value = null
+    try {
+      const tokens = await configured.listRunnerTokens()
+      cloudRunnerTokens.value = tokens
+      if (
+        tokens.some((token) => !token.revokedAt && token.secret) &&
+        configured.createRunnerRegistrationCommand
+      ) {
+        cloudRunnerRegistrationCommand.value = await configured.createRunnerRegistrationCommand()
+      }
+    } catch (cause) {
+      cloudRunnerTokensError.value = runtimeMessage(cause)
+    } finally {
+      cloudRunnerTokensLoading.value = false
+    }
+  }
+
+  async function resetPersonalRunnerToken(): Promise<void> {
+    const configured = client
+    if (!configured?.resetPersonalRunnerToken) return
+    cloudRunnerTokensLoading.value = true
+    cloudRunnerTokensError.value = null
+    cloudRunnerRegistrationCommand.value = null
+    try {
+      await configured.resetPersonalRunnerToken()
+      await loadRunnerTokens()
+    } catch (cause) {
+      cloudRunnerTokensError.value = runtimeMessage(cause)
+    } finally {
+      cloudRunnerTokensLoading.value = false
+    }
+  }
+
+  async function createRunnerRegistrationCommand(
+    input: RunnerRegistrationCommandInput = {},
+  ): Promise<void> {
+    const configured = client
+    if (!configured?.createRunnerRegistrationCommand) return
+    cloudRunnerTokensError.value = null
+    try {
+      cloudRunnerRegistrationCommand.value = await configured.createRunnerRegistrationCommand(input)
+    } catch (cause) {
+      cloudRunnerTokensError.value = runtimeMessage(cause)
+    }
+  }
+
+  function clearRunnerRegistrationCommand(): void {
+    cloudRunnerRegistrationCommand.value = null
   }
 
   async function initializeConversationList(force = false): Promise<void> {
@@ -245,6 +334,19 @@ export const useConversationStore = defineStore('conversation', () => {
     defaultModel.value = model
   }
 
+  function setExecutionTarget(target: 'local' | 'cloud'): void {
+    if (conversationId.value !== null) return
+    executionTarget.value = target
+    if (target === 'cloud') workingDirectory.value = null
+    if (target === 'cloud') void loadRunnerTags()
+  }
+
+  function selectRunnerTag(tag: string): void {
+    if (conversationId.value !== null) return
+    const normalized = tag.trim()
+    if (normalized) runnerTags.value = [normalized]
+  }
+
   function setWorkingDirectory(value: string | null): void {
     const normalized = value?.trim() ?? ''
     workingDirectory.value = normalized || null
@@ -276,6 +378,8 @@ export const useConversationStore = defineStore('conversation', () => {
     historyHasMore.value = false
     activeRuntimeId.value = nextRuntimeId
     workingDirectory.value = null
+    executionTarget.value = 'local'
+    runnerTags.value = []
     selectedModel.value = resolveCurrentModel()
     permissionMode.value = 'default'
     creationIdempotencyKey = crypto.randomUUID()
@@ -300,6 +404,8 @@ export const useConversationStore = defineStore('conversation', () => {
     conversationId.value = id
     activeRuntimeId.value = summary.runtimeId
     workingDirectory.value = summary.workingDirectory ?? null
+    executionTarget.value = summary.executionTarget ?? 'local'
+    runnerTags.value = [...(summary.runnerTags ?? [])]
     turns.value = []
     error.value = null
     historyLoading.value = true
@@ -331,6 +437,8 @@ export const useConversationStore = defineStore('conversation', () => {
       clearCompletedConversation(id)
       activeRuntimeId.value = detail.summary.runtimeId
       workingDirectory.value = detail.summary.workingDirectory ?? null
+      executionTarget.value = detail.summary.executionTarget ?? 'local'
+      runnerTags.value = [...(detail.summary.runnerTags ?? [])]
       selectedModel.value = resolveCurrentModel()
       permissionMode.value = 'default'
       turns.value = structuredClone(page.items)
@@ -345,6 +453,8 @@ export const useConversationStore = defineStore('conversation', () => {
       clearCompletedConversation(id)
       activeRuntimeId.value = summary.runtimeId
       workingDirectory.value = summary.workingDirectory ?? null
+      executionTarget.value = summary.executionTarget ?? 'local'
+      runnerTags.value = [...(summary.runnerTags ?? [])]
       selectedModel.value = resolveCurrentModel()
       permissionMode.value = 'default'
       historyError.value = runtimeError(cause)
@@ -437,22 +547,37 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  async function createConversation(): Promise<void> {
+  async function createConversation(): Promise<boolean> {
     const configured = client
     if (!configured || !activeRuntimeId.value) {
       error.value = localizedError('errors.noRuntimeSelected')
-      return
+      return false
     }
     const generation = lifecycleGeneration
     loading.value = true
     error.value = null
     try {
+      // Runner tags load independently when switching to cloud execution. Make
+      // the first send wait for that selection instead of creating an invalid
+      // request while the background refresh is still in flight.
+      if (executionTarget.value === 'cloud' && runnerTags.value.length === 0) {
+        await loadRunnerTags()
+        if (generation !== lifecycleGeneration || client !== configured) return false
+      }
       const result = await configured.createConversation(activeRuntimeId.value, {
         idempotencyKey: creationIdempotencyKey,
         model: selectedModel.value,
         ...(workingDirectory.value ? { workingDirectory: workingDirectory.value } : {}),
+        ...(executionTarget.value === 'cloud'
+          ? {
+              executionTarget: 'cloud' as const,
+              runnerTags: [...runnerTags.value],
+              permissionMode: permissionMode.value,
+              ...cloudModelSelection(selectedModel.value),
+            }
+          : {}),
       })
-      if (generation !== lifecycleGeneration || client !== configured) return
+      if (generation !== lifecycleGeneration || client !== configured) return false
       selectionToken++
       cleanupSubscription()
       conversationId.value = result.handle.conversationId
@@ -465,14 +590,16 @@ export const useConversationStore = defineStore('conversation', () => {
       )
       if (generation !== lifecycleGeneration || client !== configured) {
         subscription()
-        return
+        return false
       }
       unsubscribe = subscription
       if (result.summary) {
         mergeSummary(result.summary)
       }
+      return true
     } catch (cause) {
       if (generation === lifecycleGeneration) error.value = runtimeError(cause)
+      return false
     } finally {
       if (generation === lifecycleGeneration) loading.value = false
     }
@@ -483,10 +610,15 @@ export const useConversationStore = defineStore('conversation', () => {
     attachments: ComposerAttachment[] = [],
   ): Promise<boolean> {
     const configured = client
-    if (configured && !conversationId.value) await createConversation()
+    if (configured && !conversationId.value) {
+      const created = await createConversation()
+      if (!created) return false
+    }
     const currentId = conversationId.value
     if (!configured || !currentId) {
-      error.value = localizedError('errors.noActiveConversation')
+      // Keep the creation failure visible. The generic no-active-session
+      // message is only useful when no client/session was available at all.
+      if (!error.value) error.value = localizedError('errors.noActiveConversation')
       return false
     }
     const generation = lifecycleGeneration
@@ -507,7 +639,7 @@ export const useConversationStore = defineStore('conversation', () => {
       })
       .catch((cause) => {
         if (generation !== lifecycleGeneration || client !== configured) return
-        const message = cause instanceof Error ? cause.message : String(cause)
+        const message = runtimeErrorMessage(cause)
         updateTurn(turnId, (current) =>
           failConversationTurn(current, {
             code: 'internal',
@@ -555,6 +687,12 @@ export const useConversationStore = defineStore('conversation', () => {
     activeRuntimeId.value = null
     selectedModel.value = 'default'
     workingDirectory.value = null
+    executionTarget.value = 'local'
+    runnerTags.value = []
+    cloudRunnerTags.value = []
+    cloudRunnerTokens.value = []
+    cloudRunnerRegistrationCommand.value = null
+    cloudRunnerTokensError.value = null
     permissionMode.value = 'default'
     conversationId.value = null
     turns.value = []
@@ -661,7 +799,11 @@ export const useConversationStore = defineStore('conversation', () => {
     if (event.event.type === 'runStarted') {
       running.add(event.conversationId)
       completed.delete(event.conversationId)
-    } else if (event.event.type === 'runFinished' || event.event.type === 'runFailed') {
+    } else if (
+      event.event.type === 'runFinished' ||
+      event.event.type === 'runFailed' ||
+      (event.event.type === 'messageDelta' && event.event.terminal === true)
+    ) {
       running.delete(event.conversationId)
       if (event.conversationId === conversationId.value) completed.delete(event.conversationId)
       else completed.add(event.conversationId)
@@ -730,6 +872,17 @@ export const useConversationStore = defineStore('conversation', () => {
     activeRuntimeId,
     selectedModel,
     workingDirectory,
+    executionTarget,
+    runnerTags,
+    cloudRunnerTags,
+    cloudRunnerTokens,
+    cloudRunnerRegistrationCommand,
+    cloudRunnerTokensLoading,
+    cloudRunnerTokensError,
+    loadRunnerTokens,
+    resetPersonalRunnerToken,
+    createRunnerRegistrationCommand,
+    clearRunnerRegistrationCommand,
     permissionMode,
     modelOptions,
     setDefaultModel,
@@ -759,10 +912,13 @@ export const useConversationStore = defineStore('conversation', () => {
     hasConversations,
     configure,
     loadRuntimes,
+    loadRunnerTags,
     initializeConversationList,
     loadMoreConversations,
     selectRuntime,
     setDefaultRuntimeId,
+    setExecutionTarget,
+    selectRunnerTag,
     setCatalogFilter,
     startNewConversation,
     selectConversation,
@@ -809,10 +965,36 @@ function uniqueSorted(items: ConversationSummary[]): ConversationSummary[] {
   )
 }
 
+function runtimeMessage(value: unknown): string {
+  return runtimeErrorValue(value).message
+}
+
+function runtimeErrorValue(value: unknown): Error {
+  if (value instanceof Error) return value
+  return new Error(runtimeErrorMessage(value))
+}
+
+function runtimeErrorMessage(value: unknown): string {
+  if (value instanceof Error) return value.message
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const candidate = value as { code?: unknown; message?: unknown }
+    if (typeof candidate.message === 'string' && candidate.message) return candidate.message
+    if (typeof candidate.code === 'string' && candidate.code) return candidate.code
+  }
+  return 'Unknown runtime error'
+}
+
 export function mergeHistoryTurns(
   current: ConversationTurn[],
   older: ConversationTurn[],
 ): ConversationTurn[] {
   const currentIds = new Set(current.map((turn) => turn.id))
   return [...structuredClone(older.filter((turn) => !currentIds.has(turn.id))), ...current]
+}
+
+function cloudModelSelection(model: string): { providerId?: string; modelId?: string } {
+  const separator = model.indexOf('/')
+  if (separator <= 0 || separator === model.length - 1) return {}
+  return { providerId: model.slice(0, separator), modelId: model.slice(separator + 1) }
 }

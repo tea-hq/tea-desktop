@@ -9,6 +9,8 @@ import { DesktopEventPublisher } from './ipc/events'
 import { applyWindowChromeTheme, createWindowChromeOptions } from './windowChrome'
 import { channelHistoryToolDefinition } from '../src/features/conversation/hostToolCatalog'
 import { createElectronConversationHost, type ElectronConversationHost } from './conversation/host'
+import { CloudConversationCommandService } from './conversation/cloudCommandService'
+import { TeaCenterCloudRunnerClient } from '../src/infrastructure/cloud/cloudRunnerClient'
 import { ElectronCatalogService } from './services/catalog'
 import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
@@ -31,6 +33,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: BrowserWindow | null = null
 let services: DesktopCommandServices | null = null
 let conversationHost: ElectronConversationHost | null = null
+let cloudConversationCommands: CloudConversationCommandService | null = null
 let quitting = false
 const events = new DesktopEventPublisher(() => win?.webContents ?? null)
 
@@ -105,6 +108,21 @@ async function bootstrap(): Promise<void> {
     mandatoryHostTools: { definitions: () => centerPlugins!.mandatoryDefinitions() },
     mainHostToolHandler: centerPlugins,
   })
+  const centerOrigin = centerAuth.centerOriginValue()
+  const conversationCommands = centerOrigin
+    ? (cloudConversationCommands = new CloudConversationCommandService(
+        conversationHost.commands,
+        new TeaCenterCloudRunnerClient({
+          baseUrl: centerOrigin,
+          accessToken: () => centerAuth.cloudAccessToken(),
+          refreshAccessToken: () => centerAuth.refreshCloudAccessToken(),
+        }),
+        {
+          conversationEvent: (event) => events.publish('conversation:event', event),
+          conversationUpdated: (summary) => events.publish('conversation:updated', summary),
+        },
+      ))
+    : conversationHost.commands
   const catalog = new ElectronCatalogService(
     path.join(app.getPath('userData'), 'catalog.json'),
     centerAuth,
@@ -118,9 +136,9 @@ async function bootstrap(): Promise<void> {
     (event) => events.publish('channel-event', event),
   )
 
-  services = {
+  const commandServices: DesktopCommandServices = {
     settings,
-    conversation: conversationHost.commands,
+    conversation: conversationCommands,
     centerAuth,
     managedWorkspace,
     catalog,
@@ -137,8 +155,9 @@ async function bootstrap(): Promise<void> {
       return result.canceled ? null : (result.filePaths[0] ?? null)
     },
   }
+  services = commandServices
   registerIpc(
-    createDesktopCommandRouter(services, {
+    createDesktopCommandRouter(commandServices, {
       defaultEnterpriseDomain: process.env['TEA_CENTER_ENTERPRISE_DOMAIN'],
     }),
   )
@@ -170,6 +189,7 @@ app.on('before-quit', (event) => {
   quitting = true
   void Promise.all([
     conversationHost?.shutdown(),
+    cloudConversationCommands ? Promise.resolve(cloudConversationCommands.dispose()) : undefined,
     services?.pluginProcesses.shutdown(),
     services?.channel.dispose(),
   ]).finally(() => app.quit())

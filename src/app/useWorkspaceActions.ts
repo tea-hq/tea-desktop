@@ -122,6 +122,7 @@ export function useWorkspaceActions(
         ui.previousMode.value = ui.activeMode.value
       ui.activeMode.value = mode
       void stores.profile.refresh()
+      void stores.conversation.loadRunnerTokens()
       return
     }
     if (mode === 'settings' || mode === 'management') {
@@ -231,7 +232,18 @@ export function useWorkspaceActions(
       await collaboration.reloadConversation()
       return
     }
-    await conversation.reloadConversation()
+    if (conversation.conversationId || !ui.localComposerText.value.trim()) {
+      await conversation.reloadConversation()
+      return
+    }
+    const accepted = await conversation.sendMessage(
+      ui.localComposerText.value,
+      ui.localComposerAttachments.value,
+    )
+    if (accepted) {
+      ui.localComposerText.value = ''
+      ui.localComposerAttachments.value = []
+    }
   }
 
   async function recoverActiveConversationWorkspace(): Promise<void> {

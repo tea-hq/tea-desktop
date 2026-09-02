@@ -273,4 +273,28 @@ describe('useWorkspaceActions', () => {
       { id: 'brief', name: 'brief.md', size: 1024 },
     ])
   })
+
+  it('retries a failed conversation creation with the preserved composer draft', async () => {
+    const sendMessage = vi.fn().mockResolvedValue(true)
+    const stores = {
+      conversation: {
+        conversationId: null,
+        sendMessage,
+      },
+      settings: { setDefaultModel: vi.fn() },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.localComposerText.value = 'Retry this cloud request'
+    ui.localComposerAttachments.value = [{ id: 'brief', name: 'brief.md', size: 1024 }]
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    await actions.retryActiveConversation()
+
+    expect(sendMessage).toHaveBeenCalledWith('Retry this cloud request', [
+      { id: 'brief', name: 'brief.md', size: 1024 },
+    ])
+    expect(ui.localComposerText.value).toBe('')
+    expect(ui.localComposerAttachments.value).toEqual([])
+  })
 })

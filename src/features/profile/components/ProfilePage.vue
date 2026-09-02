@@ -5,6 +5,11 @@ import { useI18n } from 'vue-i18n'
 
 import type { ChannelSelfProfile } from '@/features/channels/contracts'
 import type {
+  RunnerRegistrationCommand,
+  RunnerTokenView,
+} from '../../../../packages/runner/src/protocol'
+import CloudRunnerTokenPanel from './CloudRunnerTokenPanel.vue'
+import type {
   CenterSelfProfile,
   ProfileAlignment,
   ProfileComparison,
@@ -22,11 +27,17 @@ const props = defineProps<{
   comparisons: ProfileComparison[]
   errorKey: string | null
   offline: boolean
+  runnerTokens?: RunnerTokenView[]
+  runnerRegistrationCommand?: RunnerRegistrationCommand | null
+  runnerTokensLoading?: boolean
+  runnerTokensError?: string | null
 }>()
 
 const emit = defineEmits<{
   close: []
   retry: []
+  refreshRunnerTokens: []
+  resetPersonalRunnerToken: []
 }>()
 
 const { t } = useI18n()
@@ -419,6 +430,16 @@ function displayValue(value: string | undefined): string {
           </div>
         </div>
       </section>
+
+      <CloudRunnerTokenPanel
+        :tokens="runnerTokens"
+        :command="runnerRegistrationCommand"
+        :loading="runnerTokensLoading"
+        :error="runnerTokensError"
+        :offline="offline"
+        @refresh="emit('refreshRunnerTokens')"
+        @reset-personal="emit('resetPersonalRunnerToken')"
+      />
     </div>
   </main>
 </template>

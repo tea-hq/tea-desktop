@@ -16,6 +16,8 @@ import AgentModelMenu from './AgentModelMenu.vue'
 import AgentProjectMenu from './AgentProjectMenu.vue'
 import type { AgentWorkMode } from './AgentWorkModeMenu.vue'
 import AgentWorkModeMenu from './AgentWorkModeMenu.vue'
+import AgentRunnerTagMenu from './AgentRunnerTagMenu.vue'
+import type { CloudRunnerTag } from '../../../../packages/runner/src/protocol'
 
 const props = defineProps<{
   profile: ComposerProfile
@@ -25,6 +27,8 @@ const props = defineProps<{
   workingDirectory?: string | null
   projectDirectories?: string[]
   agentMode?: AgentWorkMode
+  runnerTags?: string[]
+  cloudRunnerTags?: CloudRunnerTag[]
   newConversation?: boolean
   sources?: ChannelSourceInput[]
   runtimes: RuntimeDescriptor[]
@@ -41,6 +45,7 @@ const emit = defineEmits<{
   'update:workingDirectory': [value: string | null]
   'new-project': []
   'update:agentMode': [value: AgentWorkMode]
+  'update:runnerTag': [value: string]
   selectRuntime: [value: string]
   selectModel: [value: string]
   selectPermission: [value: PermissionMode]
@@ -138,11 +143,9 @@ defineExpose({ focus })
           </button>
         </div>
       </div>
-      <div
-        v-if="profile.id === 'full' && (newConversation || workingDirectory)"
-        class="agent-context-controls"
-      >
+      <div v-if="profile.id === 'full' && newConversation" class="agent-context-controls">
         <AgentProjectMenu
+          v-if="(agentMode ?? 'local') === 'local'"
           :model-value="workingDirectory"
           :projects="projectDirectories"
           :label="t('composer.selectProject')"
@@ -153,11 +156,19 @@ defineExpose({ focus })
           @new-project="emit('new-project')"
         />
         <AgentWorkModeMenu
-          v-if="workingDirectory"
           :model-value="agentMode ?? 'local'"
           :label="t('composer.selectAgentMode')"
           :disabled="disabled || streaming"
           @update:model-value="emit('update:agentMode', $event)"
+        />
+        <AgentRunnerTagMenu
+          v-if="(agentMode ?? 'local') === 'cloud'"
+          :model-value="runnerTags?.[0] ?? null"
+          :tags="cloudRunnerTags ?? []"
+          :label="t('composer.selectRunnerTag')"
+          :placeholder="t('composer.chooseRunnerTag')"
+          :disabled="disabled || streaming"
+          @update:model-value="emit('update:runnerTag', $event)"
         />
       </div>
       <div class="composer-shell" :class="profile.compact ? 'composer-shell--compact' : ''">

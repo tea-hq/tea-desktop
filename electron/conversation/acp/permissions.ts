@@ -26,6 +26,25 @@ interface PermissionPresentation {
   decisions: ApprovalDecision[]
 }
 
+/** Projects raw ACP permission input into the renderer-neutral approval event. */
+export function projectPermissionRequest(
+  approvalId: string,
+  input: AcpPermissionRequest,
+): Extract<ConversationEventKind, { type: 'approvalRequested' }> {
+  const presentation = permissionPresentation(input)
+  if (!approvalId.trim()) {
+    throw new ConversationRuntimeError('invalidState', 'ACP approval id must not be empty')
+  }
+  return {
+    type: 'approvalRequested',
+    approvalId,
+    toolCallId: presentation.toolCallId,
+    capabilities: presentation.capabilities,
+    resources: presentation.resources,
+    decisions: presentation.decisions,
+  }
+}
+
 export class AcpPermissionCoordinator {
   private readonly pending = new Map<string, PendingPermission>()
   private readonly requestIds = new Set<string>()
@@ -62,14 +81,7 @@ export class AcpPermissionCoordinator {
       optionIds: presentation.optionIds,
       resolve: resolvePermission,
     })
-    emit({
-      type: 'approvalRequested',
-      approvalId,
-      toolCallId: presentation.toolCallId,
-      capabilities: presentation.capabilities,
-      resources: presentation.resources,
-      decisions: presentation.decisions,
-    })
+    emit(projectPermissionRequest(approvalId, input))
     return response
   }
 

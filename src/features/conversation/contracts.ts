@@ -1,3 +1,10 @@
+import type {
+  CloudRunnerTag,
+  RunnerRegistrationCommand,
+  RunnerRegistrationCommandInput,
+  RunnerTokenView,
+} from '../../../packages/runner/src/protocol'
+
 export type RuntimeKind = 'externalCli'
 
 export type RuntimeCapability =
@@ -86,7 +93,7 @@ export interface ConversationHandle {
 
 export type ConversationEventKind =
   | { type: 'runStarted' }
-  | { type: 'messageDelta'; text: string }
+  | { type: 'messageDelta'; text: string; terminal?: boolean }
   | {
       type: 'thoughtDelta'
       text: string
@@ -154,6 +161,8 @@ export interface ConversationUserPrompt {
 }
 
 export type PermissionMode = 'default' | 'readOnly' | 'fullAccess'
+
+export type ConversationExecutionTarget = 'local' | 'cloud'
 
 export type ThinkingEffort = 'light' | 'medium' | 'high' | 'extraHigh' | 'ultra'
 
@@ -261,6 +270,12 @@ export interface ConversationSummary {
   updatedAt: number
   archivedAt?: number
   channelBinding?: ChannelBinding
+  executionTarget?: ConversationExecutionTarget
+  source?: ConversationExecutionTarget
+  providerId?: string
+  modelId?: string
+  runnerTags?: string[]
+  permissionMode?: PermissionMode
 }
 
 export interface ListConversationsRequest {
@@ -310,10 +325,21 @@ export interface CreateConversationOptions {
   workingDirectory?: string
   channelBinding?: ChannelBinding
   hostTools?: HostToolDefinition[]
+  executionTarget?: ConversationExecutionTarget
+  providerId?: string
+  modelId?: string
+  runnerTags?: string[]
+  permissionMode?: PermissionMode
 }
 
 export interface ConversationClient {
   listRuntimes(): Promise<RuntimeDescriptor[]>
+  listRunnerTags?(): Promise<CloudRunnerTag[]>
+  listRunnerTokens?(): Promise<RunnerTokenView[]>
+  resetPersonalRunnerToken?(): Promise<RunnerTokenView>
+  createRunnerRegistrationCommand?(
+    input?: RunnerRegistrationCommandInput,
+  ): Promise<RunnerRegistrationCommand>
   listConversations(request: ListConversationsRequest): Promise<ConversationPage>
   getConversation(conversationId: string): Promise<ConversationDetail>
   loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage>

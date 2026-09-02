@@ -6,6 +6,8 @@ export default {
   },
   common: {
     close: '关闭',
+    copy: '复制',
+    copied: '已复制',
   },
   auth: {
     enterprise: {
@@ -148,6 +150,24 @@ export default {
       notConnected: '请先连接消息账号，再刷新个人资料。',
       unsupported: '当前消息运行方式不支持实时查询个人资料。',
       loadFailed: '无法读取最新的消息账号资料。',
+    },
+    runnerTokens: {
+      eyebrow: '云端执行',
+      title: 'Runner 注册令牌',
+      description:
+        '企业级令牌对租户成员可见，个人级令牌仅自己可见。使用令牌可在服务器上注册云端 Runner。',
+      refresh: '刷新令牌',
+      resetPersonal: '重置个人令牌',
+      loading: '正在读取 Runner 令牌',
+      empty: '当前没有可见的 Runner 令牌。',
+      offline: 'Center 离线时无法读取 Runner 令牌。',
+      commandTitle: '一键注册命令',
+      commandDescription:
+        '命令通过 npx 获取 Runner 发布包，在目标机器上写入配置，按需交互获取机器名和默认 tag，并直接启动后台 Runner 服务。',
+      createCommand: '生成注册命令',
+      commandLoading: '正在生成默认注册命令……',
+      selectToken: '检测到可用令牌后，注册命令会自动显示。',
+      scope: { tenant: '企业级令牌', group: '用户组/部门级令牌', user: '个人级令牌' },
     },
   },
   management: {
@@ -585,6 +605,9 @@ export default {
     noProject: '不设置项目',
     newProject: '新建项目',
     selectAgentMode: '选择 Agent 类型',
+    selectRunnerTag: '选择 Runner 标签',
+    chooseRunnerTag: '选择 Runner 标签',
+    runnerTagAvailability: '{tag}（可用 {available}，忙碌 {busy}）',
     agentMode: {
       local: '本地',
       cloud: '云端',

@@ -53,7 +53,13 @@ const {
     :comparisons="profile.comparisons"
     :error-key="profile.errorKey"
     :offline="centerAuth.state.phase === 'offlineCached'"
+    :runner-tokens="conversation.cloudRunnerTokens"
+    :runner-registration-command="conversation.cloudRunnerRegistrationCommand"
+    :runner-tokens-loading="conversation.cloudRunnerTokensLoading"
+    :runner-tokens-error="conversation.cloudRunnerTokensError"
     @retry="profile.refresh()"
+    @refresh-runner-tokens="conversation.loadRunnerTokens()"
+    @reset-personal-runner-token="conversation.resetPersonalRunnerToken()"
     @close="selectWorkspace(previousMode)"
   />
   <ManagementWorkspace

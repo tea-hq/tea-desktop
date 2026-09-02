@@ -6,7 +6,12 @@
     "components.d.ts",
     "auto-imports.d.ts",
     "src/**/*",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "packages/runner/src/protocol.ts",
+    "packages/runner/src/runner.ts",
+    "packages/runner/src/acp.ts",
+    "packages/runner/src/defaults.ts",
+    "packages/runner/src/logger.ts"
   ],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {

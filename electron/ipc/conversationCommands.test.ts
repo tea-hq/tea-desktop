@@ -130,4 +130,27 @@ describe('conversation command handlers', () => {
     ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
     expect(conversation.createConversation).not.toHaveBeenCalled()
   })
+
+  it('validates the optional registration token id before delegation', async () => {
+    const conversation = commandService()
+    conversation.createRunnerRegistrationCommand = vi.fn(async () => ({
+      tokenId: 'token-1',
+      scope: 'tenant' as const,
+      scopeId: 'tenant-1',
+      centerUrl: 'https://center.test',
+      command: 'npx --yes @tea/runner register',
+    }))
+    const handler = createConversationCommandHandlers({ conversation }).handlers
+      .create_cloud_runner_registration_command!
+
+    await handler({ tokenId: 'token-1' })
+
+    expect(conversation.createRunnerRegistrationCommand).toHaveBeenCalledWith({
+      tokenId: 'token-1',
+    })
+    await expect(Promise.resolve().then(() => handler({ tokenId: 12 }))).rejects.toMatchObject({
+      code: 'invalidRequest',
+      retryable: false,
+    })
+  })
 })

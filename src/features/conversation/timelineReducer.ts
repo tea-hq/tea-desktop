@@ -40,25 +40,31 @@ export function reduceConversationTurn(
   if (event.type === 'messageDelta') {
     const last = next.blocks.at(-1)
     if (last?.kind === 'assistantText' && last.streaming) {
+      const updated = replaceBlock(next.blocks, last.id, {
+        ...last,
+        text: last.text + event.text,
+        streaming: event.terminal !== true,
+      })
       return {
         ...next,
-        status: 'running',
-        blocks: replaceBlock(next.blocks, last.id, { ...last, text: last.text + event.text }),
+        status: event.terminal === true ? 'completed' : 'running',
+        blocks: event.terminal === true ? closeTurnBlocks(updated, 'completed') : updated,
       }
     }
+    const blocks = [
+      ...next.blocks,
+      {
+        kind: 'assistantText' as const,
+        id: `${turn.id}-assistant-${incoming.sequence}`,
+        sequence: incoming.sequence,
+        text: event.text,
+        streaming: event.terminal !== true,
+      },
+    ]
     return {
       ...next,
-      status: 'running',
-      blocks: [
-        ...next.blocks,
-        {
-          kind: 'assistantText',
-          id: `${turn.id}-assistant-${incoming.sequence}`,
-          sequence: incoming.sequence,
-          text: event.text,
-          streaming: true,
-        },
-      ],
+      status: event.terminal === true ? 'completed' : 'running',
+      blocks: event.terminal === true ? closeTurnBlocks(blocks, 'completed') : blocks,
     }
   }
 

@@ -11,6 +11,12 @@ import type {
   SendMessageOptions,
 } from '../../src/features/conversation/contracts'
 import type {
+  CloudRunnerTag,
+  RunnerRegistrationCommand,
+  RunnerRegistrationCommandInput,
+  RunnerTokenView,
+} from '../../packages/runner/src/protocol'
+import type {
   ChannelBinding,
   ChannelSource,
   ChannelSourceInput,
@@ -27,10 +33,21 @@ export interface CreateConversationCommand {
   workingDirectory?: string
   channelBinding?: ChannelBinding
   hostTools: RuntimeHostToolReference[]
+  executionTarget?: 'local' | 'cloud'
+  providerId?: string
+  modelId?: string
+  runnerTags?: string[]
+  permissionMode?: 'default' | 'readOnly' | 'fullAccess'
 }
 
 export interface ConversationCommandService {
   listRuntimes(): Promise<RuntimeDescriptor[]>
+  listRunnerTags?(): Promise<CloudRunnerTag[]>
+  listRunnerTokens?(): Promise<RunnerTokenView[]>
+  resetPersonalRunnerToken?(): Promise<RunnerTokenView>
+  createRunnerRegistrationCommand?(
+    input?: RunnerRegistrationCommandInput,
+  ): Promise<RunnerRegistrationCommand>
   listConversations(request: ListConversationsRequest): Promise<ConversationPage>
   getConversation(conversationId: string): Promise<ConversationDetail>
   loadConversationHistory(request: LoadConversationHistoryRequest): Promise<ConversationHistoryPage>
@@ -80,6 +97,20 @@ export class RuntimeConversationCommandService implements ConversationCommandSer
 
   async listRuntimes(): Promise<RuntimeDescriptor[]> {
     return this.service.listRuntimes()
+  }
+
+  async listRunnerTokens(): Promise<RunnerTokenView[]> {
+    return []
+  }
+
+  async resetPersonalRunnerToken(): Promise<RunnerTokenView> {
+    throw new Error('runner token management is unavailable')
+  }
+
+  async createRunnerRegistrationCommand(
+    _input?: RunnerRegistrationCommandInput,
+  ): Promise<RunnerRegistrationCommand> {
+    throw new Error('runner token management is unavailable')
   }
 
   async listConversations(request: ListConversationsRequest): Promise<ConversationPage> {
