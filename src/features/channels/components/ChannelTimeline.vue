@@ -11,12 +11,14 @@ import type {
   Message,
   MessageMention,
   MessageMentionTarget,
+  OutgoingMessageAttempt,
 } from '../contracts'
 import type { ForwardMessageMode } from '../contracts'
 import { collectMessageMentions, type SelectedMessageMention } from '../messageMentions'
 import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelMessageItem from './ChannelMessageItem.vue'
+import ChannelOutgoingMessageItem from './ChannelOutgoingMessageItem.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
 import {
   isTimelineNearBottom,
@@ -28,12 +30,12 @@ const props = withDefaults(
   defineProps<{
     channel: Channel
     messages: Message[]
+    outgoingAttempts?: OutgoingMessageAttempt[]
     panelOpen: boolean
     loading: boolean
     hasMore: boolean
     hasMoreNewer?: boolean
     highlightedMessageKey?: string | null
-    sending: boolean
     activeConversation: ConversationSummary | null
     recentConversations: ConversationSummary[]
     currentSessionAvailable: boolean
@@ -41,7 +43,6 @@ const props = withDefaults(
     defaultRuntimeId: string | null
     replyTo?: Message | null
     attachments?: ChannelAttachment[]
-    sendingProgress?: number
     selectionMode?: boolean
     selectedMessageKeys?: string[]
     selectedCount?: number
@@ -59,7 +60,6 @@ const props = withDefaults(
     hasMoreNewer: false,
     highlightedMessageKey: null,
     attachments: () => [],
-    sendingProgress: 0,
     selectionMode: false,
     selectedMessageKeys: () => [],
     selectedCount: 0,
@@ -71,6 +71,7 @@ const props = withDefaults(
     draftMentions: () => [],
     draftSaving: false,
     draftErrorCode: null,
+    outgoingAttempts: () => [],
   },
 )
 const emit = defineEmits<{
@@ -108,6 +109,9 @@ const emit = defineEmits<{
   requestMentionMembers: []
   openReceiptDetails: [message: Message]
   updateDraft: [payload: { text: string; mentions: MessageMention[] }]
+  retryOutgoing: [attemptId: string]
+  cancelOutgoing: [attemptId: string]
+  dismissOutgoing: [attemptId: string]
 }>()
 const { t } = useI18n()
 const selectedMentions = ref<SelectedMessageMention[]>([])
@@ -280,6 +284,20 @@ watch(
 )
 
 watch(
+  () =>
+    props.outgoingAttempts
+      .map((attempt) => `${attempt.attemptId}:${attempt.status}:${attempt.progress}`)
+      .join('|'),
+  async () => {
+    const element = container.value
+    if (!element) return
+    const nearBottom = isTimelineNearBottom(element)
+    await nextTick()
+    if (nearBottom) element.scrollTop = element.scrollHeight
+  },
+)
+
+watch(
   () => props.draftMentions,
   (mentions) => {
     selectedMentions.value = mentions.map(({ target, label }) => ({ target, label }))
@@ -408,13 +426,13 @@ watch(
 
     <div ref="container" class="channel-scroll-area flex-1 overflow-y-auto py-2">
       <div
-        v-if="loading && messages.length === 0"
+        v-if="loading && messages.length === 0 && outgoingAttempts.length === 0"
         class="flex h-full items-center justify-center text-subtle"
       >
         <span class="i-mdi-loading size-5 animate-spin" aria-hidden="true" />
       </div>
       <div
-        v-else-if="messages.length === 0"
+        v-else-if="messages.length === 0 && outgoingAttempts.length === 0"
         class="flex h-full flex-col items-center justify-center px-8 text-center"
       >
         <span class="i-mdi-message-outline size-6 text-disabled" aria-hidden="true" />
@@ -460,6 +478,14 @@ watch(
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
           @open-receipt-details="emit('openReceiptDetails', message)"
+        />
+        <ChannelOutgoingMessageItem
+          v-for="attempt in outgoingAttempts"
+          :key="attempt.attemptId"
+          :attempt="attempt"
+          @retry="emit('retryOutgoing', attempt.attemptId)"
+          @cancel="emit('cancelOutgoing', attempt.attemptId)"
+          @dismiss="emit('dismissOutgoing', attempt.attemptId)"
         />
         <div v-if="hasMoreNewer" class="flex justify-center pt-2">
           <TeaButton appearance="ghost" size="small" :disabled="loading" @click="emit('loadNewer')">
@@ -596,26 +622,11 @@ watch(
             />
           </div>
         </div>
-        <div
-          v-if="sending && sendingProgress > 0 && sendingProgress < 100"
-          class="absolute bottom-full left-3 right-3 mb-1 h-1 overflow-hidden rounded-pill bg-muted sm:left-4 sm:right-4 sm:mx-auto sm:max-w-4xl"
-          role="progressbar"
-          :aria-valuenow="sendingProgress"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          :aria-label="t('channels.composer.uploadProgress')"
-        >
-          <span
-            class="block h-full bg-fg transition-[width]"
-            :style="{ width: `${sendingProgress}%` }"
-          />
-        </div>
         <TeaIconButton
           class="channel-composer-attach"
           size="small"
           :label="t('channels.composer.addAttachment')"
           icon="i-mdi-paperclip"
-          :disabled="sending"
           @click="emit('pickAttachments')"
         />
         <TeaTextarea
@@ -635,7 +646,7 @@ watch(
           :label="t('channels.composer.send')"
           icon="i-mdi-arrow-up"
           appearance="primary"
-          :disabled="(!draft.trim() && !attachments.length) || sending"
+          :disabled="!draft.trim() && !attachments.length"
           @click="submitMessage"
         />
       </div>

@@ -561,6 +561,7 @@ export class MockChannelTransport implements ChannelTransport {
       state: 'active',
       sentByCurrentUser: true,
       serverExtension: request.serverExtension,
+      clientReference: request.idempotencyKey,
       pinned: false,
       reactions: [],
     }
@@ -599,6 +600,7 @@ export class MockChannelTransport implements ChannelTransport {
       state: 'active',
       sentByCurrentUser: true,
       serverExtension: request.serverExtension,
+      clientReference: request.idempotencyKey,
       pinned: false,
       reactions: [],
     }

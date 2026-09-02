@@ -141,6 +141,7 @@ export interface ChannelAttachment {
 
 export interface ChannelAttachmentPicker {
   pick(): Promise<ChannelAttachment[]>
+  release(token: string): Promise<void>
 }
 
 /**
@@ -228,12 +229,36 @@ export interface Message {
   reactions: MessageReaction[]
   receipt?: MessageReceipt
   mentions?: MessageMention[]
+  /** Tea-owned send correlation, independent from provider message ids. */
+  clientReference?: string
 }
 
 export interface MessageReply {
   ref: MessageRef
   senderName: string
   text: string
+}
+
+export type OutgoingMessageStatus = 'sending' | 'failed' | 'cancelled'
+
+/**
+ * Ephemeral renderer projection for content that has not been confirmed as a
+ * provider Message. Retry reuses idempotencyKey and replaces operationId.
+ */
+export interface OutgoingMessageAttempt {
+  attemptId: string
+  idempotencyKey: string
+  operationId: string
+  channelRef: ChannelRef
+  content: OutgoingMessageContent
+  mentions: MessageMention[]
+  replyTo?: MessageReply
+  createdAt: number
+  status: OutgoingMessageStatus
+  progress: number
+  attemptNumber: number
+  retryable: boolean
+  errorCode?: string
 }
 
 export interface ChannelPage {

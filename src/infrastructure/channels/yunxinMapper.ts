@@ -47,6 +47,7 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
   const mergedSender = mergedSenderMetadata(value.serverExtension)
   const serverExtension = parseBoundedJson(value.serverExtension)
   const mentions = parseYunxinMentions(serverExtension)
+  const clientReference = teaClientReference(serverExtension)
   return {
     ref: mapYunxinMessageRef(value),
     sender: {
@@ -73,7 +74,14 @@ export function mapYunxinMessage(value: V2NIMMessage, currentAccount: string): M
     pinned: false,
     reactions: [],
     ...(mentions.length ? { mentions } : {}),
+    ...(clientReference ? { clientReference } : {}),
   }
+}
+
+function teaClientReference(extension: JsonValue | undefined): string | undefined {
+  if (!extension || typeof extension !== 'object' || Array.isArray(extension)) return undefined
+  const value = extension.teaClientReference
+  return typeof value === 'string' && value.trim() && value.length <= 128 ? value : undefined
 }
 
 interface YunxinMessageContentSource {

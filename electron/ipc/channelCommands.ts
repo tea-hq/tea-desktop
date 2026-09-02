@@ -67,6 +67,8 @@ export function createChannelCommandHandlers(
     cancel_channel_message_send: (args) =>
       channel.cancelMessageSend(readString(args.operationId, 'operationId')),
     select_channel_attachments: () => channel.selectAttachments(),
+    release_channel_attachment: (args) =>
+      channel.releaseAttachment(readString(args.token, 'token')),
     mark_channel_read: (args) => channel.markRead(readString(args.channelRef, 'channelRef')),
     set_channel_pinned: (args) =>
       channel.setChannelPinned(

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowReactive, shallowRef } from 'vue'
 import type {
   Channel,
   ChannelAttachment,
@@ -29,11 +29,13 @@ import type {
   RevokeMessageRequest,
   ListChannelMembersRequest,
   MessageRef,
+  MessageReply,
   Message,
   MessageMention,
   MessageReceiptDetails,
   MessageSearchPage,
   MessageSearchState,
+  OutgoingMessageAttempt,
   OutgoingMessageContent,
   SearchMessagesRequest,
   SendMessageResult,
@@ -100,9 +102,7 @@ export const useChannelsStore = defineStore('channels', () => {
   const channelCatalogReady = ref(true)
   const initialConversationSyncFinished = ref(false)
   const loadingMessageRequests = reactive(new Map<string, number>())
-  const sendingMessage = ref(false)
-  const sendingProgress = ref(0)
-  const activeSendOperationId = ref<string | null>(null)
+  const outgoingAttempts = shallowReactive(new Map<string, OutgoingMessageAttempt>())
   const mutatingMessage = ref(false)
   const loadingMergedMessages = ref(false)
   const mergedMessagesErrorCode = ref<string | null>(null)
@@ -135,6 +135,14 @@ export const useChannelsStore = defineStore('channels', () => {
   )
   const activeMessages = computed(() =>
     activeChannelRef.value ? (projection.messagesByChannel.get(activeChannelRef.value) ?? []) : [],
+  )
+  const activeOutgoingAttempts = computed(() =>
+    [...outgoingAttempts.values()]
+      .filter((attempt) => attempt.channelRef === activeChannelRef.value)
+      .sort(
+        (left, right) =>
+          left.createdAt - right.createdAt || left.attemptId.localeCompare(right.attemptId),
+      ),
   )
   const drafts = computed(() =>
     [...draftsByChannel.values()].sort(
@@ -172,6 +180,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const generation = lifecycleGeneration
     unsubscribe?.()
     if (transport.value) void transport.value.dispose()
+    void clearOutgoingAttempts(attachmentPicker.value)
     transport.value = value
     attachmentPicker.value = picker ?? null
     draftClient.value = drafts ?? null
@@ -229,6 +238,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (!client) return
     const generation = lifecycleGeneration
     await flushAllDrafts()
+    await clearOutgoingAttempts(attachmentPicker.value)
     await client.disconnect()
     if (generation !== lifecycleGeneration || transport.value !== client) return
     clearProjection()
@@ -725,45 +735,141 @@ export const useChannelsStore = defineStore('channels', () => {
     mentions?: MessageMention[],
   ): Promise<SendMessageResult | null> {
     const channelRef = activeChannelRef.value
-    if (!channelRef || sendingMessage.value) return null
-    const client = requireTransport()
-    const generation = lifecycleGeneration
+    if (!channelRef) return null
+    const attemptId = randomOperationId()
     const operationId = randomOperationId()
-    sendingMessage.value = true
-    sendingProgress.value = 0
-    activeSendOperationId.value = operationId
+    const attempt: OutgoingMessageAttempt = {
+      attemptId,
+      idempotencyKey: randomIdempotencyKey(),
+      operationId,
+      channelRef,
+      content: structuredClone(content),
+      mentions: copyMessageMentions(mentions ?? []),
+      ...(replyTo ? { replyTo: messageReplySnapshot(replyTo, activeMessages.value) } : {}),
+      createdAt: Date.now(),
+      status: 'sending',
+      progress: 0,
+      attemptNumber: 1,
+      retryable: false,
+    }
+    outgoingAttempts.set(attemptId, attempt)
     errorCode.value = null
+    return executeOutgoingAttempt(attemptId)
+  }
+
+  async function executeOutgoingAttempt(attemptId: string): Promise<SendMessageResult | null> {
+    const attempt = outgoingAttempts.get(attemptId)
+    if (!attempt) return null
+    const client = requireTransport()
+    const picker = attachmentPicker.value
+    const generation = lifecycleGeneration
     try {
-      const result = replyTo
+      const result = attempt.replyTo
         ? await client.replyMessage({
-            channelRef,
-            replyTo,
-            content,
-            ...(mentions?.length ? { mentions } : {}),
-            operationId,
+            channelRef: attempt.channelRef,
+            replyTo: attempt.replyTo.ref,
+            content: structuredClone(attempt.content),
+            ...(attempt.mentions.length ? { mentions: copyMessageMentions(attempt.mentions) } : {}),
+            idempotencyKey: attempt.idempotencyKey,
+            operationId: attempt.operationId,
           } satisfies ReplyMessageRequest)
         : await client.sendMessage({
-            channelRef,
-            content,
-            ...(mentions?.length ? { mentions } : {}),
-            operationId,
+            channelRef: attempt.channelRef,
+            content: structuredClone(attempt.content),
+            ...(attempt.mentions.length ? { mentions: copyMessageMentions(attempt.mentions) } : {}),
+            idempotencyKey: attempt.idempotencyKey,
+            operationId: attempt.operationId,
           })
-      return generation === lifecycleGeneration && transport.value === client ? result : null
-    } catch (error) {
-      if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
-      throw error
-    } finally {
-      if (generation === lifecycleGeneration) {
-        sendingMessage.value = false
-        sendingProgress.value = 0
-        activeSendOperationId.value = null
+      const current = outgoingAttempts.get(attemptId)
+      if (current?.idempotencyKey === attempt.idempotencyKey) {
+        outgoingAttempts.delete(attemptId)
+        await releaseOutgoingContent(attempt.content, picker)
       }
+      if (generation === lifecycleGeneration && transport.value === client) {
+        return result
+      }
+      return null
+    } catch (error) {
+      if (generation === lifecycleGeneration && transport.value === client) {
+        const current = outgoingAttempts.get(attemptId)
+        if (current?.operationId === attempt.operationId && current.status !== 'cancelled') {
+          const failure = outgoingAttemptFailure(error)
+          outgoingAttempts.set(attemptId, {
+            ...current,
+            status: 'failed',
+            progress: 0,
+            errorCode: failure.errorCode,
+            retryable: failure.retryable,
+          })
+          errorCode.value = failure.errorCode
+        }
+      }
+      throw error
     }
   }
 
-  async function cancelSend(operationId = activeSendOperationId.value): Promise<void> {
+  async function retryOutgoingMessage(attemptId: string): Promise<SendMessageResult | null> {
+    const attempt = outgoingAttempts.get(attemptId)
+    if (!attempt || attempt.status === 'sending' || !attempt.retryable) return null
+    outgoingAttempts.set(attemptId, {
+      ...attempt,
+      operationId: randomOperationId(),
+      status: 'sending',
+      progress: 0,
+      attemptNumber: attempt.attemptNumber + 1,
+      retryable: false,
+      errorCode: undefined,
+    })
+    errorCode.value = null
+    return executeOutgoingAttempt(attemptId)
+  }
+
+  async function cancelOutgoingMessage(attemptId: string): Promise<void> {
+    const attempt = outgoingAttempts.get(attemptId)
+    if (!attempt || attempt.status !== 'sending') return
+    outgoingAttempts.set(attemptId, {
+      ...attempt,
+      status: 'cancelled',
+      progress: 0,
+      retryable: true,
+      errorCode: undefined,
+    })
+    try {
+      await requireTransport().cancelMessageSend(attempt.operationId)
+    } catch (error) {
+      const current = outgoingAttempts.get(attemptId)
+      if (current?.operationId === attempt.operationId) {
+        const failure = outgoingAttemptFailure(error)
+        outgoingAttempts.set(attemptId, {
+          ...current,
+          status: 'failed',
+          errorCode: failure.errorCode,
+          retryable: failure.retryable,
+        })
+        errorCode.value = failure.errorCode
+      }
+      throw error
+    }
+  }
+
+  async function dismissOutgoingMessage(attemptId: string): Promise<void> {
+    const attempt = outgoingAttempts.get(attemptId)
+    if (!attempt || attempt.status === 'sending') return
+    outgoingAttempts.delete(attemptId)
+    await releaseOutgoingContent(attempt.content, attachmentPicker.value)
+  }
+
+  async function releaseAttachment(token: string): Promise<void> {
+    await attachmentPicker.value?.release(token)
+  }
+
+  async function cancelSend(operationId?: string): Promise<void> {
     if (!operationId) return
-    await requireTransport().cancelMessageSend(operationId)
+    const attempt = [...outgoingAttempts.values()].find(
+      (candidate) => candidate.operationId === operationId,
+    )
+    if (attempt) await cancelOutgoingMessage(attempt.attemptId)
+    else await requireTransport().cancelMessageSend(operationId)
   }
 
   async function forwardMessage(request: ForwardMessageRequest): Promise<ForwardMessageResult> {
@@ -1024,6 +1130,7 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function dispose(): Promise<void> {
     await flushAllDrafts()
+    await clearOutgoingAttempts(attachmentPicker.value)
     lifecycleGeneration += 1
     unsubscribe?.()
     unsubscribe = null
@@ -1038,9 +1145,6 @@ export const useChannelsStore = defineStore('channels', () => {
     channelCatalogReady.value = true
     initialConversationSyncFinished.value = false
     loadingMessageRequests.clear()
-    sendingMessage.value = false
-    sendingProgress.value = 0
-    activeSendOperationId.value = null
     mutatingMessage.value = false
     mutatingChannelRefs.clear()
     errorCode.value = null
@@ -1134,6 +1238,7 @@ export const useChannelsStore = defineStore('channels', () => {
       activeChannelRef.value = null
     reconcileMessageCursors(event)
     reconcilePinnedMessages(event)
+    reconcileOutgoingAttempts(event)
     if (event.type === 'status.changed') {
       if (
         event.status.phase === 'kickedOffline' ||
@@ -1173,8 +1278,14 @@ export const useChannelsStore = defineStore('channels', () => {
       channelCatalogReady.value = true
       errorCode.value = event.errorCode
     } else if (event.type === 'message.sendProgress') {
-      if (event.operationId === activeSendOperationId.value)
-        sendingProgress.value = Math.max(0, Math.min(100, event.progress))
+      const attempt = [...outgoingAttempts.values()].find(
+        (candidate) => candidate.operationId === event.operationId,
+      )
+      if (attempt?.status === 'sending')
+        outgoingAttempts.set(attempt.attemptId, {
+          ...attempt,
+          progress: Math.max(0, Math.min(100, event.progress)),
+        })
     }
   }
 
@@ -1192,6 +1303,37 @@ export const useChannelsStore = defineStore('channels', () => {
     clearSavedMessages()
     loadingMergedMessages.value = false
     mergedMessagesErrorCode.value = null
+    void clearOutgoingAttempts(attachmentPicker.value)
+  }
+
+  function reconcileOutgoingAttempts(event: ChannelEvent): void {
+    if (event.type === 'message.upserted') {
+      for (const message of event.messages) {
+        if (!message.clientReference) continue
+        const attempt = [...outgoingAttempts.values()].find(
+          (candidate) => candidate.idempotencyKey === message.clientReference,
+        )
+        if (!attempt) continue
+        outgoingAttempts.delete(attempt.attemptId)
+        void releaseOutgoingContent(attempt.content, attachmentPicker.value)
+      }
+      return
+    }
+    if (event.type === 'channel.deleted') {
+      for (const attempt of [...outgoingAttempts.values()]) {
+        if (!event.channelRefs.includes(attempt.channelRef)) continue
+        outgoingAttempts.delete(attempt.attemptId)
+        void releaseOutgoingContent(attempt.content, attachmentPicker.value)
+      }
+    }
+  }
+
+  async function clearOutgoingAttempts(picker: ChannelAttachmentPicker | null): Promise<void> {
+    const attempts = [...outgoingAttempts.values()]
+    outgoingAttempts.clear()
+    await Promise.allSettled(
+      attempts.map((attempt) => releaseOutgoingContent(attempt.content, picker)),
+    )
   }
 
   function clearDraftProjection(): void {
@@ -1360,6 +1502,7 @@ export const useChannelsStore = defineStore('channels', () => {
     highlightedMessageKey,
     activeChannel,
     activeMessages,
+    activeOutgoingAttempts,
     drafts,
     activeDraft,
     loadingDrafts,
@@ -1385,7 +1528,6 @@ export const useChannelsStore = defineStore('channels', () => {
     removingSavedMessageId,
     savedMessagesErrorCode,
     pendingChannelRefs,
-    sendingMessage,
     mutatingMessage,
     loadingMergedMessages,
     mergedMessagesErrorCode,
@@ -1421,8 +1563,11 @@ export const useChannelsStore = defineStore('channels', () => {
     sendText,
     sendContent,
     pickAttachments,
+    releaseAttachment,
     cancelSend,
-    sendingProgress,
+    retryOutgoingMessage,
+    cancelOutgoingMessage,
+    dismissOutgoingMessage,
     forwardMessage,
     loadMergedMessages,
     modifyMessage,
@@ -1472,6 +1617,54 @@ function randomOperationId(): string {
   return (
     globalThis.crypto?.randomUUID?.() ?? `send-${Date.now()}-${Math.random().toString(16).slice(2)}`
   )
+}
+
+function randomIdempotencyKey(): string {
+  return `im-send:v1:${randomOperationId()}`
+}
+
+function messageReplySnapshot(ref: MessageRef, messages: Message[]): MessageReply {
+  const message = messages.find((candidate) => sameMessage(candidate.ref, ref))
+  return {
+    ref: structuredClone(ref),
+    senderName: message?.sender.name ?? '',
+    text: message?.text ?? '',
+  }
+}
+
+function outgoingAttemptFailure(error: unknown): { errorCode: string; retryable: boolean } {
+  return {
+    errorCode: transportErrorCode(error),
+    retryable:
+      error instanceof ChannelTransportError ||
+      (typeof error === 'object' && error !== null && 'retryable' in error)
+        ? Boolean(error.retryable)
+        : true,
+  }
+}
+
+function mediaToken(content: OutgoingMessageContent): string | undefined {
+  if (
+    content.kind === 'image' ||
+    content.kind === 'audio' ||
+    content.kind === 'video' ||
+    content.kind === 'file'
+  )
+    return content.media.source.token
+  return undefined
+}
+
+async function releaseOutgoingContent(
+  content: OutgoingMessageContent,
+  picker: ChannelAttachmentPicker | null,
+): Promise<void> {
+  const token = mediaToken(content)
+  if (!token || !picker) return
+  try {
+    await picker.release(token)
+  } catch {
+    // A confirmed provider send remains successful; picker handles also expire in main.
+  }
 }
 
 function createMessageSearchState(): MessageSearchState {

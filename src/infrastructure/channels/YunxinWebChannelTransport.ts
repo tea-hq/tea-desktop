@@ -42,6 +42,7 @@ import type {
   GroupMemberMuteRequest,
   GroupMemberRoleRequest,
   GroupMembersRequest,
+  JsonValue,
   RevokeMessageRequest,
   SendMessageRequest,
   SendMessageResult,
@@ -195,7 +196,6 @@ export interface ResolvedMessageAttachment {
 
 export interface MessageAttachmentResolver {
   resolve(token: string): Promise<ResolvedMessageAttachment | null>
-  release?(token: string): void | Promise<void>
 }
 
 const denyAllContactDirectory: ChannelContactDirectory = {
@@ -793,17 +793,18 @@ export class YunxinWebChannelTransport implements ChannelTransport {
     const sdk = this.connectedSdk()
     const operationId = this.beginSendOperation(request.operationId)
     try {
+      if (request.idempotencyKey) {
+        const existing = this.sentByKey.get(request.idempotencyKey)
+        if (existing) return structuredClone(existing)
+      }
+      const serverExtension = outgoingServerExtension(request)
       const message = await createYunxinOutgoingMessage(
         sdk,
         request.content,
         this.attachmentResolver,
       )
+      message.serverExtension = serverExtension
       await this.ensureDirectRecipient(request.channelRef, sdk)
-      if (request.idempotencyKey) {
-        const existing = this.sentByKey.get(request.idempotencyKey)
-        if (existing) return structuredClone(existing)
-      }
-      message.serverExtension = outgoingServerExtension(request)
       const result = await this.sendProviderMessage(request.operationId, () => {
         const params = { messageConfig: { readReceiptEnabled: true } }
         return request.operationId
@@ -820,8 +821,9 @@ export class YunxinWebChannelTransport implements ChannelTransport {
       }
       if (request.idempotencyKey) this.sentByKey.set(request.idempotencyKey, sendResult)
       return sendResult
+    } catch (error) {
+      throw outgoingMessageError(error)
     } finally {
-      await this.releaseOutgoingContent(request.content)
       this.endSendOperation(operationId)
     }
   }
@@ -833,16 +835,17 @@ export class YunxinWebChannelTransport implements ChannelTransport {
       throw new ChannelTransportError('invalidRequest', false)
     const operationId = this.beginSendOperation(request.operationId)
     try {
+      if (request.idempotencyKey) {
+        const existing = this.sentByKey.get(request.idempotencyKey)
+        if (existing) return structuredClone(existing)
+      }
+      const serverExtension = outgoingServerExtension(request)
       const message = await createYunxinOutgoingMessage(
         sdk,
         request.content,
         this.attachmentResolver,
       )
-      message.serverExtension = outgoingServerExtension(request)
-      if (request.idempotencyKey) {
-        const existing = this.sentByKey.get(request.idempotencyKey)
-        if (existing) return structuredClone(existing)
-      }
+      message.serverExtension = serverExtension
       const result = await this.sendProviderMessage(request.operationId, () => {
         const params = { messageConfig: { readReceiptEnabled: true } }
         return request.operationId
@@ -859,8 +862,9 @@ export class YunxinWebChannelTransport implements ChannelTransport {
       }
       if (request.idempotencyKey) this.sentByKey.set(request.idempotencyKey, sendResult)
       return sendResult
+    } catch (error) {
+      throw outgoingMessageError(error)
     } finally {
-      await this.releaseOutgoingContent(request.content)
       this.endSendOperation(operationId)
     }
   }
@@ -1281,11 +1285,6 @@ export class YunxinWebChannelTransport implements ChannelTransport {
       operationId,
       progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : 0,
     })
-  }
-
-  private async releaseOutgoingContent(content: OutgoingMessageContent): Promise<void> {
-    const token = mediaToken(content)
-    if (token && this.attachmentResolver?.release) await this.attachmentResolver.release(token)
   }
 
   subscribe(listener: ChannelEventListener): () => void {
@@ -1805,14 +1804,15 @@ function validateGroupAccounts(accountIds: string[]): void {
 }
 
 function outgoingServerExtension(
-  request: Pick<SendMessageRequest, 'content' | 'mentions' | 'serverExtension'>,
+  request: Pick<SendMessageRequest, 'content' | 'mentions' | 'serverExtension' | 'idempotencyKey'>,
 ): string | undefined {
   if (request.mentions?.length && request.content.kind !== 'text')
     throw new ChannelTransportError('invalidRequest', false)
   try {
+    const extension = withClientReference(request.serverExtension, request.idempotencyKey)
     return serializeServerExtension(
       withYunxinMentions(
-        request.serverExtension,
+        extension,
         request.mentions,
         request.content.kind === 'text' ? request.content.text : '',
       ),
@@ -1820,6 +1820,21 @@ function outgoingServerExtension(
   } catch {
     throw new ChannelTransportError('invalidRequest', false)
   }
+}
+
+function withClientReference(
+  extension: JsonValue | undefined,
+  clientReference: string | undefined,
+): JsonValue | undefined {
+  const value = clientReference?.trim()
+  if (!value) return extension
+  if (value.length > 128 || (extension !== undefined && !isJsonRecord(extension)))
+    throw new ChannelTransportError('invalidRequest', false)
+  return { ...(extension ?? {}), teaClientReference: value }
+}
+
+function isJsonRecord(value: JsonValue): value is Record<string, JsonValue> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 async function loadReceiptProfiles(
@@ -1950,15 +1965,10 @@ async function createYunxinOutgoingMessage(
   }
 }
 
-function mediaToken(content: OutgoingMessageContent): string | undefined {
-  if (
-    content.kind === 'image' ||
-    content.kind === 'audio' ||
-    content.kind === 'video' ||
-    content.kind === 'file'
-  )
-    return content.media.source.token
-  return undefined
+function outgoingMessageError(error: unknown): ChannelTransportError {
+  return error instanceof ChannelTransportError
+    ? error
+    : new ChannelTransportError('transport', true)
 }
 
 function validManagedCredentials(value: ManagedImCredentials): boolean {

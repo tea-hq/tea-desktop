@@ -38,6 +38,7 @@ import type {
   GroupMembersRequest,
   UpdateGroupRequest,
 } from '../../src/features/channels/contracts'
+import { ChannelTransportError } from '../../src/features/channels/contracts'
 import {
   YunxinWebChannelTransport,
   type YunxinSdkFactory,
@@ -58,6 +59,7 @@ export class ElectronChannelService {
     factory: YunxinSdkFactory = createNodeYunxinSdkFactory(),
     private readonly attachments?: MessageAttachmentResolver & {
       select(): Promise<ChannelAttachment[]>
+      release(token: string): void | Promise<void>
     },
     contactDirectory?: ChannelContactDirectory,
   ) {
@@ -165,6 +167,13 @@ export class ElectronChannelService {
 
   async cancelMessageSend(operationId: string): Promise<void> {
     await this.transport.cancelMessageSend(operationId)
+  }
+
+  async releaseAttachment(token: string): Promise<void> {
+    const value = token.trim()
+    if (!value || value.length > 256 || value.includes('\0'))
+      throw new ChannelTransportError('invalidRequest', false)
+    await this.attachments?.release(value)
   }
 
   async forwardMessage(request: ForwardMessageRequest): Promise<ForwardMessageResult> {

@@ -39,6 +39,10 @@ export class BrowserChannelAttachmentPicker implements ChannelAttachmentPicker {
         kind: mediaKind(file.type),
       }))
   }
+
+  async release(_token: string): Promise<void> {
+    // Preview tokens do not retain browser File objects.
+  }
 }
 
 function mediaKind(mimeType: string): MessageMediaKind {

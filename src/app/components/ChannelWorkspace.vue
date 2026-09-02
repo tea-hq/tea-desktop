@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTeaDesktopAppContext } from '@/app/teaDesktopContext'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
@@ -32,6 +32,7 @@ import ChannelMergedMessagesDialog from '@/features/channels/components/ChannelM
 import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelReceiptDetailsDialog.vue'
 import { useChannelMessageSelection } from '@/features/channels/useChannelMessageSelection'
 import { useChannelMergedMessageViewer } from '@/features/channels/useChannelMergedMessageViewer'
+import { beginChannelComposerSubmission } from '@/features/channels/channelComposerSubmission'
 
 const {
   centerAuth,
@@ -136,7 +137,7 @@ function handleChannelSelect(channelRef: ChannelRef): void {
   mentionMembersChannelRef.value = null
   mentionMembersLoading.value = false
   closeReceiptDetails()
-  channelAttachments.value = []
+  releaseSelectedAttachments()
   replyTo.value = null
   searchOpen.value = false
   searchScope.value = null
@@ -265,34 +266,18 @@ async function handleChannelSend(payload: {
 }): Promise<void> {
   const channelRef = channels.activeChannelRef
   if (!channelRef) return
-  try {
-    let replyRef = payload.replyTo?.ref
-    if (payload.text) {
-      await channels.sendText(payload.text, replyRef, payload.mentions)
-      replyRef = undefined
-    }
-    for (const attachment of payload.attachments) {
-      await channels.sendContent(
-        {
-          kind: attachment.kind,
-          media: {
-            source: { kind: 'localFile', token: attachment.token },
-            name: attachment.name,
-            ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
-          },
-        },
-        replyRef,
-      )
-      channelAttachments.value = channelAttachments.value.filter(
-        (candidate) => candidate.token !== attachment.token,
-      )
-      replyRef = undefined
-    }
-    replyTo.value = null
-    await channels.clearDraft(channelRef)
-  } catch {
-    // The store exposes the stable error code to the connection panel.
-  }
+  const sends = beginChannelComposerSubmission(channels, {
+    text: payload.text,
+    ...(payload.replyTo ? { replyTo: payload.replyTo.ref } : {}),
+    attachments: payload.attachments,
+    mentions: payload.mentions,
+  })
+  if (!sends.length) return
+
+  channelAttachments.value = []
+  replyTo.value = null
+  await channels.clearDraft(channelRef).catch(() => undefined)
+  await Promise.allSettled(sends)
 }
 
 function updateChannelDraft(payload: { text: string; mentions: MessageMention[] }): void {
@@ -369,10 +354,12 @@ async function pickChannelAttachments(): Promise<void> {
   try {
     const selected = await channels.pickAttachments()
     const known = new Set(channelAttachments.value.map((attachment) => attachment.token))
-    channelAttachments.value = [
-      ...channelAttachments.value,
-      ...selected.filter((attachment) => !known.has(attachment.token)),
-    ].slice(0, 10)
+    const candidates = selected.filter((attachment) => !known.has(attachment.token))
+    const available = Math.max(0, 10 - channelAttachments.value.length)
+    channelAttachments.value = [...channelAttachments.value, ...candidates.slice(0, available)]
+    await Promise.allSettled(
+      candidates.slice(available).map((attachment) => channels.releaseAttachment(attachment.token)),
+    )
   } catch {
     // Preserve the store error state.
   }
@@ -382,7 +369,30 @@ function removeChannelAttachment(token: string): void {
   channelAttachments.value = channelAttachments.value.filter(
     (attachment) => attachment.token !== token,
   )
+  void channels.releaseAttachment(token).catch(() => undefined)
 }
+
+function releaseSelectedAttachments(): void {
+  const selected = channelAttachments.value
+  channelAttachments.value = []
+  void Promise.allSettled(
+    selected.map((attachment) => channels.releaseAttachment(attachment.token)),
+  )
+}
+
+function retryOutgoingMessage(attemptId: string): void {
+  void channels.retryOutgoingMessage(attemptId).catch(() => undefined)
+}
+
+function cancelOutgoingMessage(attemptId: string): void {
+  void channels.cancelOutgoingMessage(attemptId).catch(() => undefined)
+}
+
+function dismissOutgoingMessage(attemptId: string): void {
+  void channels.dismissOutgoingMessage(attemptId).catch(() => undefined)
+}
+
+onBeforeUnmount(releaseSelectedAttachments)
 
 function handleLoadMoreChannels(): void {
   void channels.loadOlderMessages().catch(() => undefined)
@@ -679,15 +689,14 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     v-if="channels.activeChannel"
     :channel="channels.activeChannel"
     :messages="channels.activeMessages"
+    :outgoing-attempts="channels.activeOutgoingAttempts"
     :highlighted-message-key="channels.highlightedMessageKey"
     :panel-open="settings.agentDrawerOpen"
     :loading="channels.loadingMessages"
     :has-more="channels.activeHasMoreMessages"
     :has-more-newer="channels.activeHasMoreNewerMessages"
-    :sending="channels.sendingMessage"
     :reply-to="replyTo"
     :attachments="channelAttachments"
-    :sending-progress="channels.sendingProgress"
     :active-conversation="collaboration.activeConversation"
     :recent-conversations="recentCollaborationConversations"
     :current-session-available="currentChannelSessionAvailable"
@@ -729,6 +738,9 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @request-mention-members="loadMentionMembers"
     @open-receipt-details="openReceiptDetails"
     @update-draft="updateChannelDraft"
+    @retry-outgoing="retryOutgoingMessage"
+    @cancel-outgoing="cancelOutgoingMessage"
+    @dismiss-outgoing="dismissOutgoingMessage"
   />
   <ChannelSelectionPlaceholder
     v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0"

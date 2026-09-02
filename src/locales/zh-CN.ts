@@ -554,6 +554,22 @@ export default {
       saving: '正在保存草稿',
       saveError: '草稿无法保存到本地（{code}）。请保持窗口打开后重试。',
     },
+    delivery: {
+      sending: '正在发送',
+      progress: '正在发送 · {progress}%',
+      uploadProgress: '附件上传进度',
+      failed: '发送失败（{code}）',
+      cancelled: '已取消发送',
+      retry: '重试发送',
+      cancel: '取消发送',
+      dismiss: '移除未发送消息',
+      media: {
+        image: '图片',
+        audio: '音频',
+        video: '视频',
+        file: '文件',
+      },
+    },
     details: {
       title: '通道详情',
       loading: '正在加载通道详情',
@@ -738,7 +754,6 @@ export default {
       send: '发送消息',
       addAttachment: '添加附件',
       removeAttachment: '移除 {name}',
-      uploadProgress: '上传进度',
     },
     collaboration: {
       title: 'Agent 协作',

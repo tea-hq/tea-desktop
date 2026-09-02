@@ -592,6 +592,22 @@ export default {
       saving: 'Saving draft',
       saveError: 'Draft could not be saved locally ({code}). Keep this window open and try again.',
     },
+    delivery: {
+      sending: 'Sending',
+      progress: 'Sending · {progress}%',
+      uploadProgress: 'Attachment upload progress',
+      failed: 'Could not send ({code})',
+      cancelled: 'Send cancelled',
+      retry: 'Retry send',
+      cancel: 'Cancel send',
+      dismiss: 'Dismiss unsent message',
+      media: {
+        image: 'Image',
+        audio: 'Audio',
+        video: 'Video',
+        file: 'File',
+      },
+    },
     details: {
       title: 'Channel details',
       loading: 'Loading channel details',
@@ -776,7 +792,6 @@ export default {
       send: 'Send message',
       addAttachment: 'Add attachment',
       removeAttachment: 'Remove {name}',
-      uploadProgress: 'Upload progress',
     },
     collaboration: {
       title: 'Agent collaboration',

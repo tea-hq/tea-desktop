@@ -84,6 +84,7 @@ export const DESKTOP_COMMANDS = [
   'get_channel_message_receipt_details',
   'cancel_channel_message_send',
   'select_channel_attachments',
+  'release_channel_attachment',
   'mark_channel_read',
   'set_channel_pinned',
   'set_channel_muted',
