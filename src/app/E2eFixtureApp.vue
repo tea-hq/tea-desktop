@@ -13,6 +13,8 @@ import DraftEditorDialog from '@/features/collaboration/components/DraftEditorDi
 import type { AgentDrawerChannelState } from '@/features/collaboration/agentDrawerContracts'
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
 import ConversationSidebar from '@/features/conversation/components/ConversationSidebar.vue'
+import DirectoryPage from '@/features/directory/components/DirectoryPage.vue'
+import type { DirectoryUser } from '@/features/directory/contracts'
 import type {
   ComposerAttachment,
   ConversationSummary,
@@ -234,7 +236,73 @@ const roleOptions = [
   },
 ]
 const fixtureRoles = multipleRoles ? roleOptions : roleOptions.slice(0, 1)
-const activeMode = ref<'channels' | 'agent'>(fixture.value === 'full-agent' ? 'agent' : 'channels')
+const directoryUsers: DirectoryUser[] = [
+  {
+    tenant: { id: 'tenant-demo', domain: 'example.test', displayName: 'Tea Product Studio' },
+    center: { userId: 'user-lin', displayName: 'Lin Zhixu' },
+    oidc: {
+      subject: 'oidc-lin',
+      preferredUsername: 'zhixu.lin',
+      email: 'zhixu.lin@example.test',
+      emailVerified: true,
+    },
+    im: { provider: 'Yunxin', account: 'tea_zhixu', status: 'ready' },
+  },
+  {
+    tenant: { id: 'tenant-demo', domain: 'example.test', displayName: 'Tea Product Studio' },
+    center: { userId: 'user-chen', displayName: 'Chen Wangshu' },
+    oidc: {
+      subject: 'oidc-chen',
+      preferredUsername: 'wangshu.chen',
+      email: 'wangshu.chen@example.test',
+      emailVerified: true,
+    },
+    im: { provider: 'Yunxin', account: 'tea_wangshu', status: 'ready' },
+  },
+  {
+    tenant: { id: 'tenant-demo', domain: 'example.test', displayName: 'Tea Product Studio' },
+    center: { userId: 'user-zhou', displayName: 'Zhou Jianwei' },
+    oidc: {
+      subject: 'oidc-zhou',
+      preferredUsername: 'zhou-jianwei-with-a-long-identity',
+      email: 'jianwei.zhou@example.test',
+      emailVerified: true,
+    },
+    im: { provider: 'Yunxin', account: 'tea_jianwei', status: 'ready' },
+  },
+  {
+    tenant: { id: 'tenant-demo', domain: 'example.test', displayName: 'Tea Product Studio' },
+    center: { userId: 'user-song', displayName: 'Song Yuan' },
+    oidc: {
+      subject: 'oidc-song',
+      preferredUsername: 'song.yuan',
+      emailVerified: false,
+    },
+    im: { provider: 'Yunxin', status: 'unavailable' },
+  },
+]
+const directoryQuery = ref('')
+const directoryMessageUser = ref<DirectoryUser | null>(null)
+const filteredDirectoryUsers = computed(() => {
+  const query = directoryQuery.value.trim().toLocaleLowerCase()
+  if (!query) return directoryUsers
+  return directoryUsers.filter((user) =>
+    [
+      user.center.displayName,
+      user.center.userId,
+      user.oidc.preferredUsername,
+      user.oidc.email,
+      user.im?.account,
+    ].some((value) => value?.toLocaleLowerCase().includes(query)),
+  )
+})
+const activeMode = ref<'channels' | 'agent' | 'directory'>(
+  fixture.value.startsWith('directory')
+    ? 'directory'
+    : fixture.value === 'full-agent'
+      ? 'agent'
+      : 'channels',
+)
 const draftDialogOpen = ref(fixture.value === 'draft-dialog')
 const draft = ref<Draft>({
   draftId: 'draft-1',
@@ -332,7 +400,7 @@ function deliverDraft(): void {
       :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
       @select="
         (mode) => {
-          if (mode === 'agent' || mode === 'channels') activeMode = mode
+          if (mode === 'agent' || mode === 'channels' || mode === 'directory') activeMode = mode
         }
       "
     />
@@ -397,6 +465,19 @@ function deliverDraft(): void {
         @create-draft="draftDialogOpen = true"
       />
     </template>
+
+    <DirectoryPage
+      v-else-if="activeMode === 'directory'"
+      :users="filteredDirectoryUsers"
+      :total-count="directoryUsers.length"
+      tenant-name="Tea Product Studio"
+      phase="ready"
+      :error-key="null"
+      :query="directoryQuery"
+      :action-error="null"
+      @update:query="directoryQuery = $event"
+      @message="directoryMessageUser = $event"
+    />
 
     <template v-else>
       <ConversationSidebar
