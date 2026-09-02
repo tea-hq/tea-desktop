@@ -105,6 +105,31 @@ describe('Electron preload bridge', () => {
     expect(JSON.stringify(electron.invoke.mock.calls)).not.toMatch(/voiceUrl|sceneName|sampleRate/)
   })
 
+  it('allows media saving and correlated progress without exposing media URLs', async () => {
+    electron.invoke.mockResolvedValueOnce({ ok: true, value: { status: 'cancelled' } })
+    const request = {
+      operationId: 'media-save-1',
+      messageRef: { channelRef: 'channel', messageClientId: 'image-client' },
+    }
+    const progress = vi.fn()
+    const dispose = bridge.on('channel-media-save-progress', progress)
+    const [eventName, wrapped] = electron.on.mock.calls[0]!
+
+    await expect(bridge.invoke('save_channel_media', { request })).resolves.toEqual({
+      status: 'cancelled',
+    })
+    wrapped({}, { operationId: request.operationId, phase: 'saving', receivedBytes: 10 })
+    dispose()
+
+    expect(eventName).toBe('tea:event:channel-media-save-progress')
+    expect(progress).toHaveBeenCalledWith({
+      operationId: request.operationId,
+      phase: 'saving',
+      receivedBytes: 10,
+    })
+    expect(JSON.stringify(electron.invoke.mock.calls)).not.toMatch(/https?:|url/i)
+  })
+
   it('rejects commands and events outside the static allowlist', async () => {
     await expect(
       bridge.invoke('unknown' as Parameters<TeaDesktopBridge['invoke']>[0]),

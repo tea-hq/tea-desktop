@@ -11,6 +11,7 @@ function emptyServices(): DesktopCommandServices {
     credentials: {} as never,
     pluginProcesses: {} as never,
     channel: {} as never,
+    channelMedia: {} as never,
     channelDrafts: {} as never,
     selectDirectory: vi.fn(async () => null),
   }

@@ -1,5 +1,6 @@
 import type { ElectronChannelService } from '../services/channel'
-import type { MessageRef } from '../../src/features/channels/contracts'
+import type { ChannelMediaSaveService } from '../services/channelMedia'
+import type { ChannelMediaSaveRequest, MessageRef } from '../../src/features/channels/contracts'
 import {
   defineCommandHandlers,
   type DesktopCommandHandlerGroup,
@@ -9,12 +10,14 @@ import { readArray, readBoolean, readRecord, readString } from './commandValidat
 
 export interface ChannelCommandServices {
   channel: ElectronChannelService
+  channelMedia: ChannelMediaSaveService
 }
 
 export function createChannelCommandHandlers(
   services: ChannelCommandServices,
 ): DesktopCommandHandlerGroup {
   const channel = services.channel
+  const channelMedia = services.channelMedia
 
   return defineCommandHandlers('channel', {
     get_channel_descriptor: () => channel.descriptor(),
@@ -71,6 +74,9 @@ export function createChannelCommandHandlers(
     select_channel_attachments: () => channel.selectAttachments(),
     release_channel_attachment: (args) =>
       channel.releaseAttachment(readString(args.token, 'token')),
+    save_channel_media: (args) => channelMedia.save(readMediaSaveRequest(args.request)),
+    cancel_channel_media_save: (args) =>
+      channelMedia.cancel(readMediaOperationId(args.operationId)),
     mark_channel_read: (args) => channel.markRead(readString(args.channelRef, 'channelRef')),
     set_channel_presence_subscriptions: (args) =>
       channel.setPresenceSubscriptions(readPresenceAccountIds(args.accountIds)),
@@ -109,6 +115,24 @@ function readMessageRef(value: unknown): MessageRef {
       ? undefined
       : readMessageRefPart(record.messageServerId, 'messageServerId')
   return { channelRef, messageClientId, ...(messageServerId ? { messageServerId } : {}) }
+}
+
+function readMediaSaveRequest(value: unknown): ChannelMediaSaveRequest {
+  const record = readRecord(value)
+  return {
+    operationId: readMediaOperationId(record.operationId),
+    messageRef: readMessageRef(record.messageRef),
+  }
+}
+
+function readMediaOperationId(value: unknown): string {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(value))
+    throw {
+      code: 'invalidRequest',
+      retryable: false,
+      message: 'operationId must be a bounded identifier',
+    }
+  return value
 }
 
 function readMessageRefPart(value: unknown, name: string): string {

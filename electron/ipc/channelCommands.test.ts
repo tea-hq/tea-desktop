@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ElectronChannelService } from '../services/channel'
+import type { ChannelMediaSaveService } from '../services/channelMedia'
 import { createChannelCommandHandlers } from './channelCommands'
 
 function channelService(): ElectronChannelService {
@@ -14,10 +15,21 @@ function channelService(): ElectronChannelService {
   } as never
 }
 
+function mediaService(): ChannelMediaSaveService {
+  return {
+    save: vi.fn(async () => ({ status: 'cancelled' })),
+    cancel: vi.fn(),
+  } as never
+}
+
+function commandServices(channel = channelService(), channelMedia = mediaService()) {
+  return { channel, channelMedia }
+}
+
 describe('channel command handlers', () => {
   it('validates and delegates provider-neutral conversation controls', async () => {
     const channel = channelService()
-    const handlers = createChannelCommandHandlers({ channel }).handlers
+    const handlers = createChannelCommandHandlers(commandServices(channel)).handlers
 
     await handlers.set_channel_pinned!({ channelRef: 'channel', pinned: true })
     await handlers.set_channel_muted!({ channelRef: 'channel', muted: false })
@@ -30,7 +42,8 @@ describe('channel command handlers', () => {
 
   it('rejects malformed flags before delegation', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers.set_channel_muted!
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
+      .set_channel_muted!
 
     await expect(
       Promise.resolve().then(() => handler({ channelRef: 'channel', muted: 'yes' })),
@@ -40,7 +53,7 @@ describe('channel command handlers', () => {
 
   it('validates and delegates a bounded presence replace set', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
       .set_channel_presence_subscriptions!
 
     await handler({ accountIds: ['lin', 'meng'] })
@@ -50,7 +63,7 @@ describe('channel command handlers', () => {
 
   it('rejects malformed or unbounded presence payloads before delegation', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
       .set_channel_presence_subscriptions!
 
     for (const accountIds of [
@@ -70,7 +83,8 @@ describe('channel command handlers', () => {
 
   it('allows only a validated opaque attachment token across the release boundary', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers.release_channel_attachment!
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
+      .release_channel_attachment!
 
     await handler({ token: 'file:opaque' })
     expect(channel.releaseAttachment).toHaveBeenCalledWith('file:opaque')
@@ -83,7 +97,8 @@ describe('channel command handlers', () => {
 
   it('validates voice message identity and bounds the delegated transcript', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers.transcribe_channel_voice!
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
+      .transcribe_channel_voice!
     const messageRef = {
       channelRef: 'channel',
       messageClientId: 'voice-client',
@@ -108,7 +123,8 @@ describe('channel command handlers', () => {
 
   it('fails closed when the service returns an invalid voice transcript', async () => {
     const channel = channelService()
-    const handler = createChannelCommandHandlers({ channel }).handlers.transcribe_channel_voice!
+    const handler = createChannelCommandHandlers(commandServices(channel)).handlers
+      .transcribe_channel_voice!
     vi.mocked(channel.transcribeVoice)
       .mockResolvedValueOnce(' ')
       .mockResolvedValueOnce('x'.repeat(32_769))
@@ -118,5 +134,40 @@ describe('channel command handlers', () => {
         handler({ messageRef: { channelRef: 'channel', messageClientId: 'voice-client' } }),
       ).rejects.toMatchObject({ code: 'protocolFailure', retryable: false })
     }
+  })
+
+  it('validates and delegates media save operations without accepting a URL', async () => {
+    const channelMedia = mediaService()
+    const handlers = createChannelCommandHandlers(
+      commandServices(channelService(), channelMedia),
+    ).handlers
+    const mediaRequest = {
+      operationId: 'media-save:1',
+      messageRef: {
+        channelRef: 'channel',
+        messageClientId: 'image-client',
+        messageServerId: 'image-server',
+      },
+    }
+
+    await handlers.save_channel_media!({ request: mediaRequest })
+    await handlers.cancel_channel_media_save!({ operationId: mediaRequest.operationId })
+
+    expect(channelMedia.save).toHaveBeenCalledWith(mediaRequest)
+    expect(channelMedia.cancel).toHaveBeenCalledWith(mediaRequest.operationId)
+    expect(JSON.stringify(vi.mocked(channelMedia.save).mock.calls)).not.toContain('url')
+
+    for (const invalid of [
+      { ...mediaRequest, operationId: '' },
+      { ...mediaRequest, operationId: 'with space' },
+      { ...mediaRequest, operationId: 'x'.repeat(129) },
+      { ...mediaRequest, messageRef: { channelRef: 'channel', messageClientId: '' } },
+      { ...mediaRequest, messageRef: { channelRef: 'channel\n', messageClientId: 'image' } },
+    ]) {
+      await expect(
+        Promise.resolve().then(() => handlers.save_channel_media!({ request: invalid })),
+      ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
+    }
+    expect(channelMedia.save).toHaveBeenCalledTimes(1)
   })
 })

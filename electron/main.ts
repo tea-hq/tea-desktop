@@ -1,4 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  type OpenDialogOptions,
+  type SaveDialogOptions,
+} from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { isEffectiveTheme, type EffectiveTheme } from '../src/types/theme'
@@ -16,6 +24,7 @@ import { ElectronCenterAuthService } from './services/centerAuth'
 import { ElectronChannelService } from './services/channel'
 import { ElectronChannelAttachmentService } from './services/channelAttachments'
 import { ElectronChannelDraftService } from './services/channelDrafts'
+import { ChannelMediaSaveService } from './services/channelMedia'
 import { ElectronCredentialService } from './services/credentials'
 import { ElectronManagedWorkspaceService } from './services/managedWorkspace'
 import { ElectronCenterPluginService } from './services/centerPlugins'
@@ -152,6 +161,17 @@ async function bootstrap(): Promise<void> {
   const channelDrafts = new ElectronChannelDraftService(
     path.join(app.getPath('userData'), 'im-channel-drafts.json'),
   )
+  const channelMedia = new ChannelMediaSaveService(
+    channel,
+    async (source) => {
+      const options: SaveDialogOptions = { defaultPath: source.fileName }
+      const result = win
+        ? await dialog.showSaveDialog(win, options)
+        : await dialog.showSaveDialog(options)
+      return result.canceled ? null : (result.filePath ?? null)
+    },
+    (event) => events.publish('channel-media-save-progress', event),
+  )
 
   const commandServices: DesktopCommandServices = {
     settings,
@@ -162,6 +182,7 @@ async function bootstrap(): Promise<void> {
     credentials,
     pluginProcesses,
     channel,
+    channelMedia,
     channelDrafts,
     selectDirectory: async () => {
       const options: OpenDialogOptions = {
@@ -213,6 +234,11 @@ app.on('before-quit', (event) => {
     conversationHost?.shutdown(),
     cloudConversationCommands ? Promise.resolve(cloudConversationCommands.dispose()) : undefined,
     services?.pluginProcesses.shutdown(),
-    services?.channel.dispose(),
+    services
+      ? (async () => {
+          await services.channelMedia.dispose()
+          await services.channel.dispose()
+        })()
+      : undefined,
   ]).finally(() => app.quit())
 })
