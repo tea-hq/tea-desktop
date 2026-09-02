@@ -98,13 +98,22 @@ describe('Yunxin DTO mapping', () => {
       conversationType: 1,
       messageStatus: { errorCode: 0 },
       text: 'hello',
-      serverExtension: JSON.stringify({ version: 1, identity: 'tea-agent' }),
+      serverExtension: JSON.stringify({
+        version: 1,
+        identity: 'tea-agent',
+        teaClientReference: 'im-send:v1:one',
+      }),
     } as V2NIMMessage
     expect(mapYunxinMessage(source, 'me')).toMatchObject({
       ref: { channelRef: 'c1', messageClientId: 'm1', messageServerId: 's1' },
       text: 'hello',
       sentByCurrentUser: true,
-      serverExtension: { version: 1, identity: 'tea-agent' },
+      serverExtension: {
+        version: 1,
+        identity: 'tea-agent',
+        teaClientReference: 'im-send:v1:one',
+      },
+      clientReference: 'im-send:v1:one',
     })
     expect(mapYunxinMessage({ ...source, messageType: 1 } as V2NIMMessage, 'me')).toMatchObject({
       content: { kind: 'image', caption: 'hello' },

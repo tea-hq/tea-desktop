@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ChannelDraft, ChannelDraftClient, SaveChannelDraftRequest } from './contracts'
+import type {
+  ChannelAttachmentPicker,
+  ChannelDraft,
+  ChannelDraftClient,
+  OutgoingMessageAttempt,
+  SaveChannelDraftRequest,
+} from './contracts'
 
 describe('channel draft contracts', () => {
   it('keep human IM drafts provider-neutral and account scoped', async () => {
@@ -26,5 +32,32 @@ describe('channel draft contracts', () => {
     await expect(client.list('account-ref')).resolves.toEqual([saved])
     expect(saved).not.toHaveProperty('attachments')
     expect(saved).not.toHaveProperty('provider')
+  })
+})
+
+describe('outgoing message contracts', () => {
+  it('keep delivery attempts and attachment ownership provider-neutral', async () => {
+    const attempt: OutgoingMessageAttempt = {
+      attemptId: 'attempt-1',
+      idempotencyKey: 'im-send:v1:one',
+      operationId: 'operation-1',
+      channelRef: 'channel-ref',
+      content: { kind: 'text', text: 'Review this' },
+      mentions: [],
+      createdAt: 1,
+      status: 'failed',
+      progress: 0,
+      attemptNumber: 1,
+      retryable: true,
+      errorCode: 'transport',
+    }
+    const picker: ChannelAttachmentPicker = {
+      pick: async () => [],
+      release: async () => undefined,
+    }
+
+    expect(attempt).not.toHaveProperty('provider')
+    expect(attempt).not.toHaveProperty('sendingState')
+    await expect(picker.release('opaque-token')).resolves.toBeUndefined()
   })
 })

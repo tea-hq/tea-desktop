@@ -21,6 +21,7 @@ import type {
   ForwardMessageMode,
   Message,
   MessageReceiptDetails,
+  OutgoingMessageAttempt,
   PinnedMessage,
   SavedMessage,
 } from '@/features/channels/contracts'
@@ -146,6 +147,60 @@ const messages: Message[] = [
     receipt: { readCount: 12, unreadCount: 5 },
   },
 ]
+const outgoingAttempts = computed<OutgoingMessageAttempt[]>(() => {
+  if (!fixture.value.startsWith('message-delivery')) return []
+  const base = {
+    idempotencyKey: 'fixture-send-key',
+    channelRef: channel.ref,
+    mentions: [],
+    createdAt: 1_787_843_700_000,
+    attemptNumber: 1,
+  }
+  const sending: OutgoingMessageAttempt = {
+    ...base,
+    attemptId: 'fixture-sending',
+    operationId: 'fixture-operation-sending',
+    content: {
+      kind: 'image',
+      caption: 'Updated desktop mockup',
+      media: {
+        source: { kind: 'localFile', token: 'fixture-image' },
+        name: 'tea-desktop-agent-collaboration-review-final.png',
+      },
+    },
+    status: 'sending',
+    progress: 64,
+    retryable: false,
+  }
+  const failed: OutgoingMessageAttempt = {
+    ...base,
+    attemptId: 'fixture-failed',
+    idempotencyKey: 'fixture-failed-key',
+    operationId: 'fixture-operation-failed',
+    content: { kind: 'text', text: 'Please review the latest interaction notes.' },
+    status: 'failed',
+    progress: 0,
+    retryable: true,
+    errorCode: 'transport',
+  }
+  const cancelled: OutgoingMessageAttempt = {
+    ...base,
+    attemptId: 'fixture-cancelled',
+    idempotencyKey: 'fixture-cancelled-key',
+    operationId: 'fixture-operation-cancelled',
+    content: {
+      kind: 'file',
+      media: { source: { kind: 'localFile', token: 'fixture-file' }, name: 'release-notes.pdf' },
+    },
+    status: 'cancelled',
+    progress: 0,
+    retryable: true,
+  }
+  if (fixture.value === 'message-delivery-sending') return [sending]
+  if (fixture.value === 'message-delivery-failed') return [failed]
+  if (fixture.value === 'message-delivery-cancelled') return [cancelled]
+  return [sending, failed, cancelled]
+})
 const mentionMembers: ChannelMember[] = [
   { accountId: 'lin', name: 'Lin', role: 'member', chatBanned: false },
   { accountId: 'kai', name: 'Kai', role: 'manager', chatBanned: false },
@@ -612,10 +667,10 @@ function retryFixtureMergedMessages(): void {
         v-else
         :channel="channel"
         :messages="timelineMessages"
+        :outgoing-attempts="outgoingAttempts"
         :panel-open="drawerOpen"
         :loading="false"
         :has-more="true"
-        :sending="false"
         :active-conversation="conversations[0] ?? null"
         :recent-conversations="conversations.slice(0, 4)"
         :current-session-available="true"
@@ -637,6 +692,9 @@ function retryFixtureMergedMessages(): void {
         @open-merged="openFixtureMergedMessage"
         @open-receipt-details="receiptDetailsOpen = true"
         @update-draft="imDraftText = $event.text"
+        @retry-outgoing="() => undefined"
+        @cancel-outgoing="() => undefined"
+        @dismiss-outgoing="() => undefined"
       />
       <AgentDrawer
         :open="drawerOpen"

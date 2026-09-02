@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, Message, MessageMention } from '../contracts'
+import type { Channel, Message, MessageMention, OutgoingMessageAttempt } from '../contracts'
 import { createTextMessageContent } from '../messageContent'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelTimeline from './ChannelTimeline.vue'
@@ -46,7 +46,6 @@ describe('ChannelTimeline selection mode', () => {
         panelOpen: false,
         loading: false,
         hasMore: false,
-        sending: false,
         activeConversation: null,
         recentConversations: [],
         currentSessionAvailable: false,
@@ -102,7 +101,6 @@ describe('ChannelTimeline selection mode', () => {
         panelOpen: false,
         loading: false,
         hasMore: false,
-        sending: false,
         activeConversation: null,
         recentConversations: [],
         currentSessionAvailable: false,
@@ -131,7 +129,6 @@ describe('ChannelTimeline selection mode', () => {
         panelOpen: false,
         loading: false,
         hasMore: false,
-        sending: false,
         activeConversation: null,
         recentConversations: [],
         currentSessionAvailable: false,
@@ -203,7 +200,6 @@ describe('ChannelTimeline selection mode', () => {
         panelOpen: false,
         loading: false,
         hasMore: false,
-        sending: false,
         activeConversation: null,
         recentConversations: [],
         currentSessionAvailable: false,
@@ -235,7 +231,6 @@ describe('ChannelTimeline selection mode', () => {
         panelOpen: false,
         loading: false,
         hasMore: false,
-        sending: false,
         activeConversation: null,
         recentConversations: [],
         currentSessionAvailable: false,
@@ -254,5 +249,48 @@ describe('ChannelTimeline selection mode', () => {
 
     expect(wrapper.emitted('openReceiptDetails')).toEqual([[outgoing]])
     wrapper.unmount()
+  })
+
+  it('renders outgoing attempts and forwards delivery intents', async () => {
+    const outgoing: OutgoingMessageAttempt = {
+      attemptId: 'attempt-1',
+      idempotencyKey: 'im-send:v1:one',
+      operationId: 'operation-1',
+      channelRef: channel.ref,
+      content: { kind: 'text', text: 'Retry this' },
+      mentions: [],
+      createdAt: 2,
+      status: 'failed',
+      progress: 0,
+      attemptNumber: 1,
+      retryable: true,
+      errorCode: 'transport',
+    }
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [],
+        outgoingAttempts: [outgoing],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.find('[data-outgoing-attempt-id="attempt-1"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('No messages yet')
+    await wrapper.get('button[aria-label="Retry send"]').trigger('click')
+    await wrapper.get('button[aria-label="Dismiss unsent message"]').trigger('click')
+
+    expect(wrapper.emitted('retryOutgoing')).toEqual([['attempt-1']])
+    expect(wrapper.emitted('dismissOutgoing')).toEqual([['attempt-1']])
   })
 })

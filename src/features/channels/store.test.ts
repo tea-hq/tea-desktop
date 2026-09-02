@@ -406,6 +406,174 @@ describe('useChannelsStore', () => {
     expect(store.activeMessages.at(-1)?.text).toBe('Hello')
   })
 
+  it('projects a sending attempt and routes progress by operation id', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const originalSend = transport.sendMessage.bind(transport)
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(transport, 'sendMessage').mockImplementation(async (request) => {
+      await gate
+      return originalSend(request)
+    })
+
+    const sending = store.sendText('Queued message')
+    const attempt = store.activeOutgoingAttempts[0]!
+    expect(attempt).toMatchObject({
+      content: { kind: 'text', text: 'Queued message' },
+      status: 'sending',
+      progress: 0,
+      attemptNumber: 1,
+    })
+
+    transport.emitForTest({
+      type: 'message.sendProgress',
+      operationId: attempt.operationId,
+      progress: 48,
+    })
+    expect(store.activeOutgoingAttempts[0]?.progress).toBe(48)
+
+    release()
+    await sending
+    expect(store.activeOutgoingAttempts).toEqual([])
+  })
+
+  it('retries a failed attempt with stable idempotency and a fresh operation id', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    const originalSend = transport.sendMessage.bind(transport)
+    const send = vi
+      .spyOn(transport, 'sendMessage')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+      .mockImplementation(originalSend)
+
+    await expect(store.sendText('Retry this')).rejects.toMatchObject({ code: 'transport' })
+    const failed = store.activeOutgoingAttempts[0]!
+    expect(failed).toMatchObject({ status: 'failed', retryable: true, errorCode: 'transport' })
+    const firstRequest = send.mock.calls[0]![0]
+
+    await store.retryOutgoingMessage(failed.attemptId)
+
+    const secondRequest = send.mock.calls[1]![0]
+    expect(secondRequest.idempotencyKey).toBe(firstRequest.idempotencyKey)
+    expect(secondRequest.operationId).not.toBe(firstRequest.operationId)
+    expect(store.activeOutgoingAttempts).toEqual([])
+    expect(store.activeMessages.at(-1)).toMatchObject({
+      text: 'Retry this',
+      clientReference: firstRequest.idempotencyKey,
+    })
+  })
+
+  it('keeps a non-retryable failure visible until it is dismissed', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    vi.spyOn(transport, 'sendMessage').mockRejectedValueOnce(
+      new ChannelTransportError('invalidRequest', false),
+    )
+
+    await expect(store.sendText('Invalid')).rejects.toMatchObject({ code: 'invalidRequest' })
+    const failed = store.activeOutgoingAttempts[0]!
+    expect(failed).toMatchObject({ status: 'failed', retryable: false })
+    await expect(store.retryOutgoingMessage(failed.attemptId)).resolves.toBeNull()
+
+    await store.dismissOutgoingMessage(failed.attemptId)
+    expect(store.activeOutgoingAttempts).toEqual([])
+  })
+
+  it('preserves cancelled state when the original send rejects late', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    let rejectSend!: (error: unknown) => void
+    vi.spyOn(transport, 'sendMessage').mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject
+        }),
+    )
+    const cancel = vi.spyOn(transport, 'cancelMessageSend')
+
+    const sending = store.sendText('Cancel this')
+    const attempt = store.activeOutgoingAttempts[0]!
+    await store.cancelOutgoingMessage(attempt.attemptId)
+    expect(cancel).toHaveBeenCalledWith(attempt.operationId)
+    expect(store.activeOutgoingAttempts[0]).toMatchObject({
+      status: 'cancelled',
+      retryable: true,
+    })
+
+    rejectSend(new ChannelTransportError('transport', true))
+    await expect(sending).rejects.toMatchObject({ code: 'transport' })
+    expect(store.activeOutgoingAttempts[0]?.status).toBe('cancelled')
+  })
+
+  it('reconciles an uncertain failure from a provider message event', async () => {
+    const { store, transport } = await connectedStore()
+    await store.selectChannel('product-collab')
+    let rejectSend!: (error: unknown) => void
+    vi.spyOn(transport, 'sendMessage').mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject
+        }),
+    )
+
+    const sending = store.sendText('Eventually confirmed')
+    const attempt = store.activeOutgoingAttempts[0]!
+    const template = store.activeMessages.at(-1)!
+    transport.emitForTest({
+      type: 'message.upserted',
+      messages: [
+        {
+          ...(JSON.parse(JSON.stringify(template)) as typeof template),
+          ref: {
+            channelRef: 'product-collab',
+            messageClientId: 'confirmed-client',
+            messageServerId: 'confirmed-server',
+          },
+          text: 'Eventually confirmed',
+          content: { kind: 'text', text: 'Eventually confirmed' },
+          sentByCurrentUser: true,
+          clientReference: attempt.idempotencyKey,
+        },
+      ],
+    })
+    expect(store.activeOutgoingAttempts).toEqual([])
+
+    rejectSend(new ChannelTransportError('transport', true))
+    await expect(sending).rejects.toMatchObject({ code: 'transport' })
+    expect(store.activeOutgoingAttempts).toEqual([])
+  })
+
+  it('retains a media handle on failure and releases it after confirmed retry', async () => {
+    const transport = new MockChannelTransport()
+    const picker = {
+      pick: vi.fn(async () => []),
+      release: vi.fn(async () => undefined),
+    }
+    const store = useChannelsStore()
+    store.configure(transport, picker)
+    await store.connect()
+    await store.selectChannel('product-collab')
+    const originalSend = transport.sendMessage.bind(transport)
+    vi.spyOn(transport, 'sendMessage')
+      .mockRejectedValueOnce(new ChannelTransportError('transport', true))
+      .mockImplementation(originalSend)
+    const content = {
+      kind: 'image' as const,
+      media: { source: { kind: 'localFile' as const, token: 'file-token' }, name: 'design.png' },
+    }
+
+    await expect(store.sendContent(content)).rejects.toMatchObject({ code: 'transport' })
+    expect(picker.release).not.toHaveBeenCalled()
+    const failed = store.activeOutgoingAttempts[0]!
+
+    await store.retryOutgoingMessage(failed.attemptId)
+    await vi.waitFor(() => expect(picker.release).toHaveBeenCalledWith('file-token'))
+    expect(store.activeOutgoingAttempts).toEqual([])
+  })
+
   it('preserves provider-neutral mentions and loads receipt details', async () => {
     const { store, transport } = await connectedStore()
     await store.selectChannel('product-collab')
@@ -576,6 +744,7 @@ describe('useChannelsStore', () => {
           kind: 'image' as const,
         },
       ]),
+      release: vi.fn(async () => undefined),
     }
     const store = useChannelsStore()
     store.configure(transport, picker)

@@ -32,6 +32,7 @@ describe('ElectronChannelAttachmentService', () => {
     expect(JSON.stringify(attachment)).not.toContain(filePath)
 
     service.release(attachment!.token)
+    service.release(attachment!.token)
     await expect(service.resolve(attachment!.token)).resolves.toBeNull()
   })
 

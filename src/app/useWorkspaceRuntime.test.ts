@@ -60,7 +60,6 @@ describe('useWorkspaceRuntime', () => {
       status: { phase: 'disconnected', retryable: false },
       loadingChannels: false,
       loadingMessages: false,
-      sendingMessage: false,
       configure: vi.fn(),
       connect: connectChannel,
       disconnect: vi.fn(async () => undefined),

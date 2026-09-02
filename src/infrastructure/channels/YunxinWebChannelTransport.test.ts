@@ -595,11 +595,13 @@ describe('YunxinWebChannelTransport', () => {
         },
       ],
       serverExtension: { source: 'tea' },
+      idempotencyKey: 'im-send:v1:mention',
     })
 
     const outgoing = message.sendMessage.mock.calls[0]![0]
     expect(JSON.parse(outgoing.serverExtension ?? '{}')).toEqual({
       source: 'tea',
+      teaClientReference: 'im-send:v1:mention',
       yxAitMsg: {
         lin: { text: '@Lin', segments: [{ start: 0, end: 4, broken: false }] },
       },
@@ -816,7 +818,7 @@ describe('YunxinWebChannelTransport', () => {
     })
 
     expect(resolver.resolve).toHaveBeenCalledWith('file-token')
-    expect(resolver.release).toHaveBeenCalledWith('file-token')
+    expect(resolver.release).not.toHaveBeenCalled()
     expect(createImageMessage).toHaveBeenCalledWith(
       '/private/design.png',
       'design.png',
@@ -838,6 +840,17 @@ describe('YunxinWebChannelTransport', () => {
         progress: 100,
       }),
     )
+  })
+
+  it('maps unknown SDK send failures to a stable retryable transport error', async () => {
+    const { sdk, message } = createFakeSdk()
+    message.sendMessage.mockRejectedValueOnce({ code: 50_000, message: 'vendor failure' })
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(
+      transport.sendMessage({ channelRef: 'c1', content: { kind: 'text', text: 'retry' } }),
+    ).rejects.toMatchObject({ code: 'transport', retryable: true })
   })
 
   it('keeps group details and members behind the Yunxin adapter', async () => {

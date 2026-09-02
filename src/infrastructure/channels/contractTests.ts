@@ -38,6 +38,11 @@ export async function verifyTransportContract(transport: ChannelTransport): Prom
   const first = await transport.sendMessage(request)
   const duplicate = await transport.sendMessage(request)
   expect(duplicate).toEqual(first)
+  const confirmed = events
+    .filter((event) => event.type === 'message.upserted')
+    .flatMap((event) => event.messages)
+    .find((message) => message.clientReference === request.idempotencyKey)
+  expect(confirmed?.ref).toEqual(first.ref)
   expect(events.some((event) => event.type === 'status.changed')).toBe(true)
   expect(events.every((event) => Number.isInteger(event.sequence))).toBe(true)
 

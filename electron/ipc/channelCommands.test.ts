@@ -8,6 +8,7 @@ function channelService(): ElectronChannelService {
     setChannelPinned: vi.fn(async () => undefined),
     setChannelMuted: vi.fn(async () => undefined),
     hideChannel: vi.fn(async () => undefined),
+    releaseAttachment: vi.fn(async () => undefined),
   } as never
 }
 
@@ -33,5 +34,18 @@ describe('channel command handlers', () => {
       Promise.resolve().then(() => handler({ channelRef: 'channel', muted: 'yes' })),
     ).rejects.toMatchObject({ code: 'invalidRequest', retryable: false })
     expect(channel.setChannelMuted).not.toHaveBeenCalled()
+  })
+
+  it('allows only a validated opaque attachment token across the release boundary', async () => {
+    const channel = channelService()
+    const handler = createChannelCommandHandlers({ channel }).handlers.release_channel_attachment!
+
+    await handler({ token: 'file:opaque' })
+    expect(channel.releaseAttachment).toHaveBeenCalledWith('file:opaque')
+
+    await expect(Promise.resolve().then(() => handler({ token: '' }))).rejects.toMatchObject({
+      code: 'invalidRequest',
+      retryable: false,
+    })
   })
 })
