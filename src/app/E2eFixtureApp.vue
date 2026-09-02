@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { fullAgentProfile } from '@/app/composerProfiles'
 import WorkspaceRail from '@/app/components/WorkspaceRail.vue'
+import WindowChrome from '@/app/components/WindowChrome.vue'
 import ChannelConnectionPanel from '@/features/channels/components/ChannelConnectionPanel.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
@@ -24,12 +25,14 @@ import type {
   RuntimeDescriptor,
 } from '@/features/conversation/contracts'
 import type { Delivery, Draft } from '@/types/channelCollaboration'
+import { TeaInput } from '@/shared/ui'
 
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
+const globalSearchQuery = ref('')
 const multipleRoles = params.get('roles') === 'multiple'
 const channelLoading = computed(() => fixture.value === 'channel-loading')
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 locale.value = params.get('lang') === 'zh-CN' ? 'zh-CN' : 'en'
 
 const runtime: RuntimeDescriptor = {
@@ -392,142 +395,162 @@ function deliverDraft(): void {
 </script>
 
 <template>
-  <div class="flex h-screen min-w-0 overflow-hidden bg-canvas text-fg" data-testid="e2e-app">
-    <WorkspaceRail
-      :active-mode="activeMode"
-      :pending-tasks="1"
-      :logout-pending="false"
-      :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
-      @select="
-        (mode) => {
-          if (mode === 'agent' || mode === 'channels' || mode === 'directory') activeMode = mode
-        }
-      "
-    />
-
-    <template v-if="activeMode === 'channels'">
-      <ChannelSidebar
-        :channels="channelLoading ? [] : channels"
-        :active-ref="channel.ref"
-        :status="{ phase: 'connected', retryable: true }"
-        :loading="channelLoading"
-      />
-      <ChannelConnectionPanel
-        v-if="channelLoading"
-        :status="{ phase: 'connected', retryable: true }"
-        :error-code="null"
-        managed-phase="ready"
-        im-status="ready"
-        :channels-loading="true"
-        :pending="false"
-      />
-      <ChannelTimeline
-        v-else
-        :channel="channel"
-        :messages="messages"
-        :panel-open="drawerOpen"
-        :loading="false"
-        :has-more="true"
-        :sending="false"
-        :active-conversation="conversations[0] ?? null"
-        :recent-conversations="conversations.slice(0, 4)"
-        :current-session-available="true"
-        :runtimes="availableRuntimes"
-        :default-runtime-id="runtime.id"
-        @toggle-panel="drawerOpen = !drawerOpen"
-      />
-      <AgentDrawer
-        :open="drawerOpen"
-        :state="drawerState"
-        :conversations="visibleConversations"
-        :turns="turns"
-        :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
-        :runtimes="availableRuntimes"
-        :default-runtime-id="runtime.id"
-        :model-options="fixtureModelOptions"
-        :roles="fixtureRoles"
-        @close="drawerOpen = false"
-        @create="createSession"
-        @create-with-runtime="createSessionWithRuntime"
-        @select="selectSession"
-        @view-all="drawerState.listMode = 'all'"
-        @update-query="drawerState.query = $event"
-        @update-text="drawerState.draft.text = $event"
-        @update-attachments="drawerState.draft.attachments = $event"
-        @select-runtime="drawerState.draft.runtimeId = $event"
-        @select-model="drawerState.draft.model = $event"
-        @select-permission="drawerState.draft.permissionMode = $event"
-        @select-role="drawerState.draft.roleId = $event"
-        @apply-role-prompt="drawerState.draft.text = injectPrompt(drawerState.draft.text, $event)"
-        @send="send"
-        @back="drawerState.phase = 'index'"
-        @expand="activeMode = 'agent'"
-        @create-draft="draftDialogOpen = true"
-      />
-    </template>
-
-    <DirectoryPage
-      v-else-if="activeMode === 'directory'"
-      :users="filteredDirectoryUsers"
-      :total-count="directoryUsers.length"
-      tenant-name="Tea Product Studio"
-      phase="ready"
-      :error-key="null"
-      :query="directoryQuery"
-      :action-error="null"
-      @update:query="directoryQuery = $event"
-      @message="directoryMessageUser = $event"
-    />
-
-    <template v-else>
-      <ConversationSidebar
-        :conversations="conversations"
-        :active-id="conversations[0]?.conversationId ?? null"
-        :runtimes="availableRuntimes"
-        :default-runtime-id="runtime.id"
-        :loading="false"
-        :loading-more="false"
-        :error="null"
-        :has-more="false"
-        :filter="{ kind: 'all' }"
-        @new-with-runtime="createFullSessionWithRuntime"
-      />
-      <main class="min-w-0 flex-1">
-        <AgentConversationSurface
-          v-model:text="fullText"
-          v-model:attachments="fullAttachments"
-          :profile="fullAgentProfile"
-          title="Agent drawer architecture"
-          :runtime-label="
-            availableRuntimes.find((value) => value.id === fullRuntimeId)?.displayName
-          "
-          :turns="turns"
-          collaboration
-          has-older
-          :runtimes="availableRuntimes"
-          :runtime-id="fullRuntimeId"
-          :model-options="fixtureModelOptions"
-          :model="fullModel"
-          :permission-mode="fullPermissionMode"
-          :roles="fixtureRoles"
-          :role-id="fullRoleId"
-          @send="send"
-          @select-model="fullModel = $event"
-          @select-permission="fullPermissionMode = $event"
-          @create-draft="draftDialogOpen = true"
-          @select-role="fullRoleId = $event"
-          @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
+  <WindowChrome>
+    <template #toolbar>
+      <div class="relative w-full" data-testid="fixture-global-search">
+        <span
+          class="i-mdi-magnify pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
+          aria-hidden="true"
         />
-      </main>
+        <TeaInput
+          v-model="globalSearchQuery"
+          size="small"
+          type="search"
+          class="workspace-global-search__input min-h-9 pl-9 pr-3 text-sm"
+          :label="t('workspace.globalSearch')"
+          :placeholder="t('workspace.globalSearch')"
+        />
+      </div>
     </template>
+    <div class="flex h-full min-w-0 overflow-hidden bg-canvas text-fg" data-testid="e2e-app">
+      <WorkspaceRail
+        :active-mode="activeMode"
+        :pending-tasks="1"
+        :logout-pending="false"
+        :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
+        @select="
+          (mode) => {
+            if (mode === 'agent' || mode === 'channels' || mode === 'directory') activeMode = mode
+          }
+        "
+      />
 
-    <DraftEditorDialog
-      :open="draftDialogOpen"
-      :draft="draft"
-      :delivery="delivery"
-      @close="draftDialogOpen = false"
-      @save="saveDraft"
-      @deliver="deliverDraft"
-    />
-  </div>
+      <template v-if="activeMode === 'channels'">
+        <ChannelSidebar
+          :channels="channelLoading ? [] : channels"
+          :active-ref="channel.ref"
+          :status="{ phase: 'connected', retryable: true }"
+          :loading="channelLoading"
+          :search-query="globalSearchQuery"
+        />
+        <ChannelConnectionPanel
+          v-if="channelLoading"
+          :status="{ phase: 'connected', retryable: true }"
+          :error-code="null"
+          managed-phase="ready"
+          im-status="ready"
+          :channels-loading="true"
+          :pending="false"
+        />
+        <ChannelTimeline
+          v-else
+          :channel="channel"
+          :messages="messages"
+          :panel-open="drawerOpen"
+          :loading="false"
+          :has-more="true"
+          :sending="false"
+          :active-conversation="conversations[0] ?? null"
+          :recent-conversations="conversations.slice(0, 4)"
+          :current-session-available="true"
+          :runtimes="availableRuntimes"
+          :default-runtime-id="runtime.id"
+          @toggle-panel="drawerOpen = !drawerOpen"
+        />
+        <AgentDrawer
+          :open="drawerOpen"
+          :state="drawerState"
+          :conversations="visibleConversations"
+          :turns="turns"
+          :collaboration="{ turnContexts: [], drafts: [], deliveries: [] }"
+          :runtimes="availableRuntimes"
+          :default-runtime-id="runtime.id"
+          :model-options="fixtureModelOptions"
+          :roles="fixtureRoles"
+          @close="drawerOpen = false"
+          @create="createSession"
+          @create-with-runtime="createSessionWithRuntime"
+          @select="selectSession"
+          @view-all="drawerState.listMode = 'all'"
+          @update-query="drawerState.query = $event"
+          @update-text="drawerState.draft.text = $event"
+          @update-attachments="drawerState.draft.attachments = $event"
+          @select-runtime="drawerState.draft.runtimeId = $event"
+          @select-model="drawerState.draft.model = $event"
+          @select-permission="drawerState.draft.permissionMode = $event"
+          @select-role="drawerState.draft.roleId = $event"
+          @apply-role-prompt="drawerState.draft.text = injectPrompt(drawerState.draft.text, $event)"
+          @send="send"
+          @back="drawerState.phase = 'index'"
+          @expand="activeMode = 'agent'"
+          @create-draft="draftDialogOpen = true"
+        />
+      </template>
+
+      <DirectoryPage
+        v-else-if="activeMode === 'directory'"
+        :users="filteredDirectoryUsers"
+        :total-count="directoryUsers.length"
+        tenant-name="Tea Product Studio"
+        phase="ready"
+        :error-key="null"
+        :query="directoryQuery"
+        :action-error="null"
+        @update:query="directoryQuery = $event"
+        @message="directoryMessageUser = $event"
+      />
+
+      <template v-else>
+        <ConversationSidebar
+          :conversations="conversations"
+          :active-id="conversations[0]?.conversationId ?? null"
+          :runtimes="availableRuntimes"
+          :default-runtime-id="runtime.id"
+          :loading="false"
+          :loading-more="false"
+          :error="null"
+          :has-more="false"
+          :filter="{ kind: 'all' }"
+          :search-query="globalSearchQuery"
+          @new-with-runtime="createFullSessionWithRuntime"
+        />
+        <main class="min-w-0 flex-1">
+          <AgentConversationSurface
+            v-model:text="fullText"
+            v-model:attachments="fullAttachments"
+            :profile="fullAgentProfile"
+            title="Agent drawer architecture"
+            :runtime-label="
+              availableRuntimes.find((value) => value.id === fullRuntimeId)?.displayName
+            "
+            :turns="turns"
+            collaboration
+            has-older
+            :runtimes="availableRuntimes"
+            :runtime-id="fullRuntimeId"
+            :model-options="fixtureModelOptions"
+            :model="fullModel"
+            :permission-mode="fullPermissionMode"
+            :roles="fixtureRoles"
+            :role-id="fullRoleId"
+            @send="send"
+            @select-model="fullModel = $event"
+            @select-permission="fullPermissionMode = $event"
+            @create-draft="draftDialogOpen = true"
+            @select-role="fullRoleId = $event"
+            @apply-role-prompt="fullText = injectPrompt(fullText, $event)"
+          />
+        </main>
+      </template>
+
+      <DraftEditorDialog
+        :open="draftDialogOpen"
+        :draft="draft"
+        :delivery="delivery"
+        @close="draftDialogOpen = false"
+        @save="saveDraft"
+        @deliver="deliverDraft"
+      />
+    </div>
+  </WindowChrome>
 </template>

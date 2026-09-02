@@ -33,7 +33,7 @@ const channelStatusClass = computed(() => {
       v-model="globalSearchQuery"
       size="small"
       type="search"
-      class="min-h-8 pl-9 pr-10 text-sm"
+      class="workspace-global-search__input min-h-9 pl-9 pr-10 text-sm"
       :label="t('workspace.globalSearch')"
       :placeholder="t('workspace.globalSearch')"
     />
@@ -47,3 +47,14 @@ const channelStatusClass = computed(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.workspace-global-search :deep(input[type='search']) {
+  background: var(--tea-canvas);
+  border-color: var(--tea-line);
+}
+
+.workspace-global-search :deep(input[type='search']:focus) {
+  border-color: var(--tea-fg);
+}
+</style>
