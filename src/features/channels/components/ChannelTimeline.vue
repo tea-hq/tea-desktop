@@ -39,6 +39,7 @@ const props = withDefaults(
     messages: Message[]
     outgoingAttempts?: OutgoingMessageAttempt[]
     panelOpen: boolean
+    threadAvailable?: boolean
     loading: boolean
     hasMore: boolean
     hasMoreNewer?: boolean
@@ -97,6 +98,7 @@ const props = withDefaults(
     voiceTranscriptionAvailable: false,
     mediaSaves: () => [],
     mediaSavingAvailable: false,
+    threadAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -517,6 +519,7 @@ watch(
           v-for="(message, index) in messages"
           :key="message.ref.messageServerId || message.ref.messageClientId"
           :message="message"
+          :thread-available="threadAvailable"
           :highlighted="
             highlightedMessageKey ===
             `${message.ref.channelRef}:${message.ref.messageServerId || message.ref.messageClientId}`

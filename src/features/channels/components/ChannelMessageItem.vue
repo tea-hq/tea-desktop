@@ -23,6 +23,7 @@ const props = withDefaults(
     message: Message
     highlighted?: boolean
     menuOpenUp: boolean
+    threadAvailable?: boolean
     activeConversation: ConversationSummary | null
     recentConversations: ConversationSummary[]
     currentSessionAvailable: boolean
@@ -51,6 +52,7 @@ const props = withDefaults(
     voicePlaybackAvailable: false,
     mediaSave: null,
     mediaSavingAvailable: false,
+    threadAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -376,6 +378,7 @@ function selectMessage(): void {
             :open-up="menuOpenUp"
             :sent-by-current-user="message.sentByCurrentUser"
             :message-state="message.state"
+            :thread-available="threadAvailable"
             :pinned="message.pinned"
             :active-conversation="activeConversation"
             :recent-conversations="recentConversations"

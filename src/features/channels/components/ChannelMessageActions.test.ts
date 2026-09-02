@@ -30,6 +30,7 @@ function mountActions(
     openUp?: boolean
     sentByCurrentUser?: boolean
     messageState?: 'active' | 'revoked'
+    threadAvailable?: boolean
   } = {},
 ) {
   return mount(ChannelMessageActions, {
@@ -37,6 +38,7 @@ function mountActions(
       openUp: options.openUp ?? false,
       sentByCurrentUser: options.sentByCurrentUser ?? true,
       messageState: options.messageState ?? 'active',
+      threadAvailable: options.threadAvailable ?? false,
       activeConversation,
       recentConversations: [],
       currentSessionAvailable: true,
@@ -88,6 +90,16 @@ describe('ChannelMessageActions', () => {
     expect(wrapper.emitted('forwardToAgent')).toEqual([['current', undefined]])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
     expect(trigger.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('exposes the thread action only when the channel advertises threads', async () => {
+    wrapper = mountActions({ threadAvailable: true })
+
+    expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toContain(
+      'Open thread',
+    )
+    await wrapper.get('button[aria-label="Open thread"]').trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['thread']])
   })
 
   it('groups destructive actions in the overflow menu for sent messages', async () => {

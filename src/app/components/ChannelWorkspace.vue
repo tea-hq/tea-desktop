@@ -6,6 +6,7 @@ import ChannelConnectionPanel from '@/features/channels/components/ChannelConnec
 import ChannelSelectionPlaceholder from '@/features/channels/components/ChannelSelectionPlaceholder.vue'
 import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
+import ChannelThreadPanel from '@/features/channels/components/ChannelThreadPanel.vue'
 import AgentDrawer from '@/features/collaboration/components/AgentDrawer.vue'
 import type {
   ChannelDetails,
@@ -145,6 +146,16 @@ const mediaViewerSave = computed(() => {
     channels.activeMediaSaves.find((state) => sameMessage(state.messageRef, message.ref)) ?? null
   )
 })
+const threadAvailable = computed(() =>
+  channels.capabilities.some(
+    (capability) => capability.id === 'message.thread' && capability.available,
+  ),
+)
+const threadRootMessage = computed(() => {
+  const root = channels.threadRootRef
+  if (!root) return null
+  return channels.activeMessages.find((message) => sameMessage(message.ref, root)) ?? null
+})
 
 function handleChannelSelect(channelRef: ChannelRef): void {
   mentionMembersGeneration += 1
@@ -160,6 +171,7 @@ function handleChannelSelect(channelRef: ChannelRef): void {
   closeForwarding()
   closeMergedViewer()
   channels.closeMediaViewer()
+  channels.closeThread()
   channels.clearMessageSearch()
   void channels.selectChannel(channelRef).catch(() => undefined)
 }
@@ -493,7 +505,9 @@ function handleRefreshChannelMessages(): void {
 
 function handleMessageAction(payload: { message: Message; action: MessageAction }): void {
   if (payload.action === 'reply') replyTo.value = payload.message
-  else if (payload.action === 'forward')
+  else if (payload.action === 'thread') {
+    void channels.openThread(payload.message.ref).catch(() => undefined)
+  } else if (payload.action === 'forward')
     openForwarding([payload.message], 'individual', channels.activeChannel?.name)
   else if (payload.action === 'select') beginMessageSelection(payload.message)
   else if (payload.action === 'reaction') reactingMessage.value = payload.message
@@ -510,6 +524,10 @@ function handleMessageAction(payload: { message: Message; action: MessageAction 
     pendingAction.value = payload.action
     pendingMessage.value = payload.message
   }
+}
+
+function handleThreadSend(text: string): void {
+  void channels.sendThreadText(text).catch(() => undefined)
 }
 
 const pendingMessage = ref<Message | null>(null)
@@ -775,6 +793,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     v-if="channels.activeChannel"
     :channel="channels.activeChannel"
     :messages="channels.activeMessages"
+    :thread-available="threadAvailable"
     :outgoing-attempts="channels.activeOutgoingAttempts"
     :presence="channels.activePresence"
     :voice-transcripts="channels.activeVoiceTranscripts"
@@ -842,6 +861,21 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @cancel-media-save="cancelMediaSave"
     @retry-media-save="retryMediaSave"
     @update-draft="updateChannelDraft"
+    @retry-outgoing="retryOutgoingMessage"
+    @cancel-outgoing="cancelOutgoingMessage"
+    @dismiss-outgoing="dismissOutgoingMessage"
+  />
+  <ChannelThreadPanel
+    v-if="channels.activeChannel && channels.threadRootRef"
+    :channel="channels.activeChannel"
+    :root-message="threadRootMessage"
+    :thread="channels.thread"
+    :loading="channels.loadingThread"
+    :error-code="channels.threadErrorCode"
+    :outgoing-attempts="channels.activeThreadOutgoingAttempts"
+    @close="channels.closeThread()"
+    @retry="channels.retryThread().catch(() => undefined)"
+    @send="handleThreadSend"
     @retry-outgoing="retryOutgoingMessage"
     @cancel-outgoing="cancelOutgoingMessage"
     @dismiss-outgoing="dismissOutgoingMessage"

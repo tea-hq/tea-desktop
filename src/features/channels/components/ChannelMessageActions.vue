@@ -7,13 +7,23 @@ import { TeaIconButton, TeaMenu, type TeaMenuItem } from '@/shared/ui'
 import ChannelAgentMenu from './ChannelAgentMenu.vue'
 
 export type MessageAction =
-  'reply' | 'forward' | 'select' | 'reaction' | 'edit' | 'pin' | 'save' | 'revoke' | 'delete'
+  | 'reply'
+  | 'thread'
+  | 'forward'
+  | 'select'
+  | 'reaction'
+  | 'edit'
+  | 'pin'
+  | 'save'
+  | 'revoke'
+  | 'delete'
 type OpenMenu = 'agent' | 'more'
 
 const props = defineProps<{
   openUp: boolean
   sentByCurrentUser: boolean
   messageState: 'active' | 'revoked'
+  threadAvailable?: boolean
   pinned?: boolean
   activeConversation: ConversationSummary | null
   recentConversations: ConversationSummary[]
@@ -21,7 +31,6 @@ const props = defineProps<{
   runtimes: RuntimeDescriptor[]
   defaultRuntimeId: string | null
 }>()
-
 const emit = defineEmits<{
   action: [action: MessageAction]
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
@@ -37,6 +46,15 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
   if (props.messageState === 'active') {
     items.push(
       { value: 'reply', label: t('channels.message.reply'), icon: 'i-mdi-reply-outline' },
+      ...(props.threadAvailable
+        ? [
+            {
+              value: 'thread',
+              label: t('channels.message.openThread'),
+              icon: 'i-mdi-message-reply-text-outline',
+            },
+          ]
+        : []),
       { value: 'forward', label: t('channels.message.forward'), icon: 'i-mdi-forward' },
       {
         value: 'select',
@@ -114,6 +132,7 @@ function closeMoreMenu(): void {
 function selectMessageAction(value: string): void {
   if (
     value === 'reply' ||
+    value === 'thread' ||
     value === 'forward' ||
     value === 'select' ||
     value === 'reaction' ||
@@ -143,6 +162,14 @@ function selectMessageAction(value: string): void {
       :label="t('channels.message.reply')"
       icon="i-mdi-reply-outline"
       @click.stop="emit('action', 'reply')"
+    />
+    <TeaIconButton
+      v-if="messageState === 'active' && threadAvailable"
+      class="channel-message-actions__button channel-message-actions__quick"
+      size="small"
+      :label="t('channels.message.openThread')"
+      icon="i-mdi-message-reply-text-outline"
+      @click.stop="emit('action', 'thread')"
     />
     <TeaIconButton
       v-if="messageState === 'active'"
