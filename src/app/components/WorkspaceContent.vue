@@ -27,6 +27,10 @@ const {
   <DirectoryPage
     v-else-if="activeMode === 'directory'"
     :users="directory.filteredUsers"
+    :total-count="directory.users.length"
+    :tenant-name="
+      directory.users[0]?.tenant.displayName ?? centerAuth.state.bootstrap?.tenant.displayName ?? ''
+    "
     :phase="directory.phase"
     :error-key="directory.errorKey"
     :query="directory.query"

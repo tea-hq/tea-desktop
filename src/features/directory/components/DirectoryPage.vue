@@ -1,168 +1,200 @@
 <script setup lang="ts">
-import { TeaButton, TeaIconButton, TeaInput } from '@/shared/ui'
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { TeaButton, TeaDrawer, TeaIconButton, TeaInput, TeaMessageBar } from '@/shared/ui'
 import type { DirectoryPhase, DirectoryUser } from '../contracts'
-defineProps<{
+import DirectoryMemberDetail from './DirectoryMemberDetail.vue'
+import DirectoryMemberList from './DirectoryMemberList.vue'
+import DirectoryScopeNavigation from './DirectoryScopeNavigation.vue'
+
+const props = defineProps<{
   users: DirectoryUser[]
+  totalCount: number
+  tenantName: string
   phase: DirectoryPhase
   errorKey: string | null
   query: string
   actionError?: string | null
 }>()
+
 const emit = defineEmits<{
   'update:query': [value: string]
   retry: []
   refresh: []
   message: [user: DirectoryUser]
 }>()
-const { t } = useI18n()
-const selectedUser = ref<DirectoryUser | null>(null)
 
-function messageSelectedUser(): void {
-  if (!selectedUser.value) return
-  emit('message', selectedUser.value)
-  selectedUser.value = null
+const { t } = useI18n()
+const selectedUserId = ref<string | null>(null)
+const detailDrawerOpen = ref(false)
+const wideDetail = ref(false)
+let detailMedia: MediaQueryList | null = null
+
+const selectedUser = computed(
+  () => props.users.find((user) => user.center.userId === selectedUserId.value) ?? null,
+)
+
+watch(
+  () => props.users.map((user) => user.center.userId),
+  () => {
+    if (selectedUser.value) return
+    selectedUserId.value = props.users[0]?.center.userId ?? null
+    if (!selectedUserId.value) detailDrawerOpen.value = false
+  },
+  { immediate: true },
+)
+
+function updateDetailMode(event?: MediaQueryListEvent): void {
+  wideDetail.value = event?.matches ?? detailMedia?.matches ?? false
+  if (wideDetail.value) detailDrawerOpen.value = false
 }
+
+function selectUser(user: DirectoryUser): void {
+  selectedUserId.value = user.center.userId
+  if (!wideDetail.value) detailDrawerOpen.value = true
+}
+
+function messageUser(user: DirectoryUser): void {
+  emit('message', user)
+  detailDrawerOpen.value = false
+}
+
+onMounted(() => {
+  if (typeof window.matchMedia !== 'function') return
+  detailMedia = window.matchMedia('(min-width: 1280px)')
+  updateDetailMode()
+  detailMedia.addEventListener('change', updateDetailMode)
+})
+
+onBeforeUnmount(() => detailMedia?.removeEventListener('change', updateDetailMode))
 </script>
 
 <template>
   <main class="flex h-full min-w-0 flex-1 flex-col bg-canvas">
-    <header class="flex items-center justify-between px-5 pb-5 pt-8 sm:px-8">
-      <div>
-        <p class="text-sm font-medium text-subtle">
-          {{ t('directory.eyebrow') }}
+    <header
+      class="flex min-h-[92px] shrink-0 items-center justify-between gap-5 border-b border-line-soft px-5 py-5 sm:px-6 xl:px-8"
+    >
+      <div class="min-w-0">
+        <h1 class="truncate text-3xl font-semibold text-fg">{{ t('directory.title') }}</h1>
+        <p class="mt-1 text-sm tabular-nums text-subtle">
+          {{ t('directory.memberCount', { count: totalCount }) }}
         </p>
-        <h1 class="mt-1 text-4xl font-semibold text-fg">{{ t('directory.title') }}</h1>
       </div>
-      <span class="text-base text-dim">{{ users.length }} {{ t('directory.people') }}</span>
-    </header>
-    <div class="flex gap-2 px-5 pb-5 sm:px-8">
-      <TeaInput
-        :model-value="query"
-        class="w-full max-w-md"
-        type="search"
-        :label="t('directory.search')"
-        :placeholder="t('directory.search')"
-        @update:model-value="emit('update:query', $event)"
-      /><TeaIconButton
+      <TeaIconButton
         :label="t('directory.refresh')"
-        icon="i-mdi-refresh"
+        :icon="
+          phase === 'loading'
+            ? 'i-mdi-loading animate-spin motion-reduce:animate-none'
+            : 'i-mdi-refresh'
+        "
         appearance="secondary"
         :disabled="phase === 'loading'"
         @click="emit('refresh')"
       />
-    </div>
-    <div v-if="phase === 'loading'" class="px-8 py-10 text-base text-dim">
-      {{ t('directory.loading') }}
-    </div>
-    <div
-      v-else-if="phase === 'error' || phase === 'unavailable'"
-      class="mx-5 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger sm:mx-8"
-    >
-      <span>{{ t(errorKey ?? 'directory.errors.loadFailed') }}</span
-      ><TeaButton class="ml-3 font-semibold underline" @click="emit('retry')">{{
-        t('directory.retry')
-      }}</TeaButton>
-    </div>
-    <div
-      v-else-if="phase === 'stale'"
-      class="mx-5 mb-4 rounded-card bg-warning-subtle px-4 py-3 text-base text-warning sm:mx-8"
-    >
-      {{ t('directory.stale') }}
-      <TeaButton class="ml-3 font-semibold underline" @click="emit('retry')">{{
-        t('directory.retry')
-      }}</TeaButton>
-    </div>
-    <div
-      v-if="actionError"
-      class="mx-5 mb-4 rounded-card bg-danger-subtle px-4 py-3 text-base text-danger sm:mx-8"
-    >
-      {{ t(actionError) }}
-    </div>
-    <div v-if="phase !== 'loading' && users.length === 0" class="px-8 py-10 text-base text-dim">
-      {{ t('directory.empty') }}
-    </div>
-    <ul v-else class="grid min-w-0 grid-cols-1 gap-px overflow-auto bg-panel md:grid-cols-2">
-      <li
-        v-for="user in users"
-        :key="user.center.userId"
-        class="flex min-w-0 items-center gap-3 bg-muted px-8 py-4"
-      >
-        <TeaButton
-          appearance="ghost"
-          class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-panel p-0 text-base font-semibold text-dim"
-          :aria-label="t('directory.viewProfile', { name: user.center.displayName })"
-          @click="selectedUser = user"
-          ><img
-            v-if="user.oidc.avatarUrl"
-            :src="user.oidc.avatarUrl"
-            :alt="user.center.displayName"
-            class="size-full object-cover"
-            referrerpolicy="no-referrer"
-          /><span v-else>{{ user.center.displayName.slice(0, 2).toUpperCase() }}</span></TeaButton
-        ><TeaButton
-          appearance="ghost"
-          class="min-w-0 flex-1 justify-start px-0 text-left"
-          @click="selectedUser = user"
-          ><p class="truncate text-base font-semibold text-fg">
-            {{ user.center.displayName }}
-          </p>
-          <p class="truncate text-sm text-dim">
-            {{ user.oidc.preferredUsername || user.center.userId }}
-          </p></TeaButton
-        >
-      </li>
-    </ul>
-    <div
-      v-if="selectedUser"
-      class="fixed inset-0 z-20 flex items-center justify-center bg-scrim/30 p-6"
-      @click.self="selectedUser = null"
-    >
-      <section class="w-full max-w-sm rounded-overlay border border-line bg-canvas p-6">
-        <div class="flex items-center gap-3">
-          <div
-            class="flex size-14 items-center justify-center overflow-hidden rounded-full bg-panel text-xl font-semibold text-dim"
-          >
-            <img
-              v-if="selectedUser.oidc.avatarUrl"
-              :src="selectedUser.oidc.avatarUrl"
-              :alt="selectedUser.center.displayName"
-              class="size-full object-cover"
-              referrerpolicy="no-referrer"
-            /><span v-else>{{ selectedUser.center.displayName.slice(0, 2).toUpperCase() }}</span>
+    </header>
+
+    <div class="flex min-h-0 flex-1">
+      <DirectoryScopeNavigation :tenant-name="tenantName" :total-count="totalCount" />
+
+      <section class="flex min-w-0 flex-1 flex-col bg-canvas">
+        <div class="shrink-0 border-b border-line-soft px-5 py-4 sm:px-6">
+          <div class="mb-3 flex min-w-0 items-center gap-2 md:hidden">
+            <span class="i-mdi-domain size-4 shrink-0 text-subtle" aria-hidden="true" />
+            <span class="min-w-0 flex-1 truncate text-xs font-semibold text-dim">
+              {{ tenantName }}
+            </span>
+            <span class="text-xs tabular-nums text-subtle">
+              {{ t('directory.memberCount', { count: totalCount }) }}
+            </span>
           </div>
-          <div>
-            <h2 class="font-sans text-xl text-fg">{{ selectedUser.center.displayName }}</h2>
-            <p class="text-base text-dim">
-              {{ selectedUser.oidc.preferredUsername || selectedUser.center.userId }}
-            </p>
+
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="relative min-w-0 flex-1">
+              <span
+                class="i-mdi-magnify pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
+                aria-hidden="true"
+              />
+              <TeaInput
+                :model-value="query"
+                class="pl-10"
+                type="search"
+                :label="t('directory.search')"
+                :placeholder="t('directory.search')"
+                @update:model-value="emit('update:query', $event)"
+              />
+            </div>
+            <span v-if="query.trim()" class="shrink-0 text-xs tabular-nums text-subtle">
+              {{ t('directory.resultCount', { count: users.length }) }}
+            </span>
           </div>
         </div>
-        <dl class="mt-5 space-y-2 text-base">
-          <div v-if="selectedUser.oidc.email">
-            <dt class="text-sm text-subtle">{{ t('directory.email') }}</dt>
-            <dd class="text-fg">{{ selectedUser.oidc.email }}</dd>
-          </div>
-          <div>
-            <dt class="text-sm text-subtle">{{ t('directory.account') }}</dt>
-            <dd class="text-fg">{{ selectedUser.im?.account || t('directory.notAvailable') }}</dd>
-          </div>
-        </dl>
-        <div class="mt-6 flex justify-end gap-2">
-          <TeaIconButton
-            :label="t('directory.close')"
-            icon="i-mdi-close"
-            @click="selectedUser = null"
-          /><TeaIconButton
-            :label="t('directory.sendMessage')"
-            icon="i-mdi-message-text-outline"
-            appearance="primary"
-            :disabled="selectedUser.im?.status !== 'ready' || !selectedUser.im?.account"
-            @click="messageSelectedUser"
-          />
+
+        <div v-if="phase === 'error' || phase === 'unavailable'" class="shrink-0 px-5 pt-4 sm:px-6">
+          <TeaMessageBar tone="error">
+            <span>{{ t(errorKey ?? 'directory.errors.loadFailed') }}</span>
+            <TeaButton
+              appearance="ghost"
+              size="small"
+              class="ml-2 min-h-0 px-1 underline"
+              data-testid="directory-retry"
+              @click="emit('retry')"
+            >
+              {{ t('directory.retry') }}
+            </TeaButton>
+          </TeaMessageBar>
         </div>
+
+        <div v-else-if="phase === 'stale'" class="shrink-0 px-5 pt-4 sm:px-6">
+          <TeaMessageBar tone="warning">
+            <span>{{ t('directory.stale') }}</span>
+            <TeaButton
+              appearance="ghost"
+              size="small"
+              class="ml-2 min-h-0 px-1 underline"
+              data-testid="directory-retry"
+              @click="emit('retry')"
+            >
+              {{ t('directory.retry') }}
+            </TeaButton>
+          </TeaMessageBar>
+        </div>
+
+        <div v-if="actionError && !detailDrawerOpen" class="shrink-0 px-5 pt-4 sm:px-6 xl:hidden">
+          <TeaMessageBar tone="error">{{ t(actionError) }}</TeaMessageBar>
+        </div>
+
+        <DirectoryMemberList
+          :users="users"
+          :phase="phase"
+          :selected-user-id="wideDetail || detailDrawerOpen ? selectedUserId : null"
+          @select="selectUser"
+        />
       </section>
+
+      <aside class="hidden w-[336px] shrink-0 border-l border-line-soft xl:block">
+        <DirectoryMemberDetail
+          :user="selectedUser"
+          :action-error="actionError"
+          @message="messageUser"
+        />
+      </aside>
     </div>
+
+    <TeaDrawer
+      :open="detailDrawerOpen && !wideDetail"
+      :title="selectedUser?.center.displayName ?? t('directory.memberDetails')"
+      :close-label="t('directory.close')"
+      :default-width="380"
+      :min-width="320"
+      :max-width="420"
+      @close="detailDrawerOpen = false"
+    >
+      <DirectoryMemberDetail
+        :user="selectedUser"
+        :action-error="actionError"
+        @message="messageUser"
+      />
+    </TeaDrawer>
   </main>
 </template>
