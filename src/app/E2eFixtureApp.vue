@@ -42,6 +42,13 @@ import ConversationSidebar from '@/features/conversation/components/Conversation
 import DirectoryPage from '@/features/directory/components/DirectoryPage.vue'
 import TaskWorkspace from '@/features/tasks/components/TaskWorkspace.vue'
 import type { DirectoryUser } from '@/features/directory/contracts'
+import SettingsPage from '@/features/settings/components/SettingsPage.vue'
+import type {
+  AppSettings,
+  LocalePreference,
+  NotificationPreviewPreference,
+} from '@/features/settings/contracts'
+import type { WorkspaceMode } from '@/app/components/WorkspaceRail.vue'
 import type {
   ComposerAttachment,
   ConversationSummary,
@@ -60,6 +67,7 @@ const globalSearchQuery = ref('')
 const multipleRoles = params.get('roles') === 'multiple'
 const channelLoading = computed(() => fixture.value === 'channel-loading')
 const { locale, t } = useI18n()
+const settingsFixture = computed(() => fixture.value.startsWith('settings'))
 locale.value = params.get('lang') === 'zh-CN' ? 'zh-CN' : 'en'
 
 const runtime: RuntimeDescriptor = {
@@ -82,6 +90,18 @@ const fixtureModelOptions: ModelOption[] = [
   { value: 'gpt-5.5', label: '5.5', source: 'runtime' },
   { value: 'gpt-5.2', label: '5.2', source: 'runtime' },
 ]
+const fixtureSettings = reactive<AppSettings>({
+  locale: locale.value as LocalePreference,
+  theme: 'light',
+  notifications: {
+    enabled: fixture.value !== 'settings-disabled',
+    sound: fixture.value !== 'settings-disabled',
+    preview: 'message',
+  },
+  conversationDefaults: { runtimeId: runtime.id, model: fixtureModelOptions[0]!.value },
+  layout: { leftSidebarOpen: true, agentDrawerOpen: false },
+})
+const settingsSaving = computed(() => fixture.value === 'settings-saving')
 const binding = { transportId: 'fixture.im', accountRef: 'e2e-account', channelRef: 'product' }
 const fixtureUserProfiles = new Map([
   ['fixture-account', { accountId: 'fixture-account', name: 'Jing Deng' }],
@@ -755,14 +775,16 @@ const filteredDirectoryUsers = computed(() => {
     ].some((value) => value?.toLocaleLowerCase().includes(query)),
   )
 })
-const activeMode = ref<'channels' | 'agent' | 'directory' | 'tasks'>(
-  fixture.value === 'tasks'
-    ? 'tasks'
-    : fixture.value.startsWith('directory')
-      ? 'directory'
-      : fixture.value === 'full-agent'
-        ? 'agent'
-        : 'channels',
+const activeMode = ref<WorkspaceMode>(
+  settingsFixture.value
+    ? 'settings'
+    : fixture.value === 'tasks'
+      ? 'tasks'
+      : fixture.value.startsWith('directory')
+        ? 'directory'
+        : fixture.value === 'full-agent'
+          ? 'agent'
+          : 'channels',
 )
 const draftDialogOpen = ref(fixture.value === 'draft-dialog')
 const draft = ref<Draft>({
@@ -910,6 +932,35 @@ function cancelFixtureMediaSave(message: Message): void {
     },
   ]
 }
+
+function updateFixtureLocale(value: LocalePreference): void {
+  fixtureSettings.locale = value
+  locale.value = value === 'zh-CN' ? 'zh-CN' : 'en'
+}
+
+function updateFixtureTheme(value: AppSettings['theme']): void {
+  fixtureSettings.theme = value
+}
+
+function updateFixtureNotificationsEnabled(enabled: boolean): void {
+  fixtureSettings.notifications.enabled = enabled
+}
+
+function updateFixtureNotificationSound(sound: boolean): void {
+  fixtureSettings.notifications.sound = sound
+}
+
+function updateFixtureNotificationPreview(preview: NotificationPreviewPreference): void {
+  fixtureSettings.notifications.preview = preview
+}
+
+function updateFixtureDefaultRuntime(runtimeId: string): void {
+  fixtureSettings.conversationDefaults.runtimeId = runtimeId
+}
+
+function updateFixtureDefaultModel(model: string): void {
+  fixtureSettings.conversationDefaults.model = model
+}
 </script>
 
 <template>
@@ -930,12 +981,7 @@ function cancelFixtureMediaSave(message: Message): void {
         :logout-pending="false"
         :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
         :im-profile="fixtureUserProfiles.get('fixture-account')"
-        @select="
-          (mode) => {
-            if (mode === 'agent' || mode === 'channels' || mode === 'directory' || mode === 'tasks')
-              activeMode = mode
-          }
-        "
+        @select="activeMode = $event"
       />
 
     <template v-if="activeMode === 'channels'">
@@ -1111,7 +1157,7 @@ function cancelFixtureMediaSave(message: Message): void {
 
     <TaskWorkspace v-else-if="activeMode === 'tasks'" :search-query="globalSearchQuery" />
 
-    <template v-else>
+    <template v-else-if="activeMode === 'agent'">
       <ConversationSidebar
         :conversations="conversations"
         :active-id="conversations[0]?.conversationId ?? null"
@@ -1140,13 +1186,13 @@ function cancelFixtureMediaSave(message: Message): void {
           :runtimes="availableRuntimes"
           :runtime-id="fullRuntimeId"
           :model-options="fixtureModelOptions"
-        :model="fullModel"
-        :permission-mode="fullPermissionMode"
-        :new-conversation="turns.length === 0"
-        :roles="fixtureRoles"
-        :role-id="fullRoleId"
-        @select-runtime="fullRuntimeId = $event"
-        @send="send"
+          :model="fullModel"
+          :permission-mode="fullPermissionMode"
+          :new-conversation="turns.length === 0"
+          :roles="fixtureRoles"
+          :role-id="fullRoleId"
+          @select-runtime="fullRuntimeId = $event"
+          @send="send"
           @select-model="fullModel = $event"
           @select-permission="fullPermissionMode = $event"
           @create-draft="draftDialogOpen = true"
@@ -1155,6 +1201,28 @@ function cancelFixtureMediaSave(message: Message): void {
         />
       </main>
     </template>
+
+    <main v-else class="min-w-0 flex-1">
+      <SettingsPage
+        :locale-preference="fixtureSettings.locale"
+        :theme-preference="fixtureSettings.theme"
+        :notification-settings="fixtureSettings.notifications"
+        :default-runtime-id="fixtureSettings.conversationDefaults.runtimeId"
+        :default-model="fixtureSettings.conversationDefaults.model"
+        :model-options="fixtureModelOptions"
+        :runtimes="availableRuntimes"
+        :saving="settingsSaving"
+        :error="null"
+        @close="activeMode = 'channels'"
+        @update-locale="updateFixtureLocale"
+        @update-theme="updateFixtureTheme"
+        @update-notifications-enabled="updateFixtureNotificationsEnabled"
+        @update-notification-sound="updateFixtureNotificationSound"
+        @update-notification-preview="updateFixtureNotificationPreview"
+        @update-default-runtime="updateFixtureDefaultRuntime"
+        @update-default-model="updateFixtureDefaultModel"
+      />
+    </main>
 
     <DraftEditorDialog
       :open="draftDialogOpen"
