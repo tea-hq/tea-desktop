@@ -16,6 +16,7 @@ export interface Participant {
 export interface Channel {
   ref: ChannelRef
   kind: ChannelKind
+  directAccountId?: string
   name: string
   avatarUrl?: string
   description: string
@@ -26,6 +27,14 @@ export interface Channel {
   updatedAt: number
   lastMessagePreview?: string
   lastReadAt?: number
+}
+
+export type ChannelPresenceAvailability = 'online' | 'offline' | 'unknown'
+
+export interface ChannelPresence {
+  accountId: string
+  availability: ChannelPresenceAvailability
+  updatedAt: number
 }
 
 export type MessageState = 'active' | 'revoked'
@@ -359,6 +368,7 @@ export type ChannelCapabilityId =
   | 'channel.pin'
   | 'channel.mute'
   | 'channel.hide'
+  | 'presence.subscribe'
   | 'profile.self'
   | 'message.history'
   | 'message.search'
@@ -590,6 +600,18 @@ export type ChannelEvent =
       operationId: string
       progress: number
     }
+  | {
+      type: 'presence.changed'
+      sequence: number
+      occurredAt: number
+      presences: ChannelPresence[]
+    }
+  | {
+      type: 'presence.subscriptionFailed'
+      sequence: number
+      occurredAt: number
+      errorCode: string
+    }
 
 export type ChannelEventPayload = ChannelEvent extends infer Event
   ? Event extends ChannelEvent
@@ -639,6 +661,7 @@ export interface ChannelTransport {
   setChannelMuted(channelRef: ChannelRef, muted: boolean): Promise<void>
   hideChannel(channelRef: ChannelRef): Promise<void>
   markRead(channelRef: ChannelRef): Promise<void>
+  setPresenceSubscriptions(accountIds: string[]): Promise<void>
   subscribe(listener: ChannelEventListener): () => void
   dispose(): Promise<void>
 }

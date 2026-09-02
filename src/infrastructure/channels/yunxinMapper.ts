@@ -24,9 +24,12 @@ export function mapYunxinConversation(value: V2NIMConversation, targetId?: strin
     ? boundedText(messageContentToText(mapYunxinMessageContent(value.lastMessage)), 500)
     : undefined
   const avatarUrl = boundedRemoteUrl(value.avatar)
+  const directAccountId =
+    value.type === 1 ? boundedText(targetId?.trim() ?? '', 512) || undefined : undefined
   return {
     ref: value.conversationId,
     kind: value.type === 1 ? 'direct' : 'group',
+    ...(directAccountId ? { directAccountId } : {}),
     name: boundedText(value.name?.trim() || targetId?.trim() || value.conversationId, 200),
     ...(value.type === 1 && targetId?.trim() ? { participantAccountId: targetId.trim() } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),

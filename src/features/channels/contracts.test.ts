@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import type {
   ChannelAttachmentPicker,
+  ChannelCapability,
   ChannelDraft,
   ChannelDraftClient,
+  ChannelEvent,
+  ChannelPresence,
+  ChannelTransport,
   OutgoingMessageAttempt,
   SaveChannelDraftRequest,
 } from './contracts'
@@ -59,5 +63,31 @@ describe('outgoing message contracts', () => {
     expect(attempt).not.toHaveProperty('provider')
     expect(attempt).not.toHaveProperty('sendingState')
     await expect(picker.release('opaque-token')).resolves.toBeUndefined()
+  })
+})
+
+describe('contact presence contracts', () => {
+  it('keep transient presence and replace-set subscription provider-neutral', async () => {
+    const presence: ChannelPresence = {
+      accountId: 'lin',
+      availability: 'online',
+      updatedAt: 1,
+    }
+    const capability: ChannelCapability = { id: 'presence.subscribe', available: true }
+    const event: ChannelEvent = {
+      type: 'presence.changed',
+      sequence: 1,
+      occurredAt: 1,
+      presences: [presence],
+    }
+    const transport: Pick<ChannelTransport, 'setPresenceSubscriptions'> = {
+      setPresenceSubscriptions: async () => undefined,
+    }
+
+    expect(capability.id).toBe('presence.subscribe')
+    expect(event.presences).toEqual([presence])
+    expect(presence).not.toHaveProperty('statusType')
+    expect(presence).not.toHaveProperty('serverExtension')
+    await expect(transport.setPresenceSubscriptions(['lin'])).resolves.toBeUndefined()
   })
 })

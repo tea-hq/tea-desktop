@@ -25,13 +25,14 @@ describe('Yunxin DTO mapping', () => {
       updateTime: 2,
       lastReadTime: 1,
     } as V2NIMConversation
-    const result = mapYunxinConversation(source, 'b')
+    const result = mapYunxinConversation(source, 'account-b')
     expect(result).toEqual(
       expect.objectContaining({
         ref: 'p2p|a|b',
         kind: 'direct',
+        directAccountId: 'account-b',
         name: 'Alice',
-        participantAccountId: 'b',
+        participantAccountId: 'account-b',
         avatarUrl: 'https://yx-web-nosdn.netease.im/alice.png',
         muted: true,
         pinned: true,
@@ -56,7 +57,13 @@ describe('Yunxin DTO mapping', () => {
       lastReadTime: 0,
     } as V2NIMConversation
 
-    expect(mapYunxinConversation(source, 'account-b')?.name).toBe('account-b')
+    expect(mapYunxinConversation(source, 'account-b')).toMatchObject({
+      name: 'account-b',
+      directAccountId: 'account-b',
+    })
+    expect(mapYunxinConversation({ ...source, type: 2 }, 'team-id')).not.toHaveProperty(
+      'directAccountId',
+    )
   })
 
   it('drops unsafe or unbounded avatar URLs', () => {
