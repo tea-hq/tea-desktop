@@ -16,6 +16,7 @@ import TeaInput from '../TeaInput.vue'
 import TeaMenu from '../TeaMenu.vue'
 import TeaMenuSelect from '../TeaMenuSelect.vue'
 import TeaSelect from '../TeaSelect.vue'
+import TeaSlider from '../TeaSlider.vue'
 import TeaTabs from '../TeaTabs.vue'
 import TeaTextarea from '../TeaTextarea.vue'
 
@@ -101,6 +102,33 @@ describe('Tea primitives', () => {
   it('requires icon-button labels at the type boundary and forwards them', () => {
     const wrapper = mountTea(TeaIconButton, { props: { label: 'Close', icon: 'i-mdi-close' } })
     expect(wrapper.get('button').attributes('aria-label')).toBe('Close')
+  })
+
+  it('keeps sliders controlled with bounded accessible values', async () => {
+    const wrapper = mountTea(TeaSlider, {
+      props: {
+        modelValue: 25,
+        min: 0,
+        max: 100,
+        step: 1,
+        label: 'Voice position',
+        valueText: '0:03 of 0:12',
+      },
+    })
+    const input = wrapper.get<HTMLInputElement>('input[type="range"]')
+
+    expect(input.attributes()).toMatchObject({
+      'aria-label': 'Voice position',
+      'aria-valuetext': '0:03 of 0:12',
+      min: '0',
+      max: '100',
+      step: '1',
+    })
+    await input.setValue(50)
+    expect(wrapper.emitted('update:modelValue')).toEqual([[50]])
+
+    await wrapper.setProps({ disabled: true })
+    expect(input.attributes('disabled')).toBeDefined()
   })
 
   it('keeps the select compatibility entry point on the application menu', async () => {

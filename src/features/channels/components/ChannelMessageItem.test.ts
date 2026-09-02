@@ -38,7 +38,11 @@ const voiceMessage: Message = {
   content: {
     kind: 'audio',
     caption: 'Release update',
-    media: { name: 'release-update.aac', durationMs: 2_400 },
+    media: {
+      url: 'https://media.example.test/release-update.aac',
+      name: 'release-update.aac',
+      durationMs: 2_400,
+    },
   },
 }
 
@@ -82,6 +86,28 @@ describe('ChannelMessageItem', () => {
 
     await wrapper.setProps({ message: { ...voiceMessage, state: 'revoked' } })
     expect(wrapper.find('button[aria-label="Transcribe audio"]').exists()).toBe(false)
+  })
+
+  it('uses the Tea player and forwards typed voice playback intent', async () => {
+    const wrapper = mountMessage(voiceMessage, {
+      voicePlaybackAvailable: true,
+      voicePlaybackRate: 1,
+      voicePlayback: {
+        messageRef: voiceMessage.ref,
+        status: 'paused',
+        positionMs: 1_000,
+        durationMs: 2_400,
+        playbackRate: 1,
+        retryable: false,
+      },
+    })
+
+    expect(wrapper.find('audio').exists()).toBe(false)
+    await wrapper.get('button[aria-label="Play audio"]').trigger('click')
+    await wrapper.get('input[aria-label="Audio position"]').setValue(1_500)
+
+    expect(wrapper.emitted('toggleVoicePlayback')).toEqual([[]])
+    expect(wrapper.emitted('seekVoicePlayback')).toEqual([[1_500]])
   })
 
   it('renders bounded loading, ready, and retryable transcription states inline', async () => {

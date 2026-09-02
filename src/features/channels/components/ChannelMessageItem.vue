@@ -5,9 +5,15 @@ import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
 import { TeaButton, TeaCheckbox } from '@/shared/ui'
 import type { ConversationSummary } from '@/features/conversation/contracts'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
-import type { ChannelVoiceTranscript, Message } from '../contracts'
+import type {
+  ChannelVoicePlaybackRate,
+  ChannelVoicePlaybackState,
+  ChannelVoiceTranscript,
+  Message,
+} from '../contracts'
 import ChannelMessageActions from './ChannelMessageActions.vue'
 import ChannelMergedMessageCard from './ChannelMergedMessageCard.vue'
+import ChannelVoiceMessagePlayer from './ChannelVoiceMessagePlayer.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
 
 const props = withDefaults(
@@ -25,6 +31,9 @@ const props = withDefaults(
     selected?: boolean
     voiceTranscript?: ChannelVoiceTranscript | null
     voiceTranscriptionAvailable?: boolean
+    voicePlayback?: ChannelVoicePlaybackState | null
+    voicePlaybackRate?: ChannelVoicePlaybackRate
+    voicePlaybackAvailable?: boolean
   }>(),
   {
     highlighted: false,
@@ -33,6 +42,9 @@ const props = withDefaults(
     selected: false,
     voiceTranscript: null,
     voiceTranscriptionAvailable: false,
+    voicePlayback: null,
+    voicePlaybackRate: 1,
+    voicePlaybackAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -42,6 +54,10 @@ const emit = defineEmits<{
   openMerged: []
   openReceiptDetails: []
   transcribeVoice: []
+  toggleVoicePlayback: []
+  retryVoicePlayback: []
+  seekVoicePlayback: [positionMs: number]
+  setVoicePlaybackRate: [rate: ChannelVoicePlaybackRate]
 }>()
 const { t } = useI18n()
 
@@ -165,12 +181,16 @@ function selectMessage(): void {
                 :alt="message.content.media.name || t('channels.message.image')"
                 loading="lazy"
               />
-              <audio
+              <ChannelVoiceMessagePlayer
                 v-else-if="message.content.kind === 'audio' && message.content.media.url"
-                class="channel-message-media-audio"
-                controls
-                preload="metadata"
-                :src="message.content.media.url"
+                :playback="voicePlayback"
+                :duration-ms="message.content.media.durationMs"
+                :playback-rate="voicePlaybackRate"
+                :interactive="voicePlaybackAvailable && interactive && !selectionMode"
+                @toggle="emit('toggleVoicePlayback')"
+                @retry="emit('retryVoicePlayback')"
+                @seek="emit('seekVoicePlayback', $event)"
+                @rate="emit('setVoicePlaybackRate', $event)"
               />
               <video
                 v-else-if="message.content.kind === 'video' && message.content.media.url"
