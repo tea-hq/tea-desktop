@@ -5,18 +5,19 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelStatus } from '../contracts'
+import type { Channel, ChannelDraft, ChannelStatus } from '../contracts'
 import ChannelSidebar from './ChannelSidebar.vue'
 
 const connectedStatus: ChannelStatus = { phase: 'connected', retryable: true }
 
-function mountSidebar(channels: Channel[], loading: boolean) {
+function mountSidebar(channels: Channel[], loading: boolean, drafts: ChannelDraft[] = []) {
   return mount(ChannelSidebar, {
     props: {
       channels,
       activeRef: null,
       status: connectedStatus,
       loading,
+      drafts,
     },
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -68,5 +69,31 @@ describe('ChannelSidebar', () => {
       .find((item) => item.text().includes('Hide conversation'))!
     await hide.trigger('click')
     expect(wrapper.emitted('hide')).toEqual([['product']])
+  })
+
+  it('replaces the message preview with a localized draft projection', () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: false,
+      muted: false,
+      unreadCount: 0,
+      updatedAt: 2,
+      lastMessagePreview: 'Last delivered message',
+    }
+    const draft: ChannelDraft = {
+      accountRef: 'account',
+      channelRef: channel.ref,
+      text: '  Review the release notes  ',
+      mentions: [],
+      updatedAt: 3,
+    }
+    const wrapper = mountSidebar([channel], false, [draft])
+
+    expect(wrapper.get('.channel-row__preview').text()).toContain('Draft')
+    expect(wrapper.get('.channel-row__preview').text()).toContain('Review the release notes')
+    expect(wrapper.text()).not.toContain('Last delivered message')
   })
 })

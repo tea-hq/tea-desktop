@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, Message } from '../contracts'
+import type { Channel, Message, MessageMention } from '../contracts'
 import { createTextMessageContent } from '../messageContent'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelTimeline from './ChannelTimeline.vue'
@@ -153,11 +153,26 @@ describe('ChannelTimeline selection mode', () => {
     const textarea = wrapper.get('textarea')
 
     await textarea.setValue('@li')
+    expect(wrapper.emitted('updateDraft')?.at(-1)).toEqual([{ text: '@li', mentions: [] }])
+    await wrapper.setProps({ draft: '@li' })
     expect(wrapper.emitted('requestMentionMembers')).toEqual([[]])
     await textarea.trigger('keydown', { key: 'Enter' })
+    const selectedDraft = wrapper.emitted('updateDraft')?.at(-1)?.[0] as {
+      text: string
+      mentions: MessageMention[]
+    }
+    await wrapper.setProps({ draft: selectedDraft.text, draftMentions: selectedDraft.mentions })
     expect((textarea.element as HTMLTextAreaElement).value).toBe('@Lin ')
 
     await textarea.setValue('@Lin review this')
+    const completedDraft = wrapper.emitted('updateDraft')?.at(-1)?.[0] as {
+      text: string
+      mentions: NonNullable<Message['mentions']>
+    }
+    await wrapper.setProps({
+      draft: completedDraft.text,
+      draftMentions: completedDraft.mentions,
+    })
     await textarea.trigger('keydown', { key: 'Enter', ctrlKey: true })
 
     expect(wrapper.emitted('send')).toEqual([
@@ -176,7 +191,34 @@ describe('ChannelTimeline selection mode', () => {
         },
       ],
     ])
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('@Lin review this')
     wrapper.unmount()
+  })
+
+  it('renders an accessible local draft persistence error', () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        sending: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+        draft: 'Keep this',
+        draftErrorCode: 'storageFailure',
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('storageFailure')
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('Keep this')
   })
 
   it('opens receipt details from an outgoing group message summary', async () => {

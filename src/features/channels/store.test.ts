@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
+import type { ChannelDraft, ChannelDraftClient, SaveChannelDraftRequest } from './contracts'
 import { ChannelTransportError } from './contracts'
 import { useChannelsStore } from './store'
 
@@ -10,6 +11,23 @@ async function connectedStore() {
   store.configure(transport)
   await store.connect()
   return { store, transport }
+}
+
+function createDraftClient(overrides: Partial<ChannelDraftClient> = {}) {
+  return {
+    list: vi.fn(async (): Promise<ChannelDraft[]> => []),
+    save: vi.fn(async (request: SaveChannelDraftRequest): Promise<ChannelDraft> => ({
+      ...request,
+      mentions: request.mentions.map((mention) => ({
+        ...mention,
+        target: { ...mention.target },
+        ranges: mention.ranges.map((range) => ({ ...range })),
+      })),
+      updatedAt: 1,
+    })),
+    remove: vi.fn(async () => undefined),
+    ...overrides,
+  }
 }
 
 describe('useChannelsStore', () => {
@@ -56,6 +74,120 @@ describe('useChannelsStore', () => {
       channel.muted,
     )
     expect(store.errorCode).toBe('transport')
+  })
+
+  it('loads account-scoped drafts after connecting', async () => {
+    const transport = new MockChannelTransport()
+    const list = vi.fn(async (accountRef: string): Promise<ChannelDraft[]> => [
+      {
+        accountRef,
+        channelRef: 'product-collab',
+        text: '@Lin review this',
+        mentions: [
+          {
+            target: { kind: 'user', accountId: 'lin' },
+            label: '@Lin',
+            ranges: [{ start: 0, end: 4 }],
+          },
+        ],
+        updatedAt: 1,
+      },
+    ])
+    const draftClient = createDraftClient({ list })
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+
+    await store.connect()
+    await store.selectChannel('product-collab')
+
+    expect(list).toHaveBeenCalledWith(store.status.accountRef)
+    expect(store.activeDraft).toMatchObject({ text: '@Lin review this' })
+  })
+
+  it('clears the previous draft projection before loading a changed account', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient({
+      list: vi.fn(async (accountRef: string): Promise<ChannelDraft[]> => [
+        {
+          accountRef,
+          channelRef: 'product-collab',
+          text: accountRef === 'account-b' ? 'Account B draft' : 'Account A draft',
+          mentions: [],
+          updatedAt: 1,
+        },
+      ]),
+    })
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    expect(store.drafts[0]?.text).toBe('Account A draft')
+
+    transport.emitForTest({
+      type: 'status.changed',
+      status: { phase: 'connected', accountRef: 'account-b', retryable: false },
+    })
+
+    expect(store.drafts).toEqual([])
+    await vi.waitFor(() => expect(store.drafts[0]?.text).toBe('Account B draft'))
+  })
+
+  it('coalesces draft changes and flushes the latest value on channel switch', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+
+    store.updateDraft('product-collab', 'First', [])
+    store.updateDraft('product-collab', 'Latest', [])
+    await store.selectChannel('runtime-architecture')
+
+    expect(draftClient.save).toHaveBeenCalledOnce()
+    expect(draftClient.save).toHaveBeenCalledWith(
+      expect.objectContaining({ channelRef: 'product-collab', text: 'Latest' }),
+    )
+  })
+
+  it('preserves a failed in-memory draft and retries after later input', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    vi.mocked(draftClient.save).mockRejectedValueOnce({
+      code: 'storageFailure',
+      retryable: true,
+    })
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+
+    store.updateDraft('product-collab', 'Keep this', [])
+    await expect(store.flushDraft('product-collab')).rejects.toMatchObject({
+      code: 'storageFailure',
+    })
+    expect(store.activeDraft?.text).toBe('Keep this')
+    expect(store.draftErrorCode).toBe('storageFailure')
+
+    store.updateDraft('product-collab', 'Keep this updated', [])
+    await store.flushDraft('product-collab')
+    expect(store.activeDraft?.text).toBe('Keep this updated')
+    expect(store.draftErrorCode).toBeNull()
+  })
+
+  it('removes a cleared draft durably', async () => {
+    const transport = new MockChannelTransport()
+    const draftClient = createDraftClient()
+    const store = useChannelsStore()
+    store.configure(transport, undefined, draftClient)
+    await store.connect()
+    await store.selectChannel('product-collab')
+    store.updateDraft('product-collab', 'Sent text', [])
+    await store.flushDraft('product-collab')
+
+    await store.clearDraft('product-collab')
+
+    expect(store.activeDraft).toBeNull()
+    expect(draftClient.remove).toHaveBeenCalledWith(store.status.accountRef, 'product-collab')
   })
 
   it('keeps an initial empty catalog loading until conversation sync finishes', async () => {

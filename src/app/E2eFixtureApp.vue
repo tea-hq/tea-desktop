@@ -16,6 +16,7 @@ import ChannelSidebar from '@/features/channels/components/ChannelSidebar.vue'
 import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
 import type {
   Channel,
+  ChannelDraft,
   ChannelMember,
   ForwardMessageMode,
   Message,
@@ -102,6 +103,20 @@ const channels: Channel[] = [
     lastMessagePreview: 'Type checks are green.',
   },
 ]
+const imDraftText = ref(fixture.value === 'im-draft' ? '@Lin review the release notes' : '')
+const imDrafts = computed<ChannelDraft[]>(() =>
+  imDraftText.value.trim()
+    ? [
+        {
+          accountRef: binding.accountRef,
+          channelRef: channel.ref,
+          text: imDraftText.value,
+          mentions: [],
+          updatedAt: 1_787_843_700_000,
+        },
+      ]
+    : [],
+)
 const messages: Message[] = [
   {
     ref: { channelRef: channel.ref, messageClientId: 'message-1', messageServerId: 'server-1' },
@@ -578,6 +593,7 @@ function retryFixtureMergedMessages(): void {
     <template v-if="activeMode === 'channels'">
       <ChannelSidebar
         :channels="channelLoading ? [] : channels"
+        :drafts="imDrafts"
         :active-ref="channel.ref"
         :status="{ phase: 'connected', retryable: true }"
         :loading="channelLoading"
@@ -612,6 +628,7 @@ function retryFixtureMergedMessages(): void {
         :can-forward-merged="selectedMessageKeys.length > 0"
         :mention-members="mentionMembers"
         :mention-members-loading="false"
+        :draft="imDraftText"
         @toggle-panel="drawerOpen = !drawerOpen"
         @toggle-message-selection="() => undefined"
         @select-all-visible="selectingMessages = true"
@@ -619,6 +636,7 @@ function retryFixtureMergedMessages(): void {
         @forward-selection="openFixtureForwarding"
         @open-merged="openFixtureMergedMessage"
         @open-receipt-details="receiptDetailsOpen = true"
+        @update-draft="imDraftText = $event.text"
       />
       <AgentDrawer
         :open="drawerOpen"
