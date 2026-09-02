@@ -34,6 +34,8 @@ const props = defineProps<{
   loadingOlder?: boolean
   hasOlder?: boolean
   error?: string | null
+  errorRetryable?: boolean
+  workspaceRecoveryAvailable?: boolean
   text: string
   attachments: ComposerAttachment[]
   workingDirectory?: string | null
@@ -69,6 +71,7 @@ const emit = defineEmits<{
   expand: []
   loadOlder: []
   retry: []
+  recoverWorkspace: []
   stop: []
   removeSource: [id: string]
   send: [payload: { text: string; attachments: ComposerAttachment[] }]
@@ -118,8 +121,11 @@ const emit = defineEmits<{
       :loading-older="loadingOlder"
       :has-older="hasOlder"
       :error="error"
+      :error-retryable="errorRetryable"
+      :workspace-recovery-available="workspaceRecoveryAvailable"
       @load-older="emit('loadOlder')"
       @retry="emit('retry')"
+      @recover-workspace="emit('recoverWorkspace')"
       @resolve-approval="emit('resolveApproval', $event)"
       @create-draft="emit('createDraft', $event)"
       @select-role="emit('selectRole', $event)"

@@ -5,10 +5,9 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
+import zhCN from '@/locales/zh-CN'
 import type { ConversationTurn } from '../contracts'
 import AgentConversationThread from './AgentConversationThread.vue'
-
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 
 const turn = (id: string): ConversationTurn => ({
   id,
@@ -26,7 +25,8 @@ const turn = (id: string): ConversationTurn => ({
   lastEventSequence: 1,
 })
 
-function mountThread(overrides: Record<string, unknown> = {}) {
+function mountThread(overrides: Record<string, unknown> = {}, locale: 'en' | 'zh-CN' = 'en') {
+  const i18n = createI18n({ legacy: false, locale, messages: { en, 'zh-CN': zhCN } })
   return mount(AgentConversationThread, {
     props: {
       turns: [],
@@ -62,6 +62,27 @@ function setScrollMetrics(
 }
 
 describe('AgentConversationThread', () => {
+  it.each([
+    ['en' as const, 'Choose current location'],
+    ['zh-CN' as const, '选择当前目录'],
+  ])('offers only explicit workspace recovery in %s', async (locale, label) => {
+    const wrapper = mountThread(
+      {
+        error: 'Workspace unavailable',
+        errorRetryable: false,
+        workspaceRecoveryAvailable: true,
+      },
+      locale,
+    )
+
+    const buttons = wrapper.findAll('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.text()).toContain(label)
+    await buttons[0]!.trigger('click')
+    expect(wrapper.emitted('recoverWorkspace')).toHaveLength(1)
+    expect(wrapper.emitted('retry')).toBeUndefined()
+  })
+
   it('scrolls to the latest turn when initial history finishes loading', async () => {
     const wrapper = mountThread({ loading: true })
     const element = wrapper.get('.agent-thread').element as HTMLElement

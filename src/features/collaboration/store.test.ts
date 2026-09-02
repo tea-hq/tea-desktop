@@ -245,6 +245,58 @@ describe('useCollaborationStore', () => {
     expect(store.error).toEqual({ kind: 'localized', key: 'errors.conversationUnavailable' })
   })
 
+  it('explicitly reloads the active collaboration conversation', async () => {
+    const { store, client } = await setup()
+    const created = await client.createConversation(runtime.id, {
+      idempotencyKey: 'retry-collaboration-history',
+      channelBinding: { ...store.activeBinding! },
+      hostTools: [],
+    })
+    const getConversation = vi.spyOn(client, 'getConversation')
+    const loadHistory = vi
+      .spyOn(client, 'loadConversationHistory')
+      .mockRejectedValueOnce({
+        code: 'connectionFailed',
+        message: 'temporary ACP failure',
+        retryable: true,
+      })
+      .mockResolvedValueOnce({ items: [], nextCursor: null, hasMore: false, startIndex: 0 })
+
+    await store.selectConversation(created.handle.conversationId)
+    expect(store.error).toMatchObject({ code: 'connectionFailed', retryable: true })
+
+    await store.reloadConversation()
+
+    expect(getConversation).toHaveBeenCalledTimes(2)
+    expect(loadHistory).toHaveBeenCalledTimes(2)
+    expect(store.error).toBeNull()
+  })
+
+  it('relocates and reloads an active collaboration conversation', async () => {
+    const { store, client } = await setup()
+    const created = await client.createConversation(runtime.id, {
+      idempotencyKey: 'relocate-collaboration-history',
+      workingDirectory: '/projects/missing',
+      channelBinding: { ...store.activeBinding! },
+      hostTools: [],
+    })
+    const relocate = vi.spyOn(client, 'relocateConversationWorkspace')
+    vi.spyOn(client, 'loadConversationHistory')
+      .mockRejectedValueOnce({
+        code: 'workspaceUnavailable',
+        message: 'conversation workspace directory is unavailable',
+        retryable: false,
+      })
+      .mockResolvedValueOnce({ items: [], nextCursor: null, hasMore: false, startIndex: 0 })
+    await store.selectConversation(created.handle.conversationId)
+
+    await expect(store.relocateConversationWorkspace('/projects/replacement')).resolves.toBe(true)
+
+    expect(relocate).toHaveBeenCalledWith(created.handle.conversationId, '/projects/replacement')
+    expect(store.activeConversation?.workingDirectory).toBe('/projects/replacement')
+    expect(store.error).toBeNull()
+  })
+
   it('clears the previous history before a collaboration session finishes loading', async () => {
     const { store, client } = await setup()
     const binding = { ...store.activeBinding! }
@@ -353,7 +405,12 @@ describe('useCollaborationStore', () => {
 
     await store.sendMessage('Fail on send')
 
-    expect(store.error).toEqual({ kind: 'runtime', message: 'start codex thread: protocol failed' })
+    expect(store.error).toEqual({
+      kind: 'runtime',
+      message: 'start codex thread: protocol failed',
+      code: 'restoreFailed',
+      retryable: true,
+    })
     expect(client.sends).toEqual([])
   })
 

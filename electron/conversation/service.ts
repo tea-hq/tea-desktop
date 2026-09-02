@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 
 import type {
   ApprovalDecision,
@@ -41,6 +42,10 @@ import {
 } from './runtime'
 import type { ConversationRuntimeRegistry } from './runtimeRegistry'
 import { buildChannelPrompt, MAX_VISIBLE_TEXT_CHARS } from './collaboration'
+import {
+  requireAvailableWorkspaceDirectory,
+  type ConversationWorkspaceFileSystem,
+} from './workspace'
 
 const MAX_ID_CHARS = 512
 const MAX_IDEMPOTENCY_KEY_CHARS = 128
@@ -116,6 +121,11 @@ export interface RuntimeConversationResult {
 export interface RuntimeConversationCatalogPort {
   initialize(): Promise<void>
   create(record: ConversationCatalogRecord): ConversationCatalogRecord
+  relocateWorkspace(
+    conversationId: string,
+    binding: RuntimeConversationBinding,
+    updatedAt: number,
+  ): ConversationCatalogRecord
   get(conversationId: string): ConversationCatalogRecord | null
   findByIdempotencyKey(idempotencyKey: string): ConversationCatalogRecord | null
   list(request: ListConversationsRequest): ConversationPage
@@ -185,6 +195,7 @@ export class RuntimeConversationService {
     private readonly hostToolResults?: RuntimeHostToolResultResolver,
     private readonly events: RuntimeConversationServiceEvents = {},
     private readonly modelProviders?: RuntimeModelProviderResolver,
+    private readonly workspaceFileSystem?: ConversationWorkspaceFileSystem,
   ) {}
 
   async initialize(): Promise<void> {
@@ -407,6 +418,43 @@ export class RuntimeConversationService {
     }
   }
 
+  async relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail> {
+    this.assertActive()
+    requireText(conversationId, MAX_ID_CHARS)
+    const requestedPath = validateWorkingDirectory(workspacePath)
+    if (!requestedPath) throw invalidRequest('working directory is required')
+    const canonicalPath = validateWorkingDirectory(
+      await requireAvailableWorkspaceDirectory(requestedPath, {
+        canonicalize: true,
+        fileSystem: this.workspaceFileSystem,
+      }),
+    )
+    if (!canonicalPath) throw invalidRequest('working directory is required')
+
+    const previous = this.pendingRestores.get(conversationId)
+    const relocation = (async () => {
+      await previous?.catch(() => undefined)
+      if (this.activeHandles.has(conversationId)) {
+        throw invalidRequest('an active conversation workspace cannot be relocated')
+      }
+      const record = this.catalog.get(conversationId)
+      if (!record) throw unknownConversation(conversationId)
+      return this.relocateConversationWorkspaceOnce(record, canonicalPath)
+    })()
+    this.pendingRestores.set(conversationId, relocation)
+    try {
+      await relocation
+      return this.getConversation(conversationId)
+    } finally {
+      if (this.pendingRestores.get(conversationId) === relocation) {
+        this.pendingRestores.delete(conversationId)
+      }
+    }
+  }
+
   async cancel(conversationId: string): Promise<void> {
     this.assertActive()
     requireText(conversationId, MAX_ID_CHARS)
@@ -512,7 +560,7 @@ export class RuntimeConversationService {
         conversationId,
         runtimeId: request.runtimeId,
         workspaceId: request.workspaceId,
-        ...(request.workingDirectory ? { workingDirectory: request.workingDirectory } : {}),
+        workingDirectory: handle.binding.workspacePath,
         createdAt: timestamp,
         updatedAt: timestamp,
         ...(request.channelBinding
@@ -583,6 +631,55 @@ export class RuntimeConversationService {
       )
       throw failure
     }
+  }
+
+  private async relocateConversationWorkspaceOnce(
+    record: ConversationCatalogRecord,
+    workspacePath: string,
+  ): Promise<RuntimeConversationHandle> {
+    const conversationId = record.summary.conversationId
+    const runtime = this.requireReadyRuntime(record.summary.runtimeId)
+    const candidateBinding: RuntimeConversationBinding = {
+      ...structuredClone(record.binding),
+      workspacePath,
+    }
+    let handle: RuntimeConversationHandle
+    try {
+      const definitions = await this.hostTools.resolve(structuredClone(record.binding.hostTools))
+      assertExactHostTools(record.binding.hostTools, definitions)
+      await runtime.configureHostTools(conversationId, definitions)
+      handle = await runtime.restoreConversation(
+        conversationId,
+        candidateBinding,
+        this.resolveRuntimeSelection(record.binding.selection),
+      )
+      assertRelocatedHandle(conversationId, candidateBinding, handle)
+    } catch (cause) {
+      throw await closeAfterFailure(runtime, conversationId, cause)
+    }
+
+    let candidateSubscription: () => void
+    try {
+      candidateSubscription = runtime.subscribe(conversationId, (event) => this.emitEvent(event))
+    } catch (cause) {
+      throw await closeAfterFailure(runtime, conversationId, cause)
+    }
+
+    let relocated: ConversationCatalogRecord
+    try {
+      relocated = this.catalog.relocateWorkspace(conversationId, handle.binding, this.timestamp())
+    } catch (cause) {
+      let failure = cause
+      try {
+        candidateSubscription()
+      } catch (cleanup) {
+        failure = preserveErrorCode(cause, cleanup)
+      }
+      throw await closeAfterFailure(runtime, conversationId, failure)
+    }
+    this.rememberActiveConversationWithSubscription(handle, candidateSubscription)
+    this.emitUpdate(relocated.summary)
+    return handle
   }
 
   private requireReadyRuntime(runtimeId: string): ConversationRuntime {
@@ -699,6 +796,14 @@ export class RuntimeConversationService {
   ): void {
     const conversationId = handle.conversationId
     const unsubscribe = runtime.subscribe(conversationId, (event) => this.emitEvent(event))
+    this.rememberActiveConversationWithSubscription(handle, unsubscribe)
+  }
+
+  private rememberActiveConversationWithSubscription(
+    handle: RuntimeConversationHandle,
+    unsubscribe: () => void,
+  ): void {
+    const conversationId = handle.conversationId
     this.activeSubscriptions.get(conversationId)?.()
     this.activeSubscriptions.set(conversationId, unsubscribe)
     this.activeHandles.set(conversationId, structuredClone(handle))
@@ -782,7 +887,8 @@ function assertSameCreation(
   if (
     record.summary.runtimeId !== request.runtimeId ||
     record.summary.workspaceId !== request.workspaceId ||
-    record.summary.workingDirectory !== request.workingDirectory ||
+    (request.workingDirectory !== undefined &&
+      record.summary.workingDirectory !== request.workingDirectory) ||
     !sameCreationSelection(record.binding.selection, modelSelection(request.model)) ||
     !sameChannelBinding(record.summary.channelBinding, request.channelBinding) ||
     !sameHostTools(record.binding.hostTools, request.hostTools)
@@ -799,6 +905,24 @@ function assertExactHostTools(
     throw new ConversationRuntimeError(
       'invalidConfiguration',
       'resolved HostTools do not match the recorded runtime binding',
+    )
+  }
+}
+
+function assertRelocatedHandle(
+  conversationId: string,
+  expectedBinding: RuntimeConversationBinding,
+  handle: RuntimeConversationHandle,
+): void {
+  if (
+    handle.conversationId !== conversationId ||
+    handle.runtimeId !== expectedBinding.runtimeId ||
+    handle.nativeSessionId !== expectedBinding.nativeSessionId ||
+    !isDeepStrictEqual(handle.binding, expectedBinding)
+  ) {
+    throw new ConversationRuntimeError(
+      'invalidConfiguration',
+      'restored runtime handle does not match the candidate workspace binding',
     )
   }
 }

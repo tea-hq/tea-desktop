@@ -21,10 +21,13 @@ const props = defineProps<{
   loadingOlder?: boolean
   hasOlder?: boolean
   error?: string | null
+  errorRetryable?: boolean
+  workspaceRecoveryAvailable?: boolean
 }>()
 const emit = defineEmits<{
   loadOlder: []
   retry: []
+  recoverWorkspace: []
   resolveApproval: [payload: { approvalId: string; decision: ApprovalDecision }]
   createDraft: [payload: { turnIndex: number; blockId: string; content: string }]
   selectRole: [value: string]
@@ -119,12 +122,27 @@ function loadOlder(): void {
         t('channels.history.loadMore')
       }}</TeaButton>
     </div>
-    <TeaMessageBar v-if="error" tone="error"
-      ><span>{{ error }}</span
-      ><TeaButton size="small" appearance="ghost" @click="emit('retry')">{{
-        t('sidebar.retry')
-      }}</TeaButton></TeaMessageBar
-    >
+    <TeaMessageBar v-if="error" tone="error">
+      <span>{{ error }}</span>
+      <span
+        v-if="workspaceRecoveryAvailable || errorRetryable"
+        class="flex flex-wrap justify-end gap-1 pt-1"
+      >
+        <TeaButton
+          v-if="workspaceRecoveryAvailable"
+          size="small"
+          appearance="ghost"
+          @click="emit('recoverWorkspace')"
+        >
+          <span class="i-mdi-folder-open-outline size-4" aria-hidden="true" />
+          {{ t('messages.chooseReplacementDirectory') }}
+        </TeaButton>
+        <TeaButton v-if="errorRetryable" size="small" appearance="ghost" @click="emit('retry')">
+          <span class="i-mdi-refresh size-4" aria-hidden="true" />
+          {{ t('sidebar.retry') }}
+        </TeaButton>
+      </span>
+    </TeaMessageBar>
     <div
       v-if="loading && turns.length === 0"
       class="flex h-full items-center justify-center"

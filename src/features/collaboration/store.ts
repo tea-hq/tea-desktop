@@ -243,8 +243,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     return true
   }
 
-  async function selectConversation(id: string): Promise<boolean> {
-    if (id === conversationId.value) return true
+  async function selectConversation(id: string, forceReload = false): Promise<boolean> {
+    if (id === conversationId.value && !forceReload) return true
     const summary = conversations.value.find((value) => value.conversationId === id)
     if (
       !summary ||
@@ -313,6 +313,53 @@ export const useCollaborationStore = defineStore('collaboration', () => {
       return false
     } finally {
       if (token === selectionToken) loading.value = false
+    }
+  }
+
+  async function reloadConversation(): Promise<void> {
+    const currentId = conversationId.value
+    if (currentId) await selectConversation(currentId, true)
+  }
+
+  async function relocateConversationWorkspace(workspacePath: string): Promise<boolean> {
+    const client = conversationClient.value
+    const currentId = conversationId.value
+    if (!client) {
+      error.value = { kind: 'localized', key: 'errors.clientNotConfigured' }
+      return false
+    }
+    if (!currentId) {
+      error.value = { kind: 'localized', key: 'errors.noActiveConversation' }
+      return false
+    }
+    const generation = lifecycleGeneration
+    const token = selectionToken
+    loading.value = true
+    error.value = null
+    try {
+      const detail = await client.relocateConversationWorkspace(currentId, workspacePath)
+      if (
+        generation !== lifecycleGeneration ||
+        token !== selectionToken ||
+        conversationClient.value !== client ||
+        conversationId.value !== currentId
+      ) {
+        return false
+      }
+      if (!sameBinding(detail.summary.channelBinding ?? null, activeBinding.value)) {
+        throw new Error('conversationBindingMismatch')
+      }
+      mergeSummary(detail.summary)
+      return selectConversation(currentId, true)
+    } catch (cause) {
+      if (generation === lifecycleGeneration && token === selectionToken) {
+        error.value = runtimeError(cause)
+      }
+      return false
+    } finally {
+      if (generation === lifecycleGeneration && token === selectionToken) {
+        loading.value = false
+      }
     }
   }
 
@@ -800,6 +847,8 @@ export const useCollaborationStore = defineStore('collaboration', () => {
     setAvailableModelOptions,
     selectModel,
     selectConversation,
+    reloadConversation,
+    relocateConversationWorkspace,
     renameConversation,
     archiveConversation,
     removeConversationFromIndex,
@@ -838,7 +887,7 @@ function uniqueSorted(values: ConversationSummary[]): ConversationSummary[] {
 }
 
 function runtimeError(value: unknown): ConversationUiError {
-  const candidate = value as { code?: unknown; message?: unknown } | null
+  const candidate = value as { code?: unknown; message?: unknown; retryable?: unknown } | null
   const message =
     candidate && typeof candidate.message === 'string'
       ? candidate.message
@@ -852,6 +901,8 @@ function runtimeError(value: unknown): ConversationUiError {
   return {
     kind: 'runtime',
     message,
+    code: candidate && typeof candidate.code === 'string' ? candidate.code : 'runtimeFailure',
+    retryable: candidate?.retryable === true,
   }
 }
 

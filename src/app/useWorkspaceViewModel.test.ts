@@ -54,4 +54,44 @@ describe('useWorkspaceViewModel', () => {
     expect(setCollaborationModels).toHaveBeenCalledWith(managedModels)
     scope.stop()
   })
+
+  it('offers workspace recovery for a collaboration conversation', () => {
+    const stores = {
+      conversation: {
+        activeRuntime: codexRuntime,
+        modelOptions: [],
+        conversations: [],
+        error: null,
+        historyError: null,
+        setAvailableModelOptions: vi.fn(),
+      },
+      collaboration: {
+        activeRuntime: codexRuntime,
+        activeBinding: null,
+        activeConversation: null,
+        conversations: [],
+        collaboration: { drafts: [], deliveries: [], turnContexts: [] },
+        error: {
+          kind: 'runtime',
+          code: 'workspaceUnavailable',
+          message: 'conversation workspace directory is unavailable',
+          retryable: false,
+        },
+        setAvailableModelOptions: vi.fn(),
+      },
+      channels: { activeChannel: null },
+      agentDrawer: { ensureState: vi.fn() },
+      agentRoles: { roles: [] },
+      managedRuntime: { modelOptions: [] },
+    } as unknown as TeaDesktopStores
+    const ui = createWorkspaceUiState()
+    ui.collaborationWorkspace.value = true
+    const scope = effectScope()
+    const viewModel = scope.run(() => useWorkspaceViewModel(stores, ui))!
+
+    expect(viewModel.errorText.value).toBe('messages.workspaceUnavailable')
+    expect(viewModel.errorRetryable.value).toBe(false)
+    expect(viewModel.workspaceRecoveryAvailable.value).toBe(true)
+    scope.stop()
+  })
 })

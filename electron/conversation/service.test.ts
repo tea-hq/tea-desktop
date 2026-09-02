@@ -30,6 +30,7 @@ import {
   type RuntimeModelProviderResolver,
   type RuntimeHostToolResolver,
 } from './service'
+import type { ConversationWorkspaceFileSystem } from './workspace'
 
 const HOST_TOOL: HostToolDefinition = {
   name: 'tea.channel.history',
@@ -132,6 +133,19 @@ describe('RuntimeConversationService', () => {
     })
     expect(created.summary.workingDirectory).toBe('/projects/tea')
     expect(catalog.get('conversation-1')?.summary.workingDirectory).toBe('/projects/tea')
+    await service.shutdown()
+  })
+
+  it('persists the runtime effective workspace when creation omits a directory', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    const runtime = fakeRuntime()
+    const service = createService(catalog, runtime.value, resolver(), () => 'conversation-1')
+    await service.initialize()
+
+    const created = await service.createConversation(createRequest())
+
+    expect(created.summary.workingDirectory).toBe('/workspace')
+    expect(catalog.get('conversation-1')?.summary.workingDirectory).toBe('/workspace')
     await service.shutdown()
   })
 
@@ -406,6 +420,182 @@ describe('RuntimeConversationService', () => {
     await service.shutdown()
   })
 
+  it('relocates a failed conversation only after the candidate session restores', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create({
+      ...catalogRecord(),
+      lastRestoreFailure: { code: 'workspaceUnavailable', failedAt: 400 },
+    })
+    const runtime = fakeRuntime()
+    const fileSystem = availableWorkspaceFileSystem('/projects/canonical-tea')
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      fileSystem,
+    )
+
+    const detail = await service.relocateConversationWorkspace(
+      'conversation-1',
+      '/projects/selected-tea',
+    )
+
+    expect(runtime.restoreConversation).toHaveBeenCalledWith(
+      'conversation-1',
+      expect.objectContaining({ workspacePath: '/projects/canonical-tea' }),
+      { model: 'default' },
+    )
+    expect(detail.summary).toMatchObject({
+      workingDirectory: '/projects/canonical-tea',
+      updatedAt: 900,
+    })
+    expect(catalog.get('conversation-1')).toMatchObject({
+      binding: { workspacePath: '/projects/canonical-tea' },
+      summary: { workingDirectory: '/projects/canonical-tea' },
+    })
+    expect(catalog.get('conversation-1')?.lastRestoreFailure).toBeUndefined()
+    expect(runtime.closeConversation).not.toHaveBeenCalled()
+    await service.shutdown()
+  })
+
+  it('leaves the durable binding unchanged when candidate ACP recovery fails', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create({
+      ...catalogRecord(),
+      lastRestoreFailure: { code: 'workspaceUnavailable', failedAt: 400 },
+    })
+    const before = catalog.get('conversation-1')
+    const runtime = fakeRuntime({
+      restoreFailure: new ConversationRuntimeError(
+        'connectionFailed',
+        'candidate session was rejected',
+        true,
+      ),
+    })
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      availableWorkspaceFileSystem('/projects/candidate'),
+    )
+
+    await expect(
+      service.relocateConversationWorkspace('conversation-1', '/projects/selected'),
+    ).rejects.toMatchObject({ code: 'connectionFailed' })
+
+    expect(catalog.get('conversation-1')).toEqual(before)
+    expect(runtime.closeConversation).toHaveBeenCalledWith('conversation-1')
+    await service.shutdown()
+  })
+
+  it('closes the candidate runtime and retains the old binding when relocation persistence fails', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create(catalogRecord())
+    const before = catalog.get('conversation-1')
+    vi.spyOn(catalog, 'relocateWorkspace').mockImplementation(() => {
+      throw new ConversationCatalogError('storageFailure', 'disk full', true)
+    })
+    const runtime = fakeRuntime()
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      availableWorkspaceFileSystem('/projects/candidate'),
+    )
+
+    await expect(
+      service.relocateConversationWorkspace('conversation-1', '/projects/selected'),
+    ).rejects.toMatchObject({ code: 'storageFailure' })
+
+    expect(catalog.get('conversation-1')).toEqual(before)
+    expect(runtime.closeConversation).toHaveBeenCalledWith('conversation-1')
+    await service.shutdown()
+  })
+
+  it('serializes ordinary restore and workspace relocation for one conversation', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create(catalogRecord())
+    const gate = deferred<void>()
+    const runtime = fakeRuntime()
+    runtime.restoreConversation.mockImplementationOnce(async () => {
+      await gate.promise
+      throw new ConversationRuntimeError('workspaceUnavailable', 'old workspace is gone')
+    })
+    const fileSystem = availableWorkspaceFileSystem('/projects/candidate')
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      fileSystem,
+    )
+
+    const restoration = service.restoreConversation('conversation-1')
+    await vi.waitFor(() => expect(runtime.restoreConversation).toHaveBeenCalledTimes(1))
+    const relocation = service.relocateConversationWorkspace('conversation-1', '/projects/selected')
+    await vi.waitFor(() => expect(fileSystem.access).toHaveBeenCalled())
+    expect(runtime.restoreConversation).toHaveBeenCalledTimes(1)
+
+    gate.resolve(undefined)
+    await expect(restoration).rejects.toMatchObject({ code: 'workspaceUnavailable' })
+    await expect(relocation).resolves.toMatchObject({
+      summary: { workingDirectory: '/projects/candidate' },
+    })
+    expect(runtime.restoreConversation).toHaveBeenCalledTimes(2)
+    await service.shutdown()
+  })
+
+  it('serializes competing workspace relocations for one conversation', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create(catalogRecord())
+    const gate = deferred<void>()
+    const runtime = fakeRuntime()
+    runtime.restoreConversation.mockImplementationOnce(
+      async (conversationId, binding: RuntimeConversationBinding) => {
+        await gate.promise
+        return {
+          conversationId,
+          runtimeId: binding.runtimeId,
+          nativeSessionId: binding.nativeSessionId,
+          binding: structuredClone(binding),
+        }
+      },
+    )
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      availableWorkspaceFileSystem('/projects/candidate'),
+    )
+
+    const first = service.relocateConversationWorkspace('conversation-1', '/projects/first')
+    const second = service.relocateConversationWorkspace('conversation-1', '/projects/second')
+    await vi.waitFor(() => expect(runtime.restoreConversation).toHaveBeenCalledTimes(1))
+
+    gate.resolve(undefined)
+
+    await expect(first).resolves.toMatchObject({
+      summary: { workingDirectory: '/projects/candidate' },
+    })
+    await expect(second).rejects.toMatchObject({ code: 'invalidRequest' })
+    expect(runtime.restoreConversation).toHaveBeenCalledTimes(1)
+    await service.shutdown()
+  })
+
   it('rejects changed HostTool resolution before runtime restore', async () => {
     const catalog = new ConversationCatalog(await catalogPath())
     await catalog.initialize()
@@ -609,6 +799,7 @@ function createService(
   hostTools: RuntimeHostToolResolver,
   createId?: () => string,
   now: () => number = () => 500,
+  workspaceFileSystem?: ConversationWorkspaceFileSystem,
 ): RuntimeConversationService {
   return new RuntimeConversationService(
     catalog,
@@ -616,7 +807,21 @@ function createService(
     hostTools,
     createId,
     now,
+    undefined,
+    {},
+    undefined,
+    workspaceFileSystem,
   )
+}
+
+function availableWorkspaceFileSystem(canonicalPath: string): ConversationWorkspaceFileSystem & {
+  access: ReturnType<typeof vi.fn>
+} {
+  return {
+    access: vi.fn(async () => undefined),
+    realpath: vi.fn(async () => canonicalPath),
+    stat: vi.fn(async () => ({ isDirectory: () => true })),
+  }
 }
 
 function createRequest() {
@@ -773,6 +978,7 @@ function catalogRecord(): ConversationCatalogRecord {
       conversationId: 'conversation-1',
       runtimeId: 'external.test',
       workspaceId: 'workspace-1',
+      workingDirectory: handle.binding.workspacePath,
       createdAt: 100,
       updatedAt: 100,
     },
@@ -788,6 +994,7 @@ function failingCreateCatalog(): RuntimeConversationCatalogPort {
     create: vi.fn(() => {
       throw new ConversationCatalogError('storageFailure', 'disk full', true)
     }),
+    relocateWorkspace: vi.fn(),
     get: vi.fn(() => null),
     findByIdempotencyKey: vi.fn(() => null),
     list: vi.fn(() => ({ items: [], nextCursor: null, hasMore: false })),

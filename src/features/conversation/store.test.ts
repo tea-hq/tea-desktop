@@ -50,6 +50,9 @@ class FakeClient {
   createSummary: ConversationSummary | null | undefined
   sendCompletion: Promise<void> | null = null
   sendStarted: (() => void) | null = null
+  historyFailure: unknown = null
+  relocationCalls: Array<{ conversationId: string; workspacePath: string }> = []
+  workspacePaths = new Map<string, string>()
 
   setRuntimes(r: RuntimeDescriptor[]): void {
     this.runtimes = r
@@ -68,13 +71,23 @@ class FakeClient {
     this.getConversationCalls.push(conversationId)
     const pending = this.detailPromises.get(conversationId)
     if (pending) return pending
-    const summary = summaryFor(conversationId, 1)
+    const summary = {
+      ...summaryFor(conversationId, 1),
+      ...(this.workspacePaths.has(conversationId)
+        ? { workingDirectory: this.workspacePaths.get(conversationId)! }
+        : {}),
+    }
     return { summary, collaboration: emptyCollaboration() }
   }
 
   async loadConversationHistory(
     request: LoadConversationHistoryRequest,
   ): Promise<ConversationHistoryPage> {
+    if (this.historyFailure) {
+      const failure = this.historyFailure
+      this.historyFailure = null
+      throw failure
+    }
     const result = this.historyPages.get(request.conversationId)?.shift()
     if (result instanceof Error) throw result
     return structuredClone(result ?? { items: [], nextCursor: null, hasMore: false, startIndex: 0 })
@@ -91,6 +104,15 @@ class FakeClient {
           ? summaryFor(handle.conversationId, Date.now())
           : this.createSummary,
     }
+  }
+
+  async relocateConversationWorkspace(
+    conversationId: string,
+    workspacePath: string,
+  ): Promise<ConversationDetail> {
+    this.relocationCalls.push({ conversationId, workspacePath })
+    this.workspacePaths.set(conversationId, workspacePath)
+    return this.getConversation(conversationId)
   }
 
   async renameConversation(_conversationId: string, _title: string): Promise<void> {}
@@ -377,7 +399,12 @@ describe('useConversationStore', () => {
     await store.loadOlderHistory()
 
     expect(store.turns.map((turn) => turn.id)).toEqual(['current'])
-    expect(store.historyPageError).toEqual({ kind: 'runtime', message: 'history transport failed' })
+    expect(store.historyPageError).toEqual({
+      kind: 'runtime',
+      message: 'history transport failed',
+      code: 'runtimeFailure',
+      retryable: false,
+    })
     expect(store.historyHasMore).toBe(true)
   })
 
@@ -408,6 +435,63 @@ describe('useConversationStore', () => {
     expect(fake.getConversationCalls).toEqual(['saved'])
     expect(fake.subscriptionCalls).toEqual(['saved'])
     expect(store.historyLoading).toBe(false)
+  })
+
+  it('preserves typed restore errors and explicitly reloads the active conversation', async () => {
+    const fake = new FakeClient()
+    fake.pages = [{ items: [summaryFor('saved', 1)], nextCursor: null, hasMore: false }]
+    fake.historyFailure = {
+      code: 'workspaceUnavailable',
+      retryable: false,
+      message: 'conversation workspace directory is unavailable',
+    }
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.initializeConversationList()
+
+    await store.selectConversation('saved')
+    expect(store.historyError).toEqual({
+      kind: 'runtime',
+      code: 'workspaceUnavailable',
+      retryable: false,
+      message: 'conversation workspace directory is unavailable',
+    })
+
+    await store.reloadConversation()
+
+    expect(fake.getConversationCalls).toEqual(['saved', 'saved'])
+    expect(fake.subscriptionCalls).toEqual(['saved', 'saved'])
+    expect(store.historyError).toBeNull()
+  })
+
+  it('relocates a workspace then reloads the same conversation history', async () => {
+    const fake = new FakeClient()
+    fake.pages = [
+      {
+        items: [{ ...summaryFor('saved', 1), workingDirectory: '/projects/missing' }],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ]
+    fake.workspacePaths.set('saved', '/projects/missing')
+    fake.historyFailure = {
+      code: 'workspaceUnavailable',
+      retryable: false,
+      message: 'conversation workspace directory is unavailable',
+    }
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.initializeConversationList()
+    await store.selectConversation('saved')
+
+    await expect(store.relocateConversationWorkspace('/projects/replacement')).resolves.toBe(true)
+
+    expect(fake.relocationCalls).toEqual([
+      { conversationId: 'saved', workspacePath: '/projects/replacement' },
+    ])
+    expect(store.workingDirectory).toBe('/projects/replacement')
+    expect(store.historyError).toBeNull()
+    expect(fake.getConversationCalls).toEqual(['saved', 'saved', 'saved'])
   })
 
   it('locks runtime selection after restoring a catalog conversation', async () => {
