@@ -1,10 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { isEffectiveTheme, type EffectiveTheme } from '../src/types/theme'
 import type { DesktopCommandRouter } from './ipc/commandRouter'
 import { settleDesktopCommand } from './ipc/commandResult'
 import { createDesktopCommandRouter, type DesktopCommandServices } from './ipc/desktopCommandRouter'
 import { DesktopEventPublisher } from './ipc/events'
+import { applyWindowChromeTheme, createWindowChromeOptions } from './windowChrome'
 import { channelHistoryToolDefinition } from '../src/features/conversation/hostToolCatalog'
 import { createElectronConversationHost, type ElectronConversationHost } from './conversation/host'
 import { ElectronCatalogService } from './services/catalog'
@@ -33,12 +35,15 @@ let quitting = false
 const events = new DesktopEventPublisher(() => win?.webContents ?? null)
 
 function createWindow(): void {
+  const initialTheme: EffectiveTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+
   win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 880,
     minHeight: 640,
     show: false,
+    ...createWindowChromeOptions(process.platform, initialTheme),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -50,6 +55,18 @@ function createWindow(): void {
   win.once('ready-to-show', () => win?.show())
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL)
   else win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+}
+
+function registerWindowThemeIpc(): void {
+  ipcMain.on('tea:window-theme-changed', (event, value: unknown) => {
+    if (!isEffectiveTheme(value)) return
+
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
+    if (!senderWindow || senderWindow !== win || senderWindow.isDestroyed()) return
+
+    // The persisted preference remains settings-owned; this is only a native chrome projection.
+    applyWindowChromeTheme(senderWindow, process.platform, value)
+  })
 }
 
 function registerIpc(route: DesktopCommandRouter): void {
@@ -134,6 +151,7 @@ async function bootstrap(): Promise<void> {
 }
 
 app.whenReady().then(() => {
+  registerWindowThemeIpc()
   void bootstrap().catch(() => app.quit())
 
   app.on('activate', () => {

@@ -4,11 +4,16 @@ import type {
   DesktopEventPayloadMap,
   TeaDesktopBridge,
 } from '@/types/electronBridge'
+import type { EffectiveTheme } from '@/types/theme'
 
 export type UnlistenFn = () => void
 
 export function hasElectronBridge(): boolean {
   return typeof window !== 'undefined' && Boolean(window.teaDesktop)
+}
+
+export function setWindowTheme(theme: EffectiveTheme): void {
+  getBridge().setWindowTheme(theme)
 }
 
 export function invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
