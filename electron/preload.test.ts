@@ -5,6 +5,7 @@ import type { TeaDesktopBridge } from '../src/types/electronBridge'
 const electron = vi.hoisted(() => ({
   exposeInMainWorld: vi.fn(),
   invoke: vi.fn(),
+  send: vi.fn(),
   on: vi.fn(),
   removeListener: vi.fn(),
 }))
@@ -13,6 +14,7 @@ vi.mock('electron', () => ({
   contextBridge: { exposeInMainWorld: electron.exposeInMainWorld },
   ipcRenderer: {
     invoke: electron.invoke,
+    send: electron.send,
     on: electron.on,
     removeListener: electron.removeListener,
   },
@@ -25,6 +27,7 @@ const bridge = electron.exposeInMainWorld.mock.calls[0]?.[1] as TeaDesktopBridge
 describe('Electron preload bridge', () => {
   beforeEach(() => {
     electron.invoke.mockReset()
+    electron.send.mockReset()
     electron.on.mockReset()
     electron.removeListener.mockReset()
   })
@@ -47,6 +50,13 @@ describe('Electron preload bridge', () => {
       'list_conversation_runtimes',
       undefined,
     )
+  })
+
+  it('projects only valid effective themes to the main process', () => {
+    bridge.setWindowTheme('dark')
+
+    expect(electron.send).toHaveBeenCalledWith('tea:window-theme-changed', 'dark')
+    expect(() => bridge.setWindowTheme('system' as never)).toThrow(/Unsupported window theme/)
   })
 
   it('registers and disposes one allowlisted event listener exactly', () => {

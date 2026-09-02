@@ -9,9 +9,13 @@ export interface ThemeController {
   dispose(): void
 }
 
+export type EffectiveThemeChangeListener = (theme: EffectiveTheme) => void
+
 const DARK_MODE_QUERY = '(prefers-color-scheme: dark)'
 
-export function createThemeController(): ThemeController {
+export function createThemeController(
+  onEffectiveThemeChange?: EffectiveThemeChangeListener,
+): ThemeController {
   let preference: ThemePreference = 'system'
   let effective: EffectiveTheme = 'light'
   let mediaQuery: MediaQueryList | null = null
@@ -34,6 +38,7 @@ export function createThemeController(): ThemeController {
     if (typeof document === 'undefined') return
     document.documentElement.dataset.theme = theme
     document.documentElement.style.colorScheme = theme
+    onEffectiveThemeChange?.(theme)
   }
 
   function handleSystemThemeChange(): void {

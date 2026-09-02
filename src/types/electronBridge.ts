@@ -87,6 +87,7 @@ export type DesktopCommandResult<T> =
   { ok: true; value: T } | { ok: false; error: DesktopCommandError }
 
 export interface TeaDesktopBridge {
+  setWindowTheme(theme: EffectiveTheme): void
   invoke<T = unknown>(command: DesktopCommand, args?: unknown): Promise<T>
   on<Event extends DesktopEvent>(
     event: Event,
@@ -126,3 +127,4 @@ import type {
   HostToolCall,
 } from '../features/conversation/contracts'
 import type { ManagedWorkspaceState } from '../features/managed-runtime/contracts'
+import type { EffectiveTheme } from './theme'

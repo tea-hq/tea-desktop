@@ -15,7 +15,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <main class="flex min-h-screen flex-col bg-canvas text-fg">
+  <main class="flex h-full min-h-0 flex-col bg-canvas text-fg">
     <header class="flex h-16 shrink-0 items-center px-6 sm:px-10">
       <div class="flex items-center gap-3">
         <span

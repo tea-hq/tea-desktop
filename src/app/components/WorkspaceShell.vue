@@ -10,7 +10,7 @@ const { centerAuth, activeMode, logoutPending, selectWorkspace, logout } = useTe
 
 <template>
   <div
-    class="relative flex h-screen min-w-0 overflow-hidden bg-canvas text-fg"
+    class="relative flex h-full min-h-0 min-w-0 overflow-hidden bg-canvas text-fg"
     :class="centerAuth.state.phase === 'offlineCached' ? 'pt-9' : ''"
   >
     <OfflineProfileNotice

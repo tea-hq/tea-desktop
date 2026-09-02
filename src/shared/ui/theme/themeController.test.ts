@@ -77,6 +77,15 @@ describe('createThemeController', () => {
     expect(document.documentElement.style.colorScheme).toBe(expected)
   })
 
+  it('notifies the native chrome projection after applying a theme', () => {
+    const onEffectiveThemeChange = vi.fn()
+    const controller = createThemeController(onEffectiveThemeChange)
+
+    controller.apply('dark')
+
+    expect(onEffectiveThemeChange).toHaveBeenCalledWith('dark')
+  })
+
   it.each([
     [false, 'light'],
     [true, 'dark'],

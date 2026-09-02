@@ -12,6 +12,7 @@ import { useCenterAuthStore } from '@/features/auth/store'
 import { useManagedConfigStore } from '@/features/managed-config/store'
 import { useManagedRuntimeStore } from '@/features/managed-runtime/store'
 import { getDefaultConversationClient } from '@/infrastructure/conversation/electronConversationClient'
+import { hasElectronBridge, setWindowTheme } from '@/infrastructure/electronBridge'
 import { ElectronSettingsClient } from '@/infrastructure/settings/electronSettingsClient'
 import { createThemeController } from '@/shared/ui/theme/themeController'
 import { ElectronWorkspaceClient } from '@/infrastructure/workspace/electronWorkspaceClient'
@@ -38,7 +39,14 @@ export function useTeaDesktopApp() {
   }
   const settings = stores.settings
   settings.configure(new ElectronSettingsClient())
-  const themeController = createThemeController()
+  const themeController = createThemeController((theme) => {
+    if (!hasElectronBridge()) return
+    try {
+      setWindowTheme(theme)
+    } catch {
+      // Native chrome is a best-effort projection during renderer shutdown.
+    }
+  })
   watch(
     () => settings.settings.theme,
     (preference) => themeController.apply(preference),

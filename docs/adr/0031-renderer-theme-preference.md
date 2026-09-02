@@ -32,16 +32,20 @@ recovery/error semantics. If settings becomes a public stable format before
 additional fields are added, the service must move to an explicit schema
 version and migration instead of adding compatibility aliases.
 
-Native Electron `nativeTheme` is out of scope for this phase. It is only needed
-later if native titlebars, menus, tray UI, or window backgrounds must share the
-renderer theme. The renderer applies the system fallback before settings load
-through CSS media rules, then replaces it with the persisted preference when
-available.
+Electron `nativeTheme` is not an alternate source of durable preference. The
+main process uses its effective system value only for the initial native window
+background and overlay colors. After preload initialization, the renderer
+projects its effective light/dark theme across the typed bridge so hidden
+titlebars and native window controls match the renderer. The renderer still
+applies the system fallback before settings load through CSS media rules, then
+replaces it with the persisted preference when available.
 
 ## Consequences
 
 - Theme changes are immediately visible and survive application restarts.
 - System appearance changes update open windows without reload in `system` mode.
+- Native titlebar overlays follow the renderer's effective theme without owning
+  a second preference or persistence path.
 - Every theme must define contrast-safe values for controls, status messages,
   Markdown, code, focus, disabled states, scrollbars, and scrims.
 - Built-in themes can be added later as an allowlisted registry of the same

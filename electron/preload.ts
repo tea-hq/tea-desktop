@@ -8,11 +8,17 @@ import {
   type TeaDesktopBridge,
   unwrapDesktopCommandResult,
 } from '../src/types/electronBridge'
+import { isEffectiveTheme } from '../src/types/theme'
 
 const commandSet = new Set<string>(DESKTOP_COMMANDS)
 const eventSet = new Set<string>(DESKTOP_EVENTS)
 
 const bridge: TeaDesktopBridge = {
+  setWindowTheme(theme): void {
+    if (!isEffectiveTheme(theme)) throw new Error(`Unsupported window theme: ${String(theme)}`)
+    ipcRenderer.send('tea:window-theme-changed', theme)
+  },
+
   async invoke<T>(command: DesktopCommand, args?: unknown): Promise<T> {
     if (!commandSet.has(command)) throw new Error(`Unsupported desktop command: ${command}`)
     const result: unknown = await ipcRenderer.invoke('tea:command', command, args)
