@@ -556,6 +556,46 @@ describe('RuntimeConversationService', () => {
     await service.shutdown()
   })
 
+  it('serializes competing workspace relocations for one conversation', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    catalog.create(catalogRecord())
+    const gate = deferred<void>()
+    const runtime = fakeRuntime()
+    runtime.restoreConversation.mockImplementationOnce(
+      async (conversationId, binding: RuntimeConversationBinding) => {
+        await gate.promise
+        return {
+          conversationId,
+          runtimeId: binding.runtimeId,
+          nativeSessionId: binding.nativeSessionId,
+          binding: structuredClone(binding),
+        }
+      },
+    )
+    const service = createService(
+      catalog,
+      runtime.value,
+      resolver(),
+      undefined,
+      () => 900,
+      availableWorkspaceFileSystem('/projects/candidate'),
+    )
+
+    const first = service.relocateConversationWorkspace('conversation-1', '/projects/first')
+    const second = service.relocateConversationWorkspace('conversation-1', '/projects/second')
+    await vi.waitFor(() => expect(runtime.restoreConversation).toHaveBeenCalledTimes(1))
+
+    gate.resolve(undefined)
+
+    await expect(first).resolves.toMatchObject({
+      summary: { workingDirectory: '/projects/candidate' },
+    })
+    await expect(second).rejects.toMatchObject({ code: 'invalidRequest' })
+    expect(runtime.restoreConversation).toHaveBeenCalledTimes(1)
+    await service.shutdown()
+  })
+
   it('rejects changed HostTool resolution before runtime restore', async () => {
     const catalog = new ConversationCatalog(await catalogPath())
     await catalog.initialize()

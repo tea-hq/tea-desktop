@@ -71,11 +71,7 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
   })
   const workspaceRecoveryAvailable = computed(() => {
     const error = activeConversationError.value
-    return (
-      !ui.collaborationWorkspace.value &&
-      error?.kind === 'runtime' &&
-      error.code === 'workspaceUnavailable'
-    )
+    return error?.kind === 'runtime' && error.code === 'workspaceUnavailable'
   })
   const collaborationErrorText = computed(() => {
     const error = collaboration.error

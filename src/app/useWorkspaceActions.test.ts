@@ -143,6 +143,32 @@ describe('useWorkspaceActions', () => {
     expect(relocateConversationWorkspace).toHaveBeenCalledWith('/work/tea-relocated')
   })
 
+  it('relocates the active collaboration conversation through its owning store', async () => {
+    const relocateConversationWorkspace = vi.fn().mockResolvedValue(true)
+    const localRelocation = vi.fn().mockResolvedValue(true)
+    const selectDirectory = vi.fn(async () => '/work/channel-relocated')
+    const stores = {
+      conversation: {
+        conversationId: 'local-conversation',
+        relocateConversationWorkspace: localRelocation,
+      },
+      collaboration: {
+        conversationId: 'channel-conversation',
+        relocateConversationWorkspace,
+      },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.collaborationWorkspace.value = true
+    const actions = useWorkspaceActions(stores, ui, runtime, { selectDirectory })
+
+    await actions.recoverActiveConversationWorkspace()
+
+    expect(selectDirectory).toHaveBeenCalledOnce()
+    expect(relocateConversationWorkspace).toHaveBeenCalledWith('/work/channel-relocated')
+    expect(localRelocation).not.toHaveBeenCalled()
+  })
+
   it('forces a reload when retrying the active local conversation', async () => {
     const reloadConversation = vi.fn().mockResolvedValue(undefined)
     const stores = {
@@ -150,6 +176,22 @@ describe('useWorkspaceActions', () => {
     } as unknown as TeaDesktopStores
     const runtime = { channelEnvironment: ref(null) } as never
     const ui = createWorkspaceUiState()
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    await actions.retryActiveConversation()
+
+    expect(reloadConversation).toHaveBeenCalledOnce()
+  })
+
+  it('forces a reload when retrying the active collaboration conversation', async () => {
+    const reloadConversation = vi.fn().mockResolvedValue(undefined)
+    const stores = {
+      conversation: { reloadConversation: vi.fn() },
+      collaboration: { reloadConversation },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    ui.collaborationWorkspace.value = true
     const actions = useWorkspaceActions(stores, ui, runtime)
 
     await actions.retryActiveConversation()

@@ -228,19 +228,24 @@ export function useWorkspaceActions(
 
   async function retryActiveConversation(): Promise<void> {
     if (ui.collaborationWorkspace.value) {
-      if (collaboration.conversationId) {
-        await collaboration.selectConversation(collaboration.conversationId)
-      }
+      await collaboration.reloadConversation()
       return
     }
     await conversation.reloadConversation()
   }
 
   async function recoverActiveConversationWorkspace(): Promise<void> {
-    if (ui.collaborationWorkspace.value || !workspaceClient || !conversation.conversationId) return
+    if (!workspaceClient) return
+    const collaborationMode = ui.collaborationWorkspace.value
+    const activeConversationId = collaborationMode
+      ? collaboration.conversationId
+      : conversation.conversationId
+    if (!activeConversationId) return
     try {
       const directory = await workspaceClient.selectDirectory()
-      if (directory) await conversation.relocateConversationWorkspace(directory)
+      if (!directory) return
+      if (collaborationMode) await collaboration.relocateConversationWorkspace(directory)
+      else await conversation.relocateConversationWorkspace(directory)
     } catch {
       // A cancelled or unavailable native picker leaves the recorded binding unchanged.
     }

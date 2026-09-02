@@ -434,13 +434,16 @@ export class RuntimeConversationService {
     )
     if (!canonicalPath) throw invalidRequest('working directory is required')
 
-    await this.waitForRestoreSlot(conversationId)
-    if (this.activeHandles.has(conversationId)) {
-      throw invalidRequest('an active conversation workspace cannot be relocated')
-    }
-    const record = this.catalog.get(conversationId)
-    if (!record) throw unknownConversation(conversationId)
-    const relocation = this.relocateConversationWorkspaceOnce(record, canonicalPath)
+    const previous = this.pendingRestores.get(conversationId)
+    const relocation = (async () => {
+      await previous?.catch(() => undefined)
+      if (this.activeHandles.has(conversationId)) {
+        throw invalidRequest('an active conversation workspace cannot be relocated')
+      }
+      const record = this.catalog.get(conversationId)
+      if (!record) throw unknownConversation(conversationId)
+      return this.relocateConversationWorkspaceOnce(record, canonicalPath)
+    })()
     this.pendingRestores.set(conversationId, relocation)
     try {
       await relocation
@@ -677,17 +680,6 @@ export class RuntimeConversationService {
     this.rememberActiveConversationWithSubscription(handle, candidateSubscription)
     this.emitUpdate(relocated.summary)
     return handle
-  }
-
-  private async waitForRestoreSlot(conversationId: string): Promise<void> {
-    let pending = this.pendingRestores.get(conversationId)
-    while (pending) {
-      await pending.catch(() => undefined)
-      if (this.pendingRestores.get(conversationId) === pending) {
-        this.pendingRestores.delete(conversationId)
-      }
-      pending = this.pendingRestores.get(conversationId)
-    }
   }
 
   private requireReadyRuntime(runtimeId: string): ConversationRuntime {
