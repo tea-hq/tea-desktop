@@ -109,6 +109,58 @@ export interface ChannelVoiceTranscript {
   retryable: boolean
 }
 
+export const CHANNEL_VOICE_PLAYBACK_RATES = [1, 1.5, 2] as const
+
+export type ChannelVoicePlaybackRate = (typeof CHANNEL_VOICE_PLAYBACK_RATES)[number]
+export type ChannelVoicePlaybackStatus = 'loading' | 'playing' | 'paused' | 'failed'
+export type ChannelVoicePlaybackErrorCode =
+  'blocked' | 'network' | 'decode' | 'unsupported' | 'unknown'
+
+export interface ChannelVoicePlaybackState {
+  messageRef: MessageRef
+  status: ChannelVoicePlaybackStatus
+  positionMs: number
+  durationMs: number
+  playbackRate: ChannelVoicePlaybackRate
+  errorCode?: ChannelVoicePlaybackErrorCode
+  retryable: boolean
+}
+
+export interface ChannelVoicePlaybackRequest {
+  messageRef: MessageRef
+  sourceUrl: string
+  durationMs?: number
+  startAtMs: number
+  playbackRate: ChannelVoicePlaybackRate
+}
+
+export type ChannelVoicePlaybackEvent =
+  | { type: 'playing' | 'paused' | 'ended' }
+  | { type: 'progress'; positionMs: number; durationMs: number }
+  | { type: 'failed'; errorCode: ChannelVoicePlaybackErrorCode; retryable: boolean }
+
+export type ChannelVoicePlaybackListener = (event: ChannelVoicePlaybackEvent) => void
+
+/** Renderer platform boundary for one mutually exclusive voice media element. */
+export interface ChannelVoicePlaybackClient {
+  play(request: ChannelVoicePlaybackRequest, listener: ChannelVoicePlaybackListener): Promise<void>
+  pause(): void
+  seek(positionMs: number): void
+  setPlaybackRate(rate: ChannelVoicePlaybackRate): void
+  stop(): void
+  dispose(): void
+}
+
+export class ChannelVoicePlaybackClientError extends Error {
+  constructor(
+    readonly code: ChannelVoicePlaybackErrorCode,
+    readonly retryable: boolean,
+  ) {
+    super(code)
+    this.name = 'ChannelVoicePlaybackClientError'
+  }
+}
+
 /**
  * Provider-neutral media metadata. Local File/Blob handles deliberately do
  * not cross this boundary; upload orchestration belongs to a transport.

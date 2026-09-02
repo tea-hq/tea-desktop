@@ -8,6 +8,10 @@ import type {
   ChannelEvent,
   ChannelPresence,
   ChannelTransport,
+  ChannelVoicePlaybackClient,
+  ChannelVoicePlaybackEvent,
+  ChannelVoicePlaybackRequest,
+  ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
   OutgoingMessageAttempt,
   SaveChannelDraftRequest,
@@ -118,5 +122,45 @@ describe('voice transcription contracts', () => {
     expect(transcript).not.toHaveProperty('voiceUrl')
     expect(transcript).not.toHaveProperty('mimeType')
     await expect(transport.transcribeVoice(messageRef)).resolves.toBe(transcript.text)
+  })
+})
+
+describe('voice playback contracts', () => {
+  it('keep media playback provider-neutral and renderer scoped', async () => {
+    const request: ChannelVoicePlaybackRequest = {
+      messageRef: {
+        channelRef: 'channel-ref',
+        messageClientId: 'voice-client-id',
+        messageServerId: 'voice-server-id',
+      },
+      sourceUrl: 'https://media.example.test/voice.aac',
+      durationMs: 12_000,
+      startAtMs: 2_000,
+      playbackRate: 1.5,
+    }
+    const state: ChannelVoicePlaybackState = {
+      messageRef: request.messageRef,
+      status: 'playing',
+      positionMs: 2_000,
+      durationMs: 12_000,
+      playbackRate: 1.5,
+      retryable: false,
+    }
+    const events: ChannelVoicePlaybackEvent[] = []
+    const client: ChannelVoicePlaybackClient = {
+      play: async (_request, listener) => {
+        listener({ type: 'playing' })
+      },
+      pause: () => undefined,
+      seek: () => undefined,
+      setPlaybackRate: () => undefined,
+      stop: () => undefined,
+      dispose: () => undefined,
+    }
+
+    await expect(client.play(request, (event) => events.push(event))).resolves.toBeUndefined()
+    expect(events).toEqual([{ type: 'playing' }])
+    expect(state).not.toHaveProperty('sourceUrl')
+    expect(state).not.toHaveProperty('provider')
   })
 })
