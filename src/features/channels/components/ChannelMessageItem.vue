@@ -9,9 +9,11 @@ import type {
   ChannelVoicePlaybackRate,
   ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
+  ChannelMediaSaveState,
   Message,
 } from '../contracts'
 import ChannelMessageActions from './ChannelMessageActions.vue'
+import ChannelMediaSaveControl from './ChannelMediaSaveControl.vue'
 import ChannelMergedMessageCard from './ChannelMergedMessageCard.vue'
 import ChannelVoiceMessagePlayer from './ChannelVoiceMessagePlayer.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
@@ -34,6 +36,8 @@ const props = withDefaults(
     voicePlayback?: ChannelVoicePlaybackState | null
     voicePlaybackRate?: ChannelVoicePlaybackRate
     voicePlaybackAvailable?: boolean
+    mediaSave?: ChannelMediaSaveState | null
+    mediaSavingAvailable?: boolean
   }>(),
   {
     highlighted: false,
@@ -45,6 +49,8 @@ const props = withDefaults(
     voicePlayback: null,
     voicePlaybackRate: 1,
     voicePlaybackAvailable: false,
+    mediaSave: null,
+    mediaSavingAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -58,6 +64,10 @@ const emit = defineEmits<{
   retryVoicePlayback: []
   seekVoicePlayback: [positionMs: number]
   setVoicePlaybackRate: [rate: ChannelVoicePlaybackRate]
+  openMedia: []
+  saveMedia: []
+  cancelMediaSave: []
+  retryMediaSave: []
 }>()
 const { t } = useI18n()
 
@@ -100,6 +110,31 @@ function isMediaContent(
     content.kind === 'video' ||
     content.kind === 'file'
   )
+}
+
+type MediaContent = Extract<Message['content'], { kind: 'image' | 'audio' | 'video' | 'file' }>
+
+function mediaName(content: MediaContent): string {
+  return content.media.name?.trim() || props.message.text
+}
+
+function mediaSize(content: MediaContent): string {
+  const value = content.media.size
+  if (!Number.isFinite(value) || value === undefined || value < 0) return ''
+  if (value < 1_024) return `${Math.round(value)} B`
+  if (value < 1_048_576) return `${(value / 1_024).toFixed(1)} KB`
+  if (value < 1_073_741_824) return `${(value / 1_048_576).toFixed(1)} MB`
+  return `${(value / 1_073_741_824).toFixed(1)} GB`
+}
+
+function mediaOpenLabel(content: Extract<MediaContent, { kind: 'image' | 'video' }>): string {
+  return t(`channels.message.media.${content.kind === 'image' ? 'openImage' : 'openVideo'}`)
+}
+
+function mediaAspectRatio(content: MediaContent): string {
+  const { width, height } = content.media
+  if (!width || !height || width <= 0 || height <= 0) return '16 / 10'
+  return `${width} / ${height}`
 }
 
 function selectMessage(): void {
@@ -174,58 +209,86 @@ function selectMessage(): void {
               @open="emit('openMerged')"
             />
             <template v-else-if="isMediaContent(message.content)">
-              <img
-                v-if="message.content.kind === 'image' && message.content.media.url"
-                class="channel-message-media-image"
-                :src="message.content.media.url"
-                :alt="message.content.media.name || t('channels.message.image')"
-                loading="lazy"
-              />
-              <ChannelVoiceMessagePlayer
-                v-else-if="message.content.kind === 'audio' && message.content.media.url"
-                :playback="voicePlayback"
-                :duration-ms="message.content.media.durationMs"
-                :playback-rate="voicePlaybackRate"
-                :interactive="voicePlaybackAvailable && interactive && !selectionMode"
-                @toggle="emit('toggleVoicePlayback')"
-                @retry="emit('retryVoicePlayback')"
-                @seek="emit('seekVoicePlayback', $event)"
-                @rate="emit('setVoicePlaybackRate', $event)"
-              />
-              <video
-                v-else-if="message.content.kind === 'video' && message.content.media.url"
-                class="channel-message-media-video"
-                controls
-                preload="metadata"
-                :src="message.content.media.url"
-              />
-              <a
-                v-else-if="message.content.kind === 'file' && message.content.media.url"
-                class="flex items-center gap-2 text-sm font-medium text-fg underline decoration-line-soft underline-offset-2"
-                :href="message.content.media.url"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span
-                  :class="[mediaIcon(message.content.kind), 'size-5 shrink-0']"
-                  aria-hidden="true"
+              <div class="channel-message-media flex min-w-0 flex-col gap-2">
+                <button
+                  v-if="message.content.kind === 'image' && message.content.media.url"
+                  type="button"
+                  class="channel-message-media-preview relative flex items-center justify-center overflow-hidden rounded-inline bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-default"
+                  :style="{ aspectRatio: mediaAspectRatio(message.content) }"
+                  :aria-label="mediaOpenLabel(message.content)"
+                  :disabled="!interactive || selectionMode"
+                  data-media-preview
+                  @click.stop="emit('openMedia')"
+                >
+                  <img
+                    class="size-full object-contain"
+                    :src="message.content.media.url"
+                    :alt="mediaName(message.content) || t('channels.message.image')"
+                    loading="lazy"
+                  />
+                </button>
+                <button
+                  v-else-if="message.content.kind === 'video' && message.content.media.url"
+                  type="button"
+                  class="channel-message-media-preview relative flex items-center justify-center overflow-hidden rounded-inline bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-default"
+                  :style="{ aspectRatio: mediaAspectRatio(message.content) }"
+                  :aria-label="mediaOpenLabel(message.content)"
+                  :disabled="!interactive || selectionMode"
+                  data-media-preview
+                  @click.stop="emit('openMedia')"
+                >
+                  <video
+                    class="pointer-events-none size-full object-contain"
+                    :src="message.content.media.url"
+                    preload="metadata"
+                    playsinline
+                    aria-hidden="true"
+                    tabindex="-1"
+                  />
+                  <span
+                    class="absolute flex size-10 items-center justify-center rounded-full bg-canvas/90 text-fg"
+                    aria-hidden="true"
+                  >
+                    <span class="i-mdi-play size-5" />
+                  </span>
+                </button>
+                <ChannelVoiceMessagePlayer
+                  v-else-if="message.content.kind === 'audio' && message.content.media.url"
+                  :playback="voicePlayback"
+                  :duration-ms="message.content.media.durationMs"
+                  :playback-rate="voicePlaybackRate"
+                  :interactive="voicePlaybackAvailable && interactive && !selectionMode"
+                  @toggle="emit('toggleVoicePlayback')"
+                  @retry="emit('retryVoicePlayback')"
+                  @seek="emit('seekVoicePlayback', $event)"
+                  @rate="emit('setVoicePlaybackRate', $event)"
                 />
-                <span class="max-w-56 truncate">{{
-                  message.content.media.name || message.text
-                }}</span>
-              </a>
-              <div v-else class="flex min-w-0 items-center gap-2 text-sm text-subtle">
-                <span
-                  :class="[mediaIcon(message.content.kind), 'size-5 shrink-0']"
-                  aria-hidden="true"
-                />
-                <span class="max-w-56 truncate">{{
-                  message.content.media.name || message.text
-                }}</span>
+                <div class="flex min-w-0 items-center gap-2">
+                  <span
+                    :class="[mediaIcon(message.content.kind), 'size-5 shrink-0 text-subtle']"
+                    aria-hidden="true"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="max-w-64 truncate text-sm font-medium text-fg">
+                      {{ mediaName(message.content) }}
+                    </p>
+                    <p v-if="mediaSize(message.content)" class="text-xs tabular-nums text-subtle">
+                      {{ mediaSize(message.content) }}
+                    </p>
+                  </div>
+                  <ChannelMediaSaveControl
+                    :state="mediaSave"
+                    :available="mediaSavingAvailable"
+                    :interactive="interactive && !selectionMode"
+                    @save="emit('saveMedia')"
+                    @cancel="emit('cancelMediaSave')"
+                    @retry="emit('retryMediaSave')"
+                  />
+                </div>
+                <p v-if="message.content.caption" class="text-sm leading-5 text-fg">
+                  {{ message.content.caption }}
+                </p>
               </div>
-              <p v-if="message.content.caption" class="mt-1 text-sm leading-5 text-fg">
-                {{ message.content.caption }}
-              </p>
               <div
                 v-if="
                   message.content.kind === 'audio' &&
@@ -379,14 +442,14 @@ function selectMessage(): void {
 </template>
 
 <style scoped>
-.channel-message-media-image,
-.channel-message-media-video {
-  display: block;
-  max-width: min(28rem, 70vw);
-  max-height: 20rem;
-  border-radius: var(--tea-radius-inline);
-  object-fit: contain;
-  background: var(--tea-muted);
+.channel-message-media {
+  width: min(28rem, 68vw);
+  max-width: 100%;
+}
+
+.channel-message-media-preview {
+  width: min(24rem, 100%);
+  max-height: 18rem;
 }
 
 .channel-message-media-audio {

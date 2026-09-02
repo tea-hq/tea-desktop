@@ -8,6 +8,7 @@ import type {
   Channel,
   ChannelAttachment,
   ChannelMember,
+  ChannelMediaSaveState,
   ChannelPresence,
   ChannelVoicePlaybackRate,
   ChannelVoicePlaybackState,
@@ -67,6 +68,8 @@ const props = withDefaults(
     voicePlaybackAvailable?: boolean
     voiceTranscripts?: ChannelVoiceTranscript[]
     voiceTranscriptionAvailable?: boolean
+    mediaSaves?: ChannelMediaSaveState[]
+    mediaSavingAvailable?: boolean
   }>(),
   {
     replyTo: null,
@@ -92,6 +95,8 @@ const props = withDefaults(
     voicePlaybackAvailable: false,
     voiceTranscripts: () => [],
     voiceTranscriptionAvailable: false,
+    mediaSaves: () => [],
+    mediaSavingAvailable: false,
   },
 )
 const emit = defineEmits<{
@@ -137,6 +142,10 @@ const emit = defineEmits<{
   retryVoicePlayback: [message: Message]
   seekVoicePlayback: [payload: { message: Message; positionMs: number }]
   setVoicePlaybackRate: [rate: ChannelVoicePlaybackRate]
+  openMedia: [message: Message]
+  saveMedia: [message: Message]
+  cancelMediaSave: [message: Message]
+  retryMediaSave: [message: Message]
 }>()
 const { t } = useI18n()
 const selectedMentions = ref<SelectedMessageMention[]>([])
@@ -165,6 +174,10 @@ function voicePlayback(message: Message): ChannelVoicePlaybackState | null {
   return (
     props.voicePlaybacks.find((playback) => sameMessage(playback.messageRef, message.ref)) ?? null
   )
+}
+
+function mediaSave(message: Message): ChannelMediaSaveState | null {
+  return props.mediaSaves.find((state) => sameMessage(state.messageRef, message.ref)) ?? null
 }
 
 const mentionContext = computed(() => {
@@ -521,6 +534,8 @@ watch(
           :voice-playback="voicePlayback(message)"
           :voice-playback-rate="voicePlaybackRate"
           :voice-playback-available="voicePlaybackAvailable"
+          :media-save="mediaSave(message)"
+          :media-saving-available="mediaSavingAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
           @action="(action) => emit('messageAction', { message, action })"
           @toggle-selection="emit('toggleMessageSelection', message)"
@@ -531,6 +546,10 @@ watch(
           @retry-voice-playback="emit('retryVoicePlayback', message)"
           @seek-voice-playback="(positionMs) => emit('seekVoicePlayback', { message, positionMs })"
           @set-voice-playback-rate="emit('setVoicePlaybackRate', $event)"
+          @open-media="emit('openMedia', message)"
+          @save-media="emit('saveMedia', message)"
+          @cancel-media-save="emit('cancelMediaSave', message)"
+          @retry-media-save="emit('retryMediaSave', message)"
         />
         <ChannelOutgoingMessageItem
           v-for="attempt in outgoingAttempts"

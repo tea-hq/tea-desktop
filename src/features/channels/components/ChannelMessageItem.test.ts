@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Message } from '../contracts'
+import type { ChannelMediaSaveState, Message } from '../contracts'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 
 const message: Message = {
@@ -44,6 +44,35 @@ const voiceMessage: Message = {
       durationMs: 2_400,
     },
   },
+}
+
+const imageMessage: Message = {
+  ...message,
+  ref: { channelRef: 'channel-product', messageClientId: 'message-image' },
+  text: '[image: release-plan.png]',
+  content: {
+    kind: 'image',
+    caption: 'Release plan',
+    media: {
+      url: 'https://media.example.test/release-plan.png',
+      name: 'release-plan.png',
+      size: 2_048,
+      width: 1_200,
+      height: 800,
+    },
+  },
+}
+
+function mediaSaveState(overrides: Partial<ChannelMediaSaveState> = {}): ChannelMediaSaveState {
+  return {
+    operationId: 'media-save-1',
+    messageRef: imageMessage.ref,
+    status: 'saving',
+    receivedBytes: 1_024,
+    totalBytes: 2_048,
+    retryable: false,
+    ...overrides,
+  }
 }
 
 function mountMessage(messageValue: Message, extraProps: Record<string, unknown> = {}) {
@@ -108,6 +137,59 @@ describe('ChannelMessageItem', () => {
 
     expect(wrapper.emitted('toggleVoicePlayback')).toEqual([[]])
     expect(wrapper.emitted('seekVoicePlayback')).toEqual([[1_500]])
+  })
+
+  it('opens compact visual media and routes provider-neutral save intent', async () => {
+    const wrapper = mountMessage(imageMessage, {
+      mediaSavingAvailable: true,
+      mediaSave: mediaSaveState({ status: 'saved', fileName: 'release-plan.png' }),
+    })
+
+    expect(wrapper.get('[data-media-preview]').element.tagName).toBe('BUTTON')
+    expect(wrapper.get('[data-media-preview]').attributes('aria-label')).toBe('Open image preview')
+    expect(wrapper.text()).toContain('release-plan.png')
+    expect(wrapper.text()).toContain('2.0 KB')
+
+    await wrapper.get('[data-media-preview]').trigger('click')
+    await wrapper.get('button[aria-label="Save attachment again"]').trigger('click')
+
+    expect(wrapper.emitted('openMedia')).toEqual([[]])
+    expect(wrapper.emitted('saveMedia')).toEqual([[]])
+  })
+
+  it('removes inline video controls and direct file links', () => {
+    const video = mountMessage({
+      ...imageMessage,
+      ref: { channelRef: 'channel-product', messageClientId: 'message-video' },
+      content: {
+        kind: 'video',
+        media: { url: 'https://media.example.test/demo.mp4', name: 'demo.mp4' },
+      },
+    })
+    expect(video.find('video').exists()).toBe(true)
+    expect(video.get('video').attributes('controls')).toBeUndefined()
+    expect(video.get('[data-media-preview]').attributes('aria-label')).toBe('Open video preview')
+
+    const file = mountMessage({
+      ...imageMessage,
+      ref: { channelRef: 'channel-product', messageClientId: 'message-file' },
+      content: {
+        kind: 'file',
+        media: { url: 'https://media.example.test/plan.pdf', name: 'plan.pdf' },
+      },
+    })
+    expect(file.find('a').exists()).toBe(false)
+    expect(file.text()).toContain('plan.pdf')
+  })
+
+  it('disables media actions while selecting messages', () => {
+    const wrapper = mountMessage(imageMessage, {
+      selectionMode: true,
+      mediaSavingAvailable: true,
+    })
+
+    expect(wrapper.get('[data-media-preview]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-media-save-control] button').attributes('disabled')).toBeDefined()
   })
 
   it('renders bounded loading, ready, and retryable transcription states inline', async () => {

@@ -5,7 +5,13 @@ import { createI18n } from 'vue-i18n'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, Message, MessageMention, OutgoingMessageAttempt } from '../contracts'
+import type {
+  Channel,
+  ChannelMediaSaveState,
+  Message,
+  MessageMention,
+  OutgoingMessageAttempt,
+} from '../contracts'
 import { createTextMessageContent } from '../messageContent'
 import { messageSelectionKey } from '../useChannelMessageSelection'
 import ChannelTimeline from './ChannelTimeline.vue'
@@ -48,11 +54,73 @@ const voiceMessage: Message = {
   },
 }
 
+const imageMessage: Message = {
+  ...selectedMessage,
+  ref: { channelRef: channel.ref, messageClientId: 'message-image' },
+  text: '[image: release-plan.png]',
+  content: {
+    kind: 'image',
+    media: { url: 'https://media.example.test/release-plan.png', name: 'release-plan.png' },
+  },
+}
+
+function mediaSaveState(overrides: Partial<ChannelMediaSaveState> = {}): ChannelMediaSaveState {
+  return {
+    operationId: 'media-save-1',
+    messageRef: imageMessage.ref,
+    status: 'saving',
+    receivedBytes: 1_024,
+    totalBytes: 2_048,
+    retryable: false,
+    ...overrides,
+  }
+}
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
 
 describe('ChannelTimeline selection mode', () => {
+  it('routes message-scoped media save state and typed intents', async () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel,
+        messages: [imageMessage],
+        mediaSaves: [mediaSaveState()],
+        mediaSavingAvailable: true,
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    await wrapper.get('[data-media-preview]').trigger('click')
+    await wrapper.get('button[aria-label="Cancel attachment save"]').trigger('click')
+    expect(wrapper.emitted('openMedia')).toEqual([[imageMessage]])
+    expect(wrapper.emitted('cancelMediaSave')).toEqual([[imageMessage]])
+
+    await wrapper.setProps({
+      mediaSaves: [
+        mediaSaveState({ status: 'failed', errorCode: 'downloadFailed', retryable: true }),
+      ],
+    })
+    await wrapper.get('button[aria-label="Retry attachment save"]').trigger('click')
+    expect(wrapper.emitted('retryMediaSave')).toEqual([[imageMessage]])
+
+    await wrapper.setProps({ mediaSaves: [] })
+    await wrapper.get('button[aria-label="Save attachment"]').trigger('click')
+    expect(wrapper.emitted('saveMedia')).toEqual([[imageMessage]])
+    wrapper.unmount()
+  })
+
   it('routes message-scoped playback projection and typed intent', async () => {
     const wrapper = mount(ChannelTimeline, {
       props: {
