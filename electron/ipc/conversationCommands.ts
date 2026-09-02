@@ -62,6 +62,11 @@ export function createConversationCommandHandlers(
           readHostToolReference(value),
         ),
       }),
+    relocate_conversation_workspace: (args) =>
+      conversation.relocateConversationWorkspace(
+        readString(args.conversationId, 'conversationId'),
+        readString(args.workspacePath, 'workspacePath'),
+      ),
     append_conversation_sources: (args) =>
       conversation.appendConversationSources(
         readString(args.conversationId, 'conversationId'),

@@ -98,14 +98,19 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   function runtimeError(value: unknown): ConversationUiError {
-    const candidate = value as { message?: unknown } | null
+    const candidate = value as { message?: unknown; code?: unknown; retryable?: unknown } | null
     const message =
       candidate && typeof candidate.message === 'string'
         ? candidate.message
         : value instanceof Error
           ? value.message
           : String(value)
-    return { kind: 'runtime', message }
+    return {
+      kind: 'runtime',
+      message,
+      code: candidate && typeof candidate.code === 'string' ? candidate.code : 'runtimeFailure',
+      retryable: candidate?.retryable === true,
+    }
   }
 
   function configure(nextClient: ConversationClient): void {
@@ -278,9 +283,9 @@ export const useConversationStore = defineStore('conversation', () => {
     return Boolean(nextRuntimeId)
   }
 
-  async function selectConversation(id: string): Promise<void> {
+  async function selectConversation(id: string, forceReload = false): Promise<void> {
     clearCompletedConversation(id)
-    if (id === conversationId.value) return
+    if (id === conversationId.value && !forceReload) return
     const configured = client
     if (!configured) {
       historyError.value = localizedError('errors.clientNotConfigured')
@@ -347,6 +352,52 @@ export const useConversationStore = defineStore('conversation', () => {
       for (const event of bufferedEvents) handleEvent(event)
     } finally {
       if (token === selectionToken) historyLoading.value = false
+    }
+  }
+
+  async function reloadConversation(): Promise<void> {
+    const currentId = conversationId.value
+    if (currentId) await selectConversation(currentId, true)
+  }
+
+  async function relocateConversationWorkspace(workspacePath: string): Promise<boolean> {
+    const configured = client
+    const currentId = conversationId.value
+    if (!configured) {
+      historyError.value = localizedError('errors.clientNotConfigured')
+      return false
+    }
+    if (!currentId) {
+      historyError.value = localizedError('errors.noActiveConversation')
+      return false
+    }
+    const generation = lifecycleGeneration
+    const token = selectionToken
+    historyLoading.value = true
+    historyError.value = null
+    try {
+      const detail = await configured.relocateConversationWorkspace(currentId, workspacePath)
+      if (
+        generation !== lifecycleGeneration ||
+        token !== selectionToken ||
+        client !== configured ||
+        conversationId.value !== currentId
+      ) {
+        return false
+      }
+      mergeSummary(detail.summary)
+      workingDirectory.value = detail.summary.workingDirectory ?? null
+      await selectConversation(currentId, true)
+      return historyError.value === null
+    } catch (cause) {
+      if (generation === lifecycleGeneration && token === selectionToken) {
+        historyError.value = runtimeError(cause)
+      }
+      return false
+    } finally {
+      if (generation === lifecycleGeneration && token === selectionToken) {
+        historyLoading.value = false
+      }
     }
   }
 
@@ -715,6 +766,8 @@ export const useConversationStore = defineStore('conversation', () => {
     setCatalogFilter,
     startNewConversation,
     selectConversation,
+    reloadConversation,
+    relocateConversationWorkspace,
     markConversationSeen,
     loadOlderHistory,
     createConversation,

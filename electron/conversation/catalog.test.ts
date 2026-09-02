@@ -50,15 +50,62 @@ describe('ConversationCatalog', () => {
     expect(JSON.stringify(persisted)).not.toContain('credential-value')
   })
 
-  it('round-trips an optional working directory and keeps it absent for default sessions', async () => {
+  it('round-trips the effective runtime working directory', async () => {
     const catalog = new ConversationCatalog(await catalogPath())
     await catalog.initialize()
     catalog.create(record('default', 100))
     catalog.create(record('project', 101, { workingDirectory: '/projects/tea' }))
 
-    expect(catalog.get('default')?.summary.workingDirectory).toBeUndefined()
+    expect(catalog.get('default')?.summary.workingDirectory).toBe('/workspace')
     expect(catalog.get('project')?.summary.workingDirectory).toBe('/projects/tea')
     catalog.close()
+  })
+
+  it('relocates binding and summary atomically and clears the restore failure', async () => {
+    const catalog = new ConversationCatalog(await catalogPath())
+    await catalog.initialize()
+    const value = record('conversation-1', 100)
+    catalog.create(value)
+    catalog.recordRestoreFailure('conversation-1', {
+      code: 'workspaceUnavailable',
+      failedAt: 150,
+    })
+    const binding = { ...value.binding, workspacePath: '/projects/tea' }
+
+    const relocated = catalog.relocateWorkspace('conversation-1', binding, 200)
+
+    expect(relocated).toMatchObject({
+      summary: { workingDirectory: '/projects/tea', updatedAt: 200 },
+      binding: { workspacePath: '/projects/tea' },
+    })
+    expect(relocated.lastRestoreFailure).toBeUndefined()
+    expect(catalog.get('conversation-1')).toEqual(relocated)
+    catalog.close()
+  })
+
+  it('backfills schema v2 working directories from runtime bindings', async () => {
+    const filePath = await catalogPath()
+    const catalog = new ConversationCatalog(filePath)
+    await catalog.initialize()
+    catalog.create(record('conversation-1', 100))
+    catalog.close()
+
+    const database = new DatabaseSync(filePath)
+    database
+      .prepare(
+        'UPDATE runtime_conversations SET working_directory = NULL WHERE conversation_id = ?',
+      )
+      .run('conversation-1')
+    database.exec('PRAGMA user_version = 2')
+    database.close()
+
+    const migrated = new ConversationCatalog(filePath)
+    await migrated.initialize()
+    expect(migrated.get('conversation-1')?.summary.workingDirectory).toBe('/workspace')
+    const version = new DatabaseSync(filePath, { readOnly: true })
+    expect(version.prepare('PRAGMA user_version').get()).toMatchObject({ user_version: 3 })
+    version.close()
+    migrated.close()
   })
 
   it('enforces unique conversation and idempotency identities', async () => {
@@ -396,7 +443,7 @@ function record(
       conversationId,
       runtimeId,
       workspaceId: 'workspace-1',
-      ...(options.workingDirectory ? { workingDirectory: options.workingDirectory } : {}),
+      workingDirectory: options.workingDirectory ?? '/workspace',
       createdAt: 100,
       updatedAt,
       ...(options.channelBinding ? { channelBinding: options.channelBinding } : {}),

@@ -26,6 +26,7 @@ export const DESKTOP_COMMANDS = [
   'get_conversation',
   'load_conversation_history',
   'create_conversation',
+  'relocate_conversation_workspace',
   'send_message',
   'append_conversation_sources',
   'create_channel_draft',

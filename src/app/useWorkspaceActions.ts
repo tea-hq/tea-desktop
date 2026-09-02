@@ -227,8 +227,23 @@ export function useWorkspaceActions(
   }
 
   async function retryActiveConversation(): Promise<void> {
-    if (conversation.conversationId)
-      await conversation.selectConversation(conversation.conversationId)
+    if (ui.collaborationWorkspace.value) {
+      if (collaboration.conversationId) {
+        await collaboration.selectConversation(collaboration.conversationId)
+      }
+      return
+    }
+    await conversation.reloadConversation()
+  }
+
+  async function recoverActiveConversationWorkspace(): Promise<void> {
+    if (ui.collaborationWorkspace.value || !workspaceClient || !conversation.conversationId) return
+    try {
+      const directory = await workspaceClient.selectDirectory()
+      if (directory) await conversation.relocateConversationWorkspace(directory)
+    } catch {
+      // A cancelled or unavailable native picker leaves the recorded binding unchanged.
+    }
   }
 
   async function resolveActiveApproval(payload: {
@@ -322,6 +337,7 @@ export function useWorkspaceActions(
     selectActivePermission,
     stopActiveConversation,
     retryActiveConversation,
+    recoverActiveConversationWorkspace,
     resolveActiveApproval,
     logout,
     sendFromFullSurface,

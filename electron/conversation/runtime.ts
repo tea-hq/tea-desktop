@@ -26,6 +26,7 @@ export type ConversationRuntimeErrorCode =
   | 'unknownApproval'
   | 'unknownRuntime'
   | 'unsupportedCapability'
+  | 'workspaceUnavailable'
 
 export class ConversationRuntimeError extends Error {
   constructor(

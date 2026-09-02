@@ -10,6 +10,7 @@ function commandService(): ConversationCommandService {
     getConversation: vi.fn(),
     loadConversationHistory: vi.fn(),
     createConversation: vi.fn(),
+    relocateConversationWorkspace: vi.fn(),
     appendConversationSources: vi.fn(),
     createDraft: vi.fn(),
     updateDraft: vi.fn(),
@@ -26,6 +27,19 @@ function commandService(): ConversationCommandService {
 }
 
 describe('conversation command handlers', () => {
+  it('delegates an explicit workspace relocation request', async () => {
+    const conversation = commandService()
+    const handler = createConversationCommandHandlers({ conversation }).handlers
+      .relocate_conversation_workspace!
+
+    await handler({ conversationId: 'conversation-1', workspacePath: '/projects/tea' })
+
+    expect(conversation.relocateConversationWorkspace).toHaveBeenCalledWith(
+      'conversation-1',
+      '/projects/tea',
+    )
+  })
+
   it('delegates one typed creation request without exposing a backend shape', async () => {
     const conversation = commandService()
     const handler = createConversationCommandHandlers({ conversation }).handlers

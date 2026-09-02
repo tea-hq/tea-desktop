@@ -838,7 +838,7 @@ function uniqueSorted(values: ConversationSummary[]): ConversationSummary[] {
 }
 
 function runtimeError(value: unknown): ConversationUiError {
-  const candidate = value as { code?: unknown; message?: unknown } | null
+  const candidate = value as { code?: unknown; message?: unknown; retryable?: unknown } | null
   const message =
     candidate && typeof candidate.message === 'string'
       ? candidate.message
@@ -852,6 +852,8 @@ function runtimeError(value: unknown): ConversationUiError {
   return {
     kind: 'runtime',
     message,
+    code: candidate && typeof candidate.code === 'string' ? candidate.code : 'runtimeFailure',
+    retryable: candidate?.retryable === true,
   }
 }
 

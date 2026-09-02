@@ -32,6 +32,10 @@ import {
   prepareSubjectSource,
 } from '../subject'
 import type { ConversationToolScope } from '../toolBroker'
+import {
+  requireAvailableWorkspaceDirectory,
+  type ConversationWorkspaceFileSystem,
+} from '../workspace'
 import type { AcpAgentDefinition } from './agentDefinition'
 import {
   createAcpConversationBinding,
@@ -72,6 +76,7 @@ export interface AcpConversationRuntimeOptions {
   subjectTimeoutMs?: number
   scheduler?: AcpRuntimeScheduler
   status?: RuntimeStatus
+  workspaceFileSystem?: ConversationWorkspaceFileSystem
 }
 
 const DEFAULT_SCHEDULER: AcpRuntimeScheduler = {
@@ -104,6 +109,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
   private readonly restoreTimeoutMs: number
   private readonly scheduler: AcpRuntimeScheduler
   private readonly status: RuntimeStatus
+  private readonly workspaceFileSystem: ConversationWorkspaceFileSystem | undefined
   private nextSubjectId = 1
   private shutdownPromise: Promise<void> | null = null
 
@@ -137,6 +143,7 @@ export class AcpConversationRuntime implements ConversationRuntime {
     )
     this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER
     this.status = options.status ?? 'unavailable'
+    this.workspaceFileSystem = options.workspaceFileSystem
   }
 
   descriptor(): RuntimeDescriptor {
@@ -192,6 +199,9 @@ export class AcpConversationRuntime implements ConversationRuntime {
         requireActor(actor, conversationId).handlePermissionRequest(input),
     }
     try {
+      await requireAvailableWorkspaceDirectory(workspacePath, {
+        fileSystem: this.workspaceFileSystem,
+      })
       connection = await this.connectionFactory.connect(
         this.definition,
         {
@@ -320,6 +330,9 @@ export class AcpConversationRuntime implements ConversationRuntime {
         requireActor(actor, conversationId).handlePermissionRequest(input),
     }
     try {
+      await requireAvailableWorkspaceDirectory(binding.workspacePath, {
+        fileSystem: this.workspaceFileSystem,
+      })
       connection = await this.connectionFactory.connect(
         this.definition,
         {
@@ -622,6 +635,9 @@ export class AcpConversationRuntime implements ConversationRuntime {
     let connection: AcpAgentConnection | undefined
     let primary: unknown
     try {
+      await requireAvailableWorkspaceDirectory(this.workspacePath, {
+        fileSystem: this.workspaceFileSystem,
+      })
       const connectionPromise = this.connectionFactory.connect(
         this.definition,
         { cwd: this.workspacePath },
@@ -695,6 +711,9 @@ export class AcpConversationRuntime implements ConversationRuntime {
     let connection: AcpAgentConnection | undefined
     let primary: unknown
     try {
+      await requireAvailableWorkspaceDirectory(binding.workspacePath, {
+        fileSystem: this.workspaceFileSystem,
+      })
       connection = await this.connectionFactory.connect(
         this.definition,
         {

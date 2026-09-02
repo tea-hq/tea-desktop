@@ -127,6 +127,36 @@ describe('useWorkspaceActions', () => {
     expect(setWorkingDirectory).toHaveBeenCalledWith('/work/tea')
   })
 
+  it('relocates the active conversation to a directory selected by the native picker', async () => {
+    const relocateConversationWorkspace = vi.fn().mockResolvedValue(true)
+    const selectDirectory = vi.fn(async () => '/work/tea-relocated')
+    const stores = {
+      conversation: { conversationId: 'conversation-1', relocateConversationWorkspace },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    const actions = useWorkspaceActions(stores, ui, runtime, { selectDirectory })
+
+    await actions.recoverActiveConversationWorkspace()
+
+    expect(selectDirectory).toHaveBeenCalledOnce()
+    expect(relocateConversationWorkspace).toHaveBeenCalledWith('/work/tea-relocated')
+  })
+
+  it('forces a reload when retrying the active local conversation', async () => {
+    const reloadConversation = vi.fn().mockResolvedValue(undefined)
+    const stores = {
+      conversation: { reloadConversation },
+    } as unknown as TeaDesktopStores
+    const runtime = { channelEnvironment: ref(null) } as never
+    const ui = createWorkspaceUiState()
+    const actions = useWorkspaceActions(stores, ui, runtime)
+
+    await actions.retryActiveConversation()
+
+    expect(reloadConversation).toHaveBeenCalledOnce()
+  })
+
   it('quick-creates drafts with only the requested working-directory difference', () => {
     const startNewConversation = vi.fn()
     const setWorkingDirectory = vi.fn()
