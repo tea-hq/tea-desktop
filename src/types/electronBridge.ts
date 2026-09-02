@@ -86,6 +86,8 @@ export const DESKTOP_COMMANDS = [
   'cancel_channel_message_send',
   'select_channel_attachments',
   'release_channel_attachment',
+  'save_channel_media',
+  'cancel_channel_media_save',
   'mark_channel_read',
   'set_channel_pinned',
   'set_channel_muted',
@@ -102,6 +104,7 @@ export const DESKTOP_EVENTS = [
   'center-auth-state-changed',
   'managed-workspace-state-changed',
   'channel-event',
+  'channel-media-save-progress',
   'conversation:event',
   'conversation:host-tool-call',
   'conversation:updated',
@@ -113,6 +116,7 @@ export interface DesktopEventPayloadMap {
   'center-auth-state-changed': CenterAuthState
   'managed-workspace-state-changed': ManagedWorkspaceState
   'channel-event': ChannelEvent
+  'channel-media-save-progress': ChannelMediaSaveProgressEvent
   'conversation:event': ConversationEvent
   'conversation:host-tool-call': HostToolCall
   'conversation:updated': ConversationSummary
@@ -161,7 +165,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 import type { CenterAuthState } from '../features/auth/contracts'
-import type { ChannelEvent } from '../features/channels/contracts'
+import type { ChannelEvent, ChannelMediaSaveProgressEvent } from '../features/channels/contracts'
 import type {
   ConversationEvent,
   ConversationSummary,

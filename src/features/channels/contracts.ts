@@ -161,6 +161,68 @@ export class ChannelVoicePlaybackClientError extends Error {
   }
 }
 
+export type ChannelMediaSaveErrorCode =
+  | 'invalidRequest'
+  | 'messageUnavailable'
+  | 'mediaUnavailable'
+  | 'unsupportedProtocol'
+  | 'tooLarge'
+  | 'downloadFailed'
+  | 'writeFailed'
+  | 'unknown'
+
+export interface ChannelMediaSaveRequest {
+  operationId: string
+  messageRef: MessageRef
+}
+
+export type ChannelMediaSaveResult =
+  { status: 'saved'; fileName: string; byteLength: number } | { status: 'cancelled' }
+
+export interface ChannelMediaSaveProgressEvent {
+  operationId: string
+  phase: 'saving'
+  receivedBytes: number
+  totalBytes?: number
+}
+
+export type ChannelMediaSaveProgressListener = (event: ChannelMediaSaveProgressEvent) => void
+
+export type ChannelMediaSaveStatus = 'choosing' | 'saving' | 'saved' | 'failed' | 'cancelled'
+
+/** Account-lifecycle projection of an explicit user save operation. */
+export interface ChannelMediaSaveState {
+  operationId: string
+  messageRef: MessageRef
+  status: ChannelMediaSaveStatus
+  receivedBytes: number
+  totalBytes?: number
+  fileName?: string
+  byteLength?: number
+  errorCode?: ChannelMediaSaveErrorCode
+  retryable: boolean
+}
+
+/** Renderer-to-platform boundary for user-initiated media saving. */
+export interface ChannelMediaClient {
+  save(
+    request: ChannelMediaSaveRequest,
+    listener: ChannelMediaSaveProgressListener,
+  ): Promise<ChannelMediaSaveResult>
+  cancel(operationId: string): Promise<void>
+  dispose(): Promise<void>
+}
+
+export class ChannelMediaClientError extends Error {
+  constructor(
+    readonly code: ChannelMediaSaveErrorCode,
+    readonly retryable: boolean,
+  ) {
+    super(code)
+    this.name = 'ChannelMediaClientError'
+  }
+}
+
 /**
  * Provider-neutral media metadata. Local File/Blob handles deliberately do
  * not cross this boundary; upload orchestration belongs to a transport.
