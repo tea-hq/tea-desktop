@@ -13,6 +13,8 @@ const channel: Channel = {
   kind: 'group',
   name: 'Channel',
   description: '',
+  pinned: false,
+  muted: false,
   unreadCount: 2,
   updatedAt: 10,
 }

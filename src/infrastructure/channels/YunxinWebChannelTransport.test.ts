@@ -93,6 +93,8 @@ function createFakeSdk() {
       lastReadTime: 0,
     })),
     markConversationRead: vi.fn(async () => Date.now()),
+    stickTopConversation: vi.fn(async () => undefined),
+    deleteConversation: vi.fn(async () => undefined),
   })
   let sendCount = 0
   let uploadedArchive = ''
@@ -292,6 +294,11 @@ function createFakeSdk() {
       ],
     })),
   })
+  const setting = Object.assign(new FakeService(), {
+    getConversationMuteStatus: vi.fn(() => false),
+    setP2PMessageMuteMode: vi.fn(async () => undefined),
+    setTeamMessageMuteMode: vi.fn(async () => undefined),
+  })
   const sdk = {
     V2NIMLoginService: login,
     V2NIMConversationService: conversation,
@@ -299,6 +306,7 @@ function createFakeSdk() {
     V2NIMUserService: user,
     V2NIMFriendService: friend,
     V2NIMTeamService: team,
+    V2NIMSettingService: setting,
     V2NIMMessageCreator: {
       createTextMessage: (text: string) => rawMessage(text),
       createForwardMessage: vi.fn((value: ReturnType<typeof rawMessage>) => rawMessage(value.text)),
@@ -341,6 +349,7 @@ function createFakeSdk() {
     user,
     friend,
     team,
+    setting,
     getUploadedArchive: () => uploadedArchive,
   }
 }
@@ -656,6 +665,22 @@ describe('YunxinWebChannelTransport', () => {
     expect(message.sendTeamMessageReceipts.mock.calls[0]![0][0]).toMatchObject({
       messageClientId: 'incoming-5',
     })
+  })
+
+  it('translates provider-neutral conversation controls into exact SDK operations', async () => {
+    const { sdk, conversation, setting } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await transport.setChannelPinned('p2p|alice', true)
+    await transport.setChannelMuted('p2p|alice', true)
+    await transport.setChannelMuted('team|design', false)
+    await transport.hideChannel('team|design')
+
+    expect(conversation.stickTopConversation).toHaveBeenCalledWith('p2p|alice', true)
+    expect(setting.setP2PMessageMuteMode).toHaveBeenCalledWith('alice', 1)
+    expect(setting.setTeamMessageMuteMode).toHaveBeenCalledWith('design', 1, 0)
+    expect(conversation.deleteConversation).toHaveBeenCalledWith('team|design', false)
   })
 
   it('uploads an interoperable merged archive and loads it through the converter', async () => {

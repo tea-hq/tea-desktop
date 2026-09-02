@@ -73,6 +73,9 @@ describe('ElectronChannelTransport', () => {
         'message.quickComment',
         'message.receipt.details',
         'channel.manage',
+        'channel.pin',
+        'channel.mute',
+        'channel.hide',
       ]),
     )
   })
@@ -175,6 +178,22 @@ describe('ElectronChannelTransport', () => {
 
     await expect(transport.getMessageReceiptDetails(messageRef)).resolves.toEqual(details)
     expect(mocks.invoke).toHaveBeenCalledWith('get_channel_message_receipt_details', { messageRef })
+    await transport.dispose()
+  })
+
+  it('invokes the complete conversation-control command boundary', async () => {
+    mocks.invoke.mockResolvedValue(undefined)
+    const transport = new ElectronChannelTransport()
+
+    await transport.setChannelPinned('channel', true)
+    await transport.setChannelMuted('channel', false)
+    await transport.hideChannel('channel')
+
+    expect(mocks.invoke.mock.calls).toEqual([
+      ['set_channel_pinned', { channelRef: 'channel', pinned: true }],
+      ['set_channel_muted', { channelRef: 'channel', muted: false }],
+      ['hide_channel', { channelRef: 'channel' }],
+    ])
     await transport.dispose()
   })
 })

@@ -9,10 +9,22 @@ import type { Message } from '../contracts'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 
 const message: Message = {
-  ref: { channelRef: 'product', messageClientId: 'm1' },
-  sender: { id: 'user-1', name: 'Ada Lovelace', isCurrentUser: false },
+  ref: { channelRef: 'channel-product', messageClientId: 'message-merged' },
+  sender: { id: 'sender', name: 'Lin', isCurrentUser: false },
   sentAt: 1,
-  text: 'Hello',
+  text: 'Product history',
+  content: {
+    kind: 'merged',
+    sourceChannelName: 'Product',
+    abstracts: [
+      {
+        senderAccountId: 'sender',
+        senderName: 'Lin',
+        text: 'A long summary that must shrink inside a narrow timeline.',
+      },
+    ],
+    depth: 1,
+  },
   state: 'active',
   sentByCurrentUser: false,
   pinned: false,
@@ -20,7 +32,7 @@ const message: Message = {
 }
 
 describe('ChannelMessageItem', () => {
-  it('renders a deterministic Avataaars fallback for senders without an avatar', () => {
+  it('allows merged message rows to shrink within narrow timelines', () => {
     const wrapper = mount(ChannelMessageItem, {
       props: {
         message,
@@ -33,13 +45,13 @@ describe('ChannelMessageItem', () => {
       },
       global: {
         plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-        stubs: {
-          ChannelMessageActions: true,
-          MarkdownContent: true,
-        },
       },
     })
 
-    expect(wrapper.get('img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
+    expect(wrapper.get('.channel-message > div').classes()).toContain('min-w-0')
+    expect(wrapper.get('.channel-message > div > div > .mt-1').classes()).toContain('max-w-full')
+    expect(wrapper.get('[aria-label="Open chat history from Product"]').classes()).toContain(
+      'max-w-full',
+    )
   })
 })

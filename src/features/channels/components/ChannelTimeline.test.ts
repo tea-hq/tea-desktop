@@ -15,6 +15,8 @@ const channel: Channel = {
   kind: 'group',
   name: 'Product',
   description: 'Product decisions',
+  pinned: false,
+  muted: false,
   unreadCount: 0,
   updatedAt: 1,
 }

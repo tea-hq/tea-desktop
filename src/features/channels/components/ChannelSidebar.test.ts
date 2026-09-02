@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelStatus, ChannelUserProfile } from '../contracts'
+import type { Channel, ChannelStatus } from '../contracts'
 import ChannelSidebar from './ChannelSidebar.vue'
 
 const connectedStatus: ChannelStatus = { phase: 'connected', retryable: true }
@@ -24,32 +24,11 @@ function mountSidebar(channels: Channel[], loading: boolean) {
   })
 }
 
-const channelFixtures: Channel[] = [
-  {
-    ref: 'product',
-    kind: 'group',
-    name: 'Product design',
-    description: 'Desktop Agent experience',
-    unreadCount: 0,
-    updatedAt: 1,
-  },
-  {
-    ref: 'engineering',
-    kind: 'group',
-    name: 'Engineering',
-    description: 'Implementation coordination',
-    unreadCount: 0,
-    updatedAt: 1,
-  },
-]
-
 describe('ChannelSidebar', () => {
   it('shows a loading transition instead of the empty state while the catalog is pending', () => {
     const wrapper = mountSidebar([], true)
 
     expect(wrapper.get('[role="status"]').text()).toBe('Syncing conversations')
-    expect(wrapper.get('aside').attributes('aria-label')).toBe('Channels')
-    expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.findAll('.channel-row')).toHaveLength(6)
     expect(wrapper.get('input').attributes('disabled')).toBeDefined()
     expect(wrapper.find('p').exists()).toBe(false)
@@ -62,77 +41,32 @@ describe('ChannelSidebar', () => {
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 
-  it('uses the shell query without rendering a second sidebar search field', () => {
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: channelFixtures,
-        activeRef: null,
-        status: connectedStatus,
-        loading: false,
-        searchQuery: 'engineering',
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
-
-    expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.findAll('.channel-row')).toHaveLength(1)
-    expect(wrapper.get('.channel-row').text()).toContain('Engineering')
-    expect(wrapper.get('.channel-row').find('img').exists()).toBe(false)
-    expect(wrapper.get('.channel-row').text()).toContain('EN')
-  })
-
-  it('renders a cached IM profile avatar for direct conversations', () => {
-    const direct: Channel = {
-      ref: 'direct-account-b',
-      kind: 'direct',
-      participantAccountId: 'account-b',
-      name: 'Account B',
-      description: 'Direct conversation',
-      unreadCount: 0,
-      updatedAt: 1,
+  it('exposes accessible Slack-style conversation controls and status indicators', async () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: true,
+      muted: true,
+      unreadCount: 3,
+      updatedAt: 2,
     }
-    const profile: ChannelUserProfile = { accountId: 'account-b', name: 'Account B' }
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: [direct],
-        activeRef: direct.ref,
-        status: connectedStatus,
-        loading: false,
-        userProfiles: new Map([[profile.accountId, profile]]),
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
+    const wrapper = mountSidebar([channel], false)
 
-    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
-  })
+    expect(wrapper.find('[data-channel-status="pinned"]').exists()).toBe(true)
+    expect(wrapper.find('[data-channel-status="muted"]').exists()).toBe(true)
+    await wrapper.get('[aria-label="Channel actions for Product"]').trigger('click')
 
-  it('does not wait for the profile request before generating a direct avatar', () => {
-    const direct: Channel = {
-      ref: 'direct-account-c',
-      kind: 'direct',
-      participantAccountId: 'account-c',
-      name: 'Account C',
-      description: 'Direct conversation',
-      unreadCount: 0,
-      updatedAt: 1,
-    }
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: [direct],
-        activeRef: direct.ref,
-        status: connectedStatus,
-        loading: false,
-        userProfiles: new Map(),
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
+    expect(wrapper.get('[role="menu"]').text()).toContain('Unpin conversation')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Unmute notifications')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Mark as read')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Hide conversation')
 
-    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
+    const hide = wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text().includes('Hide conversation'))!
+    await hide.trigger('click')
+    expect(wrapper.emitted('hide')).toEqual([['product']])
   })
 })

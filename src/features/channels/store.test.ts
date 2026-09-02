@@ -22,6 +22,42 @@ describe('useChannelsStore', () => {
     expect(store.status.accountRef).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it('sorts pinned conversations before recency and applies explicit controls', async () => {
+    const { store, transport } = await connectedStore()
+    const currentPinned = store.channels.find((channel) => channel.pinned)!
+    await store.setChannelPinned(currentPinned.ref, false)
+    const pinned = store.channels.at(-1)!
+
+    await store.setChannelPinned(pinned.ref, true)
+    expect(transport.capabilities()).toContainEqual({ id: 'channel.pin', available: true })
+    expect(store.channels[0]).toMatchObject({ ref: pinned.ref, pinned: true })
+
+    await store.setChannelMuted(pinned.ref, true)
+    expect(store.channels.find((channel) => channel.ref === pinned.ref)?.muted).toBe(true)
+
+    await store.selectChannel(pinned.ref)
+    await store.hideChannel(pinned.ref)
+    expect(store.channels.some((channel) => channel.ref === pinned.ref)).toBe(false)
+    expect(store.activeChannelRef).toBeNull()
+  })
+
+  it('preserves conversation state when a control operation fails', async () => {
+    const { store, transport } = await connectedStore()
+    const channel = store.channels[0]!
+    vi.spyOn(transport, 'setChannelMuted').mockRejectedValueOnce(
+      new ChannelTransportError('transport', true),
+    )
+
+    await expect(store.setChannelMuted(channel.ref, !channel.muted)).rejects.toMatchObject({
+      code: 'transport',
+    })
+
+    expect(store.channels.find((candidate) => candidate.ref === channel.ref)?.muted).toBe(
+      channel.muted,
+    )
+    expect(store.errorCode).toBe('transport')
+  })
+
   it('keeps an initial empty catalog loading until conversation sync finishes', async () => {
     const transport = new MockChannelTransport()
     const listChannels = vi.spyOn(transport, 'listChannels')

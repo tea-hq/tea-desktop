@@ -15,7 +15,8 @@ describe('Yunxin DTO mapping', () => {
       type: 1,
       name: 'Alice',
       avatar: 'https://yx-web-nosdn.netease.im/alice.png',
-      stickTop: false,
+      mute: true,
+      stickTop: true,
       localExtension: '',
       serverExtension: '',
       unreadCount: 2,
@@ -32,6 +33,8 @@ describe('Yunxin DTO mapping', () => {
         name: 'Alice',
         participantAccountId: 'b',
         avatarUrl: 'https://yx-web-nosdn.netease.im/alice.png',
+        muted: true,
+        pinned: true,
         unreadCount: 2,
       }),
     )
