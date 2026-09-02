@@ -1,4 +1,5 @@
 import type { ElectronChannelService } from '../services/channel'
+import type { MessageRef } from '../../src/features/channels/contracts'
 import {
   defineCommandHandlers,
   type DesktopCommandHandlerGroup,
@@ -61,6 +62,8 @@ export function createChannelCommandHandlers(
     pin_channel_message: (args) => channel.pinMessage(readRecord(args.request) as never),
     quick_comment_channel_message: (args) =>
       channel.quickComment(readRecord(args.request) as never),
+    transcribe_channel_voice: async (args) =>
+      readVoiceTranscript(await channel.transcribeVoice(readMessageRef(args.messageRef))),
     get_channel_message_receipt_details: (args) =>
       channel.getMessageReceiptDetails(readRecord(args.messageRef) as never),
     cancel_channel_message_send: (args) =>
@@ -95,6 +98,47 @@ function readAccountIds(value: unknown): string[] {
     throw { code: 'invalidRequest', retryable: false }
   }
   return values.map((item) => (item as string).trim())
+}
+
+function readMessageRef(value: unknown): MessageRef {
+  const record = readRecord(value)
+  const channelRef = readMessageRefPart(record.channelRef, 'channelRef')
+  const messageClientId = readMessageRefPart(record.messageClientId, 'messageClientId')
+  const messageServerId =
+    record.messageServerId === undefined
+      ? undefined
+      : readMessageRefPart(record.messageServerId, 'messageServerId')
+  return { channelRef, messageClientId, ...(messageServerId ? { messageServerId } : {}) }
+}
+
+function readMessageRefPart(value: unknown, name: string): string {
+  if (
+    typeof value !== 'string' ||
+    !value.trim() ||
+    value.length > 512 ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  )
+    throw {
+      code: 'invalidRequest',
+      retryable: false,
+      message: `${name} must be a bounded string`,
+    }
+  return value
+}
+
+function readVoiceTranscript(value: unknown): string {
+  if (typeof value !== 'string') throw invalidVoiceTranscript()
+  const transcript = value.trim()
+  if (!transcript || transcript.length > 32_768) throw invalidVoiceTranscript()
+  return transcript
+}
+
+function invalidVoiceTranscript() {
+  return {
+    code: 'protocolFailure',
+    retryable: false,
+    message: 'voice transcript is invalid',
+  }
 }
 
 function readPresenceAccountIds(value: unknown): string[] {

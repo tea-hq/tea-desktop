@@ -91,6 +91,20 @@ describe('Electron preload bridge', () => {
     )
   })
 
+  it('allows voice transcription without exposing provider attachment fields', async () => {
+    electron.invoke.mockResolvedValueOnce({ ok: true, value: 'Review the release plan.' })
+    const messageRef = { channelRef: 'channel', messageClientId: 'voice-client' }
+
+    await expect(bridge.invoke('transcribe_channel_voice', { messageRef })).resolves.toBe(
+      'Review the release plan.',
+    )
+
+    expect(electron.invoke).toHaveBeenCalledWith('tea:command', 'transcribe_channel_voice', {
+      messageRef,
+    })
+    expect(JSON.stringify(electron.invoke.mock.calls)).not.toMatch(/voiceUrl|sceneName|sampleRate/)
+  })
+
   it('rejects commands and events outside the static allowlist', async () => {
     await expect(
       bridge.invoke('unknown' as Parameters<TeaDesktopBridge['invoke']>[0]),

@@ -206,6 +206,10 @@ export class ElectronChannelService {
     await this.transport.quickComment(request)
   }
 
+  async transcribeVoice(messageRef: MessageRef): Promise<string> {
+    return this.transport.transcribeVoice(messageRef)
+  }
+
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     return this.transport.getMessageReceiptDetails(messageRef)
   }

@@ -71,6 +71,7 @@ describe('ElectronChannelTransport', () => {
         'message.save',
         'message.save.list',
         'message.quickComment',
+        'message.voice.transcribe',
         'message.receipt.details',
         'channel.manage',
         'channel.pin',
@@ -90,6 +91,21 @@ describe('ElectronChannelTransport', () => {
     expect(mocks.invoke).toHaveBeenCalledWith('set_channel_presence_subscriptions', {
       accountIds: ['lin', 'meng'],
     })
+    await transport.dispose()
+  })
+
+  it('transcribes voice through a message-scoped allowlisted command', async () => {
+    const messageRef = {
+      channelRef: 'channel',
+      messageClientId: 'voice-client',
+      messageServerId: 'voice-server',
+    }
+    mocks.invoke.mockResolvedValueOnce('Review the release plan.')
+    const transport = new ElectronChannelTransport()
+
+    await expect(transport.transcribeVoice(messageRef)).resolves.toBe('Review the release plan.')
+    expect(mocks.invoke).toHaveBeenCalledWith('transcribe_channel_voice', { messageRef })
+    expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/voiceUrl|sceneName|sampleRate/)
     await transport.dispose()
   })
 

@@ -74,6 +74,7 @@ const descriptor: ChannelTransportDescriptor = {
     'message.save',
     'message.save.list',
     'message.quickComment',
+    'message.voice.transcribe',
     'channel.read',
     'message.modify.events',
     'message.delete.events',
@@ -238,6 +239,10 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
     await this.command('quick_comment_channel_message', { request })
+  }
+
+  async transcribeVoice(messageRef: MessageRef): Promise<string> {
+    return this.command('transcribe_channel_voice', { messageRef })
   }
 
   async getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
