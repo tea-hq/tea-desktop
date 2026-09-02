@@ -1,14 +1,21 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MockChannelTransport } from '@/infrastructure/channels/MockChannelTransport'
-import type { ChannelDraft, ChannelDraftClient, SaveChannelDraftRequest } from './contracts'
-import { ChannelTransportError } from './contracts'
+import { MockChannelVoicePlaybackClient } from '@/infrastructure/channels/MockChannelVoicePlaybackClient'
+import type {
+  ChannelDraft,
+  ChannelDraftClient,
+  ChannelVoicePlaybackListener,
+  MessageRef,
+  SaveChannelDraftRequest,
+} from './contracts'
+import { ChannelTransportError, ChannelVoicePlaybackClientError } from './contracts'
 import { useChannelsStore } from './store'
 
-async function connectedStore() {
+async function connectedStore(playback?: MockChannelVoicePlaybackClient) {
   const transport = new MockChannelTransport()
   const store = useChannelsStore()
-  store.configure(transport)
+  store.configure(transport, undefined, undefined, playback)
   await store.connect()
   return { store, transport }
 }
@@ -30,6 +37,33 @@ async function addVoiceMessage(
         durationMs: 2_400,
       },
     },
+  })
+  const message = store.activeMessages.find(
+    (candidate) => candidate.ref.messageClientId === result.ref.messageClientId,
+  )
+  if (!message || message.content.kind !== 'audio') throw new Error('voice fixture missing')
+  transport.emitForTest({
+    type: 'message.upserted',
+    messages: [
+      {
+        ref: { ...message.ref },
+        sender: { ...message.sender },
+        sentAt: message.sentAt,
+        text: message.text,
+        content: {
+          kind: 'audio',
+          ...(message.content.caption ? { caption: message.content.caption } : {}),
+          media: {
+            ...message.content.media,
+            url: `https://media.example.test/${result.ref.messageClientId}.aac`,
+          },
+        },
+        state: message.state,
+        sentByCurrentUser: message.sentByCurrentUser,
+        pinned: message.pinned,
+        reactions: message.reactions.map((reaction) => ({ ...reaction })),
+      },
+    ],
   })
   return result.ref
 }
@@ -366,6 +400,142 @@ describe('useChannelsStore', () => {
     release()
     await Promise.all([loading, disposing])
     expect(store.activeVoiceTranscripts).toEqual([])
+  })
+
+  it('owns voice play, pause, seek, rate, progress, and resume state', async () => {
+    const playback = new MockChannelVoicePlaybackClient()
+    const { store, transport } = await connectedStore(playback)
+    const messageRef = await addVoiceMessage(store, transport)
+
+    await store.toggleVoicePlayback(messageRef)
+    expect(store.activeVoicePlaybacks).toEqual([
+      {
+        messageRef,
+        status: 'loading',
+        positionMs: 0,
+        durationMs: 2_400,
+        playbackRate: 1,
+        retryable: false,
+      },
+    ])
+
+    playback.emit({ type: 'playing' })
+    playback.emit({ type: 'progress', positionMs: 900, durationMs: 2_400 })
+    expect(store.activeVoicePlaybacks[0]).toMatchObject({ status: 'playing', positionMs: 900 })
+
+    store.seekVoicePlayback(messageRef, 1_800)
+    store.setVoicePlaybackRate(1.5)
+    await store.toggleVoicePlayback(messageRef)
+    expect(playback.seekRequests).toEqual([1_800])
+    expect(playback.rateRequests).toEqual([1.5])
+    expect(store.activeVoicePlaybacks[0]).toMatchObject({
+      status: 'paused',
+      positionMs: 1_800,
+      playbackRate: 1.5,
+    })
+
+    await store.toggleVoicePlayback(messageRef)
+    expect(playback.requests.at(-1)).toMatchObject({
+      messageRef,
+      startAtMs: 1_800,
+      playbackRate: 1.5,
+    })
+    playback.emit({ type: 'ended' })
+    expect(store.activeVoicePlaybacks[0]).toMatchObject({ status: 'paused', positionMs: 0 })
+  })
+
+  it('pauses the previous voice and ignores its late player events', async () => {
+    const playback = new MockChannelVoicePlaybackClient()
+    const listeners: ChannelVoicePlaybackListener[] = []
+    const originalPlay = playback.play.bind(playback)
+    vi.spyOn(playback, 'play').mockImplementation(async (request, listener) => {
+      listeners.push(listener)
+      await originalPlay(request, listener)
+    })
+    const { store, transport } = await connectedStore(playback)
+    const first = await addVoiceMessage(store, transport)
+    const second = await addVoiceMessage(store, transport)
+
+    await store.toggleVoicePlayback(first)
+    listeners[0]?.({ type: 'playing' })
+    listeners[0]?.({ type: 'progress', positionMs: 900, durationMs: 2_400 })
+    await store.toggleVoicePlayback(second)
+    listeners[1]?.({ type: 'playing' })
+    listeners[0]?.({ type: 'progress', positionMs: 2_000, durationMs: 2_400 })
+
+    const firstState = store.activeVoicePlaybacks.find(
+      (state) => state.messageRef.messageClientId === first.messageClientId,
+    )
+    const secondState = store.activeVoicePlaybacks.find(
+      (state) => state.messageRef.messageClientId === second.messageClientId,
+    )
+    expect(firstState).toMatchObject({ status: 'paused', positionMs: 900 })
+    expect(secondState).toMatchObject({ status: 'playing', positionMs: 0 })
+    expect(playback.stopCount).toBe(1)
+  })
+
+  it('projects stable playback failures, retries, and clears deleted or disposed state', async () => {
+    const playback = new MockChannelVoicePlaybackClient()
+    vi.spyOn(playback, 'play').mockRejectedValueOnce(
+      new ChannelVoicePlaybackClientError('blocked', true),
+    )
+    const { store, transport } = await connectedStore(playback)
+    const messageRef = await addVoiceMessage(store, transport)
+
+    await expect(store.toggleVoicePlayback(messageRef)).rejects.toMatchObject({ code: 'blocked' })
+    expect(store.activeVoicePlaybacks[0]).toMatchObject({
+      status: 'failed',
+      errorCode: 'blocked',
+      retryable: true,
+    })
+
+    await store.retryVoicePlayback(messageRef)
+    playback.emit({ type: 'playing' })
+    playback.emit({ type: 'failed', errorCode: 'network', retryable: true })
+    playback.emit({ type: 'paused' })
+    expect(store.activeVoicePlaybacks[0]).toMatchObject({
+      status: 'failed',
+      errorCode: 'network',
+      retryable: true,
+    })
+
+    await store.retryVoicePlayback(messageRef)
+    playback.emit({ type: 'playing' })
+    await store.deleteMessages([messageRef])
+    expect(store.activeVoicePlaybacks).toEqual([])
+    expect(playback.stopCount).toBeGreaterThan(0)
+
+    const lateRef = await addVoiceMessage(store, transport)
+    await store.toggleVoicePlayback(lateRef)
+    await store.dispose()
+    playback.emit({ type: 'progress', positionMs: 1_000, durationMs: 2_400 })
+    expect(store.activeVoicePlaybacks).toEqual([])
+  })
+
+  it('bounds account-scoped voice playback bookmarks to 128 messages', async () => {
+    const playback = new MockChannelVoicePlaybackClient()
+    const { store, transport } = await connectedStore(playback)
+    const refs: MessageRef[] = []
+    for (let index = 0; index < 129; index += 1) {
+      const messageRef = await addVoiceMessage(store, transport)
+      refs.push(messageRef)
+      await store.toggleVoicePlayback(messageRef)
+      playback.emit({ type: 'playing' })
+      playback.emit({ type: 'progress', positionMs: index + 1, durationMs: 2_400 })
+      await store.toggleVoicePlayback(messageRef)
+    }
+
+    expect(store.activeVoicePlaybacks).toHaveLength(128)
+    expect(
+      store.activeVoicePlaybacks.some(
+        (state) => state.messageRef.messageClientId === refs[0]?.messageClientId,
+      ),
+    ).toBe(false)
+    expect(
+      store.activeVoicePlaybacks.some(
+        (state) => state.messageRef.messageClientId === refs.at(-1)?.messageClientId,
+      ),
+    ).toBe(true)
   })
 
   it('sorts pinned conversations before recency and applies explicit controls', async () => {

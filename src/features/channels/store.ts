@@ -13,6 +13,11 @@ import type {
   ChannelRef,
   ChannelStatus,
   ChannelTransport,
+  ChannelVoicePlaybackClient,
+  ChannelVoicePlaybackErrorCode,
+  ChannelVoicePlaybackEvent,
+  ChannelVoicePlaybackRate,
+  ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
   DeleteMessagesRequest,
   CreateGroupRequest,
@@ -42,7 +47,11 @@ import type {
   SearchMessagesRequest,
   SendMessageResult,
 } from './contracts'
-import { ChannelTransportError } from './contracts'
+import {
+  CHANNEL_VOICE_PLAYBACK_RATES,
+  ChannelTransportError,
+  ChannelVoicePlaybackClientError,
+} from './contracts'
 import {
   prepareChannelComposerSubmission,
   type ChannelComposerSubmission,
@@ -75,6 +84,13 @@ interface DraftDeliveryBatch {
   pendingAttemptIds: Set<string>
 }
 
+interface VoicePlaybackTarget {
+  key: string
+  messageRef: MessageRef
+  sourceUrl: string
+  durationMs: number
+}
+
 export interface ChannelComposerSubmissionExecution {
   completion: Promise<void>
 }
@@ -85,11 +101,14 @@ const INITIAL_MESSAGE_LIMIT = 50
 const SAVED_MESSAGE_LIMIT = 50
 const MAX_CHANNEL_PAGES = 5
 const DRAFT_SAVE_DELAY_MS = 300
+const MAX_VOICE_PLAYBACK_BOOKMARKS = 128
+const MAX_VOICE_DURATION_MS = 24 * 60 * 60 * 1_000
 
 export const useChannelsStore = defineStore('channels', () => {
   const transport = shallowRef<ChannelTransport | null>(null)
   const attachmentPicker = shallowRef<ChannelAttachmentPicker | null>(null)
   const draftClient = shallowRef<ChannelDraftClient | null>(null)
+  const voicePlaybackClient = shallowRef<ChannelVoicePlaybackClient | null>(null)
   const projection = reactive(createChannelProjection()) as unknown as ChannelProjection
   const status = ref<ChannelStatus>({ phase: 'disconnected', retryable: false })
   const activeChannelRef = ref<ChannelRef | null>(null)
@@ -129,6 +148,8 @@ export const useChannelsStore = defineStore('channels', () => {
   const presenceByAccount = reactive(new Map<string, ChannelPresence>())
   const presenceErrorCode = ref<string | null>(null)
   const voiceTranscriptsByMessage = reactive(new Map<string, ChannelVoiceTranscript>())
+  const voicePlaybacksByMessage = reactive(new Map<string, ChannelVoicePlaybackState>())
+  const voicePlaybackRate = ref<ChannelVoicePlaybackRate>(1)
   let unsubscribe: (() => void) | null = null
   let refreshPromise: Promise<void> | null = null
   let lifecycleGeneration = 0
@@ -145,6 +166,9 @@ export const useChannelsStore = defineStore('channels', () => {
   let voiceTranscriptionOperationId = 0
   const voiceTranscriptionOperations = new Map<string, Promise<void>>()
   const voiceTranscriptionOperationIds = new Map<string, number>()
+  const voicePlaybackSources = new Map<string, string>()
+  let voicePlaybackGeneration = 0
+  let activeVoicePlaybackKey: string | null = null
   const dirtyDraftRefs = new Set<ChannelRef>()
   const draftSaveTimers = new Map<ChannelRef, ReturnType<typeof setTimeout>>()
   const draftSavePromises = new Map<ChannelRef, Promise<void>>()
@@ -190,6 +214,12 @@ export const useChannelsStore = defineStore('channels', () => {
       (transcript) => transcript.messageRef.channelRef === activeChannelRef.value,
     ),
   )
+  const activeVoicePlaybacks = computed(() =>
+    [...voicePlaybacksByMessage.values()].filter(
+      (playback) => playback.messageRef.channelRef === activeChannelRef.value,
+    ),
+  )
+  const voicePlaybackAvailable = computed(() => voicePlaybackClient.value !== null)
   const activeOutgoingAttempts = computed(() =>
     [...outgoingAttempts.values()]
       .filter((attempt) => attempt.channelRef === activeChannelRef.value)
@@ -235,8 +265,18 @@ export const useChannelsStore = defineStore('channels', () => {
     value: ChannelTransport,
     picker?: ChannelAttachmentPicker,
     drafts?: ChannelDraftClient,
+    playback?: ChannelVoicePlaybackClient,
   ): void {
-    if (transport.value === value && draftClient.value === drafts) return
+    if (
+      transport.value === value &&
+      draftClient.value === drafts &&
+      voicePlaybackClient.value === playback
+    )
+      return
+    const previousPlayback = voicePlaybackClient.value
+    clearVoicePlaybackProjection()
+    if (previousPlayback && previousPlayback !== playback) previousPlayback.dispose()
+    voicePlaybackClient.value = null
     lifecycleGeneration += 1
     const generation = lifecycleGeneration
     unsubscribe?.()
@@ -258,6 +298,7 @@ export const useChannelsStore = defineStore('channels', () => {
     })
     clearProjection()
     clearDraftProjection()
+    voicePlaybackClient.value = playback ?? null
   }
 
   async function connect(): Promise<void> {
@@ -299,6 +340,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (!client) return
     const generation = lifecycleGeneration
     clearVoiceTranscriptProjection()
+    clearVoicePlaybackProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     await client.disconnect()
@@ -356,6 +398,7 @@ export const useChannelsStore = defineStore('channels', () => {
   async function selectChannel(channelRef: ChannelRef): Promise<void> {
     if (!projection.channels.has(channelRef)) return
     const previousChannelRef = activeChannelRef.value
+    if (previousChannelRef && previousChannelRef !== channelRef) pauseVoicePlayback()
     if (previousChannelRef && previousChannelRef !== channelRef)
       await flushDraft(previousChannelRef).catch(() => undefined)
     const client = requireTransport()
@@ -1128,6 +1171,221 @@ export const useChannelsStore = defineStore('channels', () => {
     return operation
   }
 
+  async function toggleVoicePlayback(messageRef: MessageRef): Promise<void> {
+    const target = voicePlaybackTarget(messageRef)
+    const current = voicePlaybacksByMessage.get(target.key)
+    if (
+      activeVoicePlaybackKey === target.key &&
+      (current?.status === 'loading' || current?.status === 'playing')
+    ) {
+      pauseVoicePlayback()
+      return
+    }
+    await startVoicePlayback(target)
+  }
+
+  async function retryVoicePlayback(messageRef: MessageRef): Promise<void> {
+    await startVoicePlayback(voicePlaybackTarget(messageRef))
+  }
+
+  function pauseVoicePlayback(): void {
+    const key = activeVoicePlaybackKey
+    if (!key) return
+    const current = voicePlaybacksByMessage.get(key)
+    if (!current || (current.status !== 'loading' && current.status !== 'playing')) return
+    voicePlaybackGeneration += 1
+    if (current.status === 'loading') voicePlaybackClient.value?.stop()
+    else voicePlaybackClient.value?.pause()
+    setVoicePlaybackState(key, {
+      ...current,
+      status: 'paused',
+      errorCode: undefined,
+      retryable: false,
+    })
+  }
+
+  function seekVoicePlayback(messageRef: MessageRef, positionMs: number): void {
+    if (!Number.isFinite(positionMs)) throw new ChannelTransportError('invalidRequest', false)
+    const target = voicePlaybackTarget(messageRef)
+    const current = voicePlaybacksByMessage.get(target.key)
+    const durationMs = current?.durationMs || target.durationMs
+    const nextPosition = clampMilliseconds(positionMs, durationMs)
+    setVoicePlaybackState(target.key, {
+      messageRef: target.messageRef,
+      status: current?.status ?? 'paused',
+      positionMs: nextPosition,
+      durationMs,
+      playbackRate: voicePlaybackRate.value,
+      ...(current?.errorCode ? { errorCode: current.errorCode } : {}),
+      retryable: current?.retryable ?? false,
+    })
+    if (activeVoicePlaybackKey === target.key) voicePlaybackClient.value?.seek(nextPosition)
+  }
+
+  function setVoicePlaybackRate(rate: ChannelVoicePlaybackRate): void {
+    if (!CHANNEL_VOICE_PLAYBACK_RATES.includes(rate))
+      throw new ChannelTransportError('invalidRequest', false)
+    voicePlaybackRate.value = rate
+    for (const [key, current] of [...voicePlaybacksByMessage])
+      setVoicePlaybackState(key, { ...current, playbackRate: rate })
+    if (activeVoicePlaybackKey) voicePlaybackClient.value?.setPlaybackRate(rate)
+  }
+
+  async function startVoicePlayback(target: VoicePlaybackTarget): Promise<void> {
+    const player = voicePlaybackClient.value
+    if (!player) throw new ChannelTransportError('unsupportedCapability', false)
+    if (activeVoicePlaybackKey && activeVoicePlaybackKey !== target.key)
+      suspendCurrentVoicePlayback()
+    const current = voicePlaybacksByMessage.get(target.key)
+    const generation = ++voicePlaybackGeneration
+    activeVoicePlaybackKey = target.key
+    voicePlaybackSources.set(target.key, target.sourceUrl)
+    setVoicePlaybackState(target.key, {
+      messageRef: target.messageRef,
+      status: 'loading',
+      positionMs: current?.positionMs ?? 0,
+      durationMs: current?.durationMs || target.durationMs,
+      playbackRate: voicePlaybackRate.value,
+      retryable: false,
+    })
+    const listener = (event: ChannelVoicePlaybackEvent) =>
+      handleVoicePlaybackEvent(player, generation, target.key, event)
+    let operation: Promise<void>
+    try {
+      operation = Promise.resolve(
+        player.play(
+          {
+            messageRef: target.messageRef,
+            sourceUrl: target.sourceUrl,
+            durationMs: target.durationMs,
+            startAtMs: current?.positionMs ?? 0,
+            playbackRate: voicePlaybackRate.value,
+          },
+          listener,
+        ),
+      )
+    } catch (error) {
+      operation = Promise.reject(error)
+    }
+    try {
+      await operation
+    } catch (error) {
+      if (hasVoicePlaybackContext(player, generation, target.key)) {
+        const failure = voicePlaybackFailure(error)
+        const state = voicePlaybacksByMessage.get(target.key)
+        if (state)
+          setVoicePlaybackState(target.key, {
+            ...state,
+            status: 'failed',
+            errorCode: failure.errorCode,
+            retryable: failure.retryable,
+          })
+      }
+      throw error
+    }
+  }
+
+  function handleVoicePlaybackEvent(
+    player: ChannelVoicePlaybackClient,
+    generation: number,
+    key: string,
+    event: ChannelVoicePlaybackEvent,
+  ): void {
+    if (!hasVoicePlaybackContext(player, generation, key)) return
+    const current = voicePlaybacksByMessage.get(key)
+    if (!current) return
+    if (current.status === 'failed' && event.type !== 'failed') return
+    if (event.type === 'progress') {
+      const durationMs = boundedVoiceMilliseconds(event.durationMs) || current.durationMs
+      setVoicePlaybackState(key, {
+        ...current,
+        positionMs: clampMilliseconds(event.positionMs, durationMs),
+        durationMs,
+      })
+      return
+    }
+    if (event.type === 'failed') {
+      setVoicePlaybackState(key, {
+        ...current,
+        status: 'failed',
+        errorCode: event.errorCode,
+        retryable: event.retryable,
+      })
+      return
+    }
+    setVoicePlaybackState(key, {
+      ...current,
+      status: event.type === 'playing' ? 'playing' : 'paused',
+      ...(event.type === 'ended' ? { positionMs: 0 } : {}),
+      errorCode: undefined,
+      retryable: false,
+    })
+  }
+
+  function hasVoicePlaybackContext(
+    player: ChannelVoicePlaybackClient,
+    generation: number,
+    key: string,
+  ): boolean {
+    return (
+      voicePlaybackClient.value === player &&
+      voicePlaybackGeneration === generation &&
+      activeVoicePlaybackKey === key
+    )
+  }
+
+  function suspendCurrentVoicePlayback(): void {
+    const key = activeVoicePlaybackKey
+    if (!key) return
+    voicePlaybackGeneration += 1
+    voicePlaybackClient.value?.stop()
+    const current = voicePlaybacksByMessage.get(key)
+    if (current && (current.status === 'loading' || current.status === 'playing'))
+      setVoicePlaybackState(key, {
+        ...current,
+        status: 'paused',
+        errorCode: undefined,
+        retryable: false,
+      })
+    activeVoicePlaybackKey = null
+  }
+
+  function setVoicePlaybackState(key: string, state: ChannelVoicePlaybackState): void {
+    voicePlaybacksByMessage.delete(key)
+    voicePlaybacksByMessage.set(key, {
+      ...state,
+      messageRef: copyMessageRef(state.messageRef),
+    })
+    while (voicePlaybacksByMessage.size > MAX_VOICE_PLAYBACK_BOOKMARKS) {
+      const oldest = voicePlaybacksByMessage.keys().next().value
+      if (typeof oldest !== 'string') break
+      voicePlaybacksByMessage.delete(oldest)
+      voicePlaybackSources.delete(oldest)
+    }
+  }
+
+  function voicePlaybackTarget(messageRef: MessageRef): VoicePlaybackTarget {
+    const message = (projection.messagesByChannel.get(messageRef.channelRef) ?? []).find(
+      (candidate) => sameMessage(candidate.ref, messageRef),
+    )
+    if (
+      !message ||
+      message.state !== 'active' ||
+      message.content.kind !== 'audio' ||
+      !message.content.media.url
+    )
+      throw new ChannelTransportError('invalidRequest', false)
+    const sourceUrl = message.content.media.url.trim()
+    if (!sourceUrl || sourceUrl.length > 2_048)
+      throw new ChannelTransportError('invalidRequest', false)
+    return {
+      key: messageKey(message.ref),
+      messageRef: copyMessageRef(message.ref),
+      sourceUrl,
+      durationMs: boundedVoiceMilliseconds(message.content.media.durationMs ?? 0),
+    }
+  }
+
   async function getMessageReceiptDetails(messageRef: MessageRef): Promise<MessageReceiptDetails> {
     const client = requireTransport()
     try {
@@ -1327,15 +1585,18 @@ export const useChannelsStore = defineStore('channels', () => {
   async function dispose(): Promise<void> {
     clearPresenceProjection()
     clearVoiceTranscriptProjection()
+    clearVoicePlaybackProjection()
     await flushAllDrafts()
     await clearOutgoingAttempts(attachmentPicker.value)
     lifecycleGeneration += 1
     unsubscribe?.()
     unsubscribe = null
     const client = transport.value
+    const playback = voicePlaybackClient.value
     transport.value = null
     attachmentPicker.value = null
     draftClient.value = null
+    voicePlaybackClient.value = null
     clearProjection()
     refreshPromise = null
     refreshingChannels.value = false
@@ -1348,6 +1609,7 @@ export const useChannelsStore = defineStore('channels', () => {
     errorCode.value = null
     clearDraftProjection()
     status.value = { phase: 'disconnected', retryable: false }
+    playback?.dispose()
     if (client) await client.dispose()
   }
 
@@ -1439,6 +1701,7 @@ export const useChannelsStore = defineStore('channels', () => {
     reconcileOutgoingAttempts(event)
     reconcilePresenceEvent(event)
     reconcileVoiceTranscripts(event)
+    reconcileVoicePlayback(event)
     if (event.type === 'status.changed') {
       if (event.status.phase !== 'connected') clearPresenceProjection()
       if (
@@ -1508,6 +1771,7 @@ export const useChannelsStore = defineStore('channels', () => {
     mergedMessagesErrorCode.value = null
     clearPresenceProjection()
     clearVoiceTranscriptProjection()
+    clearVoicePlaybackProjection()
     void clearOutgoingAttempts(attachmentPicker.value)
   }
 
@@ -1567,6 +1831,73 @@ export const useChannelsStore = defineStore('channels', () => {
     voiceTranscriptionOperations.clear()
     voiceTranscriptionOperationIds.clear()
     voiceTranscriptsByMessage.clear()
+  }
+
+  function reconcileVoicePlayback(event: ChannelEvent): void {
+    if (event.type === 'message.deleted' || event.type === 'message.revoked') {
+      clearVoicePlaybacksForRefs(event.refs)
+      return
+    }
+    if (event.type === 'message.upserted') {
+      clearVoicePlaybacksForRefs(
+        event.messages
+          .filter((message) => {
+            const key = messageKey(message.ref)
+            if (!voicePlaybacksByMessage.has(key)) return false
+            return (
+              message.state !== 'active' ||
+              message.content.kind !== 'audio' ||
+              !message.content.media.url ||
+              voicePlaybackSources.get(key) !== message.content.media.url.trim()
+            )
+          })
+          .map((message) => message.ref),
+      )
+      return
+    }
+    if (event.type === 'message.historyCleared') {
+      clearVoicePlaybacksForChannels([event.channelRef])
+      return
+    }
+    if (event.type === 'channel.deleted') clearVoicePlaybacksForChannels(event.channelRefs)
+  }
+
+  function clearVoicePlaybacksForRefs(refs: MessageRef[]): void {
+    const keys = [...voicePlaybacksByMessage]
+      .filter(([, playback]) => refs.some((ref) => sameMessage(playback.messageRef, ref)))
+      .map(([key]) => key)
+    clearVoicePlaybackKeys(keys)
+  }
+
+  function clearVoicePlaybacksForChannels(channelRefs: ChannelRef[]): void {
+    const values = new Set(channelRefs)
+    const keys = [...voicePlaybacksByMessage]
+      .filter(([, playback]) => values.has(playback.messageRef.channelRef))
+      .map(([key]) => key)
+    clearVoicePlaybackKeys(keys)
+  }
+
+  function clearVoicePlaybackKeys(keys: string[]): void {
+    if (!keys.length) return
+    const values = new Set(keys)
+    if (activeVoicePlaybackKey && values.has(activeVoicePlaybackKey)) {
+      voicePlaybackGeneration += 1
+      voicePlaybackClient.value?.stop()
+      activeVoicePlaybackKey = null
+    }
+    for (const key of values) {
+      voicePlaybacksByMessage.delete(key)
+      voicePlaybackSources.delete(key)
+    }
+  }
+
+  function clearVoicePlaybackProjection(): void {
+    voicePlaybackGeneration += 1
+    if (activeVoicePlaybackKey) voicePlaybackClient.value?.stop()
+    activeVoicePlaybackKey = null
+    voicePlaybacksByMessage.clear()
+    voicePlaybackSources.clear()
+    voicePlaybackRate.value = 1
   }
 
   function desiredPresenceAccountIds(): string[] {
@@ -1893,6 +2224,9 @@ export const useChannelsStore = defineStore('channels', () => {
     activePresence,
     activeMessages,
     activeVoiceTranscripts,
+    activeVoicePlaybacks,
+    voicePlaybackRate,
+    voicePlaybackAvailable,
     activeOutgoingAttempts,
     drafts,
     activeDraft,
@@ -1970,6 +2304,11 @@ export const useChannelsStore = defineStore('channels', () => {
     pinMessage,
     quickComment,
     transcribeVoice,
+    toggleVoicePlayback,
+    retryVoicePlayback,
+    pauseVoicePlayback,
+    seekVoicePlayback,
+    setVoicePlaybackRate,
     getMessageReceiptDetails,
     openDirectConversation,
     setChannelPinned,
@@ -2109,4 +2448,40 @@ function createMessageSearchState(): MessageSearchState {
 
 function messageKey(ref: MessageRef): string {
   return `${ref.channelRef}:${ref.messageServerId || ref.messageClientId}`
+}
+
+function boundedVoiceMilliseconds(value: number): number {
+  return Number.isFinite(value)
+    ? Math.min(MAX_VOICE_DURATION_MS, Math.max(0, Math.round(value)))
+    : 0
+}
+
+function clampMilliseconds(positionMs: number, durationMs: number): number {
+  const maximum = boundedVoiceMilliseconds(durationMs) || MAX_VOICE_DURATION_MS
+  return Math.min(maximum, boundedVoiceMilliseconds(positionMs))
+}
+
+function voicePlaybackFailure(error: unknown): {
+  errorCode: ChannelVoicePlaybackErrorCode
+  retryable: boolean
+} {
+  if (error instanceof ChannelVoicePlaybackClientError)
+    return { errorCode: error.code, retryable: error.retryable }
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? voicePlaybackErrorCode(String(error.code))
+      : 'unknown'
+  return {
+    errorCode: code,
+    retryable:
+      typeof error === 'object' && error !== null && 'retryable' in error
+        ? Boolean(error.retryable)
+        : true,
+  }
+}
+
+function voicePlaybackErrorCode(value: string): ChannelVoicePlaybackErrorCode {
+  if (value === 'blocked' || value === 'network' || value === 'decode' || value === 'unsupported')
+    return value
+  return 'unknown'
 }
