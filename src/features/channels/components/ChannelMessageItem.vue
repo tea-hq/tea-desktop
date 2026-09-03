@@ -24,7 +24,7 @@ import {
   quickCommentLabel,
   quickCommentOption,
 } from '../quickCommentOptions'
-import quickCommentAddAsset from '@/assets/channel-emojis/icon-biaoqing.png'
+import { debugQuickComment } from '../quickCommentDebug'
 
 const props = withDefaults(
   defineProps<{
@@ -106,17 +106,32 @@ function openQuickCommentPicker(source: 'actions' | 'reactions'): void {
 
 function selectQuickComment(type: number): void {
   if (!props.interactive || props.selectionMode || props.message.state !== 'active') return
+  const active = !isReactionActive(type)
+  debugQuickComment('message-item.select', {
+    ref: props.message.ref,
+    type,
+    active,
+    reactions: props.message.reactions,
+  })
   quickCommentPickerSource.value = null
-  emit('quickComment', type, !isReactionActive(type))
+  emit('quickComment', type, active)
 }
 
 function toggleReaction(type: number): void {
   if (!props.interactive || props.selectionMode || props.message.state !== 'active') return
-  emit('quickComment', type, !isReactionActive(type))
+  const active = !isReactionActive(type)
+  debugQuickComment('message-item.toggle', {
+    ref: props.message.ref,
+    type,
+    active,
+    reactions: props.message.reactions,
+  })
+  emit('quickComment', type, active)
 }
 
 function handleMessageAction(action: MessageAction): void {
   if (action === 'reaction') {
+    debugQuickComment('message-item.action', { ref: props.message.ref, action })
     openQuickCommentPicker('actions')
     return
   }
@@ -452,7 +467,7 @@ function selectMessage(): void {
 
         <div
           v-if="message.reactions.length"
-          class="channel-message-reactions relative mt-1.5 flex flex-wrap gap-1"
+          class="channel-message-reactions relative mt-1.5 flex flex-wrap gap-1.5"
           :class="
             message.sentByCurrentUser
               ? 'channel-message-reactions--out'
@@ -465,8 +480,12 @@ function selectMessage(): void {
             :key="reaction.type"
             appearance="ghost"
             size="small"
-            class="inline-flex h-7 items-center gap-1 rounded-pill border px-1.5 text-sm transition-colors"
-            :class="reaction.active ? 'bg-hover text-fg' : 'bg-panel text-dim hover:bg-pressed'"
+            class="channel-message-reaction inline-flex h-8 items-center gap-1.5 rounded-pill border px-2 text-[13px] font-semibold leading-none tabular-nums transition-colors"
+            :class="
+              reaction.active
+                ? 'border-line-strong bg-hover text-fg ring-1 ring-fg/10'
+                : 'border-line-soft bg-muted text-dim hover:border-line hover:bg-hover'
+            "
             :disabled="!interactive || selectionMode"
             :aria-label="
               t(
@@ -474,27 +493,33 @@ function selectMessage(): void {
                 { name: quickCommentLabel(reaction.type) },
               )
             "
+            :aria-pressed="reaction.active"
             @click="toggleReaction(reaction.type)"
           >
             <img
               v-if="reactionAsset(reaction.type)"
-              class="size-5 object-contain"
+              class="channel-message-reaction__emoji size-5 shrink-0 object-contain"
               :src="reactionAsset(reaction.type)"
               :alt="quickCommentLabel(reaction.type)"
             />
             <span v-else class="text-xs">#{{ reaction.type }}</span>
-            <span>{{ reaction.count }}</span>
+            <span class="min-w-[0.75rem] text-center">{{ reaction.count }}</span>
           </TeaButton>
           <button
             v-if="interactive && !selectionMode && message.state === 'active'"
             type="button"
-            class="channel-message-reactions__add inline-flex size-7 items-center justify-center rounded-full border border-line bg-canvas text-dim transition-colors hover:border-line-strong hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus active:bg-pressed motion-reduce:transition-none"
+            class="channel-message-reactions__add inline-flex h-8 min-w-9 items-center justify-center rounded-pill border border-line-soft bg-muted px-2 text-dim transition-colors hover:border-line hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus active:bg-pressed motion-reduce:transition-none"
+            :class="
+              quickCommentPickerSource === 'reactions'
+                ? 'border-line-strong bg-hover text-fg'
+                : undefined
+            "
             :aria-label="t('channels.message.reactionAdd')"
             :aria-expanded="quickCommentPickerSource === 'reactions'"
             data-quick-comment-trigger="true"
             @click="openQuickCommentPicker('reactions')"
           >
-            <img class="size-5 object-contain" :src="quickCommentAddAsset" alt="" />
+            <span class="i-mdi-emoticon-plus-outline size-5" aria-hidden="true" />
           </button>
           <ChannelQuickCommentPicker
             v-if="quickCommentPickerSource === 'reactions'"
@@ -552,14 +577,16 @@ function selectMessage(): void {
   max-height: 18rem;
 }
 
-.channel-message-reactions__add img {
-  opacity: 0.72;
-  transition: opacity 120ms ease;
+.channel-message-reaction {
+  gap: 0.25rem;
+  min-width: 0;
+  padding-inline: 0.5rem;
 }
 
-.channel-message-reactions__add:hover img,
-.channel-message-reactions__add:focus-visible img {
-  opacity: 1;
+.channel-message-reactions__add {
+  gap: 0;
+  min-width: 2.25rem;
+  padding-inline: 0.5rem;
 }
 
 .channel-message-media-audio {
@@ -575,7 +602,8 @@ function selectMessage(): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .channel-message-reactions__add img {
+  .channel-message-reaction,
+  .channel-message-reactions__add {
     transition: none;
   }
 }

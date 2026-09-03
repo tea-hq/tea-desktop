@@ -63,6 +63,7 @@ import type {
 import type { Delivery, Draft } from '@/types/channelCollaboration'
 import mediaReviewImageUrl from '@/assets/fixtures/channel-media-review.svg?url'
 import mediaReviewVideoUrl from '@/assets/fixtures/channel-media-review.mp4?url'
+import { debugQuickComment } from '@/features/channels/quickCommentDebug'
 
 const params = new URLSearchParams(window.location.search)
 const fixture = ref(params.get('fixture') ?? 'drawer-empty')
@@ -179,7 +180,7 @@ const imDrafts = computed<ChannelDraft[]>(() =>
       ]
     : [],
 )
-const messages: Message[] = [
+const messages = reactive<Message[]>([
   {
     ref: { channelRef: channel.ref, messageClientId: 'message-1', messageServerId: 'server-1' },
     sender: { id: 'designer', name: 'Lin', isCurrentUser: false },
@@ -207,7 +208,7 @@ const messages: Message[] = [
     reactions: [],
     receipt: { readCount: 12, unreadCount: 5 },
   },
-]
+])
 const isThreadFixture = computed(() => fixture.value.startsWith('thread-'))
 const threadReplyFixtures: Message[] = [
   {
@@ -1088,6 +1089,57 @@ function sendFixtureThread(payload: { text: string }): void {
 function handleFixtureMessageAction(payload: { message: Message; action: MessageAction }): void {
   if (payload.action === 'thread') openFixtureThread(payload.message)
 }
+
+function handleFixtureQuickComment(payload: {
+  message: Message
+  type: number
+  active: boolean
+}): void {
+  debugQuickComment('fixture.received', {
+    ref: payload.message.ref,
+    type: payload.type,
+    active: payload.active,
+    reactions: payload.message.reactions,
+  })
+  const message = messages.find((candidate) => sameMessage(candidate.ref, payload.message.ref))
+  if (!message || message.state !== 'active') {
+    debugQuickComment('fixture.ignored', {
+      ref: payload.message.ref,
+      reason: !message ? 'message-not-found' : 'message-not-active',
+    })
+    return
+  }
+
+  const reactionIndex = message.reactions.findIndex((reaction) => reaction.type === payload.type)
+  const reaction = reactionIndex >= 0 ? message.reactions[reactionIndex] : undefined
+
+  if (payload.active) {
+    if (reaction) {
+      if (!reaction.active) {
+        reaction.count += 1
+        reaction.active = true
+      }
+    } else {
+      message.reactions.push({ type: payload.type, count: 1, active: true })
+    }
+    debugQuickComment('fixture.updated', { ref: message.ref, reactions: message.reactions })
+    return
+  }
+
+  if (!reaction || !reaction.active) {
+    debugQuickComment('fixture.ignored', {
+      ref: message.ref,
+      reason: 'reaction-already-inactive',
+    })
+    return
+  }
+  if (reaction.count <= 1) message.reactions.splice(reactionIndex, 1)
+  else {
+    reaction.count -= 1
+    reaction.active = false
+  }
+  debugQuickComment('fixture.updated', { ref: message.ref, reactions: message.reactions })
+}
 </script>
 
 <template>
@@ -1162,6 +1214,7 @@ function handleFixtureMessageAction(payload: { message: Message; action: Message
         :draft="imDraftText"
         @toggle-panel="drawerOpen = !drawerOpen"
         @message-action="handleFixtureMessageAction"
+        @quick-comment="handleFixtureQuickComment"
         @toggle-message-selection="() => undefined"
         @select-all-visible="selectingMessages = true"
         @cancel-selection="selectingMessages = false"

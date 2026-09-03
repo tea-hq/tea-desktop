@@ -144,12 +144,19 @@ describe('ChannelMessageItem', () => {
 
     const chip = wrapper.get('button[aria-label="Remove Laugh reaction"]')
     expect(chip.find('img').attributes('src')).toContain('icon-a-1')
+    expect(chip.attributes('aria-pressed')).toBe('true')
+    expect(chip.classes()).toContain('rounded-pill')
+    expect(chip.classes()).toContain('bg-hover')
     await chip.trigger('click')
     expect(wrapper.emitted('quickComment')).toEqual([[1, false]])
 
-    await wrapper.get('button[aria-label="Add a reaction"]').trigger('click')
+    const add = wrapper.get('button[aria-label="Add a reaction"]')
+    expect(add.classes()).toContain('rounded-pill')
+    expect(add.find('.i-mdi-emoticon-plus-outline').exists()).toBe(true)
+    expect(add.find('img').exists()).toBe(false)
+    await add.trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
-    await wrapper.get('button[aria-label="Add a reaction"]').trigger('click')
+    await add.trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
 

@@ -45,6 +45,7 @@ import type {
   SendMessageResult,
   SearchMessagesRequest,
 } from '@/features/channels/contracts'
+import { debugQuickComment } from '@/features/channels/quickCommentDebug'
 import { ChannelTransportError } from '@/features/channels/contracts'
 import {
   createTextMessageContent,
@@ -773,6 +774,12 @@ export class MockChannelTransport implements ChannelTransport {
   }
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
+    debugQuickComment('mock.request', {
+      ref: request.messageRef,
+      type: request.type,
+      active: request.active,
+      status: this.currentStatus,
+    })
     this.assertConnected()
     if (!Number.isInteger(request.type) || request.type < 0)
       throw new ChannelTransportError('invalidRequest', false)
@@ -785,6 +792,12 @@ export class MockChannelTransport implements ChannelTransport {
       type: 'message.reactionsChanged',
       ref: structuredClone(message.ref),
       reactions: structuredClone(reactions),
+    })
+    debugQuickComment('mock.event', {
+      ref: message.ref,
+      type: request.type,
+      active: request.active,
+      reactions,
     })
   }
 

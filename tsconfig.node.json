@@ -18,6 +18,7 @@
     "src/features/channels/messageForwarding.ts",
     "src/infrastructure/channels/accountScope.ts",
     "src/infrastructure/channels/electronManagedImCredentials.ts",
+    "src/features/channels/quickCommentDebug.ts",
     "src/types/channelCollaboration.ts",
     "src/types/electronBridge.ts",
     "src/types/theme.ts",

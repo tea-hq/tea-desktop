@@ -37,6 +37,7 @@ import {
   type ChannelNotificationHandle,
 } from './services/channelNotifications'
 import { resolveDevelopmentUserDataPath } from './developmentProfile'
+import { debugQuickComment } from './services/quickCommentDebug'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const appRoot = path.join(__dirname, '..')
@@ -86,6 +87,10 @@ function createWindow(): void {
   })
 
   win.once('ready-to-show', () => win?.show())
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (!message.includes('[Tea][quick-comment]')) return
+    console.info(`[Tea][quick-comment][renderer:${level}] ${message} (${sourceId}:${line})`)
+  })
   if (VITE_DEV_SERVER_URL) win.loadURL(VITE_DEV_SERVER_URL)
   else win.loadFile(path.join(RENDERER_DIST, 'index.html'))
 }
@@ -103,9 +108,25 @@ function registerWindowThemeIpc(): void {
 }
 
 function registerIpc(route: DesktopCommandRouter): void {
-  ipcMain.handle('tea:command', (_event, command: unknown, args: unknown) =>
-    settleDesktopCommand(() => route(command, args)),
-  )
+  ipcMain.handle('tea:command', (_event, command: unknown, args: unknown) => {
+    if (command === 'quick_comment_channel_message')
+      debugQuickComment('electron-main.ipc-received', { command, args })
+    return settleDesktopCommand(async () => {
+      try {
+        const result = await route(command, args)
+        if (command === 'quick_comment_channel_message')
+          debugQuickComment('electron-main.ipc-resolved', { command, result })
+        return result
+      } catch (error) {
+        if (command === 'quick_comment_channel_message')
+          debugQuickComment('electron-main.ipc-rejected', {
+            command,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        throw error
+      }
+    })
+  })
 }
 
 async function bootstrap(): Promise<void> {
@@ -173,6 +194,13 @@ async function bootstrap(): Promise<void> {
   const channel = new ElectronChannelService(
     async () => managedWorkspace.getImCredentials(),
     (event) => {
+      if (event.type === 'message.reactionsChanged')
+        debugQuickComment('electron-main.event-publish', {
+          event: event.type,
+          sequence: event.sequence,
+          ref: event.ref,
+          reactions: event.reactions,
+        })
       events.publish('channel-event', event)
       void channelNotifications?.handleEvent(event)
     },

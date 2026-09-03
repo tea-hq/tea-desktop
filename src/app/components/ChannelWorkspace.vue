@@ -35,6 +35,8 @@ import ChannelReceiptDetailsDialog from '@/features/channels/components/ChannelR
 import { useChannelMessageSelection } from '@/features/channels/useChannelMessageSelection'
 import { useChannelMergedMessageViewer } from '@/features/channels/useChannelMergedMessageViewer'
 import { sameMessage } from '@/features/channels/projection'
+import { debugQuickComment } from '@/features/channels/quickCommentDebug'
+import { resolveChannelWorkspacePanel } from './channelWorkspaceLayout'
 
 const {
   centerAuth,
@@ -140,6 +142,14 @@ const threadAvailable = computed(() =>
   channels.capabilities.some(
     (capability) => capability.id === 'message.thread' && capability.available,
   ),
+)
+const workspacePanel = computed(() =>
+  resolveChannelWorkspacePanel({
+    hasActiveChannel: Boolean(channels.activeChannel),
+    hasThreadRoot: Boolean(channels.threadRootRef),
+    statusPhase: channels.status.phase,
+    channelCount: channels.channels.length,
+  }),
 )
 const threadRootMessage = computed(() => {
   const root = channels.threadRootRef
@@ -665,11 +675,37 @@ async function confirmForward(payload: {
 }
 
 function handleQuickComment(payload: { message: Message; type: number; active: boolean }): void {
+  debugQuickComment('workspace.received', {
+    ref: payload.message.ref,
+    type: payload.type,
+    active: payload.active,
+    reactions: payload.message.reactions,
+    transportStatus: channels.status.phase,
+  })
   actionPending.value = true
   void channels
     .quickComment({ messageRef: payload.message.ref, type: payload.type, active: payload.active })
-    .catch(() => undefined)
+    .then(() => {
+      debugQuickComment('workspace.success', {
+        ref: payload.message.ref,
+        type: payload.type,
+        active: payload.active,
+      })
+    })
+    .catch((error: unknown) => {
+      debugQuickComment('workspace.failure', {
+        ref: payload.message.ref,
+        type: payload.type,
+        active: payload.active,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
     .finally(() => {
+      debugQuickComment('workspace.finally', {
+        ref: payload.message.ref,
+        type: payload.type,
+        active: payload.active,
+      })
       actionPending.value = false
     })
 }
@@ -911,7 +947,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @dismiss-outgoing="dismissOutgoingMessage"
   />
   <ChannelThreadPanel
-    v-if="channels.activeChannel && channels.threadRootRef"
+    v-if="workspacePanel === 'thread' && channels.activeChannel && channels.threadRootRef"
     :channel="channels.activeChannel"
     :root-message="threadRootMessage"
     :thread="channels.thread"
@@ -931,11 +967,9 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @cancel-outgoing="cancelOutgoingMessage"
     @dismiss-outgoing="dismissOutgoingMessage"
   />
-  <ChannelSelectionPlaceholder
-    v-else-if="channels.status.phase === 'connected' && channels.channels.length > 0"
-  />
+  <ChannelSelectionPlaceholder v-else-if="workspacePanel === 'selection'" />
   <ChannelConnectionPanel
-    v-else
+    v-else-if="workspacePanel === 'connection'"
     :status="channels.status"
     :error-code="
       channels.errorCode ||

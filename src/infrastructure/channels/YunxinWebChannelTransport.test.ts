@@ -788,6 +788,60 @@ describe('YunxinWebChannelTransport', () => {
     expect(message.deleteMessages).toHaveBeenCalledWith([expect.anything()])
   })
 
+  it('resolves quick comments against the requested conversation when multiple messages are cached', async () => {
+    const { sdk, message } = createFakeSdk()
+    const first = {
+      conversationId: 'c1',
+      messageClientId: 'c1-message',
+      messageServerId: 'c1-server',
+      messageType: 0,
+      senderId: 'account-a',
+      receiverId: 'other',
+      createTime: 2,
+      isSelf: true,
+      isDelete: false,
+      sendingState: 1,
+      conversationType: 1,
+      messageStatus: { errorCode: 0 },
+      text: 'first conversation',
+    }
+    const second = {
+      ...first,
+      conversationId: 'c2',
+      messageClientId: 'c2-message',
+      messageServerId: 'c2-server',
+      text: 'second conversation',
+    }
+    vi.mocked(message.getMessageListEx)
+      .mockResolvedValueOnce({ messages: [first], anchorMessage: first, hasMore: false })
+      .mockResolvedValueOnce({ messages: [second], anchorMessage: second, hasMore: false })
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    const firstPage = await transport.loadMessages({
+      channelRef: 'c1',
+      direction: 'before',
+      limit: 2,
+    })
+    const secondPage = await transport.loadMessages({
+      channelRef: 'c2',
+      direction: 'before',
+      limit: 2,
+    })
+
+    await transport.quickComment({ messageRef: secondPage.items[0]!.ref, type: 1, active: true })
+
+    expect(message.addQuickComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'c2',
+        messageClientId: secondPage.items[0]!.ref.messageClientId,
+        messageServerId: secondPage.items[0]!.ref.messageServerId,
+      }),
+      1,
+    )
+    expect(firstPage.items[0]!.ref.channelRef).toBe('c1')
+  })
+
   it('hydrates loaded quick comments and projects successful writes immediately', async () => {
     const { sdk, message } = createFakeSdk()
     message.getQuickCommentList.mockResolvedValueOnce({

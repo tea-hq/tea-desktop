@@ -115,6 +115,11 @@ function configureAdapters(runtime: YunxinRuntime, uploadAdapter: NodeYunxinUplo
 function registerServices(runtime: YunxinRuntime): void {
   runtime.NIM.registerService(runtime.V2NIMConversationService, 'V2NIMConversationService')
   runtime.NIM.registerService(runtime.V2NIMMessageService, 'V2NIMMessageService')
+  // The ESM bundle keeps message log and extension APIs as separately
+  // registered services. V2NIMMessageService delegates quick comments,
+  // pins, and history queries to these utilities at runtime.
+  runtime.NIM.registerService(runtime.V2NIMMessageLogUtil, 'V2NIMMessageLogUtil')
+  runtime.NIM.registerService(runtime.V2NIMMessageExtendUtil, 'V2NIMMessageExtendUtil')
   runtime.NIM.registerService(runtime.V2NIMUserService, 'V2NIMUserService')
   runtime.NIM.registerService(runtime.V2NIMTeamService, 'V2NIMTeamService')
   runtime.NIM.registerService(runtime.V2NIMNotificationService, 'V2NIMNotificationService')

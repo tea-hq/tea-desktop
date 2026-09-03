@@ -31,6 +31,7 @@ import {
   restorePrependScrollTop,
   type TimelineScrollSnapshot,
 } from './channelTimelineScroll'
+import { debugQuickComment } from '../quickCommentDebug'
 
 const props = withDefaults(
   defineProps<{
@@ -173,6 +174,16 @@ function mediaSave(message: Message): ChannelMediaSaveState | null {
 
 function isMessageSelected(message: Message): boolean {
   return props.selectedMessageKeys.includes(messageSelectionKey(message))
+}
+
+function handleQuickComment(message: Message, type: number, active: boolean): void {
+  debugQuickComment('timeline.emit', {
+    ref: message.ref,
+    type,
+    active,
+    reactions: message.reactions,
+  })
+  emit('quickComment', { message, type, active })
 }
 
 function requestOlderMessages(): void {
@@ -388,7 +399,7 @@ watch(
           :media-saving-available="mediaSavingAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
           @action="(action) => emit('messageAction', { message, action })"
-          @quick-comment="(type, active) => emit('quickComment', { message, type, active })"
+          @quick-comment="(type, active) => handleQuickComment(message, type, active)"
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
           @open-receipt-details="emit('openReceiptDetails', message)"

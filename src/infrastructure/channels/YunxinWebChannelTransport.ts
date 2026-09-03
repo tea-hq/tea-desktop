@@ -124,6 +124,7 @@ import {
   mediaSourceFromMessage,
   type ChannelMediaSource,
 } from './channelMediaSource'
+import { debugQuickComment } from '@/features/channels/quickCommentDebug'
 
 export interface YunxinSdkFactory {
   create(appKey: string): YunxinSdk | Promise<YunxinSdk>
@@ -1124,15 +1125,37 @@ export class YunxinWebChannelTransport
   }
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
+    debugQuickComment('yunxin.request', {
+      ref: request.messageRef,
+      type: request.type,
+      active: request.active,
+      status: this.currentStatus,
+      selfAccount: this.selfAccount,
+      rawMessageCount: this.rawMessages.size,
+    })
     const sdk = this.connectedSdk()
     if (!Number.isInteger(request.type) || request.type < 0 || request.type > 1_000)
       throw new ChannelTransportError('invalidRequest', false)
     const message = this.rawMessageForRef(request.messageRef)
+    debugQuickComment('yunxin.raw-message', {
+      requestedRef: request.messageRef,
+      resolvedRef: mapYunxinMessageRef(message),
+      conversationId: message.conversationId,
+      messageClientId: message.messageClientId,
+      messageServerId: message.messageServerId,
+    })
     if (request.active) {
+      debugQuickComment('yunxin.sdk.addQuickComment', { type: request.type })
       await sdk.V2NIMMessageService.addQuickComment(message, request.type)
     } else {
+      debugQuickComment('yunxin.sdk.removeQuickComment', { type: request.type })
       await sdk.V2NIMMessageService.removeQuickComment(toYunxinRefer(message), request.type)
     }
+    debugQuickComment('yunxin.sdk.success', {
+      ref: request.messageRef,
+      type: request.type,
+      active: request.active,
+    })
     this.applyReactionChange(
       mapYunxinMessageRef(message),
       request.type,
@@ -1564,6 +1587,12 @@ export class YunxinWebChannelTransport
   private readonly onMessageQuickCommentNotification = (
     value: V2NIMMessageQuickCommentNotification,
   ) => {
+    debugQuickComment('yunxin.notification.received', {
+      operationType: value?.operationType,
+      index: value?.quickComment?.index,
+      operatorId: value?.quickComment?.operatorId,
+      messageRefer: value?.quickComment?.messageRefer,
+    })
     const quickComment = value?.quickComment
     if (!quickComment?.messageRefer?.conversationId || !quickComment.messageRefer.messageClientId)
       return
@@ -1761,7 +1790,15 @@ export class YunxinWebChannelTransport
     operatorId: string | null | undefined,
     active: boolean,
   ): void {
-    if (!Number.isInteger(type) || type < 0 || type > 1_000 || !operatorId) return
+    if (!Number.isInteger(type) || type < 0 || type > 1_000 || !operatorId) {
+      debugQuickComment('yunxin.reaction-change.ignored', {
+        ref,
+        type,
+        operatorId,
+        active,
+      })
+      return
+    }
     const key = messageKey(ref)
     const byType = this.reactions.get(key) ?? new Map<number, Set<string>>()
     const operators = byType.get(type) ?? new Set<string>()
@@ -1771,6 +1808,16 @@ export class YunxinWebChannelTransport
     else byType.delete(type)
     this.reactions.set(key, byType)
     this.reactionRevisions.set(key, (this.reactionRevisions.get(key) ?? 0) + 1)
+    debugQuickComment('yunxin.reaction-change.applied', {
+      ref,
+      type,
+      operatorId,
+      active,
+      reactions: [...byType.entries()].map(([reactionType, ids]) => ({
+        type: reactionType,
+        operators: [...ids],
+      })),
+    })
     this.emitReactionState(ref)
   }
 
@@ -1783,6 +1830,7 @@ export class YunxinWebChannelTransport
         count: ids.size,
         active: ids.has(this.selfAccount ?? ''),
       }))
+    debugQuickComment('yunxin.reactions-event', { ref, reactions })
     this.emit({ type: 'message.reactionsChanged', ref, reactions })
   }
 
@@ -1829,9 +1877,18 @@ export class YunxinWebChannelTransport
             ref.messageServerId &&
             candidate.messageServerId === ref.messageServerId,
           ))
-      )
+      ) {
+        debugQuickComment('yunxin.raw-message.match', {
+          requestedRef: ref,
+          resolvedRef: candidate,
+        })
         return value
+      }
     }
+    debugQuickComment('yunxin.raw-message.miss', {
+      requestedRef: ref,
+      cachedRefs: [...this.rawMessages.values()].map(mapYunxinMessageRef),
+    })
     throw new ChannelTransportError('invalidRequest', false)
   }
 

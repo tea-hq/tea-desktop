@@ -41,6 +41,7 @@ import type {
   GroupMembersRequest,
   UpdateGroupRequest,
 } from '../../src/features/channels/contracts'
+import { debugQuickComment } from './quickCommentDebug'
 import { ChannelTransportError } from '../../src/features/channels/contracts'
 import {
   YunxinWebChannelTransport,
@@ -211,7 +212,29 @@ export class ElectronChannelService implements ChannelNotificationSourceResolver
   }
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
-    await this.transport.quickComment(request)
+    debugQuickComment('electron-service.request', {
+      ref: request.messageRef,
+      type: request.type,
+      active: request.active,
+      transport: this.transport.descriptor().id,
+      status: this.transport.status(),
+    })
+    try {
+      await this.transport.quickComment(request)
+      debugQuickComment('electron-service.success', {
+        ref: request.messageRef,
+        type: request.type,
+        active: request.active,
+      })
+    } catch (error) {
+      debugQuickComment('electron-service.failure', {
+        ref: request.messageRef,
+        type: request.type,
+        active: request.active,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
   }
 
   async transcribeVoice(messageRef: MessageRef): Promise<string> {

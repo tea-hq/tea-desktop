@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -107,6 +108,32 @@ describe('ElectronChannelTransport', () => {
     await expect(transport.transcribeVoice(messageRef)).resolves.toBe('Review the release plan.')
     expect(mocks.invoke).toHaveBeenCalledWith('transcribe_channel_voice', { messageRef })
     expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/voiceUrl|sceneName|sampleRate/)
+    await transport.dispose()
+  })
+
+  it('sends a plain quick comment request when the message ref comes from Vue state', async () => {
+    mocks.invoke.mockResolvedValueOnce(undefined)
+    const transport = new ElectronChannelTransport()
+    const messageRef = reactive({
+      channelRef: 'channel',
+      messageClientId: 'message-client',
+      messageServerId: 'message-server',
+    })
+
+    await transport.quickComment({ messageRef, type: 1, active: true })
+
+    expect(mocks.invoke).toHaveBeenCalledWith('quick_comment_channel_message', {
+      request: {
+        messageRef: {
+          channelRef: 'channel',
+          messageClientId: 'message-client',
+          messageServerId: 'message-server',
+        },
+        type: 1,
+        active: true,
+      },
+    })
+    expect(() => structuredClone(mocks.invoke.mock.calls[0]![1])).not.toThrow()
     await transport.dispose()
   })
 

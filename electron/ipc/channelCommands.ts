@@ -7,6 +7,7 @@ import {
   type DesktopCommandHandlers,
 } from './commandRouter'
 import { readArray, readBoolean, readRecord, readString } from './commandValidation'
+import { debugQuickComment } from '../services/quickCommentDebug'
 
 export interface ChannelCommandServices {
   channel: ElectronChannelService
@@ -63,8 +64,27 @@ export function createChannelCommandHandlers(
     delete_channel_messages: (args) => channel.deleteMessages(readRecord(args.request) as never),
     revoke_channel_message: (args) => channel.revokeMessage(readRecord(args.request) as never),
     pin_channel_message: (args) => channel.pinMessage(readRecord(args.request) as never),
-    quick_comment_channel_message: (args) =>
-      channel.quickComment(readRecord(args.request) as never),
+    quick_comment_channel_message: async (args) => {
+      const request = readRecord(args.request) as never
+      debugQuickComment('electron-ipc.command', {
+        command: 'quick_comment_channel_message',
+        request,
+      })
+      try {
+        await channel.quickComment(request)
+        debugQuickComment('electron-ipc.success', {
+          command: 'quick_comment_channel_message',
+          request,
+        })
+      } catch (error) {
+        debugQuickComment('electron-ipc.failure', {
+          command: 'quick_comment_channel_message',
+          request,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        throw error
+      }
+    },
     transcribe_channel_voice: async (args) =>
       readVoiceTranscript(await channel.transcribeVoice(readMessageRef(args.messageRef))),
     get_channel_message_receipt_details: (args) =>

@@ -71,6 +71,7 @@ import {
   sameMessage,
   type ChannelProjection,
 } from './projection'
+import { debugQuickComment } from './quickCommentDebug'
 
 interface MessageCursorBoundary {
   hasMore: boolean
@@ -1170,7 +1171,28 @@ export const useChannelsStore = defineStore('channels', () => {
   }
 
   async function quickComment(request: QuickCommentRequest): Promise<void> {
-    await mutateMessage((client) => client.quickComment(request))
+    debugQuickComment('store.request', {
+      ref: request.messageRef,
+      type: request.type,
+      active: request.active,
+      status: status.value,
+    })
+    try {
+      await mutateMessage((client) => client.quickComment(request))
+      debugQuickComment('store.success', {
+        ref: request.messageRef,
+        type: request.type,
+        active: request.active,
+      })
+    } catch (error) {
+      debugQuickComment('store.failure', {
+        ref: request.messageRef,
+        type: request.type,
+        active: request.active,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
   }
 
   async function transcribeVoice(messageRef: MessageRef): Promise<void> {
@@ -2081,7 +2103,29 @@ export const useChannelsStore = defineStore('channels', () => {
       initialConversationSyncFinished.value = false
     }
     status.value = event.type === 'status.changed' ? event.status : status.value
-    reduceChannelEvent(projection, event)
+    const reactionBefore =
+      event.type === 'message.reactionsChanged'
+        ? (projection.messagesByChannel.get(event.ref.channelRef) ?? []).find((message) =>
+            sameMessage(message.ref, event.ref),
+          )
+        : undefined
+    const reduced = reduceChannelEvent(projection, event)
+    if (event.type === 'message.reactionsChanged') {
+      const reactionAfter = (projection.messagesByChannel.get(event.ref.channelRef) ?? []).find(
+        (message) => sameMessage(message.ref, event.ref),
+      )
+      debugQuickComment('store.event', {
+        ref: event.ref,
+        type: event.type,
+        sequence: event.sequence,
+        accepted: reduced,
+        projectionLastSequence: projection.lastEventSequence,
+        before: reactionBefore?.reactions,
+        eventReactions: event.reactions,
+        after: reactionAfter?.reactions,
+        matched: Boolean(reactionAfter),
+      })
+    }
     if (
       event.type === 'channel.deleted' &&
       activeChannelRef.value &&

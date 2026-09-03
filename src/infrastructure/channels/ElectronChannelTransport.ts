@@ -46,6 +46,7 @@ import type {
   UpdateGroupRequest,
 } from '@/features/channels/contracts'
 import { ChannelTransportError } from '@/features/channels/contracts'
+import { debugQuickComment } from '@/features/channels/quickCommentDebug'
 
 const descriptor: ChannelTransportDescriptor = {
   id: 'yunxin.web',
@@ -240,7 +241,36 @@ export class ElectronChannelTransport implements ChannelTransport {
   }
 
   async quickComment(request: QuickCommentRequest): Promise<void> {
-    await this.command('quick_comment_channel_message', { request })
+    const ipcRequest: QuickCommentRequest = {
+      messageRef: copyMessageRef(request.messageRef),
+      type: request.type,
+      active: request.active,
+    }
+    debugQuickComment('electron-renderer.request', {
+      command: 'quick_comment_channel_message',
+      ref: ipcRequest.messageRef,
+      type: ipcRequest.type,
+      active: ipcRequest.active,
+      status: this.currentStatus,
+    })
+    try {
+      await this.command('quick_comment_channel_message', { request: ipcRequest })
+      debugQuickComment('electron-renderer.success', {
+        command: 'quick_comment_channel_message',
+        ref: ipcRequest.messageRef,
+        type: ipcRequest.type,
+        active: ipcRequest.active,
+      })
+    } catch (error) {
+      debugQuickComment('electron-renderer.failure', {
+        command: 'quick_comment_channel_message',
+        ref: ipcRequest.messageRef,
+        type: ipcRequest.type,
+        active: ipcRequest.active,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
   }
 
   async transcribeVoice(messageRef: MessageRef): Promise<string> {
@@ -301,6 +331,20 @@ export class ElectronChannelTransport implements ChannelTransport {
     try {
       return await invoke<T>(name, args)
     } catch (error) {
+      if (name === 'quick_comment_channel_message')
+        debugQuickComment('electron-renderer.command-failure', {
+          command: name,
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorCode:
+            error && typeof error === 'object' && 'code' in error
+              ? (error as { code?: unknown }).code
+              : undefined,
+          retryable:
+            error && typeof error === 'object' && 'retryable' in error
+              ? (error as { retryable?: unknown }).retryable
+              : undefined,
+        })
       throw mapCommandError(error)
     }
   }
@@ -309,6 +353,14 @@ export class ElectronChannelTransport implements ChannelTransport {
     if (this.unlisten) return
     this.unlisten = listen('channel-event', (event) => {
       if (this.disposed) return
+      if (event.payload.type === 'message.reactionsChanged') {
+        debugQuickComment('electron-renderer.event', {
+          event: event.payload.type,
+          sequence: event.payload.sequence,
+          ref: event.payload.ref,
+          reactions: event.payload.reactions,
+        })
+      }
       if (event.payload.type === 'status.changed') this.currentStatus = event.payload.status
       for (const listener of [...this.listeners]) listener(structuredClone(event.payload))
     }).catch(() => () => undefined)
@@ -316,6 +368,14 @@ export class ElectronChannelTransport implements ChannelTransport {
 
   private assertUsable(): void {
     if (this.disposed) throw new ChannelTransportError('disposed', false)
+  }
+}
+
+function copyMessageRef(ref: MessageRef): MessageRef {
+  return {
+    channelRef: ref.channelRef,
+    messageClientId: ref.messageClientId,
+    ...(ref.messageServerId === undefined ? {} : { messageServerId: ref.messageServerId }),
   }
 }
 
