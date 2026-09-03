@@ -167,6 +167,7 @@ export function useWorkspaceRuntime(
         ui.previousMode.value = 'channels'
         ui.collaborationWorkspace.value = false
         ui.selectedRoleId.value = null
+        ui.globalSearchQuery.value = ''
         profile.dispose()
         managedConfig.clear()
         const conversationDisposal = conversation.dispose()
