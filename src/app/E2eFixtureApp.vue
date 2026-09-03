@@ -372,6 +372,9 @@ function createFullSessionWithRuntime(runtimeId: string): void {
   turns.value = []
   activeMode.value = 'agent'
 }
+function createFullSession(): void {
+  createFullSessionWithRuntime(runtime.id)
+}
 function injectPrompt(current: string, prompt: string): string {
   const next = prompt.trim()
   if (!next) return current
@@ -515,7 +518,7 @@ function deliverDraft(): void {
           :has-more="false"
           :filter="{ kind: 'all' }"
           :search-query="globalSearchQuery"
-          @new-with-runtime="createFullSessionWithRuntime"
+          @new="createFullSession"
         />
         <main class="min-w-0 flex-1">
           <AgentConversationSurface
@@ -534,8 +537,10 @@ function deliverDraft(): void {
             :model-options="fixtureModelOptions"
             :model="fullModel"
             :permission-mode="fullPermissionMode"
+            :new-conversation="turns.length === 0"
             :roles="fixtureRoles"
             :role-id="fullRoleId"
+            @select-runtime="fullRuntimeId = $event"
             @send="send"
             @select-model="fullModel = $event"
             @select-permission="fullPermissionMode = $event"

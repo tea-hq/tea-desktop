@@ -10,6 +10,7 @@ import type {
   ModelOption,
   PermissionMode,
   RuntimeDescriptor,
+  ThinkingEffort,
 } from '../contracts'
 import { shouldSendFromComposer } from '../composerKeyboard'
 import AgentModelMenu from './AgentModelMenu.vue'
@@ -55,19 +56,19 @@ const emit = defineEmits<{
 }>()
 const fileInput = ref<HTMLInputElement | null>(null)
 const composing = ref(false)
+const thinkingEffort = ref<ThinkingEffort>('extraHigh')
 const { t } = useI18n()
-const runtimeOptions = computed(() =>
-  props.runtimes.map((value) => ({
-    value: value.id,
-    label: value.displayName,
-    disabled: value.status !== 'ready',
-  })),
-)
 const models = computed(() =>
   props.modelOptions.map((value) => ({
     value: value.value,
     label: value.label ?? (value.labelKey ? t(value.labelKey) : value.value),
     disabled: value.unavailable,
+  })),
+)
+const effortOptions = computed(() =>
+  (['light', 'medium', 'high', 'extraHigh', 'ultra'] as const).map((value) => ({
+    value,
+    label: t(`composer.modelMenu.effortOptions.${value}`),
   })),
 )
 const permissions = computed(() =>
@@ -186,7 +187,10 @@ defineExpose({ focus })
           @compositionstart="composing = true"
           @compositionend="composing = false"
         />
-        <div class="composer-toolbar">
+        <div
+          class="composer-toolbar"
+          :class="newConversation ? 'composer-toolbar--new-conversation' : ''"
+        >
           <input ref="fileInput" type="file" multiple class="hidden" @change="files" />
           <div class="composer-toolbar-controls">
             <TeaIconButton
@@ -196,21 +200,11 @@ defineExpose({ focus })
               @click="fileInput?.click()"
             />
             <TeaMenuSelect
-              v-if="profile.showRuntimeSelect"
-              class="composer-menu-select composer-menu-select--runtime"
-              :model-value="runtimeId"
-              :options="runtimeOptions"
-              :label="t('composer.selectAgent')"
-              size="small"
-              menu-placement="up"
-              :disabled="disabled || streaming"
-              @update:model-value="$event && emit('selectRuntime', String($event))"
-            />
-            <TeaMenuSelect
               class="composer-menu-select composer-menu-select--permission"
               :model-value="permissionMode"
               :options="permissions"
               :label="t('composer.selectPermission')"
+              :icon="newConversation ? 'i-mdi-shield-check-outline' : undefined"
               size="small"
               menu-placement="up"
               :disabled="disabled || streaming"
@@ -224,8 +218,24 @@ defineExpose({ focus })
               :model-value="model"
               :options="models"
               :label="t('composer.selectModel')"
+              :runtimes="runtimes"
+              :runtime-id="runtimeId"
+              :allow-runtime-selection="Boolean(newConversation)"
               :disabled="disabled || streaming"
+              @select-runtime="$event && emit('selectRuntime', String($event))"
               @update:model-value="$event && emit('selectModel', String($event))"
+            />
+            <TeaMenuSelect
+              v-if="newConversation"
+              class="composer-menu-select composer-menu-select--effort"
+              :model-value="thinkingEffort"
+              :options="effortOptions"
+              :label="t('composer.selectThinkingEffort')"
+              icon="i-mdi-lightbulb-outline"
+              size="small"
+              menu-placement="up"
+              :disabled="disabled || streaming"
+              @update:model-value="thinkingEffort = $event as ThinkingEffort"
             />
             <TeaIconButton
               v-if="streaming"
@@ -383,18 +393,21 @@ defineExpose({ focus })
 .composer-toolbar-actions {
   margin-left: auto;
 }
+.composer-toolbar--new-conversation {
+  align-items: center;
+}
 .composer-menu-select {
   flex: 0 1 auto;
   min-width: 0;
-}
-.composer-menu-select--runtime {
-  max-width: 10rem;
 }
 .composer-menu-select--model {
   max-width: 24rem;
 }
 .composer-menu-select--permission {
   max-width: 9rem;
+}
+.composer-menu-select--effort {
+  max-width: 10rem;
 }
 .composer-menu-select :deep(.tea-menu-select__trigger) {
   color: var(--tea-dim);

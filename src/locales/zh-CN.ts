@@ -868,8 +868,10 @@ export default {
     agentLocked: '当前会话的 Agent 已锁定',
     selectPermission: '选择权限模式',
     selectModel: '选择模型',
+    selectThinkingEffort: '选择思考强度',
     modelMenu: {
       navigation: '模型设置',
+      agents: 'Agent',
       model: '模型',
       effort: '思考深度',
       advanced: '高级设置',

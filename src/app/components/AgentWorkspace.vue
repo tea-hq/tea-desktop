@@ -26,7 +26,6 @@ const {
   sendFromFullSurface,
   applyActiveRolePrompt,
   handleNew,
-  handleNewWithRuntime,
   handleQuickCreate,
   selectNewConversationProject,
   handleSelect,
@@ -51,7 +50,6 @@ const { t } = useI18n()
     :conversations="conversation.conversations"
     :active-id="collaborationWorkspace ? collaboration.conversationId : conversation.conversationId"
     :runtimes="conversation.runtimes"
-    :default-runtime-id="settings.defaultRuntimeId"
     :loading="conversation.listLoading"
     :loading-more="conversation.listLoadingMore"
     :error="conversation.listError"
@@ -60,7 +58,6 @@ const { t } = useI18n()
     :running-conversation-ids="conversation.runningConversationIds"
     :completed-conversation-ids="conversation.completedConversationIds"
     @new="handleNew"
-    @new-with-runtime="handleNewWithRuntime"
     @quick-create="handleQuickCreate"
     @select="handleSelect"
     @archive="archiveConversation"

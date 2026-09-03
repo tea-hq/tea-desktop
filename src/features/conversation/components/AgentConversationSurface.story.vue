@@ -80,6 +80,7 @@ const approvalTurn: ConversationTurn = {
           title="New conversation"
           runtime-label="Claude Code"
           :turns="[]"
+          new-conversation
           :runtimes="[runtime]"
           :runtime-id="runtime.id"
           :model-options="modelOptions"

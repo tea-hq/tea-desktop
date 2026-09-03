@@ -113,13 +113,12 @@ describe('ConversationSidebar', () => {
     expect(wrapper.emitted('new')).toHaveLength(1)
   })
 
-  it('offers alternate Agents from the same lightweight menu', async () => {
+  it('keeps one new conversation action when multiple Agents are available', async () => {
     const wrapper = mount(ConversationSidebar, {
       props: {
         conversations: [],
         activeId: null,
         runtimes: [runtime, alternateRuntime],
-        defaultRuntimeId: runtime.id,
         loading: false,
         loadingMore: false,
         error: null,
@@ -131,12 +130,8 @@ describe('ConversationSidebar', () => {
       },
     })
 
-    await wrapper.get('button[aria-label="Choose another Agent"]').trigger('click')
-    const codex = wrapper.findAll('[role="menuitem"]').find((item) => item.text() === 'Codex')
-    expect(codex).toBeDefined()
-    await codex!.trigger('click')
-
-    expect(wrapper.emitted('newWithRuntime')).toEqual([['external.codex']])
+    expect(wrapper.findAll('button[aria-label="New Conversation"]')).toHaveLength(1)
+    expect(wrapper.find('button[aria-label="Choose another Agent"]').exists()).toBe(false)
   })
 
   it('quick-creates project and recent conversations with distinct directory context', async () => {

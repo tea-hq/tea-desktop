@@ -909,8 +909,10 @@ export default {
     agentLocked: 'The Agent is fixed for this conversation',
     selectPermission: 'Select permission mode',
     selectModel: 'Select model',
+    selectThinkingEffort: 'Select thinking effort',
     modelMenu: {
       navigation: 'Model settings',
+      agents: 'Agents',
       model: 'Model',
       effort: 'Effort',
       advanced: 'Advanced',
