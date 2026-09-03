@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
@@ -17,6 +18,13 @@ import ChannelMediaSaveControl from './ChannelMediaSaveControl.vue'
 import ChannelMergedMessageCard from './ChannelMergedMessageCard.vue'
 import ChannelVoiceMessagePlayer from './ChannelVoiceMessagePlayer.vue'
 import type { MessageAction } from './ChannelMessageActions.vue'
+import ChannelQuickCommentPicker from './ChannelQuickCommentPicker.vue'
+import {
+  QUICK_COMMENT_OPTIONS,
+  quickCommentLabel,
+  quickCommentOption,
+} from '../quickCommentOptions'
+import quickCommentAddAsset from '@/assets/channel-emojis/icon-biaoqing.png'
 
 const props = withDefaults(
   defineProps<{
@@ -70,8 +78,10 @@ const emit = defineEmits<{
   saveMedia: []
   cancelMediaSave: []
   retryMediaSave: []
+  quickComment: [type: number, active: boolean]
 }>()
 const { t } = useI18n()
+const quickCommentPickerSource = ref<'actions' | 'reactions' | null>(null)
 
 function initials(name: string): string {
   return [...name].slice(0, 2).join('').toUpperCase()
@@ -81,19 +91,36 @@ function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
 }
 
-function reactionLabel(type: number): string {
-  return (
-    (
-      {
-        1: '👍',
-        2: '❤️',
-        3: '😂',
-        4: '🎉',
-        5: '🙏',
-        6: '👀',
-      } as Record<number, string>
-    )[type] ?? `#${type}`
-  )
+function reactionAsset(type: number): string | undefined {
+  return quickCommentOption(type)?.asset || undefined
+}
+
+function isReactionActive(type: number): boolean {
+  return props.message.reactions.some((reaction) => reaction.type === type && reaction.active)
+}
+
+function openQuickCommentPicker(source: 'actions' | 'reactions'): void {
+  if (!props.interactive || props.selectionMode || props.message.state !== 'active') return
+  quickCommentPickerSource.value = quickCommentPickerSource.value === source ? null : source
+}
+
+function selectQuickComment(type: number): void {
+  if (!props.interactive || props.selectionMode || props.message.state !== 'active') return
+  quickCommentPickerSource.value = null
+  emit('quickComment', type, !isReactionActive(type))
+}
+
+function toggleReaction(type: number): void {
+  if (!props.interactive || props.selectionMode || props.message.state !== 'active') return
+  emit('quickComment', type, !isReactionActive(type))
+}
+
+function handleMessageAction(action: MessageAction): void {
+  if (action === 'reaction') {
+    openQuickCommentPicker('actions')
+    return
+  }
+  emit('action', action)
 }
 
 function mediaIcon(kind: Message['content']['kind']): string {
@@ -372,22 +399,45 @@ function selectMessage(): void {
             {{ t('channels.message.revoked') }}
           </p>
 
-          <ChannelMessageActions
+          <div
             v-if="interactive && !selectionMode"
-            class="mt-0.5"
-            :open-up="menuOpenUp"
-            :sent-by-current-user="message.sentByCurrentUser"
-            :message-state="message.state"
-            :thread-available="threadAvailable"
-            :pinned="message.pinned"
-            :active-conversation="activeConversation"
-            :recent-conversations="recentConversations"
-            :current-session-available="currentSessionAvailable"
-            :runtimes="runtimes"
-            :default-runtime-id="defaultRuntimeId"
-            @action="(action) => emit('action', action)"
-            @forward-to-agent="(action, id) => emit('forwardToAgent', action, id)"
-          />
+            class="channel-message-actions-anchor relative shrink-0"
+            :class="
+              message.sentByCurrentUser
+                ? 'channel-message-actions-anchor--out'
+                : 'channel-message-actions-anchor--in'
+            "
+          >
+            <ChannelMessageActions
+              class="mt-0.5"
+              :open-up="menuOpenUp"
+              :sent-by-current-user="message.sentByCurrentUser"
+              :message-state="message.state"
+              :thread-available="threadAvailable"
+              :has-reactions="message.reactions.length > 0"
+              :pinned="message.pinned"
+              :active-conversation="activeConversation"
+              :recent-conversations="recentConversations"
+              :current-session-available="currentSessionAvailable"
+              :runtimes="runtimes"
+              :default-runtime-id="defaultRuntimeId"
+              @action="handleMessageAction"
+              @forward-to-agent="(action, id) => emit('forwardToAgent', action, id)"
+            />
+            <ChannelQuickCommentPicker
+              v-if="quickCommentPickerSource === 'actions'"
+              :open="true"
+              :options="QUICK_COMMENT_OPTIONS"
+              :align-end="message.sentByCurrentUser"
+              :active-types="
+                message.reactions
+                  .filter((reaction) => reaction.active)
+                  .map((reaction) => reaction.type)
+              "
+              @close="quickCommentPickerSource = null"
+              @select="selectQuickComment"
+            />
+          </div>
         </div>
 
         <div
@@ -400,19 +450,65 @@ function selectMessage(): void {
           }}</span>
         </div>
 
-        <div v-if="message.reactions.length" class="mt-1.5 flex gap-1">
+        <div
+          v-if="message.reactions.length"
+          class="channel-message-reactions relative mt-1.5 flex flex-wrap gap-1"
+          :class="
+            message.sentByCurrentUser
+              ? 'channel-message-reactions--out'
+              : 'channel-message-reactions--in'
+          "
+          @click.stop
+        >
           <TeaButton
             v-for="reaction in message.reactions"
             :key="reaction.type"
             appearance="ghost"
             size="small"
-            class="inline-flex h-6 items-center gap-1 rounded-pill px-1.5 text-sm transition-colors"
+            class="inline-flex h-7 items-center gap-1 rounded-pill border px-1.5 text-sm transition-colors"
             :class="reaction.active ? 'bg-hover text-fg' : 'bg-panel text-dim hover:bg-pressed'"
-            :disabled="!interactive"
+            :disabled="!interactive || selectionMode"
+            :aria-label="
+              t(
+                reaction.active ? 'channels.message.reactionRemove' : 'channels.message.reactWith',
+                { name: quickCommentLabel(reaction.type) },
+              )
+            "
+            @click="toggleReaction(reaction.type)"
           >
-            <span>{{ reactionLabel(reaction.type) }}</span>
+            <img
+              v-if="reactionAsset(reaction.type)"
+              class="size-5 object-contain"
+              :src="reactionAsset(reaction.type)"
+              :alt="quickCommentLabel(reaction.type)"
+            />
+            <span v-else class="text-xs">#{{ reaction.type }}</span>
             <span>{{ reaction.count }}</span>
           </TeaButton>
+          <button
+            v-if="interactive && !selectionMode && message.state === 'active'"
+            type="button"
+            class="channel-message-reactions__add inline-flex size-7 items-center justify-center rounded-full border border-line bg-canvas text-dim transition-colors hover:border-line-strong hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus active:bg-pressed motion-reduce:transition-none"
+            :aria-label="t('channels.message.reactionAdd')"
+            :aria-expanded="quickCommentPickerSource === 'reactions'"
+            data-quick-comment-trigger="true"
+            @click="openQuickCommentPicker('reactions')"
+          >
+            <img class="size-5 object-contain" :src="quickCommentAddAsset" alt="" />
+          </button>
+          <ChannelQuickCommentPicker
+            v-if="quickCommentPickerSource === 'reactions'"
+            :open="true"
+            :options="QUICK_COMMENT_OPTIONS"
+            :align-end="message.sentByCurrentUser"
+            :active-types="
+              message.reactions
+                .filter((reaction) => reaction.active)
+                .map((reaction) => reaction.type)
+            "
+            @close="quickCommentPickerSource = null"
+            @select="selectQuickComment"
+          />
         </div>
         <TeaButton
           v-if="
@@ -456,6 +552,16 @@ function selectMessage(): void {
   max-height: 18rem;
 }
 
+.channel-message-reactions__add img {
+  opacity: 0.72;
+  transition: opacity 120ms ease;
+}
+
+.channel-message-reactions__add:hover img,
+.channel-message-reactions__add:focus-visible img {
+  opacity: 1;
+}
+
 .channel-message-media-audio {
   width: min(20rem, 65vw);
   max-width: 100%;
@@ -465,6 +571,12 @@ function selectMessage(): void {
   .channel-message:hover :deep(.channel-message-actions) {
     pointer-events: auto;
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .channel-message-reactions__add img {
+    transition: none;
   }
 }
 </style>

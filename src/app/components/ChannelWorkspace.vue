@@ -25,7 +25,6 @@ import type { MessageAction } from '@/features/channels/components/ChannelMessag
 import { TeaButton, TeaDialog, TeaTextarea } from '@/shared/ui'
 import ChannelActionConfirmDialog from '@/features/channels/components/ChannelActionConfirmDialog.vue'
 import ChannelForwardDialog from '@/features/channels/components/ChannelForwardDialog.vue'
-import ChannelReactionDialog from '@/features/channels/components/ChannelReactionDialog.vue'
 import ChannelDetailsDialog from '@/features/channels/components/ChannelDetailsDialog.vue'
 import ChannelMessageSearchDialog from '@/features/channels/components/ChannelMessageSearchDialog.vue'
 import ChannelMediaViewer from '@/features/channels/components/ChannelMediaViewer.vue'
@@ -71,7 +70,6 @@ const forwardingMessages = shallowRef<Message[]>([])
 const forwardingMode = ref<ForwardMessageMode>('individual')
 const forwardingSourceChannelName = ref<string | undefined>()
 const forwardingIdempotencyKey = ref<string | undefined>()
-const reactingMessage = ref<Message | null>(null)
 const actionPending = ref(false)
 const editDraft = ref('')
 const detailsOpen = ref(false)
@@ -125,15 +123,6 @@ const {
   back: backMergedMessage,
   close: closeMergedViewer,
 } = useChannelMergedMessageViewer((messageRef) => channels.loadMergedMessages(messageRef))
-
-const reactionOptions = [
-  { type: 1, label: '👍' },
-  { type: 2, label: '❤️' },
-  { type: 3, label: '😂' },
-  { type: 4, label: '🎉' },
-  { type: 5, label: '🙏' },
-  { type: 6, label: '👀' },
-] as const
 
 const voiceTranscriptionAvailable = computed(() =>
   channels.capabilities.some(
@@ -552,7 +541,6 @@ function handleMessageAction(payload: { message: Message; action: MessageAction 
   } else if (payload.action === 'forward')
     openForwarding([payload.message], 'individual', channels.activeChannel?.name)
   else if (payload.action === 'select') beginMessageSelection(payload.message)
-  else if (payload.action === 'reaction') reactingMessage.value = payload.message
   else if (payload.action === 'edit') {
     editingMessage.value = payload.message
     editDraft.value = payload.message.text
@@ -676,16 +664,14 @@ async function confirmForward(payload: {
   }
 }
 
-async function selectReaction(type: number, active: boolean): Promise<void> {
-  if (!reactingMessage.value) return
+function handleQuickComment(payload: { message: Message; type: number; active: boolean }): void {
   actionPending.value = true
-  try {
-    await channels.quickComment({ messageRef: reactingMessage.value.ref, type, active })
-  } catch {
-    // Preserve the store error state.
-  } finally {
-    actionPending.value = false
-  }
+  void channels
+    .quickComment({ messageRef: payload.message.ref, type: payload.type, active: payload.active })
+    .catch(() => undefined)
+    .finally(() => {
+      actionPending.value = false
+    })
 }
 
 function closeDetails(): void {
@@ -891,6 +877,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :draft-has-unresolved-delivery="channels.activeDraftHasUnresolvedDelivery"
     @forward-to-agent="forwardToAgent"
     @message-action="handleMessageAction"
+    @quick-comment="handleQuickComment"
     @send="handleChannelSend"
     @pick-attachments="pickChannelAttachments"
     @remove-attachment="removeChannelAttachment"
@@ -1135,16 +1122,6 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     @retry="retryMergedMessage"
     @back="backMergedMessage"
     @open-merged="openMergedMessage"
-  />
-  <ChannelReactionDialog
-    :open="reactingMessage !== null"
-    :message="reactingMessage"
-    :options="reactionOptions"
-    :title="t('channels.message.reactionTitle')"
-    :close-label="t('channels.message.cancel')"
-    :pending="actionPending"
-    @close="reactingMessage = null"
-    @select="selectReaction"
   />
   <ChannelReceiptDetailsDialog
     :open="receiptDetailsOpen"

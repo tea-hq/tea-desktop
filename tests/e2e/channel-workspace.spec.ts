@@ -74,3 +74,40 @@ test('renders merged cards and each archive viewer state', async ({ openFixture,
   await page.getByRole('button', { name: 'Retry' }).click()
   await expect(page.getByText(/Can we move Agent collaboration/)).toBeVisible()
 })
+
+test('keeps quick comments available and contained at narrow widths', async ({
+  openFixture,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openFixture('merged-card')
+
+  const reactedMessage = page.locator('[data-message-id="message-1"]')
+  await expect(reactedMessage.getByRole('button', { name: 'React with Laugh' })).toBeVisible()
+  await reactedMessage.getByRole('button', { name: 'Add a reaction' }).click()
+  const reactedPicker = page.getByRole('dialog', { name: 'Quick reaction' })
+  await expect(reactedPicker).toBeVisible()
+  await expect(reactedPicker.locator('[data-quick-comment-type]')).toHaveCount(70)
+  const reactedBox = await reactedPicker.boundingBox()
+  expect(reactedBox?.x).toBeGreaterThanOrEqual(0)
+  expect((reactedBox?.x ?? 0) + (reactedBox?.width ?? 390)).toBeLessThanOrEqual(390)
+  await reactedMessage.getByRole('button', { name: 'Add a reaction' }).click()
+  await expect(reactedPicker).toBeHidden()
+
+  await openFixture('merged-card')
+  const unreactedMessage = page.locator('[data-message-id="message-2"]')
+  await unreactedMessage.hover()
+  await unreactedMessage.getByRole('button', { name: 'More message actions' }).click()
+  await expect(unreactedMessage.getByRole('menuitem').first()).toHaveText('Quick reaction')
+  await unreactedMessage.getByRole('menuitem', { name: 'Quick reaction' }).click()
+  const unreactedPicker = page.getByRole('dialog', { name: 'Quick reaction' })
+  await expect(unreactedPicker).toBeVisible()
+  const unreactedBox = await unreactedPicker.boundingBox()
+  expect(unreactedBox?.y).toBeGreaterThanOrEqual(0)
+  expect((unreactedBox?.y ?? 0) + (unreactedBox?.height ?? 844)).toBeLessThanOrEqual(844)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false)
+})

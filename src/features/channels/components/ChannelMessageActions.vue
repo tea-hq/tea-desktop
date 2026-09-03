@@ -24,6 +24,7 @@ const props = defineProps<{
   sentByCurrentUser: boolean
   messageState: 'active' | 'revoked'
   threadAvailable?: boolean
+  hasReactions?: boolean
   pinned?: boolean
   activeConversation: ConversationSummary | null
   recentConversations: ConversationSummary[]
@@ -44,6 +45,13 @@ const moreMenu = ref<InstanceType<typeof TeaMenu> | null>(null)
 const moreMenuItems = computed<TeaMenuItem[]>(() => {
   const items: TeaMenuItem[] = []
   if (props.messageState === 'active') {
+    if (!props.hasReactions) {
+      items.push({
+        value: 'reaction',
+        label: t('channels.message.quickReaction'),
+        icon: 'i-mdi-emoticon-plus-outline',
+      })
+    }
     items.push(
       { value: 'reply', label: t('channels.message.reply'), icon: 'i-mdi-reply-outline' },
       ...(props.threadAvailable
@@ -60,11 +68,6 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
         value: 'select',
         label: t('channels.selection.select'),
         icon: 'i-mdi-checkbox-multiple-marked-outline',
-      },
-      {
-        value: 'reaction',
-        label: t('channels.message.quickReaction'),
-        icon: 'i-mdi-emoticon-plus-outline',
       },
       ...(props.sentByCurrentUser
         ? [{ value: 'edit', label: t('channels.message.edit'), icon: 'i-mdi-pencil-outline' }]
@@ -178,14 +181,6 @@ function selectMessageAction(value: string): void {
       :label="t('channels.message.forward')"
       icon="i-mdi-forward"
       @click.stop="emit('action', 'forward')"
-    />
-    <TeaIconButton
-      v-if="messageState === 'active'"
-      class="channel-message-actions__button channel-message-actions__quick"
-      size="small"
-      :label="t('channels.message.quickReaction')"
-      icon="i-mdi-emoticon-plus-outline"
-      @click.stop="emit('action', 'reaction')"
     />
     <span v-if="messageState === 'active'" ref="agentMenuAnchor" class="inline-flex">
       <TeaIconButton

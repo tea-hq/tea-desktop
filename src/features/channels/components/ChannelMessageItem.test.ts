@@ -63,6 +63,12 @@ const imageMessage: Message = {
   },
 }
 
+const reactedMessage: Message = {
+  ...message,
+  ref: { channelRef: 'channel-product', messageClientId: 'message-reacted' },
+  reactions: [{ type: 1, count: 2, active: true }],
+}
+
 function mediaSaveState(overrides: Partial<ChannelMediaSaveState> = {}): ChannelMediaSaveState {
   return {
     operationId: 'media-save-1',
@@ -115,6 +121,33 @@ describe('ChannelMessageItem', () => {
 
     await wrapper.setProps({ message: { ...voiceMessage, state: 'revoked' } })
     expect(wrapper.find('button[aria-label="Transcribe audio"]').exists()).toBe(false)
+  })
+
+  it('opens the quick comment picker from the overflow menu when there are no reactions', async () => {
+    const wrapper = mountMessage(message)
+
+    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
+    await wrapper.get('[role="menuitem"]').trigger('click')
+
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('Quick reaction')
+    expect(wrapper.findAll('[data-quick-comment-type]').length).toBe(70)
+
+    await wrapper.get('[data-quick-comment-type="45"]').trigger('click')
+    expect(wrapper.emitted('quickComment')).toEqual([[45, true]])
+  })
+
+  it('renders reaction assets with an inline add entry and toggles active reactions', async () => {
+    const wrapper = mountMessage(reactedMessage)
+
+    const chip = wrapper.get('button[aria-label="Remove Laugh reaction"]')
+    expect(chip.find('img').attributes('src')).toContain('icon-a-1')
+    await chip.trigger('click')
+    expect(wrapper.emitted('quickComment')).toEqual([[1, false]])
+
+    await wrapper.get('button[aria-label="Add a reaction"]').trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    await wrapper.get('button[aria-label="Add a reaction"]').trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
 
   it('uses the Tea player and forwards typed voice playback intent', async () => {

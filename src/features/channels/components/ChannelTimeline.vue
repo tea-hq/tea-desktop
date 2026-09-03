@@ -109,6 +109,7 @@ const emit = defineEmits<{
     },
   ]
   messageAction: [payload: { message: Message; action: MessageAction }]
+  quickComment: [payload: { message: Message; type: number; active: boolean }]
   togglePanel: []
   send: [
     payload: {
@@ -387,6 +388,7 @@ watch(
           :media-saving-available="mediaSavingAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
           @action="(action) => emit('messageAction', { message, action })"
+          @quick-comment="(type, active) => emit('quickComment', { message, type, active })"
           @toggle-selection="emit('toggleMessageSelection', message)"
           @open-merged="emit('openMerged', message)"
           @open-receipt-details="emit('openReceiptDetails', message)"

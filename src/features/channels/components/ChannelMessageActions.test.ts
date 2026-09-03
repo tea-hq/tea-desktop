@@ -66,7 +66,6 @@ describe('ChannelMessageActions', () => {
     expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
       'Reply',
       'Forward',
-      'Quick reaction',
       'Work with Agent',
       'More message actions',
     ])
@@ -110,10 +109,10 @@ describe('ChannelMessageActions', () => {
 
     const menu = wrapper.get('[role="menu"]')
     expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
+      'Quick reaction',
       'Reply',
       'Forward',
       'Select messages',
-      'Quick reaction',
       'Edit message',
       'Pin message',
       'Save message',
@@ -125,6 +124,14 @@ describe('ChannelMessageActions', () => {
     await menu.findAll('[role="menuitem"]')[8]!.trigger('click')
     expect(wrapper.emitted('action')).toEqual([['delete']])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+  })
+
+  it('moves quick reaction to the message row once a reaction exists', async () => {
+    wrapper = mountActions()
+    await wrapper.setProps({ hasReactions: true })
+    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
+
+    expect(wrapper.get('[role="menu"]').text()).not.toContain('Quick reaction')
   })
 
   it('omits revoke for received messages and leaves only delete after revocation', async () => {
