@@ -124,6 +124,36 @@ describe('ElectronCenterPluginService', () => {
     ])
   })
 
+  it('maps the safe Center catalog to remote plugin metadata without credentials', async () => {
+    const client = {
+      stateValue: () => authenticatedState('tenant-a'),
+      listEnabledPlugins: vi.fn(async () => [pluginCatalog()]),
+      callPlugin: vi.fn(),
+    }
+    const service = new ElectronCenterPluginService(client)
+
+    await expect(service.listRemotePlugins()).resolves.toEqual([
+      expect.objectContaining({
+        id: 'plugin-a',
+        source: 'remote',
+        version: 'cloud',
+        displayName: 'Overmind',
+        credentialConfigured: false,
+        connections: [
+          { id: 'center', displayName: 'Tea Center', enabled: true, configured: false },
+        ],
+        actions: [
+          {
+            id: 'getIssue',
+            version: 'cloud',
+            description: 'Query one issue',
+            effect: 'read',
+          },
+        ],
+      }),
+    ])
+  })
+
   it('preserves prototype-sensitive parameter names without mutating the schema object', async () => {
     const catalog = pluginCatalog()
     catalog.operations[0]!.parameters = [
@@ -184,6 +214,7 @@ function pluginCatalog() {
         description: 'Query one issue',
         method: 'GET',
         path: '/api/issue',
+        readOnly: true,
         parameters: [
           {
             name: 'productId',

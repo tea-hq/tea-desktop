@@ -8,6 +8,7 @@ function emptyServices(): DesktopCommandServices {
     centerAuth: {} as never,
     managedWorkspace: {} as never,
     catalog: {} as never,
+    centerPlugins: {} as never,
     credentials: {} as never,
     pluginProcesses: {} as never,
     channel: {} as never,

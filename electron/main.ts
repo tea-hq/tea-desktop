@@ -255,6 +255,7 @@ async function bootstrap(): Promise<void> {
     centerAuth,
     managedWorkspace,
     catalog,
+    centerPlugins,
     credentials,
     pluginProcesses,
     channel,

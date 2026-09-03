@@ -16,6 +16,7 @@ export const DESKTOP_COMMANDS = [
   'clear_plugin_credentials',
   'invoke_plugin_action',
   'list_plugins',
+  'list_remote_plugins',
   'enable_plugin',
   'disable_plugin',
   'list_skills',

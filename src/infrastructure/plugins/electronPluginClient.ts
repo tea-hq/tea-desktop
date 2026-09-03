@@ -7,6 +7,10 @@ export class ElectronPluginClient implements PluginClient {
     if (!hasElectronBridge()) return []
     return invoke<PluginRecord[]>('list_plugins')
   }
+  async listRemote(): Promise<PluginRecord[]> {
+    if (!hasElectronBridge()) return []
+    return invoke<PluginRecord[]>('list_remote_plugins')
+  }
   async enable(pluginId: string): Promise<void> {
     if (hasElectronBridge()) await invoke('enable_plugin', { pluginId })
   }
