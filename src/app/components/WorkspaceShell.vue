@@ -21,7 +21,7 @@ const { centerAuth, activeMode, globalSearchQuery, logoutPending, selectWorkspac
     <div class="flex min-h-0 flex-1">
       <WorkspaceRail
         :active-mode="activeMode"
-        :pending-tasks="0"
+        :pending-tasks="5"
         :logout-pending="logoutPending"
         :user="centerAuth.state.bootstrap?.user ?? null"
         @select="selectWorkspace"

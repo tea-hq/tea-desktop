@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { TeaIconButton } from '@/shared/ui'
 
 export type WorkspaceMode =
-  'channels' | 'agent' | 'directory' | 'management' | 'profile' | 'settings'
+  'channels' | 'agent' | 'tasks' | 'directory' | 'management' | 'profile' | 'settings'
 
 const props = defineProps<{
   activeMode: WorkspaceMode
@@ -40,6 +40,7 @@ watch(
 const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
   { mode: 'channels', icon: 'i-mdi-message-text-outline', key: 'workspace.channels' },
   { mode: 'agent', icon: 'i-mdi-creation-outline', key: 'workspace.agent' },
+  { mode: 'tasks', icon: 'i-mdi-checkbox-marked-outline', key: 'workspace.tasks' },
   { mode: 'directory', icon: 'i-mdi-account-multiple-outline', key: 'workspace.directory' },
   { mode: 'management', icon: 'i-mdi-tune-variant', key: 'workspace.management' },
 ]
@@ -83,7 +84,7 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       >
         <span :class="[entry.icon, 'workspace-rail__icon size-5']" aria-hidden="true" />
         <span
-          v-if="entry.mode === 'agent' && pendingTasks > 0"
+          v-if="entry.mode === 'tasks' && pendingTasks > 0"
           class="workspace-rail__badge absolute right-1.5 top-1.5 size-1.5 rounded-full bg-warning"
           aria-hidden="true"
         />

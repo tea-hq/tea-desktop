@@ -5,14 +5,14 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import WorkspaceRail from './WorkspaceRail.vue'
+import WorkspaceRail, { type WorkspaceMode } from './WorkspaceRail.vue'
 
-function mountRail(activeMode: 'channels' | 'profile' = 'channels') {
+function mountRail(activeMode: WorkspaceMode = 'channels', pendingTasks = 0) {
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   return mount(WorkspaceRail, {
     props: {
       activeMode,
-      pendingTasks: 0,
+      pendingTasks,
       logoutPending: false,
       user: {
         displayName: 'OIDC User',
@@ -50,5 +50,15 @@ describe('WorkspaceRail', () => {
     expect(selected).toHaveLength(1)
     expect(selected[0]?.attributes('aria-label')).toBe('Channels')
     expect(selected[0]?.classes()).toContain('workspace-rail__button')
+  })
+
+  it('opens the task workspace and shows its pending indicator', async () => {
+    const wrapper = mountRail('channels', 3)
+    const button = wrapper.get('button[aria-label="Tasks"]')
+
+    expect(button.find('.workspace-rail__badge').exists()).toBe(true)
+    await button.trigger('click')
+
+    expect(wrapper.emitted('select')).toContainEqual(['tasks'])
   })
 })
