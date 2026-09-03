@@ -29,15 +29,19 @@ const props = defineProps<{
   errorKey: string | null
   offline: boolean
   runnerTokens?: RunnerTokenView[]
+  runnerRegistrationTokenId?: string | null
   runnerRegistrationCommand?: RunnerRegistrationCommand | null
   runnerTokensLoading?: boolean
   runnerTokensError?: string | null
+  runnerRegistrationCommandLoading?: boolean
+  runnerRegistrationCommandError?: string | null
 }>()
 
 const emit = defineEmits<{
   close: []
   retry: []
   refreshRunnerTokens: []
+  selectRunnerToken: [tokenId: string]
   resetPersonalRunnerToken: []
 }>()
 
@@ -425,11 +429,15 @@ function displayValue(value: string | undefined): string {
 
       <CloudRunnerTokenPanel
         :tokens="runnerTokens"
+        :selected-token-id="runnerRegistrationTokenId"
         :command="runnerRegistrationCommand"
         :loading="runnerTokensLoading"
         :error="runnerTokensError"
+        :command-loading="runnerRegistrationCommandLoading"
+        :command-error="runnerRegistrationCommandError"
         :offline="offline"
         @refresh="emit('refreshRunnerTokens')"
+        @select-token="emit('selectRunnerToken', $event)"
         @reset-personal="emit('resetPersonalRunnerToken')"
       />
     </div>

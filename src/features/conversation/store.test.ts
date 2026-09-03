@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   ApprovalDecision,
@@ -20,6 +20,7 @@ import type {
 import type { ChannelSourceInput, MessageRef } from '@/types/channelCollaboration'
 import type {
   RunnerRegistrationCommand,
+  RunnerRegistrationCommandInput,
   RunnerTokenView,
 } from '../../../packages/runner/src/protocol'
 import { mergeHistoryTurns, useConversationStore } from './store'
@@ -30,6 +31,20 @@ const runtime: RuntimeDescriptor = {
   displayName: 'Claude Code',
   capabilities: ['prompt', 'cancel', 'events', 'snapshot', 'history'],
   status: 'ready',
+}
+
+function runnerCommand(
+  tokenId: string,
+  scope: RunnerRegistrationCommand['scope'],
+  secret: string,
+): RunnerRegistrationCommand {
+  return {
+    tokenId,
+    scope,
+    scopeId: scope === 'user' ? 'user-1' : 'tenant-1',
+    centerUrl: 'https://center.test',
+    command: `npx --yes @tea/runner register --token '${secret}' --install-service`,
+  }
 }
 
 class FakeClient {
@@ -58,26 +73,45 @@ class FakeClient {
   historyFailure: unknown = null
   relocationCalls: Array<{ conversationId: string; workspacePath: string }> = []
   workspacePaths = new Map<string, string>()
-
-  async listRunnerTokens(): Promise<RunnerTokenView[]> {
-    return [
-      {
-        tokenId: 'tenant-token',
-        scope: 'tenant',
-        scopeId: 'tenant-1',
-        secret: 'tenant-secret',
-        createdAt: '2026-09-01T00:00:00Z',
-      },
-    ]
-  }
-
-  async createRunnerRegistrationCommand(): Promise<RunnerRegistrationCommand> {
-    return {
+  runnerTokens: RunnerTokenView[] = [
+    {
       tokenId: 'tenant-token',
       scope: 'tenant',
       scopeId: 'tenant-1',
+      secret: 'tenant-secret',
+      createdAt: '2026-09-01T00:00:00Z',
+    },
+  ]
+  runnerRegistrationCommandCalls: RunnerRegistrationCommandInput[] = []
+
+  async listRunnerTokens(): Promise<RunnerTokenView[]> {
+    return structuredClone(this.runnerTokens)
+  }
+
+  async resetPersonalRunnerToken(): Promise<RunnerTokenView> {
+    const token: RunnerTokenView = {
+      tokenId: 'user-token-reset',
+      scope: 'user',
+      scopeId: 'user-1',
+      secret: 'user-secret-reset',
+      createdAt: '2026-09-02T00:00:00Z',
+    }
+    this.runnerTokens = [...this.runnerTokens.filter((value) => value.scope !== 'user'), token]
+    return structuredClone(token)
+  }
+
+  async createRunnerRegistrationCommand(
+    input: RunnerRegistrationCommandInput = {},
+  ): Promise<RunnerRegistrationCommand> {
+    this.runnerRegistrationCommandCalls.push(structuredClone(input))
+    const token = this.runnerTokens.find((value) => value.tokenId === input.tokenId)
+    if (!token?.secret) throw new Error('active runner token is unavailable')
+    return {
+      tokenId: token.tokenId,
+      scope: token.scope,
+      scopeId: token.scopeId,
       centerUrl: 'https://center.test',
-      command: "npx --yes @tea/runner register --token 'tenant-secret' --install-service",
+      command: `npx --yes @tea/runner register --token '${token.secret}' --install-service`,
     }
   }
 
@@ -299,7 +333,127 @@ describe('useConversationStore', () => {
       tokenId: 'tenant-token',
       command: expect.stringContaining('--install-service'),
     })
+    expect(store.cloudRunnerRegistrationTokenId).toBe('tenant-token')
+    expect(fake.runnerRegistrationCommandCalls).toEqual([{ tokenId: 'tenant-token' }])
     expect(store.cloudRunnerTokensError).toBeNull()
+  })
+
+  it('generates the registration command for the explicitly selected audience token', async () => {
+    const fake = new FakeClient()
+    fake.runnerTokens.push({
+      tokenId: 'user-token',
+      scope: 'user',
+      scopeId: 'user-1',
+      secret: 'user-secret',
+      createdAt: '2026-09-01T00:00:00Z',
+    })
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRunnerTokens()
+
+    await store.selectRunnerRegistrationToken('user-token')
+
+    expect(store.cloudRunnerRegistrationTokenId).toBe('user-token')
+    expect(store.cloudRunnerRegistrationCommand).toMatchObject({
+      tokenId: 'user-token',
+      scope: 'user',
+      command: expect.stringContaining('user-secret'),
+    })
+    expect(fake.runnerRegistrationCommandCalls.at(-1)).toEqual({ tokenId: 'user-token' })
+    expect(store.cloudRunnerRegistrationCommandError).toBeNull()
+    expect(store.cloudRunnerRegistrationCommandLoading).toBe(false)
+  })
+
+  it('rejects a registration command for a different token', async () => {
+    const fake = new FakeClient()
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRunnerTokens()
+    fake.createRunnerRegistrationCommand = vi.fn(async () =>
+      runnerCommand('different-token', 'user', 'wrong-secret'),
+    )
+
+    await store.selectRunnerRegistrationToken('tenant-token')
+
+    expect(store.cloudRunnerRegistrationCommand).toBeNull()
+    expect(store.cloudRunnerRegistrationCommandError).toBe(
+      'runner registration command token does not match the selected token',
+    )
+  })
+
+  it('clears Runner token secrets when the configured client changes', async () => {
+    const store = useConversationStore()
+    store.configure(new FakeClient())
+    await store.loadRunnerTokens()
+
+    store.configure(new FakeClient())
+
+    expect(store.cloudRunnerTokens).toEqual([])
+    expect(store.cloudRunnerRegistrationTokenId).toBeNull()
+    expect(store.cloudRunnerRegistrationCommand).toBeNull()
+    expect(store.cloudRunnerRegistrationCommandLoading).toBe(false)
+  })
+
+  it('keeps the newest registration command when selections resolve out of order', async () => {
+    const fake = new FakeClient()
+    fake.runnerTokens.push({
+      tokenId: 'user-token',
+      scope: 'user',
+      scopeId: 'user-1',
+      secret: 'user-secret',
+      createdAt: '2026-09-01T00:00:00Z',
+    })
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRunnerTokens()
+
+    let resolveUser!: (command: RunnerRegistrationCommand) => void
+    let resolveTenant!: (command: RunnerRegistrationCommand) => void
+    const userCommand = new Promise<RunnerRegistrationCommand>((resolve) => {
+      resolveUser = resolve
+    })
+    const tenantCommand = new Promise<RunnerRegistrationCommand>((resolve) => {
+      resolveTenant = resolve
+    })
+    fake.createRunnerRegistrationCommand = vi.fn((input = {}) =>
+      input.tokenId === 'user-token' ? userCommand : tenantCommand,
+    )
+
+    const selectingUser = store.selectRunnerRegistrationToken('user-token')
+    const selectingTenant = store.selectRunnerRegistrationToken('tenant-token')
+    resolveTenant(runnerCommand('tenant-token', 'tenant', 'tenant-secret-new'))
+    await selectingTenant
+    resolveUser(runnerCommand('user-token', 'user', 'user-secret-new'))
+    await selectingUser
+
+    expect(store.cloudRunnerRegistrationTokenId).toBe('tenant-token')
+    expect(store.cloudRunnerRegistrationCommand).toMatchObject({
+      tokenId: 'tenant-token',
+      command: expect.stringContaining('tenant-secret-new'),
+    })
+  })
+
+  it('keeps the personal audience selected after resetting its token', async () => {
+    const fake = new FakeClient()
+    fake.runnerTokens.push({
+      tokenId: 'user-token',
+      scope: 'user',
+      scopeId: 'user-1',
+      secret: 'user-secret',
+      createdAt: '2026-09-01T00:00:00Z',
+    })
+    const store = useConversationStore()
+    store.configure(fake)
+    await store.loadRunnerTokens()
+
+    await store.resetPersonalRunnerToken()
+
+    expect(store.cloudRunnerRegistrationTokenId).toBe('user-token-reset')
+    expect(store.cloudRunnerRegistrationCommand).toMatchObject({
+      tokenId: 'user-token-reset',
+      scope: 'user',
+      command: expect.stringContaining('user-secret-reset'),
+    })
   })
 
   it('sends cloud target, provider/model, and tag when creating a cloud conversation', async () => {
