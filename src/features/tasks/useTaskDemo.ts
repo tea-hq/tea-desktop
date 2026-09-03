@@ -44,6 +44,11 @@ export function useTaskDemo(searchQuery: Ref<string>, t: ComposerTranslation): T
         task.description,
         task.source.name,
         task.source.context,
+        ...task.collaborators.flatMap((collaborator) => [
+          collaborator.name,
+          collaborator.role,
+          collaborator.provider ?? '',
+        ]),
         ...task.tags,
       ]
         .join(' ')
@@ -127,7 +132,15 @@ export function useTaskDemo(searchQuery: Ref<string>, t: ComposerTranslation): T
       status: 'inbox',
       priority: input.priority,
       progress: 0,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        {
+          id: 'you',
+          kind: 'human',
+          name: t('tasks.people.you'),
+          role: t('tasks.roles.productOwner'),
+          lead: true,
+        },
+      ],
       dueLabel: input.dueLabel || t('tasks.dates.noDate'),
       tags: [],
       source: {

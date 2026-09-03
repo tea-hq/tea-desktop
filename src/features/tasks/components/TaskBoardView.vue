@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { TaskItem, TaskPriority, TaskStatus } from '../contracts'
 import { TASK_STATUSES } from '../useTaskDemo'
+import TaskCollaboratorSummary from './TaskCollaboratorSummary.vue'
 import TaskSourceBadge from './TaskSourceBadge.vue'
 
 const props = defineProps<{ tasks: TaskItem[] }>()
@@ -57,15 +58,17 @@ function priorityClass(priority: TaskPriority): string {
           @click="emit('select', task.id)"
         >
           <span class="flex items-center justify-between gap-3">
-            <span class="font-mono text-[11px] text-subtle">{{ task.id }}</span>
+            <span class="flex items-center gap-2">
+              <TaskSourceBadge :source="task.source" compact />
+              <span class="font-mono text-[11px] text-subtle">{{ task.id }}</span>
+            </span>
             <span :class="[priorityClass(task.priority), 'text-[11px] font-semibold']">
               {{ t(`tasks.priority.${task.priority}`) }}
             </span>
           </span>
           <span class="mt-2 block text-sm font-semibold leading-5 text-fg">{{ task.title }}</span>
-          <span class="mt-3 flex items-center justify-between gap-3">
-            <TaskSourceBadge :source="task.source" />
-            <span class="shrink-0 text-[11px] text-subtle">{{ task.dueLabel }}</span>
+          <span class="mt-3 block">
+            <TaskCollaboratorSummary :collaborators="task.collaborators" mode="board" />
           </span>
           <span class="mt-3 flex items-center gap-2">
             <span class="h-1.5 flex-1 overflow-hidden rounded-pill bg-muted">
@@ -76,7 +79,9 @@ function priorityClass(priority: TaskPriority): string {
             </span>
             <span class="font-mono text-[11px] text-subtle">{{ task.progress }}%</span>
           </span>
-          <span class="mt-3 flex items-center justify-between gap-2 border-t border-line-soft pt-3">
+          <span
+            class="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-line-soft pt-3"
+          >
             <span class="flex min-w-0 gap-1 overflow-hidden">
               <span
                 v-for="tag in task.tags.slice(0, 2)"
@@ -87,10 +92,10 @@ function priorityClass(priority: TaskPriority): string {
               </span>
             </span>
             <span
-              class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-dim"
-              :title="task.assignee"
+              class="inline-flex h-6 shrink-0 items-center gap-1 rounded-inline border border-line bg-canvas px-1.5 text-[10px] text-subtle"
             >
-              {{ Array.from(task.assignee).slice(0, 1).join('').toLocaleUpperCase() }}
+              <span class="i-mdi-calendar-blank-outline size-3.5" aria-hidden="true" />
+              {{ task.dueLabel }}
             </span>
           </span>
         </button>

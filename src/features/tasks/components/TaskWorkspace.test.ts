@@ -52,6 +52,22 @@ describe('TaskWorkspace', () => {
     expect(rows.every((row) => row.attributes('data-task-id')?.startsWith('MSG-'))).toBe(true)
   })
 
+  it('shows human and Agent collaborators with distinct roles', async () => {
+    const page = mountWorkspace()
+    const task = page.get('[data-task-id="GH-287"]')
+
+    expect(task.find('[data-agent-provider="codex"]').exists()).toBe(true)
+    expect(task.find('[data-agent-provider="claude"]').exists()).toBe(true)
+    expect(task.text()).toContain('Implementation')
+    expect(task.text()).toContain('Review')
+
+    await task.trigger('click')
+    const body = new DOMWrapper(document.body)
+    expect(body.findAll('[data-testid="task-detail-collaborator"]')).toHaveLength(3)
+    expect(body.get('[data-testid="task-detail"]').text()).toContain('Codex Agent')
+    expect(body.get('[data-testid="task-detail"]').text()).toContain('Claude Agent')
+  })
+
   it('opens localized details and adds a comment', async () => {
     const page = mountWorkspace('zh-CN')
     await page.get('[data-task-id="LOCAL-018"]').trigger('click')
