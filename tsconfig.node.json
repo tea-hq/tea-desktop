@@ -5,6 +5,7 @@
     "vitest.config.ts",
     "electron/**/*.ts",
     "src/env.d.ts",
+    "src/locales/authCallback.ts",
     "src/infrastructure/electronBridge.ts",
     "src/infrastructure/channels/YunxinWebChannelTransport.ts",
     "src/infrastructure/channels/channelMediaSource.ts",

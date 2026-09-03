@@ -1,3 +1,5 @@
+import { authCallbackMessages } from './authCallback'
+
 export default {
   app: {
     name: 'Tea',
@@ -11,6 +13,7 @@ export default {
     retry: '重试',
   },
   auth: {
+    callback: authCallbackMessages['zh-CN'],
     enterprise: {
       eyebrow: '企业访问',
       title: '登录你的工作空间',
