@@ -17,7 +17,7 @@ vi.mock('@/infrastructure/channels/channelComposition', () => ({
 }))
 
 describe('useWorkspaceRuntime', () => {
-  it('recovers managed IM after the first authenticated workspace finishes initializing', async () => {
+  it('recovers managed IM and clears session search state when the workspace exits', async () => {
     const order: string[] = []
     const connectChannel = vi.fn(async () => {
       order.push('im-connect')
@@ -65,19 +65,31 @@ describe('useWorkspaceRuntime', () => {
       dispose: vi.fn(async () => undefined),
     })
     const stores = createStores(centerAuth, managedRuntime, channels)
+    let activeSession: {
+      initialize: (isCurrent: () => boolean) => Promise<void>
+      dispose: () => Promise<void>
+    } | null = null
     const workspaceLifecycle = {
       enter: vi.fn(
         async (
           _key: string,
-          create: () => { initialize: (isCurrent: () => boolean) => Promise<void> },
+          create: () => {
+            initialize: (isCurrent: () => boolean) => Promise<void>
+            dispose: () => Promise<void>
+          },
         ) => {
           order.push('workspace-enter')
-          await create().initialize(() => true)
+          activeSession = create()
+          await activeSession.initialize(() => true)
           order.push('workspace-ready')
         },
       ),
-      exit: vi.fn(async () => undefined),
+      exit: vi.fn(async () => {
+        await activeSession?.dispose()
+        activeSession = null
+      }),
     }
+    const globalSearchQuery = ref('')
     const Host = defineComponent(() => {
       useWorkspaceRuntime(
         stores,
@@ -86,6 +98,7 @@ describe('useWorkspaceRuntime', () => {
           previousMode: ref('channels'),
           collaborationWorkspace: ref(false),
           selectedRoleId: ref<string | null>(null),
+          globalSearchQuery,
         } as never,
         {
           listRuntimes: vi.fn(async () => ({ runtimes: [] })),
@@ -132,6 +145,21 @@ describe('useWorkspaceRuntime', () => {
     centerAuth.state = { ...centerAuth.state, errorCode: 'centerUnavailable' }
     await flushPromises()
     expect(managedRuntime.refresh).toHaveBeenCalledOnce()
+
+    globalSearchQuery.value = 'engineering'
+    centerAuth.canEnterWorkspace = false
+    centerAuth.state = {
+      generation: 2,
+      phase: 'signedOut',
+      enterprise: null,
+      bootstrap: null,
+      lastValidatedAt: null,
+      errorCode: null,
+    }
+    await nextTick()
+    await flushPromises()
+    expect(workspaceLifecycle.exit).toHaveBeenCalled()
+    expect(globalSearchQuery.value).toBe('')
 
     wrapper.unmount()
   })

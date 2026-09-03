@@ -1,0 +1,1 @@
+export const WINDOW_CHROME_HEIGHT = 48

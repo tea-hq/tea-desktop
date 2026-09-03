@@ -7,6 +7,8 @@ import SettingsPage from '@/features/settings/components/SettingsPage.vue'
 import ProfilePage from '@/features/profile/components/ProfilePage.vue'
 import DirectoryPage from '@/features/directory/components/DirectoryPage.vue'
 
+defineProps<{ globalSearchQuery: string }>()
+
 const {
   activeMode,
   previousMode,
@@ -23,7 +25,7 @@ const {
 </script>
 
 <template>
-  <ChannelWorkspace v-if="activeMode === 'channels'" />
+  <ChannelWorkspace v-if="activeMode === 'channels'" :search-query="globalSearchQuery" />
   <DirectoryPage
     v-else-if="activeMode === 'directory'"
     :users="directory.filteredUsers"
@@ -40,7 +42,7 @@ const {
     @refresh="directory.refresh()"
     @message="messageDirectoryUser"
   />
-  <AgentWorkspace v-else-if="activeMode === 'agent'" />
+  <AgentWorkspace v-else-if="activeMode === 'agent'" :search-query="globalSearchQuery" />
   <ProfilePage
     v-else-if="activeMode === 'profile' && centerAuth.state.bootstrap"
     :tenant-display-name="centerAuth.state.bootstrap.tenant.displayName"

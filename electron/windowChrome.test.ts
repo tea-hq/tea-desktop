@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  applyWindowChromeTheme,
-  createWindowChromeOptions,
-  WINDOW_CHROME_HEIGHT,
-} from './windowChrome'
+import { applyWindowChromeTheme, createWindowChromeOptions } from './windowChrome'
+import { WINDOW_CHROME_HEIGHT } from '../src/types/windowChrome'
 
 describe('window chrome', () => {
   it.each([
@@ -14,7 +11,7 @@ describe('window chrome', () => {
     expect(createWindowChromeOptions('darwin', theme)).toEqual({
       backgroundColor,
       titleBarStyle: 'hidden',
-      trafficLightPosition: { x: 16, y: 10 },
+      trafficLightPosition: { x: 16, y: 16 },
     })
   })
 

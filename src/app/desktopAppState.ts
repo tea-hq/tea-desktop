@@ -9,6 +9,7 @@ export interface WorkspaceUiState {
   selectedRoleId: Ref<string | null>
   localComposerText: Ref<string>
   localComposerAttachments: Ref<ComposerAttachment[]>
+  globalSearchQuery: Ref<string>
   draftDialogId: Ref<string | null>
   logoutPending: Ref<boolean>
   directoryActionError: Ref<string | null>
@@ -22,6 +23,7 @@ export function createWorkspaceUiState(): WorkspaceUiState {
     selectedRoleId: ref(null),
     localComposerText: ref(''),
     localComposerAttachments: ref([]),
+    globalSearchQuery: ref(''),
     draftDialogId: ref(null),
     logoutPending: ref(false),
     directoryActionError: ref(null),

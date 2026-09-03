@@ -7,6 +7,8 @@ import ChannelTimeline from '@/features/channels/components/ChannelTimeline.vue'
 import AgentDrawer from '@/features/collaboration/components/AgentDrawer.vue'
 import type { ChannelRef } from '@/features/channels/contracts'
 
+defineProps<{ searchQuery: string }>()
+
 const {
   centerAuth,
   channels,
@@ -48,6 +50,7 @@ function handleLoadMoreChannels(): void {
 
 <template>
   <ChannelSidebar
+    :search-query="searchQuery"
     :channels="channels.channels"
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
