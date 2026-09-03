@@ -101,7 +101,6 @@ const seedChannels: Channel[] = [
     kind: 'direct',
     directAccountId: 'lin',
     name: '林晓',
-    participantAccountId: 'lin',
     description: '产品设计',
     pinned: false,
     muted: true,

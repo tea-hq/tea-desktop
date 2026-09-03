@@ -32,7 +32,6 @@ describe('Yunxin DTO mapping', () => {
         kind: 'direct',
         directAccountId: 'account-b',
         name: 'Alice',
-        participantAccountId: 'account-b',
         avatarUrl: 'https://yx-web-nosdn.netease.im/alice.png',
         muted: true,
         pinned: true,

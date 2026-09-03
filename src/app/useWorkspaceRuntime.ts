@@ -146,7 +146,7 @@ export function useWorkspaceRuntime(
   watch(
     () =>
       channels.channels
-        .map((channel) => channel.participantAccountId?.trim())
+        .map((channel) => channel.directAccountId?.trim())
         .filter((accountId): accountId is string => Boolean(accountId))
         .sort()
         .join('\0'),

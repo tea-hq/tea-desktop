@@ -541,11 +541,17 @@ export interface ChannelTransportDescriptor {
   capabilities: ChannelCapability[]
 }
 
-export interface ChannelSelfProfile {
+export interface ChannelUserProfile {
   accountId: string
   name: string
   email?: string
   avatarUrl?: string
+}
+
+export type ChannelSelfProfile = ChannelUserProfile
+
+export interface ChannelUserProfileClient {
+  getUserProfiles(accountIds: string[]): Promise<ChannelUserProfile[]>
 }
 
 export type ChannelMemberRole = 'owner' | 'manager' | 'member'
@@ -776,7 +782,7 @@ export type ChannelEventPayload = ChannelEvent extends infer Event
 
 export type ChannelEventListener = (event: ChannelEvent) => void
 
-export interface ChannelTransport {
+export interface ChannelTransport extends ChannelUserProfileClient {
   descriptor(): ChannelTransportDescriptor
   capabilities(): ChannelCapability[]
   connect(): Promise<void>
