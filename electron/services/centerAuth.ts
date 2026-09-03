@@ -17,6 +17,7 @@ import {
   normalizeCenterAuthErrorCode,
   refreshProofPayload,
 } from './centerAuthProtocol'
+import { CENTER_AUTH_CALLBACK_HEADERS, centerAuthCallbackPage } from './centerAuthCallbackPage'
 
 interface AuthFile {
   endpointInstanceId: string
@@ -379,11 +380,8 @@ export class ElectronCenterAuthService {
       response.end('Invalid Tea authentication callback')
       return
     }
-    response.writeHead(200, {
-      'cache-control': 'no-store',
-      'content-type': 'text/html; charset=utf-8',
-    })
-    response.end('<!doctype html><title>Tea</title><p>Authentication received. Return to Tea.</p>')
+    response.writeHead(200, CENTER_AUTH_CALLBACK_HEADERS)
+    response.end(centerAuthCallbackPage(request.headers['accept-language']))
     this.pending = null
     pending.server.close()
     void this.completeLogin(pending, transaction, code)

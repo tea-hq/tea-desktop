@@ -1,3 +1,5 @@
+import { authCallbackMessages } from './authCallback'
+
 export default {
   app: {
     name: 'Tea',
@@ -12,6 +14,7 @@ export default {
     retry: 'Retry',
   },
   auth: {
+    callback: authCallbackMessages.en,
     enterprise: {
       eyebrow: 'Enterprise access',
       title: 'Sign in to your workspace',
