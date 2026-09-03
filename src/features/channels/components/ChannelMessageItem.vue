@@ -414,7 +414,6 @@ function selectMessage(): void {
               :sent-by-current-user="message.sentByCurrentUser"
               :message-state="message.state"
               :thread-available="threadAvailable"
-              :has-reactions="message.reactions.length > 0"
               :pinned="message.pinned"
               :active-conversation="activeConversation"
               :recent-conversations="recentConversations"
@@ -422,6 +421,7 @@ function selectMessage(): void {
               :runtimes="runtimes"
               :default-runtime-id="defaultRuntimeId"
               @action="handleMessageAction"
+              @open-menu="quickCommentPickerSource = null"
               @forward-to-agent="(action, id) => emit('forwardToAgent', action, id)"
             />
             <ChannelQuickCommentPicker

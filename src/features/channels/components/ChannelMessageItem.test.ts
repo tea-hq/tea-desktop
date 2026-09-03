@@ -123,17 +123,20 @@ describe('ChannelMessageItem', () => {
     expect(wrapper.find('button[aria-label="Transcribe audio"]').exists()).toBe(false)
   })
 
-  it('opens the quick comment picker from the overflow menu when there are no reactions', async () => {
+  it('opens the quick comment picker from the hover action bar', async () => {
     const wrapper = mountMessage(message)
 
-    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
-    await wrapper.get('[role="menuitem"]').trigger('click')
+    await wrapper.get('button[aria-label="Quick reaction"]').trigger('click')
 
     expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('Quick reaction')
     expect(wrapper.findAll('[data-quick-comment-type]').length).toBe(70)
 
     await wrapper.get('[data-quick-comment-type="45"]').trigger('click')
     expect(wrapper.emitted('quickComment')).toEqual([[45, true]])
+
+    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('[role="menu"]').text()).not.toContain('Quick reaction')
   })
 
   it('renders reaction assets with an inline add entry and toggles active reactions', async () => {

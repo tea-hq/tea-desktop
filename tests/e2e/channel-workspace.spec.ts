@@ -97,14 +97,18 @@ test('keeps quick comments available and contained at narrow widths', async ({
   await openFixture('merged-card')
   const unreactedMessage = page.locator('[data-message-id="message-2"]')
   await unreactedMessage.hover()
-  await unreactedMessage.getByRole('button', { name: 'More message actions' }).click()
-  await expect(unreactedMessage.getByRole('menuitem').first()).toHaveText('Quick reaction')
-  await unreactedMessage.getByRole('menuitem', { name: 'Quick reaction' }).click()
+  await unreactedMessage.getByRole('button', { name: 'Quick reaction' }).click()
   const unreactedPicker = page.getByRole('dialog', { name: 'Quick reaction' })
   await expect(unreactedPicker).toBeVisible()
   const unreactedBox = await unreactedPicker.boundingBox()
   expect(unreactedBox?.y).toBeGreaterThanOrEqual(0)
   expect((unreactedBox?.y ?? 0) + (unreactedBox?.height ?? 844)).toBeLessThanOrEqual(844)
+  await unreactedMessage.getByRole('button', { name: 'More message actions' }).click()
+  const moreMenu = page.getByRole('menu', { name: 'More message actions' })
+  await expect(moreMenu).toBeVisible()
+  await expect(moreMenu).not.toContainText('Quick reaction')
+  await expect(moreMenu).not.toContainText('Reply')
+  await expect(moreMenu).not.toContainText('Forward')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,

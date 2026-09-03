@@ -24,7 +24,6 @@ const props = defineProps<{
   sentByCurrentUser: boolean
   messageState: 'active' | 'revoked'
   threadAvailable?: boolean
-  hasReactions?: boolean
   pinned?: boolean
   activeConversation: ConversationSummary | null
   recentConversations: ConversationSummary[]
@@ -35,6 +34,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   action: [action: MessageAction]
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
+  openMenu: [menu: OpenMenu]
 }>()
 const { t } = useI18n()
 const activeMenu = ref<OpenMenu | null>(null)
@@ -45,25 +45,7 @@ const moreMenu = ref<InstanceType<typeof TeaMenu> | null>(null)
 const moreMenuItems = computed<TeaMenuItem[]>(() => {
   const items: TeaMenuItem[] = []
   if (props.messageState === 'active') {
-    if (!props.hasReactions) {
-      items.push({
-        value: 'reaction',
-        label: t('channels.message.quickReaction'),
-        icon: 'i-mdi-emoticon-plus-outline',
-      })
-    }
     items.push(
-      { value: 'reply', label: t('channels.message.reply'), icon: 'i-mdi-reply-outline' },
-      ...(props.threadAvailable
-        ? [
-            {
-              value: 'thread',
-              label: t('channels.message.openThread'),
-              icon: 'i-mdi-message-reply-text-outline',
-            },
-          ]
-        : []),
-      { value: 'forward', label: t('channels.message.forward'), icon: 'i-mdi-forward' },
       {
         value: 'select',
         label: t('channels.selection.select'),
@@ -102,6 +84,7 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
 })
 
 function toggleAgentMenu(): void {
+  if (activeMenu.value !== 'agent') emit('openMenu', 'agent')
   activeMenu.value = activeMenu.value === 'agent' ? null : 'agent'
 }
 
@@ -110,6 +93,7 @@ function toggleMoreMenu(): void {
     moreMenu.value?.hide()
     return
   }
+  emit('openMenu', 'more')
   activeMenu.value = 'more'
   void nextTick(() => {
     const target = moreMenuAnchor.value
@@ -134,11 +118,7 @@ function closeMoreMenu(): void {
 
 function selectMessageAction(value: string): void {
   if (
-    value === 'reply' ||
-    value === 'thread' ||
-    value === 'forward' ||
     value === 'select' ||
-    value === 'reaction' ||
     value === 'edit' ||
     value === 'pin' ||
     value === 'save' ||
@@ -158,6 +138,14 @@ function selectMessageAction(value: string): void {
     role="toolbar"
     :aria-label="t('channels.message.actions')"
   >
+    <TeaIconButton
+      v-if="messageState === 'active'"
+      class="channel-message-actions__button"
+      size="small"
+      :label="t('channels.message.quickReaction')"
+      icon="i-mdi-emoticon-plus-outline"
+      @click.stop="emit('action', 'reaction')"
+    />
     <TeaIconButton
       v-if="messageState === 'active'"
       class="channel-message-actions__button channel-message-actions__quick"

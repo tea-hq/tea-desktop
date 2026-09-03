@@ -12,6 +12,7 @@ process.env.VITE_APP_VERSION = pkgVersion
 if (process.env.NODE_ENV === 'production') {
   process.env.VITE_APP_BUILD_EPOCH = new Date().getTime().toString()
 }
+const isE2eFixtureServer = process.env.VITE_E2E === 'true'
 
 const webkitInspectorSourceMapCors: Plugin = {
   name: 'webkit-inspector-source-map-cors',
@@ -37,30 +38,34 @@ export default defineConfig({
       vueTemplate: true,
     }),
     Components({ dts: 'components.d.ts' }),
-    electron({
-      main: {
-        entry: {
-          main: 'electron/main.ts',
-          'mcp-process': 'electron/conversation/acp/mcpProcess.ts',
-        },
-        vite: {
-          build: {
-            rollupOptions: {
-              // ws is CommonJS and must be loaded by Node from the main process.
-              external: [
-                'ws',
-                '@agentclientprotocol/sdk',
-                '@agentclientprotocol/sdk/experimental/v2',
-                '@agentclientprotocol/claude-agent-acp',
-                '@agentclientprotocol/codex-acp',
-                '@modelcontextprotocol/sdk',
-              ],
+    ...(isE2eFixtureServer
+      ? []
+      : [
+          electron({
+            main: {
+              entry: {
+                main: 'electron/main.ts',
+                'mcp-process': 'electron/conversation/acp/mcpProcess.ts',
+              },
+              vite: {
+                build: {
+                  rollupOptions: {
+                    // ws is CommonJS and must be loaded by Node from the main process.
+                    external: [
+                      'ws',
+                      '@agentclientprotocol/sdk',
+                      '@agentclientprotocol/sdk/experimental/v2',
+                      '@agentclientprotocol/claude-agent-acp',
+                      '@agentclientprotocol/codex-acp',
+                      '@modelcontextprotocol/sdk',
+                    ],
+                  },
+                },
+              },
             },
-          },
-        },
-      },
-      preload: { input: fileURLToPath(new URL('./electron/preload.ts', import.meta.url)) },
-    }),
+            preload: { input: fileURLToPath(new URL('./electron/preload.ts', import.meta.url)) },
+          }),
+        ]),
   ],
   resolve: {
     alias: {

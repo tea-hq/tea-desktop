@@ -64,6 +64,7 @@ describe('ChannelMessageActions', () => {
 
     expect(wrapper.get('[role="toolbar"]').attributes('aria-label')).toBe('Message actions')
     expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Quick reaction',
       'Reply',
       'Forward',
       'Work with Agent',
@@ -72,6 +73,14 @@ describe('ChannelMessageActions', () => {
 
     await wrapper.get('button[aria-label="Reply"]').trigger('click')
     expect(wrapper.emitted('action')).toEqual([['reply']])
+  })
+
+  it('routes quick reaction through the hover action bar', async () => {
+    wrapper = mountActions()
+
+    await wrapper.get('button[aria-label="Quick reaction"]').trigger('click')
+
+    expect(wrapper.emitted('action')).toEqual([['reaction']])
   })
 
   it('forwards the selected message action and closes its menu', async () => {
@@ -109,9 +118,6 @@ describe('ChannelMessageActions', () => {
 
     const menu = wrapper.get('[role="menu"]')
     expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
-      'Quick reaction',
-      'Reply',
-      'Forward',
       'Select messages',
       'Edit message',
       'Pin message',
@@ -119,19 +125,22 @@ describe('ChannelMessageActions', () => {
       'Revoke message',
       'Delete message',
     ])
-    expect(menu.findAll('[role="menuitem"]')[8]?.classes()).toContain('text-danger')
+    expect(menu.findAll('[role="menuitem"]')[5]?.classes()).toContain('text-danger')
 
-    await menu.findAll('[role="menuitem"]')[8]!.trigger('click')
+    await menu.findAll('[role="menuitem"]')[5]!.trigger('click')
     expect(wrapper.emitted('action')).toEqual([['delete']])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
   })
 
-  it('moves quick reaction to the message row once a reaction exists', async () => {
+  it('keeps hover actions out of the overflow menu', async () => {
     wrapper = mountActions()
-    await wrapper.setProps({ hasReactions: true })
     await wrapper.get('button[aria-label="More message actions"]').trigger('click')
 
-    expect(wrapper.get('[role="menu"]').text()).not.toContain('Quick reaction')
+    const menu = wrapper.get('[role="menu"]')
+    expect(menu.text()).not.toContain('Quick reaction')
+    expect(menu.text()).not.toContain('Reply')
+    expect(menu.text()).not.toContain('Forward')
+    expect(menu.text()).not.toContain('Open thread')
   })
 
   it('omits revoke for received messages and leaves only delete after revocation', async () => {
