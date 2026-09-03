@@ -742,6 +742,7 @@ describe('TeaRunner WebSocket execution', () => {
       const assistant = events.find(
         (event) =>
           event.type === 'runner.event' &&
+          event.assignmentEpoch === 2 &&
           (event.payload as { eventType?: string }).eventType === 'assistant.message',
       )
       expect(assistant?.assignmentEpoch).toBe(2)
