@@ -24,9 +24,20 @@ const sourceOptions = computed<TeaSelectOption<TaskSourceFilter>[]>(() => [
 const activeCount = computed(
   () => taskDemo.tasks.value.filter((task) => task.status !== 'done').length,
 )
+const agentRoleCount = computed(
+  () =>
+    new Set(
+      taskDemo.tasks.value.flatMap((task) =>
+        task.collaborators
+          .filter((collaborator) => collaborator.kind === 'agent')
+          .map((collaborator) => collaborator.role),
+      ),
+    ).size,
+)
 const groupedCounts = computed<Record<TaskStatus, number>>(() => ({
   inbox: taskDemo.visibleTasks.value.filter((task) => task.status === 'inbox').length,
   inProgress: taskDemo.visibleTasks.value.filter((task) => task.status === 'inProgress').length,
+  approval: taskDemo.visibleTasks.value.filter((task) => task.status === 'approval').length,
   review: taskDemo.visibleTasks.value.filter((task) => task.status === 'review').length,
   done: taskDemo.visibleTasks.value.filter((task) => task.status === 'done').length,
 }))
@@ -48,7 +59,8 @@ const groupedCounts = computed<Record<TaskStatus, number>>(() => ({
           <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-subtle">
             <span>{{ t('tasks.summary.active', { count: activeCount }) }}</span>
             <span>{{ t('tasks.summary.sources', { count: 3 }) }}</span>
-            <span>{{ t('tasks.summary.review', { count: groupedCounts.review }) }}</span>
+            <span>{{ t('tasks.summary.agentRoles', { count: agentRoleCount }) }}</span>
+            <span>{{ t('tasks.summary.approval', { count: groupedCounts.approval }) }}</span>
           </div>
         </div>
         <TeaButton appearance="primary" @click="taskDemo.createDialogOpen.value = true">
@@ -134,6 +146,7 @@ const groupedCounts = computed<Record<TaskStatus, number>>(() => ({
       @add-tag="taskDemo.addTag"
       @remove-tag="taskDemo.removeTag"
       @add-comment="taskDemo.addComment"
+      @submit-approval="taskDemo.submitApproval"
     />
     <TaskCreateDialog
       :open="taskDemo.createDialogOpen.value"

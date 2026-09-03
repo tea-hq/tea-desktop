@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { TaskItem, TaskPriority, TaskStatus } from '../contracts'
 import { TASK_STATUSES } from '../useTaskDemo'
+import TaskCollaboratorSummary from './TaskCollaboratorSummary.vue'
 import TaskSourceBadge from './TaskSourceBadge.vue'
 
 const props = defineProps<{ tasks: TaskItem[] }>()
@@ -26,6 +27,7 @@ function toggle(status: TaskStatus): void {
 
 function statusDotClass(status: TaskStatus): string {
   if (status === 'inProgress') return 'bg-warning'
+  if (status === 'approval') return 'bg-danger'
   if (status === 'review') return 'bg-brand-accent'
   if (status === 'done') return 'bg-success'
   return 'bg-subtle'
@@ -72,7 +74,7 @@ function priorityClass(priority: TaskPriority): string {
           <span role="columnheader">{{ t('tasks.columns.priority') }}</span>
           <span role="columnheader">{{ t('tasks.columns.progress') }}</span>
           <span role="columnheader">{{ t('tasks.columns.due') }}</span>
-          <span role="columnheader" class="text-right">{{ t('tasks.columns.assignee') }}</span>
+          <span role="columnheader" class="text-right">{{ t('tasks.columns.collaborators') }}</span>
         </div>
 
         <button
@@ -82,6 +84,7 @@ function priorityClass(priority: TaskPriority): string {
           class="task-list__grid group block w-full border-b border-line-soft px-3 py-3.5 text-left transition-colors hover:bg-hover focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus motion-reduce:transition-none sm:grid"
           data-testid="task-list-row"
           :data-task-id="task.id"
+          :data-task-status="task.status"
           @click="emit('select', task.id)"
         >
           <span class="flex min-w-0 items-center gap-3">
@@ -116,15 +119,11 @@ function priorityClass(priority: TaskPriority): string {
             </span>
           </span>
           <span class="hidden truncate text-xs text-dim sm:block">{{ task.dueLabel }}</span>
-          <span class="hidden min-w-0 items-center justify-end gap-2 sm:flex">
-            <span
-              class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-dim"
-              aria-hidden="true"
-            >
-              {{ Array.from(task.assignee).slice(0, 1).join('').toLocaleUpperCase() }}
-            </span>
-            <span class="truncate text-xs text-dim">{{ task.assignee }}</span>
-          </span>
+          <TaskCollaboratorSummary
+            class="hidden sm:flex"
+            :collaborators="task.collaborators"
+            mode="list"
+          />
         </button>
       </template>
     </section>

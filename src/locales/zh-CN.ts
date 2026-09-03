@@ -69,6 +69,8 @@ export default {
     summary: {
       active: '{count} 个进行中',
       sources: '{count} 个来源',
+      agentRoles: '{count} 个 Agent 角色',
+      approval: '{count} 个待审批',
       review: '{count} 个等待评审',
       results: '{count} 个结果',
     },
@@ -90,6 +92,7 @@ export default {
     status: {
       inbox: '待处理',
       inProgress: '进行中',
+      approval: '待审批',
       review: '评审中',
       done: '已完成',
     },
@@ -105,10 +108,26 @@ export default {
       priority: '优先级',
       progress: '进度',
       due: '截止时间',
-      assignee: '负责人',
+      collaborators: '协作成员',
     },
     people: {
       you: '我',
+    },
+    collaboration: {
+      title: '协作成员',
+    },
+    roles: {
+      researcher: '调研分析',
+      productOwner: '产品主理',
+      implementation: '代码实现',
+      reviewer: '质量评审',
+      demoProducer: '演示编排',
+      operations: '稳定性运维',
+      securityReviewer: '安全审查',
+      architect: '架构设计',
+      validator: '契约验证',
+      planner: '规划整理',
+      communications: '发布沟通',
     },
     dates: {
       today: '今天',
@@ -147,6 +166,21 @@ export default {
       commentPlaceholder: '补充背景或进展……',
       comment: '发表评论',
     },
+    approval: {
+      title: 'Agent 审批请求',
+      waitingForYou: '等待你的决定',
+      requestedBy: '{name} 发起',
+      yes: '是',
+      no: '否',
+      customReply: '自定义回复',
+      customReplyPlaceholder: '输入自定义回复……',
+      chooseOne: '选择一种回复后即可继续',
+      ready: '可以发送给 Agent',
+      submit: '提交决定',
+      submittedTitle: '决定已提交',
+      submittedDescription: '{name} 已收到你的回复，可以继续执行任务。',
+      submittedComment: '审批决定已提交，{name} 将按确认的方向继续执行。',
+    },
     create: {
       title: '新建本地任务',
       close: '关闭新建任务窗口',
@@ -163,42 +197,89 @@ export default {
         title: '把客户反馈整理成新手引导清单',
         description: '汇总发布群中的反馈，明确下一版需要交付的三项新手引导改动。',
         source: '#客户反馈 · Anna 的消息',
-        comment: '我已经补上首轮需要覆盖的客户案例。',
+        comments: {
+          customerExamples: '我已经补上首轮需要覆盖的客户案例。',
+          researchSummary:
+            '我把 14 条反馈归纳为激活、权限和空状态三类，目前最明确的阻塞点是激活流程。',
+        },
       },
       avatar: {
         title: '交付工作区统一头像兜底',
         description: '完成稳定的默认头像，并确认个人资料、通讯录和消息界面保持一致。',
-        comment: '通讯录状态已经可以做最后一轮视觉检查。',
+        comments: {
+          implementation: '个人资料、通讯录和消息界面现在都使用同一份身份种子生成兜底头像。',
+          review: '已检查明暗主题和 390 px 布局，首字母清晰，没有出现布局偏移。',
+          product: '发布前最后一轮只需关注人类与 Agent 混排的场景。',
+        },
       },
       demo: {
         title: '准备统一任务中心演示',
         description: '完善列表、看板和任务详情流程，用于产品走查。',
         source: '产品原型',
+        comments: {
+          scope: '演示从列表开始，切换到看板，再打开这个任务展示详情。',
+          walkthrough: '我整理了一条两分钟演示路径，可以连续展示共享任务数据和 Agent 协作。',
+        },
       },
       heartbeat: {
         title: '排查 Runner 心跳延迟',
         description: '检查告警窗口，确认延迟心跳是否需要升级为事故跟进。',
         source: 'Runner 延迟告警 · prod-cn',
+        comments: {
+          signal: '峰值只出现在 prod-cn 的两个 worker，其余区域都在正常窗口内。',
+          threshold: '先不升级事故；如果下一个周期 p95 仍超过 30 秒，再进入事故流程。',
+        },
       },
       permissions: {
         title: '评审插件权限文案',
         description: '在演示插件连接流程前，收紧操作范围相关的说明。',
         source: '安全评审笔记',
+        comments: {
+          audit: '当前文案混合了读取权限与操作审批，我标出了需要拆开的三个位置。',
+          copy: '确认文案已改写，审批前会明确展示目标工作区和具体操作。',
+        },
       },
       contract: {
         title: '定义跨来源任务契约',
         description: '确认所有任务来源共享的稳定字段、来源引用和事件语义。',
-        comment: '导入后应保持来源引用不可变。',
+        approval: {
+          title: 'Claude 需要你的决定',
+          description: '在固化任务契约前，需要你选择接下来要实现的契约方向。',
+          sourceContract: {
+            prompt: '应该采用哪种任务契约策略？',
+            description: '这个决定会影响后续从插件、消息和本地导入的所有任务。',
+            customReplyPlaceholder: '描述另一种契约处理方向……',
+            sharedCore: '使用统一核心契约（推荐）',
+            sharedCoreDescription: '所有来源都必须包含稳定标识、来源引用、状态、负责人和时间信息。',
+            sourceSpecific: '允许每个来源定义独立契约',
+            sourceSpecificDescription: '集成更灵活，但任务层需要承担更多归一化工作。',
+            defer: '暂缓契约变更',
+            deferDescription: '继续使用当前 Mock 结构，把契约设计记录为后续事项。',
+          },
+        },
+        comments: {
+          sourceRef: '导入后应保持来源引用不可变。',
+          validation: '演示数据校验已经覆盖插件、消息和本地任务，三类来源使用同一组必填字段。',
+          decision: 'Mock 阶段先把来源特有元数据收在来源引用之后。',
+        },
       },
       planning: {
         title: '整理第三季度规划决策',
         description: '把规划讨论整理成简洁的负责人、时间点和待决事项。',
         source: '#产品规划 · 与 Luo 的讨论串',
+        comments: {
+          summary: '我从讨论串中提取了 6 项决策、4 位负责人和 2 个尚未解决的依赖。',
+          owner: '桌面端演示由我负责；同步依赖先保持待定，等 Platform 确认时间。',
+        },
       },
       retrospective: {
         title: '发布上线复盘',
         description: '向发布群同步最终经验和后续事项负责人。',
         source: '#发布协作 · 置顶讨论串',
+        comments: {
+          published: '复盘已发布并置顶，所有后续事项都确认了负责人。',
+          followUps: '我把 3 条未闭环的经验转成了任务，并关联回发布讨论串。',
+        },
       },
     },
   },
@@ -295,7 +376,8 @@ export default {
     runnerTokens: {
       eyebrow: '云端执行',
       title: 'Runner 注册令牌',
-      description: '先选择 Runner 的使用范围，再复制对应的注册命令。',
+      description:
+        '企业级令牌对租户成员可见，个人级令牌仅自己可见。使用令牌可在服务器上注册云端 Runner。',
       refresh: '刷新令牌',
       resetPersonal: '重置个人令牌',
       loading: '正在读取 Runner 令牌',
@@ -303,10 +385,10 @@ export default {
       offline: 'Center 离线时无法读取 Runner 令牌。',
       commandTitle: '一键注册命令',
       commandDescription:
-        '选择一种安装方式。命令会安装 Runner、写入配置，按需交互获取机器名和默认 tag，并启动后台服务。',
+        '命令通过 npx 获取 Runner 发布包，在目标机器上写入配置，按需交互获取机器名和默认 tag，并直接启动后台 Runner 服务。',
       createCommand: '生成注册命令',
-      commandLoading: '正在生成注册命令……',
-      selectToken: '选择一个可用令牌后生成对应的注册命令。',
+      commandLoading: '正在生成默认注册命令……',
+      selectToken: '检测到可用令牌后，注册命令会自动显示。',
       installMethodLabel: 'Runner 安装方式',
       installPreview: '预览命令 - 此安装入口尚未开放',
       installTools: {

@@ -1,13 +1,19 @@
 import { computed, ref, type Ref } from 'vue'
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { NewLocalTask, TaskItem, TaskSourceKind, TaskStatus } from './contracts'
+import type {
+  NewLocalTask,
+  TaskApprovalSubmission,
+  TaskItem,
+  TaskSourceKind,
+  TaskStatus,
+} from './contracts'
 import { createTaskDemoData } from './taskDemoData'
 
 export type TaskViewMode = 'list' | 'board'
 export type TaskSourceFilter = 'all' | TaskSourceKind
 
-export const TASK_STATUSES: TaskStatus[] = ['inbox', 'inProgress', 'review', 'done']
+export const TASK_STATUSES: TaskStatus[] = ['inbox', 'inProgress', 'approval', 'review', 'done']
 
 export interface TaskDemoModel {
   tasks: Ref<TaskItem[]>
@@ -23,6 +29,7 @@ export interface TaskDemoModel {
   addTag: (taskId: string, tag: string) => void
   removeTag: (taskId: string, tag: string) => void
   addComment: (taskId: string, body: string) => void
+  submitApproval: (taskId: string, submission: TaskApprovalSubmission) => void
   createLocalTask: (input: NewLocalTask) => void
 }
 
@@ -103,13 +110,54 @@ export function useTaskDemo(searchQuery: Ref<string>, t: ComposerTranslation): T
         ...task.comments,
         {
           id: `comment-local-${task.comments.length + 1}`,
-          author: t('tasks.people.you'),
+          author: {
+            id: 'you',
+            kind: 'human',
+            name: t('tasks.people.you'),
+          },
           body,
           createdAtLabel: t('tasks.dates.justNow'),
         },
       ],
       updatedAtLabel: t('tasks.dates.justNow'),
     }))
+  }
+
+  function submitApproval(taskId: string, submission: TaskApprovalSubmission): void {
+    updateTask(taskId, (task) => {
+      if (
+        !task.approval ||
+        task.approval.id !== submission.requestId ||
+        task.approval.status !== 'pending'
+      ) {
+        return task
+      }
+
+      return {
+        ...task,
+        status: 'inProgress',
+        approval: {
+          ...task.approval,
+          status: 'submitted',
+          response: submission,
+          respondedAtLabel: t('tasks.dates.justNow'),
+        },
+        comments: [
+          ...task.comments,
+          {
+            id: `comment-approval-${task.approval.id}`,
+            author: {
+              id: 'you',
+              kind: 'human',
+              name: t('tasks.people.you'),
+            },
+            body: t('tasks.approval.submittedComment', { name: task.approval.requester.name }),
+            createdAtLabel: t('tasks.dates.justNow'),
+          },
+        ],
+        updatedAtLabel: t('tasks.dates.justNow'),
+      }
+    })
   }
 
   function createLocalTask(input: NewLocalTask): void {
@@ -127,7 +175,15 @@ export function useTaskDemo(searchQuery: Ref<string>, t: ComposerTranslation): T
       status: 'inbox',
       priority: input.priority,
       progress: 0,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        {
+          id: 'you',
+          kind: 'human',
+          name: t('tasks.people.you'),
+          role: t('tasks.roles.productOwner'),
+          lead: true,
+        },
+      ],
       dueLabel: input.dueLabel || t('tasks.dates.noDate'),
       tags: [],
       source: {
@@ -157,6 +213,7 @@ export function useTaskDemo(searchQuery: Ref<string>, t: ComposerTranslation): T
     addTag,
     removeTag,
     addComment,
+    submitApproval,
     createLocalTask,
   }
 }

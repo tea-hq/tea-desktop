@@ -1,5 +1,6 @@
 export { default as TeaButton } from './TeaButton.vue'
 export { default as TeaAvatar } from './TeaAvatar.vue'
+export { default as TeaChoiceButton } from './TeaChoiceButton.vue'
 export { default as TeaDialog } from './TeaDialog.vue'
 export { default as TeaDrawer } from './TeaDrawer.vue'
 export { default as TeaEmptyState } from './TeaEmptyState.vue'

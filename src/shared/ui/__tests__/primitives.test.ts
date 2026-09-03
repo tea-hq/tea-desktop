@@ -5,6 +5,7 @@ import type { Component } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import TeaButton from '../TeaButton.vue'
+import TeaChoiceButton from '../TeaChoiceButton.vue'
 import TeaDialog from '../TeaDialog.vue'
 import TeaDrawer from '../TeaDrawer.vue'
 import TeaEmptyState from '../TeaEmptyState.vue'
@@ -67,6 +68,18 @@ describe('Tea primitives', () => {
 
     expect(wrapper.get('button').attributes()).toMatchObject({ disabled: '', 'aria-busy': 'true' })
     expect(wrapper.text()).toContain('Send')
+  })
+
+  it('exposes choice semantics and emits one select intent', async () => {
+    const wrapper = mountTea(TeaChoiceButton, {
+      props: { selected: false, controlRole: 'checkbox' },
+      slots: { default: 'Preserve source reference' },
+    })
+    const choice = wrapper.get('button')
+
+    expect(choice.attributes()).toMatchObject({ role: 'checkbox', 'aria-checked': 'false' })
+    await choice.trigger('click')
+    expect(wrapper.emitted('select')).toHaveLength(1)
   })
 
   it('requires icon-button labels at the type boundary and forwards them', () => {

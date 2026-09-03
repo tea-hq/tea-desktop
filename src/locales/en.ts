@@ -71,6 +71,8 @@ export default {
     summary: {
       active: '{count} active',
       sources: '{count} connected sources',
+      agentRoles: '{count} Agent roles',
+      approval: '{count} awaiting approval',
       review: '{count} waiting for review',
       results: '{count} results',
     },
@@ -92,6 +94,7 @@ export default {
     status: {
       inbox: 'Inbox',
       inProgress: 'In progress',
+      approval: 'Awaiting approval',
       review: 'In review',
       done: 'Done',
     },
@@ -107,10 +110,26 @@ export default {
       priority: 'Priority',
       progress: 'Progress',
       due: 'Due',
-      assignee: 'Assignee',
+      collaborators: 'Collaboration',
     },
     people: {
       you: 'You',
+    },
+    collaboration: {
+      title: 'Collaboration',
+    },
+    roles: {
+      researcher: 'Research',
+      productOwner: 'Product owner',
+      implementation: 'Implementation',
+      reviewer: 'Review',
+      demoProducer: 'Demo producer',
+      operations: 'Operations',
+      securityReviewer: 'Security review',
+      architect: 'Architecture',
+      validator: 'Contract validation',
+      planner: 'Planning',
+      communications: 'Communications',
     },
     dates: {
       today: 'Today',
@@ -149,6 +168,21 @@ export default {
       commentPlaceholder: 'Add context or an update…',
       comment: 'Comment',
     },
+    approval: {
+      title: 'Agent approval request',
+      waitingForYou: 'Needs your decision',
+      requestedBy: 'Requested by {name}',
+      yes: 'Yes',
+      no: 'No',
+      customReply: 'Custom reply',
+      customReplyPlaceholder: 'Write a custom response…',
+      chooseOne: 'Choose one response to continue',
+      ready: 'Ready to send to the Agent',
+      submit: 'Submit decision',
+      submittedTitle: 'Decision submitted',
+      submittedDescription: '{name} has your response and can continue the task.',
+      submittedComment: 'Decision submitted. {name} can continue with the approved direction.',
+    },
     create: {
       title: 'Create a local task',
       close: 'Close new task dialog',
@@ -166,47 +200,109 @@ export default {
         description:
           'Consolidate the launch-room feedback and define the three onboarding changes to ship next.',
         source: '#customer-feedback · Message from Anna',
-        comment: 'I linked the customer examples that need to be reflected in the first pass.',
+        comments: {
+          customerExamples: 'I linked the customer examples that need to shape the first pass.',
+          researchSummary:
+            'I grouped 14 notes into activation, permissions, and empty-state themes. Activation is the clearest blocker.',
+        },
       },
       avatar: {
         title: 'Ship the shared workspace avatar fallback',
         description:
           'Finish the deterministic fallback and verify that the profile, directory, and channel surfaces stay aligned.',
-        comment: 'The directory state is ready for a final visual pass.',
+        comments: {
+          implementation:
+            'The fallback now uses the same identity seed in profile, directory, and message surfaces.',
+          review:
+            'I checked the light and dark themes at 390 px. Initials remain legible and no layout shifts appeared.',
+          product: 'Keep the final pass focused on mixed human and Agent rows before release.',
+        },
       },
       demo: {
         title: 'Prepare the unified task hub demo',
         description: 'Polish the list, board, and task-detail flow for the product walkthrough.',
         source: 'Product prototype',
+        comments: {
+          scope:
+            'The walkthrough should start in the list, switch to the board, then open this task.',
+          walkthrough:
+            'I prepared a two-minute path that shows shared task data and Agent collaboration without changing context.',
+        },
       },
       heartbeat: {
         title: 'Investigate runner heartbeat latency',
         description:
           'Review the alert window and confirm whether the delayed heartbeat needs an incident follow-up.',
         source: 'Runner latency alert · prod-cn',
+        comments: {
+          signal:
+            'The spike is isolated to two workers in prod-cn; the remaining regions stayed within the normal window.',
+          threshold:
+            'Hold incident escalation unless p95 remains above 30 seconds for another interval.',
+        },
       },
       permissions: {
         title: 'Review plugin permission copy',
         description:
           'Tighten the action scope labels before the plugin connection flow is presented.',
         source: 'Security review notes',
+        comments: {
+          audit:
+            'The current copy mixes read access with action approval. I marked the three places that need separation.',
+          copy: 'I rewrote the confirmation line so the exact workspace and action are visible before approval.',
+        },
       },
       contract: {
         title: 'Define the cross-source task contract',
         description:
           'Confirm the stable fields, source references, and event semantics shared by every task provider.',
-        comment: 'The source reference should remain immutable after import.',
+        approval: {
+          title: 'Claude needs your decision',
+          description:
+            'Before finalizing the contract, I need you to choose the direction I should implement.',
+          sourceContract: {
+            prompt: 'Which contract strategy should I implement?',
+            description: 'This affects every plugin, message, and local task imported later.',
+            customReplyPlaceholder: 'Describe another contract direction…',
+            sharedCore: 'Use one shared core contract (recommended)',
+            sharedCoreDescription:
+              'Require stable identity, source reference, status, owner, and timestamps everywhere.',
+            sourceSpecific: 'Allow each source to define its own contract',
+            sourceSpecificDescription:
+              'Keep integrations flexible, with more normalization work in the task layer.',
+            defer: 'Defer the contract change',
+            deferDescription: 'Keep the current mock schema and record this as follow-up work.',
+          },
+        },
+        comments: {
+          sourceRef: 'The source reference should remain immutable after import.',
+          validation:
+            'Fixture validation now covers plugin, message, and local task payloads with the same required fields.',
+          decision: 'Keep provider-specific metadata behind the source reference for the mock.',
+        },
       },
       planning: {
         title: 'Summarize Q3 planning decisions',
         description:
           'Turn the planning thread into a concise set of owners, dates, and open decisions.',
         source: '#product-planning · Thread with Luo',
+        comments: {
+          summary:
+            'I extracted six decisions, four named owners, and two unresolved dependencies from the thread.',
+          owner:
+            'The desktop demo is mine. Leave the sync dependency open until Platform confirms timing.',
+        },
       },
       retrospective: {
         title: 'Publish the launch retrospective',
         description: 'Share the final learnings and follow-up owners with the launch group.',
         source: '#launch-room · Pinned thread',
+        comments: {
+          published:
+            'The retrospective is published and pinned. Owners confirmed every follow-up item.',
+          followUps:
+            'I converted the three unresolved learnings into tasks and linked them back to the launch thread.',
+        },
       },
     },
   },
@@ -304,7 +400,8 @@ export default {
     runnerTokens: {
       eyebrow: 'Cloud execution',
       title: 'Runner registration tokens',
-      description: 'Choose the audience for this Runner before copying its registration command.',
+      description:
+        'Tenant tokens are visible to tenant members; personal tokens are visible only to you. Use one to register a cloud Runner on a server.',
       refresh: 'Refresh tokens',
       resetPersonal: 'Reset personal token',
       loading: 'Loading Runner tokens',
@@ -312,10 +409,10 @@ export default {
       offline: 'Runner tokens are unavailable while Center is offline.',
       commandTitle: 'One-command registration',
       commandDescription:
-        'Choose an installation method. The command installs the Runner, writes its configuration, asks for the machine name and a default tag when needed, and starts the background service.',
+        'The command uses npx to fetch the Runner package, writes its configuration on the target machine, asks for the machine name and a default tag when needed, and starts the Runner as a background service.',
       createCommand: 'Generate registration command',
-      commandLoading: 'Generating the registration command…',
-      selectToken: 'Select an active token to generate its registration command.',
+      commandLoading: 'Generating the default registration command…',
+      selectToken: 'A registration command will appear when an active token is available.',
       installMethodLabel: 'Runner installation method',
       installPreview: 'Preview - this installer is not available yet',
       installTools: {

@@ -1,8 +1,34 @@
-import type { ComposerTranslation } from 'vue-i18n'
+import type { TaskActor, TaskAgentProvider, TaskCollaborator, TaskItem } from './contracts'
 
-import type { TaskItem } from './contracts'
+type TaskTranslation = (key: string, named?: Record<string, string | number>) => string
 
-export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
+function humanActor(id: string, name: string): TaskActor {
+  return { id, kind: 'human', name }
+}
+
+function agentActor(id: string, provider: TaskAgentProvider): TaskActor {
+  return {
+    id,
+    kind: 'agent',
+    name: provider === 'claude' ? 'Claude' : 'Codex',
+    provider,
+  }
+}
+
+function human(id: string, name: string, role: string, lead = false): TaskCollaborator {
+  return { ...humanActor(id, name), role, lead }
+}
+
+function agent(
+  id: string,
+  provider: TaskAgentProvider,
+  role: string,
+  lead = false,
+): TaskCollaborator {
+  return { ...agentActor(id, provider), role, lead }
+}
+
+export function createTaskDemoData(t: TaskTranslation): TaskItem[] {
   return [
     {
       id: 'MSG-1042',
@@ -11,7 +37,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'high',
       progress: 62,
-      assignee: 'Anna',
+      collaborators: [
+        agent('claude-research', 'claude', t('tasks.roles.researcher'), true),
+        human('anna', 'Anna', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.today'),
       tags: ['Customer', 'Onboarding'],
       source: {
@@ -22,12 +51,18 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       comments: [
         {
           id: 'comment-onboarding-1',
-          author: 'Anna',
-          body: t('tasks.mock.onboarding.comment'),
+          author: humanActor('anna', 'Anna'),
+          body: t('tasks.mock.onboarding.comments.customerExamples'),
           createdAtLabel: t('tasks.dates.minutesAgo', { count: 18 }),
         },
+        {
+          id: 'comment-onboarding-2',
+          author: agentActor('claude-research', 'claude'),
+          body: t('tasks.mock.onboarding.comments.researchSummary'),
+          createdAtLabel: t('tasks.dates.minutesAgo', { count: 9 }),
+        },
       ],
-      updatedAtLabel: t('tasks.dates.minutesAgo', { count: 18 }),
+      updatedAtLabel: t('tasks.dates.minutesAgo', { count: 9 }),
     },
     {
       id: 'GH-287',
@@ -36,7 +71,11 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'medium',
       progress: 74,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        agent('codex-builder', 'codex', t('tasks.roles.implementation'), true),
+        agent('claude-review', 'claude', t('tasks.roles.reviewer')),
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.tomorrow'),
       tags: ['Frontend', 'Release'],
       source: {
@@ -47,12 +86,24 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       comments: [
         {
           id: 'comment-avatar-1',
-          author: 'Lin',
-          body: t('tasks.mock.avatar.comment'),
+          author: agentActor('codex-builder', 'codex'),
+          body: t('tasks.mock.avatar.comments.implementation'),
           createdAtLabel: t('tasks.dates.hoursAgo', { count: 2 }),
         },
+        {
+          id: 'comment-avatar-2',
+          author: agentActor('claude-review', 'claude'),
+          body: t('tasks.mock.avatar.comments.review'),
+          createdAtLabel: t('tasks.dates.minutesAgo', { count: 44 }),
+        },
+        {
+          id: 'comment-avatar-3',
+          author: humanActor('you', t('tasks.people.you')),
+          body: t('tasks.mock.avatar.comments.product'),
+          createdAtLabel: t('tasks.dates.minutesAgo', { count: 26 }),
+        },
       ],
-      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 2 }),
+      updatedAtLabel: t('tasks.dates.minutesAgo', { count: 26 }),
     },
     {
       id: 'LOCAL-018',
@@ -61,7 +112,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'high',
       progress: 46,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner'), true),
+        agent('claude-producer', 'claude', t('tasks.roles.demoProducer')),
+      ],
       dueLabel: t('tasks.dates.today'),
       tags: ['Demo', 'Product'],
       source: {
@@ -69,8 +123,21 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: t('tasks.sources.localWorkspace'),
         context: t('tasks.mock.demo.source'),
       },
-      comments: [],
-      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 3 }),
+      comments: [
+        {
+          id: 'comment-demo-1',
+          author: humanActor('you', t('tasks.people.you')),
+          body: t('tasks.mock.demo.comments.scope'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 3 }),
+        },
+        {
+          id: 'comment-demo-2',
+          author: agentActor('claude-producer', 'claude'),
+          body: t('tasks.mock.demo.comments.walkthrough'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 2 }),
+        },
+      ],
+      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 2 }),
     },
     {
       id: 'MON-404',
@@ -79,7 +146,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inbox',
       priority: 'high',
       progress: 12,
-      assignee: 'Maya',
+      collaborators: [
+        agent('codex-operations', 'codex', t('tasks.roles.operations'), true),
+        human('maya', 'Maya', t('tasks.roles.reviewer')),
+      ],
       dueLabel: t('tasks.dates.sep4'),
       tags: ['Reliability'],
       source: {
@@ -87,8 +157,21 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: 'Cloud Monitor',
         context: t('tasks.mock.heartbeat.source'),
       },
-      comments: [],
-      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 5 }),
+      comments: [
+        {
+          id: 'comment-heartbeat-1',
+          author: agentActor('codex-operations', 'codex'),
+          body: t('tasks.mock.heartbeat.comments.signal'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 5 }),
+        },
+        {
+          id: 'comment-heartbeat-2',
+          author: humanActor('maya', 'Maya'),
+          body: t('tasks.mock.heartbeat.comments.threshold'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 4 }),
+        },
+      ],
+      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 4 }),
     },
     {
       id: 'LOCAL-012',
@@ -97,7 +180,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inbox',
       priority: 'medium',
       progress: 20,
-      assignee: 'Iris',
+      collaborators: [
+        agent('claude-policy', 'claude', t('tasks.roles.securityReviewer'), true),
+        human('iris', 'Iris', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.nextMonday'),
       tags: ['Copy', 'Security'],
       source: {
@@ -105,17 +191,34 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: t('tasks.sources.localWorkspace'),
         context: t('tasks.mock.permissions.source'),
       },
-      comments: [],
-      updatedAtLabel: t('tasks.dates.yesterday'),
+      comments: [
+        {
+          id: 'comment-permissions-1',
+          author: agentActor('claude-policy', 'claude'),
+          body: t('tasks.mock.permissions.comments.audit'),
+          createdAtLabel: t('tasks.dates.yesterday'),
+        },
+        {
+          id: 'comment-permissions-2',
+          author: humanActor('iris', 'Iris'),
+          body: t('tasks.mock.permissions.comments.copy'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 7 }),
+        },
+      ],
+      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 7 }),
     },
     {
       id: 'JIRA-681',
       title: t('tasks.mock.contract.title'),
       description: t('tasks.mock.contract.description'),
-      status: 'review',
+      status: 'approval',
       priority: 'high',
       progress: 90,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        agent('claude-architect', 'claude', t('tasks.roles.architect'), true),
+        agent('codex-validator', 'codex', t('tasks.roles.validator')),
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.sep4'),
       tags: ['Architecture', 'API'],
       source: {
@@ -123,15 +226,64 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: 'Jira Cloud',
         context: 'Platform / JIRA-681',
       },
+      approval: {
+        id: 'approval-contract-v1',
+        requester: agentActor('claude-architect', 'claude'),
+        title: t('tasks.mock.contract.approval.title'),
+        description: t('tasks.mock.contract.approval.description'),
+        createdAtLabel: t('tasks.dates.minutesAgo', { count: 6 }),
+        status: 'pending',
+        question: {
+          id: 'source-contract',
+          kind: 'single',
+          prompt: t('tasks.mock.contract.approval.sourceContract.prompt'),
+          description: t('tasks.mock.contract.approval.sourceContract.description'),
+          allowCustomReply: true,
+          customReplyPlaceholder: t(
+            'tasks.mock.contract.approval.sourceContract.customReplyPlaceholder',
+          ),
+          options: [
+            {
+              id: 'shared-core',
+              label: t('tasks.mock.contract.approval.sourceContract.sharedCore'),
+              description: t('tasks.mock.contract.approval.sourceContract.sharedCoreDescription'),
+            },
+            {
+              id: 'source-specific',
+              label: t('tasks.mock.contract.approval.sourceContract.sourceSpecific'),
+              description: t(
+                'tasks.mock.contract.approval.sourceContract.sourceSpecificDescription',
+              ),
+            },
+            {
+              id: 'defer-contract',
+              label: t('tasks.mock.contract.approval.sourceContract.defer'),
+              description: t('tasks.mock.contract.approval.sourceContract.deferDescription'),
+            },
+          ],
+        },
+      },
       comments: [
         {
           id: 'comment-contract-1',
-          author: 'Chen',
-          body: t('tasks.mock.contract.comment'),
+          author: agentActor('claude-architect', 'claude'),
+          body: t('tasks.mock.contract.comments.sourceRef'),
           createdAtLabel: t('tasks.dates.hoursAgo', { count: 1 }),
         },
+        {
+          id: 'comment-contract-2',
+          author: agentActor('codex-validator', 'codex'),
+          body: t('tasks.mock.contract.comments.validation'),
+          createdAtLabel: t('tasks.dates.minutesAgo', { count: 38 }),
+        },
+        {
+          id: 'comment-contract-3',
+          author: humanActor('you', t('tasks.people.you')),
+          body: t('tasks.mock.contract.comments.decision'),
+          createdAtLabel: t('tasks.dates.minutesAgo', { count: 21 }),
+        },
       ],
-      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 1 }),
+      updatedAtLabel: t('tasks.dates.minutesAgo', { count: 21 }),
     },
     {
       id: 'MSG-988',
@@ -140,7 +292,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'review',
       priority: 'medium',
       progress: 84,
-      assignee: 'Luo',
+      collaborators: [
+        agent('claude-planner', 'claude', t('tasks.roles.planner'), true),
+        human('luo', 'Luo', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.sep6'),
       tags: ['Planning'],
       source: {
@@ -148,8 +303,21 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: 'Product planning',
         context: t('tasks.mock.planning.source'),
       },
-      comments: [],
-      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 4 }),
+      comments: [
+        {
+          id: 'comment-planning-1',
+          author: agentActor('claude-planner', 'claude'),
+          body: t('tasks.mock.planning.comments.summary'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 4 }),
+        },
+        {
+          id: 'comment-planning-2',
+          author: humanActor('luo', 'Luo'),
+          body: t('tasks.mock.planning.comments.owner'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 3 }),
+        },
+      ],
+      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 3 }),
     },
     {
       id: 'MSG-971',
@@ -158,7 +326,7 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'done',
       priority: 'low',
       progress: 100,
-      assignee: 'Chen',
+      collaborators: [human('chen', 'Chen', t('tasks.roles.communications'), true)],
       dueLabel: t('tasks.dates.sep2'),
       tags: ['Launch'],
       source: {
@@ -166,8 +334,21 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
         name: 'Launch room',
         context: t('tasks.mock.retrospective.source'),
       },
-      comments: [],
-      updatedAtLabel: t('tasks.dates.yesterday'),
+      comments: [
+        {
+          id: 'comment-retrospective-1',
+          author: humanActor('chen', 'Chen'),
+          body: t('tasks.mock.retrospective.comments.published'),
+          createdAtLabel: t('tasks.dates.yesterday'),
+        },
+        {
+          id: 'comment-retrospective-2',
+          author: agentActor('codex-release-notes', 'codex'),
+          body: t('tasks.mock.retrospective.comments.followUps'),
+          createdAtLabel: t('tasks.dates.hoursAgo', { count: 20 }),
+        },
+      ],
+      updatedAtLabel: t('tasks.dates.hoursAgo', { count: 20 }),
     },
   ]
 }
