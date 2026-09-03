@@ -16,6 +16,7 @@ import type { AgentDrawerChannelState } from '@/features/collaboration/agentDraw
 import AgentConversationSurface from '@/features/conversation/components/AgentConversationSurface.vue'
 import ConversationSidebar from '@/features/conversation/components/ConversationSidebar.vue'
 import DirectoryPage from '@/features/directory/components/DirectoryPage.vue'
+import TaskWorkspace from '@/features/tasks/components/TaskWorkspace.vue'
 import type { DirectoryUser } from '@/features/directory/contracts'
 import type {
   ComposerAttachment,
@@ -299,12 +300,14 @@ const filteredDirectoryUsers = computed(() => {
     ].some((value) => value?.toLocaleLowerCase().includes(query)),
   )
 })
-const activeMode = ref<'channels' | 'agent' | 'directory'>(
-  fixture.value.startsWith('directory')
-    ? 'directory'
-    : fixture.value === 'full-agent'
-      ? 'agent'
-      : 'channels',
+const activeMode = ref<'channels' | 'agent' | 'directory' | 'tasks'>(
+  fixture.value === 'tasks'
+    ? 'tasks'
+    : fixture.value.startsWith('directory')
+      ? 'directory'
+      : fixture.value === 'full-agent'
+        ? 'agent'
+        : 'channels',
 )
 const draftDialogOpen = ref(fixture.value === 'draft-dialog')
 const draft = ref<Draft>({
@@ -413,7 +416,8 @@ function deliverDraft(): void {
         :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
         @select="
           (mode) => {
-            if (mode === 'agent' || mode === 'channels' || mode === 'directory') activeMode = mode
+            if (mode === 'agent' || mode === 'channels' || mode === 'directory' || mode === 'tasks')
+              activeMode = mode
           }
         "
       />
@@ -492,6 +496,8 @@ function deliverDraft(): void {
         @update:query="directoryQuery = $event"
         @message="directoryMessageUser = $event"
       />
+
+      <TaskWorkspace v-else-if="activeMode === 'tasks'" :search-query="globalSearchQuery" />
 
       <template v-else>
         <ConversationSidebar

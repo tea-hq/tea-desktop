@@ -6,6 +6,7 @@ import ManagementWorkspace from '@/features/management/components/ManagementWork
 import SettingsPage from '@/features/settings/components/SettingsPage.vue'
 import ProfilePage from '@/features/profile/components/ProfilePage.vue'
 import DirectoryPage from '@/features/directory/components/DirectoryPage.vue'
+import TaskWorkspace from '@/features/tasks/components/TaskWorkspace.vue'
 
 defineProps<{ globalSearchQuery: string }>()
 
@@ -43,6 +44,7 @@ const {
     @message="messageDirectoryUser"
   />
   <AgentWorkspace v-else-if="activeMode === 'agent'" :search-query="globalSearchQuery" />
+  <TaskWorkspace v-else-if="activeMode === 'tasks'" :search-query="globalSearchQuery" />
   <ProfilePage
     v-else-if="activeMode === 'profile' && centerAuth.state.bootstrap"
     :tenant-display-name="centerAuth.state.bootstrap.tenant.displayName"

@@ -118,7 +118,11 @@ export function useWorkspaceActions(
       return
     }
     if (mode === 'profile') {
-      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent')
+      if (
+        ui.activeMode.value === 'channels' ||
+        ui.activeMode.value === 'agent' ||
+        ui.activeMode.value === 'tasks'
+      )
         ui.previousMode.value = ui.activeMode.value
       ui.activeMode.value = mode
       void stores.profile.refresh()
@@ -126,7 +130,11 @@ export function useWorkspaceActions(
       return
     }
     if (mode === 'settings' || mode === 'management') {
-      if (ui.activeMode.value === 'channels' || ui.activeMode.value === 'agent')
+      if (
+        ui.activeMode.value === 'channels' ||
+        ui.activeMode.value === 'agent' ||
+        ui.activeMode.value === 'tasks'
+      )
         ui.previousMode.value = ui.activeMode.value
       ui.activeMode.value = mode
       return
