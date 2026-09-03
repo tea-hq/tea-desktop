@@ -1,6 +1,15 @@
+<script setup lang="ts">
+import { WINDOW_CHROME_HEIGHT } from '@/types/windowChrome'
+
+const windowChromeStyle = {
+  '--window-chrome-height': `${WINDOW_CHROME_HEIGHT}px`,
+}
+</script>
+
 <template>
   <div
     class="window-chrome flex h-screen min-h-0 min-w-0 flex-col overflow-hidden bg-canvas text-fg"
+    :style="windowChromeStyle"
   >
     <div class="window-chrome__drag-region border-b border-line-soft bg-canvas">
       <div class="window-chrome__toolbar min-w-0">
@@ -17,8 +26,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 48px;
-  height: 48px;
+  flex: 0 0 var(--window-chrome-height);
+  height: var(--window-chrome-height);
   -webkit-app-region: drag;
   user-select: none;
 }

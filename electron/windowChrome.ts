@@ -1,6 +1,11 @@
 import type { EffectiveTheme } from '../src/types/theme'
+import { WINDOW_CHROME_HEIGHT } from '../src/types/windowChrome'
 
-export const WINDOW_CHROME_HEIGHT = 36
+const MACOS_TRAFFIC_LIGHT_SIZE = 16
+const MACOS_TRAFFIC_LIGHT_POSITION = {
+  x: 16,
+  y: (WINDOW_CHROME_HEIGHT - MACOS_TRAFFIC_LIGHT_SIZE) / 2,
+} as const
 
 export interface WindowChromeOverlayOptions {
   readonly color: string
@@ -34,7 +39,7 @@ export function createWindowChromeOptions(
     return {
       backgroundColor: colors.backgroundColor,
       titleBarStyle: 'hidden',
-      trafficLightPosition: { x: 16, y: 10 },
+      trafficLightPosition: MACOS_TRAFFIC_LIGHT_POSITION,
     }
   }
 
