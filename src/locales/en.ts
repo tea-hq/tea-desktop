@@ -182,6 +182,14 @@ export default {
       submittedTitle: 'Decision submitted',
       submittedDescription: '{name} has your response and can continue the task.',
       submittedComment: 'Decision submitted. {name} can continue with the approved direction.',
+      agentProcessing: 'Agent is continuing the task',
+      agentProcessingDescription:
+        '{name} is incorporating your decision and moving to the next step.',
+      agentSteps: {
+        reading: 'Reading your decision',
+        planning: 'Updating the task plan',
+        continuing: 'Continuing execution',
+      },
     },
     create: {
       title: 'Create a local task',

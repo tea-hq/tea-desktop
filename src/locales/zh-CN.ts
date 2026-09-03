@@ -180,6 +180,13 @@ export default {
       submittedTitle: '决定已提交',
       submittedDescription: '{name} 已收到你的回复，可以继续执行任务。',
       submittedComment: '审批决定已提交，{name} 将按确认的方向继续执行。',
+      agentProcessing: 'Agent 正在继续处理任务',
+      agentProcessingDescription: '{name} 正在吸收你的决定并进入下一步。',
+      agentSteps: {
+        reading: '读取你的决定',
+        planning: '更新任务计划',
+        continuing: '继续执行任务',
+      },
     },
     create: {
       title: '新建本地任务',

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { TeaButton, TeaChoiceButton, TeaTextarea } from '@/shared/ui'
 import type { TaskApprovalAnswer, TaskApprovalRequest, TaskApprovalSubmission } from '../contracts'
+import TaskAgentHandoff from './TaskAgentHandoff.vue'
 import TaskActorAvatar from './TaskActorAvatar.vue'
 
 const props = defineProps<{ request: TaskApprovalRequest }>()
@@ -101,22 +102,24 @@ function submit(): void {
     data-testid="task-approval-panel"
     :data-approval-status="request.status"
   >
-    <div
-      v-if="request.status === 'submitted'"
-      class="flex items-start gap-3 rounded-card bg-success-subtle px-4 py-3 text-success"
-      data-testid="task-approval-submitted"
-    >
-      <span class="i-mdi-check-circle-outline mt-0.5 size-5 shrink-0" aria-hidden="true" />
-      <div class="min-w-0">
-        <h3 class="text-sm font-semibold">{{ t('tasks.approval.submittedTitle') }}</h3>
-        <p class="mt-1 text-xs leading-5">
-          {{ t('tasks.approval.submittedDescription', { name: request.requester.name }) }}
-        </p>
-        <p v-if="request.respondedAtLabel" class="mt-1 font-mono text-xs opacity-80">
-          {{ request.respondedAtLabel }}
-        </p>
+    <template v-if="request.status === 'submitted'">
+      <div
+        class="flex items-start gap-3 rounded-card bg-success-subtle px-4 py-3 text-success"
+        data-testid="task-approval-submitted"
+      >
+        <span class="i-mdi-check-circle-outline mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        <div class="min-w-0">
+          <h3 class="text-sm font-semibold">{{ t('tasks.approval.submittedTitle') }}</h3>
+          <p class="mt-1 text-xs leading-5">
+            {{ t('tasks.approval.submittedDescription', { name: request.requester.name }) }}
+          </p>
+          <p v-if="request.respondedAtLabel" class="mt-1 font-mono text-xs opacity-80">
+            {{ request.respondedAtLabel }}
+          </p>
+        </div>
       </div>
-    </div>
+      <TaskAgentHandoff :request="request" />
+    </template>
 
     <div v-else class="overflow-hidden rounded-card border border-line bg-panel">
       <div class="border-b border-line px-4 py-3.5">

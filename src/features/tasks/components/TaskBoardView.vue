@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskItem, TaskPriority, TaskStatus } from '../contracts'
+import { taskTagClass } from '../taskTagPresentation'
 import { TASK_STATUSES } from '../useTaskDemo'
 import TaskCollaboratorSummary from './TaskCollaboratorSummary.vue'
 import TaskSourceBadge from './TaskSourceBadge.vue'
@@ -104,9 +105,11 @@ function priorityClass(priority: TaskPriority): string {
           >
             <span class="flex min-w-0 gap-1 overflow-hidden">
               <span
-                v-for="tag in task.tags.slice(0, 2)"
+                v-for="(tag, index) in task.tags.slice(0, 2)"
                 :key="tag"
-                class="truncate rounded-pill bg-muted px-2 py-0.5 text-[10px] font-medium text-dim"
+                :class="taskTagClass(index)"
+                class="truncate rounded-pill px-2 py-0.5 text-[10px] font-medium"
+                data-testid="task-tag"
               >
                 {{ tag }}
               </span>

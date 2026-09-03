@@ -73,6 +73,7 @@ describe('TaskWorkspace', () => {
     const approvalPanel = body.get('[data-testid="task-approval-panel"]')
     expect(approvalPanel.attributes('data-approval-status')).toBe('pending')
     expect(approvalPanel.text()).toContain('Claude 需要你的决定')
+    expect(approvalPanel.find('[data-testid="task-agent-handoff"]').exists()).toBe(false)
     expect(approvalPanel.findAll('[data-question-kind]')).toHaveLength(1)
     expect(approvalPanel.get('[data-question-kind]').attributes('data-question-kind')).toBe(
       'single',
@@ -94,6 +95,9 @@ describe('TaskWorkspace', () => {
 
     expect(detail.attributes('data-task-status')).toBe('inProgress')
     expect(body.get('[data-testid="task-approval-submitted"]').text()).toContain('决定已提交')
+    const handoff = body.get('[data-testid="task-agent-handoff"]')
+    expect(handoff.text()).toContain('Agent 正在继续处理任务')
+    expect(handoff.findAll('[data-step]')).toHaveLength(3)
     expect(body.findAll('[data-testid="task-comment"]')).toHaveLength(4)
   })
 
@@ -144,6 +148,22 @@ describe('TaskWorkspace', () => {
         .get('[data-testid="task-comment"] [data-agent-provider="claude"]')
         .attributes('data-agent-provider'),
     ).toBe('claude')
+  })
+
+  it('uses distinct tones for tags in cards and details', async () => {
+    const page = mountWorkspace()
+    await page.get('button[aria-label="Board"]').trigger('click')
+
+    const card = page.get('[data-testid="task-board-card"][data-task-id="JIRA-681"]')
+    const cardTags = card.findAll('[data-testid="task-tag"]')
+    expect(cardTags).toHaveLength(2)
+    expect(cardTags[0]!.classes()).not.toEqual(cardTags[1]!.classes())
+
+    await card.trigger('click')
+    const body = new DOMWrapper(document.body)
+    const detailTags = body.get('[data-testid="task-detail"]').findAll('[data-testid="task-tag"]')
+    expect(detailTags).toHaveLength(2)
+    expect(detailTags[0]!.classes()).not.toEqual(detailTags[1]!.classes())
   })
 
   it('opens localized details and adds a comment', async () => {

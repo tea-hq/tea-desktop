@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { TeaDrawer, TeaIconButton, TeaInput, TeaSelect, TeaTextarea } from '@/shared/ui'
 import type { TeaSelectOption } from '@/shared/ui'
 import type { TaskApprovalSubmission, TaskItem, TaskPriority, TaskStatus } from '../contracts'
+import { taskTagClass } from '../taskTagPresentation'
 import TaskApprovalPanel from './TaskApprovalPanel.vue'
 import TaskActorAvatar from './TaskActorAvatar.vue'
 import TaskCollaboratorSummary from './TaskCollaboratorSummary.vue'
@@ -201,10 +202,12 @@ function submitApproval(submission: TaskApprovalSubmission): void {
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <button
-            v-for="tag in task.tags"
+            v-for="(tag, index) in task.tags"
             :key="tag"
             type="button"
-            class="inline-flex min-h-7 items-center gap-1 rounded-pill bg-muted px-2.5 text-xs font-medium text-dim transition-colors hover:bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-focus motion-reduce:transition-none"
+            :class="taskTagClass(index)"
+            class="inline-flex min-h-7 items-center gap-1 rounded-pill px-2.5 text-xs font-medium transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-focus motion-reduce:transition-none"
+            data-testid="task-tag"
             :aria-label="t('tasks.detail.removeTag', { tag })"
             :title="t('tasks.detail.removeTag', { tag })"
             @click="emit('remove-tag', task.id, tag)"
