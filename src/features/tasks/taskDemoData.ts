@@ -1,6 +1,26 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { TaskItem } from './contracts'
+import type { TaskAgentProvider, TaskCollaborator, TaskItem } from './contracts'
+
+function human(id: string, name: string, role: string, lead = false): TaskCollaborator {
+  return { id, kind: 'human', name, role, lead }
+}
+
+function agent(
+  id: string,
+  provider: TaskAgentProvider,
+  role: string,
+  lead = false,
+): TaskCollaborator {
+  return {
+    id,
+    kind: 'agent',
+    name: provider === 'claude' ? 'Claude' : 'Codex',
+    role,
+    lead,
+    provider,
+  }
+}
 
 export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
   return [
@@ -11,7 +31,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'high',
       progress: 62,
-      assignee: 'Anna',
+      collaborators: [
+        agent('claude-research', 'claude', t('tasks.roles.researcher'), true),
+        human('anna', 'Anna', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.today'),
       tags: ['Customer', 'Onboarding'],
       source: {
@@ -36,7 +59,11 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'medium',
       progress: 74,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        agent('codex-builder', 'codex', t('tasks.roles.implementation'), true),
+        agent('claude-review', 'claude', t('tasks.roles.reviewer')),
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.tomorrow'),
       tags: ['Frontend', 'Release'],
       source: {
@@ -61,7 +88,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inProgress',
       priority: 'high',
       progress: 46,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner'), true),
+        agent('claude-producer', 'claude', t('tasks.roles.demoProducer')),
+      ],
       dueLabel: t('tasks.dates.today'),
       tags: ['Demo', 'Product'],
       source: {
@@ -79,7 +109,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inbox',
       priority: 'high',
       progress: 12,
-      assignee: 'Maya',
+      collaborators: [
+        agent('codex-operations', 'codex', t('tasks.roles.operations'), true),
+        human('maya', 'Maya', t('tasks.roles.reviewer')),
+      ],
       dueLabel: t('tasks.dates.sep4'),
       tags: ['Reliability'],
       source: {
@@ -97,7 +130,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'inbox',
       priority: 'medium',
       progress: 20,
-      assignee: 'Iris',
+      collaborators: [
+        agent('claude-policy', 'claude', t('tasks.roles.securityReviewer'), true),
+        human('iris', 'Iris', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.nextMonday'),
       tags: ['Copy', 'Security'],
       source: {
@@ -115,7 +151,11 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'review',
       priority: 'high',
       progress: 90,
-      assignee: t('tasks.people.you'),
+      collaborators: [
+        agent('claude-architect', 'claude', t('tasks.roles.architect'), true),
+        agent('codex-validator', 'codex', t('tasks.roles.validator')),
+        human('you', t('tasks.people.you'), t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.sep4'),
       tags: ['Architecture', 'API'],
       source: {
@@ -140,7 +180,10 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'review',
       priority: 'medium',
       progress: 84,
-      assignee: 'Luo',
+      collaborators: [
+        agent('claude-planner', 'claude', t('tasks.roles.planner'), true),
+        human('luo', 'Luo', t('tasks.roles.productOwner')),
+      ],
       dueLabel: t('tasks.dates.sep6'),
       tags: ['Planning'],
       source: {
@@ -158,7 +201,7 @@ export function createTaskDemoData(t: ComposerTranslation): TaskItem[] {
       status: 'done',
       priority: 'low',
       progress: 100,
-      assignee: 'Chen',
+      collaborators: [human('chen', 'Chen', t('tasks.roles.communications'), true)],
       dueLabel: t('tasks.dates.sep2'),
       tags: ['Launch'],
       source: {

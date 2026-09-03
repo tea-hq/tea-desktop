@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaDrawer, TeaIconButton, TeaInput, TeaSelect, TeaTextarea } from '@/shared/ui'
 import type { TeaSelectOption } from '@/shared/ui'
 import type { TaskItem, TaskStatus } from '../contracts'
+import TaskActorAvatar from './TaskActorAvatar.vue'
 import TaskSourceBadge from './TaskSourceBadge.vue'
 
 const props = defineProps<{ task: TaskItem | null }>()
@@ -70,8 +71,8 @@ function addComment(): void {
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <TaskSourceBadge :source="task.source" compact />
               <span class="font-mono text-xs text-subtle">{{ task.id }}</span>
-              <TaskSourceBadge :source="task.source" />
             </div>
             <h2 class="mt-3 text-xl font-semibold leading-7 tracking-normal text-fg sm:text-[22px]">
               {{ task.title }}
@@ -109,24 +110,10 @@ function addComment(): void {
             </span>
           </div>
           <div>
-            <span class="block text-xs font-medium text-subtle">{{
-              t('tasks.columns.assignee')
-            }}</span>
-            <span class="mt-2 flex min-w-0 items-center gap-2 text-sm font-medium text-fg">
-              <span
-                class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-dim"
-                aria-hidden="true"
-              >
-                {{ Array.from(task.assignee).slice(0, 1).join('').toLocaleUpperCase() }}
-              </span>
-              <span class="truncate">{{ task.assignee }}</span>
-            </span>
-          </div>
-          <div>
             <span class="block text-xs font-medium text-subtle">{{ t('tasks.columns.due') }}</span>
             <span class="mt-2 block text-sm text-fg">{{ task.dueLabel }}</span>
           </div>
-          <div class="col-span-2 sm:col-span-2">
+          <div class="col-span-2 sm:col-span-3">
             <span class="flex items-center justify-between text-xs font-medium text-subtle">
               <span>{{ t('tasks.columns.progress') }}</span>
               <span class="font-mono">{{ task.progress }}%</span>
@@ -149,21 +136,45 @@ function addComment(): void {
 
         <section class="px-5 py-5 sm:px-6">
           <div class="flex items-center justify-between gap-4">
-            <h3 class="text-sm font-semibold text-fg">{{ t('tasks.detail.source') }}</h3>
-            <span class="text-xs text-subtle">{{ t(`tasks.sources.${task.source.kind}`) }}</span>
+            <h3 class="text-sm font-semibold text-fg">{{ t('tasks.collaboration.title') }}</h3>
+            <span class="font-mono text-xs text-subtle">
+              {{ t('tasks.collaboration.count', { count: task.collaborators.length }) }}
+            </span>
           </div>
-          <div class="mt-3 flex min-w-0 items-center gap-3 border-l-2 border-line-strong pl-3">
-            <span
-              :class="
-                task.source.kind === 'plugin'
-                  ? 'i-mdi-puzzle-outline text-brand-accent'
-                  : task.source.kind === 'message'
-                    ? 'i-mdi-message-text-outline text-success'
-                    : 'i-mdi-laptop text-subtle'
-              "
-              class="size-5 shrink-0"
-              aria-hidden="true"
-            />
+          <div class="mt-2 divide-y divide-line-soft">
+            <div
+              v-for="collaborator in task.collaborators"
+              :key="collaborator.id"
+              class="flex min-w-0 items-center gap-3 py-2.5"
+              data-testid="task-detail-collaborator"
+            >
+              <TaskActorAvatar :collaborator="collaborator" />
+              <div class="min-w-0 flex-1">
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="truncate text-sm font-medium text-fg">{{ collaborator.name }}</span>
+                  <span
+                    v-if="collaborator.lead"
+                    class="shrink-0 rounded-pill bg-muted px-2 py-0.5 text-[10px] font-semibold text-dim"
+                  >
+                    {{ t('tasks.collaboration.lead') }}
+                  </span>
+                </div>
+                <p class="mt-0.5 truncate text-xs text-subtle">{{ collaborator.role }}</p>
+              </div>
+              <span class="shrink-0 text-[11px] text-subtle">
+                {{
+                  collaborator.kind === 'agent'
+                    ? t('tasks.collaboration.agent', { provider: collaborator.name })
+                    : t('tasks.collaboration.person')
+                }}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section class="px-5 py-5 sm:px-6">
+          <h3 class="text-sm font-semibold text-fg">{{ t('tasks.detail.source') }}</h3>
+          <div class="mt-3 flex min-w-0 items-center border-l-2 border-line-strong pl-3">
             <span class="min-w-0">
               <span class="block truncate text-sm font-medium text-fg">{{ task.source.name }}</span>
               <span class="mt-0.5 block truncate text-xs text-subtle">{{

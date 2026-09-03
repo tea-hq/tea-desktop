@@ -4,6 +4,10 @@ export type TaskPriority = 'high' | 'medium' | 'low'
 
 export type TaskSourceKind = 'plugin' | 'message' | 'local'
 
+export type TaskCollaboratorKind = 'human' | 'agent'
+
+export type TaskAgentProvider = 'claude' | 'codex'
+
 export interface TaskSource {
   kind: TaskSourceKind
   name: string
@@ -17,6 +21,15 @@ export interface TaskComment {
   createdAtLabel: string
 }
 
+export interface TaskCollaborator {
+  id: string
+  kind: TaskCollaboratorKind
+  name: string
+  role: string
+  lead: boolean
+  provider?: TaskAgentProvider
+}
+
 export interface TaskItem {
   id: string
   title: string
@@ -24,7 +37,7 @@ export interface TaskItem {
   status: TaskStatus
   priority: TaskPriority
   progress: number
-  assignee: string
+  collaborators: TaskCollaborator[]
   dueLabel: string
   tags: string[]
   source: TaskSource
