@@ -304,8 +304,7 @@ export default {
     runnerTokens: {
       eyebrow: 'Cloud execution',
       title: 'Runner registration tokens',
-      description:
-        'Tenant tokens are visible to tenant members; personal tokens are visible only to you. Use one to register a cloud Runner on a server.',
+      description: 'Choose the audience for this Runner before copying its registration command.',
       refresh: 'Refresh tokens',
       resetPersonal: 'Reset personal token',
       loading: 'Loading Runner tokens',
@@ -313,10 +312,34 @@ export default {
       offline: 'Runner tokens are unavailable while Center is offline.',
       commandTitle: 'One-command registration',
       commandDescription:
-        'The command uses npx to fetch the Runner package, writes its configuration on the target machine, asks for the machine name and a default tag when needed, and starts the Runner as a background service.',
+        'Choose an installation method. The command installs the Runner, writes its configuration, asks for the machine name and a default tag when needed, and starts the background service.',
       createCommand: 'Generate registration command',
-      commandLoading: 'Generating the default registration command…',
-      selectToken: 'A registration command will appear when an active token is available.',
+      commandLoading: 'Generating the registration command…',
+      selectToken: 'Select an active token to generate its registration command.',
+      installMethodLabel: 'Runner installation method',
+      installPreview: 'Preview - this installer is not available yet',
+      installTools: {
+        npx: 'npx',
+        curl: 'cURL',
+        powershell: 'PowerShell',
+        homebrew: 'Homebrew',
+        chocolatey: 'Chocolatey',
+      },
+      selectedForRegistration: 'Selected',
+      useToken: 'Use token',
+      useTokenLabel: 'Use token {tokenId} for registration',
+      unavailableToken: 'Unavailable',
+      audience: {
+        label: 'Runner token audience',
+        enterprise: 'Enterprise',
+        personal: 'Personal',
+        enterpriseDescription:
+          'Enterprise tokens register shared Runners for members in the corresponding tenant, group, or department.',
+        personalDescription:
+          'Personal tokens register Runners for your account only. Other tenant members cannot use them.',
+        enterpriseEmpty: 'No enterprise Runner tokens are visible to this account.',
+        personalEmpty: 'No personal Runner token is available for this account.',
+      },
       scope: { tenant: 'Tenant token', group: 'Group or department token', user: 'Personal token' },
     },
   },

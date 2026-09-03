@@ -28,31 +28,96 @@ const tokens: RunnerTokenView[] = [
   },
 ]
 
+function commandFor(scope: 'tenant' | 'user'): RunnerRegistrationCommand {
+  const enterprise = scope === 'tenant'
+  return {
+    tokenId: enterprise ? 'tenant-token' : 'user-token',
+    scope,
+    scopeId: enterprise ? 'tenant-1' : 'user-1',
+    centerUrl: 'https://center.test',
+    command: `npx --yes @tea/runner register --token '${enterprise ? 'tenant-secret' : 'user-secret'}' --install-service`,
+  }
+}
+
 describe('CloudRunnerTokenPanel', () => {
-  it('shows the default command and keeps token actions icon-only', async () => {
+  it('separates enterprise and personal registration into audience tabs', async () => {
     const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-    const command: RunnerRegistrationCommand = {
-      tokenId: 'tenant-token',
-      scope: 'tenant',
-      scopeId: 'tenant-1',
-      centerUrl: 'https://center.test',
-      command: "npx --yes @tea/runner register --token 'tenant-secret' --install-service",
-    }
     const wrapper = mount(CloudRunnerTokenPanel, {
-      props: { tokens, command },
+      props: {
+        tokens,
+        selectedTokenId: 'tenant-token',
+        command: commandFor('tenant'),
+      },
       global: { plugins: [i18n] },
     })
 
-    expect(wrapper.text()).toContain('npx --yes @tea/runner register')
-    expect(wrapper.text()).not.toContain('Generate registration command')
-    expect(wrapper.text().match(/tenant-secret/g)).toHaveLength(1)
-    expect(wrapper.text().match(/tenant-1/g)).toHaveLength(1)
-    expect(wrapper.findAll('.rounded-card')).toHaveLength(1)
-    expect(wrapper.findAll('button')).toHaveLength(3)
-    expect(wrapper.get('[aria-label="Copy"]').classes()).toContain('absolute')
-    expect(wrapper.get('[aria-label="Copy"]').classes()).toContain('right-2')
-    await wrapper.get('[aria-label="Reset personal token"]').trigger('click')
+    const audienceTablist = wrapper.get('[role="tablist"][aria-label="Runner token audience"]')
+    const tabs = audienceTablist.findAll('[role="tab"]')
+    expect(tabs.map((tab) => tab.text())).toEqual(['Enterprise', 'Personal'])
+    expect(audienceTablist.get('[role="tab"][aria-selected="true"]').text()).toBe('Enterprise')
+
+    const enterprisePanel = wrapper.get(`[id="${tabs[0]!.attributes('aria-controls')}"]`)
+    const personalPanel = wrapper.get(`[id="${tabs[1]!.attributes('aria-controls')}"]`)
+    expect(enterprisePanel.attributes('hidden')).toBeUndefined()
+    expect(enterprisePanel.text()).toContain('tenant-1')
+    expect(enterprisePanel.text()).toContain('tenant-secret')
+    expect(enterprisePanel.text()).not.toContain('user-1')
+    expect(personalPanel.attributes('hidden')).toBe('')
+    expect(personalPanel.text()).toContain('user-1')
+    expect(personalPanel.text()).not.toContain('tenant-1')
+
+    const installTablist = enterprisePanel.get(
+      '[role="tablist"][aria-label="Runner installation method"]',
+    )
+    const installTabs = installTablist.findAll('[role="tab"]')
+    expect(installTabs.map((tab) => tab.text())).toEqual([
+      'npx',
+      'cURL',
+      'PowerShell',
+      'Homebrew',
+      'Chocolatey',
+    ])
+    await installTabs[3]!.trigger('click')
+    expect(installTablist.get('[role="tab"][aria-selected="true"]').text()).toBe('Homebrew')
+    expect(enterprisePanel.get('[data-testid="runner-command-homebrew"]').text()).toContain(
+      'brew install tea/runner/tea-runner',
+    )
+    expect(enterprisePanel.text()).toContain('Preview - this installer is not available yet')
+
+    await tabs[1]!.trigger('click')
+    expect(wrapper.emitted('selectToken')).toEqual([['user-token']])
+
+    await wrapper.setProps({
+      selectedTokenId: 'user-token',
+      command: commandFor('user'),
+    })
+    expect(enterprisePanel.attributes('hidden')).toBe('')
+    expect(personalPanel.attributes('hidden')).toBeUndefined()
+    expect(personalPanel.text()).toContain('user-secret')
+    expect(personalPanel.text()).not.toContain('tenant-secret')
+    expect(personalPanel.find('select').exists()).toBe(false)
+
+    await personalPanel.get('[aria-label="Reset personal token"]').trigger('click')
     expect(wrapper.emitted('resetPersonal')).toHaveLength(1)
-    expect(wrapper.find('select').exists()).toBe(false)
+  })
+
+  it('treats the last audience click as authoritative before parent props settle', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+    const wrapper = mount(CloudRunnerTokenPanel, {
+      props: {
+        tokens,
+        selectedTokenId: 'tenant-token',
+        command: commandFor('tenant'),
+      },
+      global: { plugins: [i18n] },
+    })
+
+    const audienceTablist = wrapper.get('[role="tablist"][aria-label="Runner token audience"]')
+    const tabs = audienceTablist.findAll('[role="tab"]')
+    await tabs[1]!.trigger('click')
+    await tabs[0]!.trigger('click')
+
+    expect(wrapper.emitted('selectToken')).toEqual([['user-token'], ['tenant-token']])
+    expect(audienceTablist.get('[role="tab"][aria-selected="true"]').text()).toBe('Enterprise')
   })
 })

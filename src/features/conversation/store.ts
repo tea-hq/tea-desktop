@@ -17,7 +17,6 @@ import type {
 import type {
   CloudRunnerTag,
   RunnerRegistrationCommand,
-  RunnerRegistrationCommandInput,
   RunnerTokenView,
 } from '../../../packages/runner/src/protocol'
 import {
@@ -50,9 +49,12 @@ export const useConversationStore = defineStore('conversation', () => {
   const runnerTags = ref<string[]>([])
   const cloudRunnerTags = ref<CloudRunnerTag[]>([])
   const cloudRunnerTokens = ref<RunnerTokenView[]>([])
+  const cloudRunnerRegistrationTokenId = ref<string | null>(null)
   const cloudRunnerRegistrationCommand = ref<RunnerRegistrationCommand | null>(null)
   const cloudRunnerTokensLoading = ref(false)
   const cloudRunnerTokensError = ref<string | null>(null)
+  const cloudRunnerRegistrationCommandLoading = ref(false)
+  const cloudRunnerRegistrationCommandError = ref<string | null>(null)
   const permissionMode = ref<PermissionMode>('default')
   const conversationId = ref<string | null>(null)
   const turns = ref<ConversationTurn[]>([])
@@ -81,6 +83,8 @@ export const useConversationStore = defineStore('conversation', () => {
   let listInitialized = false
   let selectionToken = 0
   let lifecycleGeneration = 0
+  let runnerTokensRequestToken = 0
+  let runnerCommandRequestToken = 0
   let creationIdempotencyKey = crypto.randomUUID()
 
   const activeRuntime = computed(
@@ -128,6 +132,11 @@ export const useConversationStore = defineStore('conversation', () => {
 
   function configure(nextClient: ConversationClient): void {
     lifecycleGeneration += 1
+    runnerTokensRequestToken += 1
+    cloudRunnerTokens.value = []
+    cloudRunnerTokensLoading.value = false
+    cloudRunnerTokensError.value = null
+    clearRunnerRegistrationCommand()
     const generation = lifecycleGeneration
     client = nextClient
     runningConversationIds.value = new Set()
@@ -188,29 +197,48 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  async function loadRunnerTokens(): Promise<void> {
+  async function loadRunnerTokens(
+    preferredTokenId = cloudRunnerRegistrationTokenId.value,
+  ): Promise<void> {
     const configured = client
     if (!configured?.listRunnerTokens) {
       cloudRunnerTokens.value = []
-      cloudRunnerRegistrationCommand.value = null
+      clearRunnerRegistrationCommand()
       return
     }
+    const generation = lifecycleGeneration
+    const requestToken = ++runnerTokensRequestToken
     cloudRunnerTokensLoading.value = true
     cloudRunnerTokensError.value = null
-    cloudRunnerRegistrationCommand.value = null
+    cloudRunnerRegistrationCommandError.value = null
     try {
       const tokens = await configured.listRunnerTokens()
-      cloudRunnerTokens.value = tokens
       if (
-        tokens.some((token) => !token.revokedAt && token.secret) &&
-        configured.createRunnerRegistrationCommand
+        requestToken !== runnerTokensRequestToken ||
+        generation !== lifecycleGeneration ||
+        client !== configured
       ) {
-        cloudRunnerRegistrationCommand.value = await configured.createRunnerRegistrationCommand()
+        return
       }
+      cloudRunnerTokens.value = tokens
+      const preferred = tokens.find(
+        (token) => token.tokenId === preferredTokenId && isActiveRunnerToken(token),
+      )
+      const selected = preferred ?? defaultRunnerRegistrationToken(tokens)
+      if (selected) await selectRunnerRegistrationToken(selected.tokenId)
+      else clearRunnerRegistrationCommand()
     } catch (cause) {
-      cloudRunnerTokensError.value = runtimeMessage(cause)
+      if (
+        requestToken === runnerTokensRequestToken &&
+        generation === lifecycleGeneration &&
+        client === configured
+      ) {
+        cloudRunnerTokensError.value = runtimeMessage(cause)
+      }
     } finally {
-      cloudRunnerTokensLoading.value = false
+      if (requestToken === runnerTokensRequestToken && generation === lifecycleGeneration) {
+        cloudRunnerTokensLoading.value = false
+      }
     }
   }
 
@@ -219,10 +247,10 @@ export const useConversationStore = defineStore('conversation', () => {
     if (!configured?.resetPersonalRunnerToken) return
     cloudRunnerTokensLoading.value = true
     cloudRunnerTokensError.value = null
-    cloudRunnerRegistrationCommand.value = null
+    clearRunnerRegistrationCommand()
     try {
-      await configured.resetPersonalRunnerToken()
-      await loadRunnerTokens()
+      const token = await configured.resetPersonalRunnerToken()
+      await loadRunnerTokens(token.tokenId)
     } catch (cause) {
       cloudRunnerTokensError.value = runtimeMessage(cause)
     } finally {
@@ -230,21 +258,62 @@ export const useConversationStore = defineStore('conversation', () => {
     }
   }
 
-  async function createRunnerRegistrationCommand(
-    input: RunnerRegistrationCommandInput = {},
-  ): Promise<void> {
+  async function selectRunnerRegistrationToken(tokenId: string): Promise<void> {
     const configured = client
+    const selected = cloudRunnerTokens.value.find(
+      (token) => token.tokenId === tokenId && isActiveRunnerToken(token),
+    )
+    if (!selected) return
+
+    const generation = lifecycleGeneration
+    const requestToken = ++runnerCommandRequestToken
+    cloudRunnerRegistrationTokenId.value = selected.tokenId
+    cloudRunnerRegistrationCommand.value = null
+    cloudRunnerRegistrationCommandLoading.value = false
+    cloudRunnerRegistrationCommandError.value = null
     if (!configured?.createRunnerRegistrationCommand) return
-    cloudRunnerTokensError.value = null
+
+    cloudRunnerRegistrationCommandLoading.value = true
     try {
-      cloudRunnerRegistrationCommand.value = await configured.createRunnerRegistrationCommand(input)
+      const command = await configured.createRunnerRegistrationCommand({
+        tokenId: selected.tokenId,
+      })
+      if (command.tokenId !== selected.tokenId) {
+        throw new Error('runner registration command token does not match the selected token')
+      }
+      if (
+        requestToken === runnerCommandRequestToken &&
+        generation === lifecycleGeneration &&
+        client === configured &&
+        cloudRunnerRegistrationTokenId.value === selected.tokenId
+      ) {
+        cloudRunnerRegistrationCommand.value = command
+      }
     } catch (cause) {
-      cloudRunnerTokensError.value = runtimeMessage(cause)
+      if (
+        requestToken === runnerCommandRequestToken &&
+        generation === lifecycleGeneration &&
+        client === configured
+      ) {
+        cloudRunnerRegistrationCommandError.value = runtimeMessage(cause)
+      }
+    } finally {
+      if (
+        requestToken === runnerCommandRequestToken &&
+        generation === lifecycleGeneration &&
+        client === configured
+      ) {
+        cloudRunnerRegistrationCommandLoading.value = false
+      }
     }
   }
 
   function clearRunnerRegistrationCommand(): void {
+    runnerCommandRequestToken += 1
+    cloudRunnerRegistrationTokenId.value = null
     cloudRunnerRegistrationCommand.value = null
+    cloudRunnerRegistrationCommandLoading.value = false
+    cloudRunnerRegistrationCommandError.value = null
   }
 
   async function initializeConversationList(force = false): Promise<void> {
@@ -876,12 +945,15 @@ export const useConversationStore = defineStore('conversation', () => {
     runnerTags,
     cloudRunnerTags,
     cloudRunnerTokens,
+    cloudRunnerRegistrationTokenId,
     cloudRunnerRegistrationCommand,
     cloudRunnerTokensLoading,
     cloudRunnerTokensError,
+    cloudRunnerRegistrationCommandLoading,
+    cloudRunnerRegistrationCommandError,
     loadRunnerTokens,
     resetPersonalRunnerToken,
-    createRunnerRegistrationCommand,
+    selectRunnerRegistrationToken,
     clearRunnerRegistrationCommand,
     permissionMode,
     modelOptions,
@@ -983,6 +1055,21 @@ function runtimeErrorMessage(value: unknown): string {
     if (typeof candidate.code === 'string' && candidate.code) return candidate.code
   }
   return 'Unknown runtime error'
+}
+
+function isActiveRunnerToken(token: RunnerTokenView): boolean {
+  return !token.revokedAt && Boolean(token.secret)
+}
+
+function defaultRunnerRegistrationToken(tokens: RunnerTokenView[]): RunnerTokenView | undefined {
+  const scopePriority = { tenant: 0, group: 1, user: 2 } as const
+  return [...tokens]
+    .filter(isActiveRunnerToken)
+    .sort(
+      (left, right) =>
+        scopePriority[left.scope] - scopePriority[right.scope] ||
+        right.createdAt.localeCompare(left.createdAt),
+    )[0]
 }
 
 export function mergeHistoryTurns(
