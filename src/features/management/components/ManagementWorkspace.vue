@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TeaButton } from '@/shared/ui'
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ManagementNavigation from './ManagementNavigation.vue'
 import { useManagementStore } from '../store'
@@ -19,10 +19,8 @@ const plugins = usePluginsStore()
 const { t } = useI18n()
 const sectionTitle = computed(() => t(`management.${management.activeSection}.title`))
 defineEmits<{ close: [] }>()
-onMounted(() => {
-  credentials.configure(new ElectronCredentialClient())
-  plugins.configure(new ElectronPluginClient())
-})
+credentials.configure(new ElectronCredentialClient())
+plugins.configure(new ElectronPluginClient())
 </script>
 <template>
   <div class="flex min-h-0 flex-1 bg-canvas">
@@ -32,23 +30,27 @@ onMounted(() => {
     />
     <main class="flex min-w-0 flex-1 flex-col">
       <header
-        class="flex h-12 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-8"
+        class="flex min-h-12 shrink-0 items-center justify-between border-b border-line-soft bg-canvas px-6 py-2"
       >
-        <div class="flex items-center gap-2 text-sm text-subtle">
-          <span class="i-mdi-tune-variant size-4" aria-hidden="true" />{{
-            t('management.workspaceLabel')
-          }}<span class="text-disabled">/</span><span class="text-fg">{{ sectionTitle }}</span>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <span class="i-mdi-tune-variant size-4 shrink-0 text-subtle" aria-hidden="true" />
+          <span class="text-subtle">{{ t('management.workspaceLabel') }}</span>
+          <span class="text-disabled">/</span>
+          <span class="truncate font-medium text-fg">{{ sectionTitle }}</span>
         </div>
         <TeaButton
-          class="inline-flex size-8 items-center justify-center rounded-full text-subtle hover:bg-hover hover:text-fg"
+          appearance="ghost"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-full p-0 text-subtle hover:bg-hover hover:text-fg"
+          :aria-label="t('management.close')"
           :title="t('management.close')"
           @click="$emit('close')"
           ><span class="i-mdi-close size-4" aria-hidden="true"
         /></TeaButton>
       </header>
-      <CredentialCenter v-if="management.activeSection === 'credentials'" /><PluginCenter
-        v-else-if="management.activeSection === 'plugins'"
-      /><SkillCenter v-else-if="management.activeSection === 'skills'" /><AgentRoleCenter v-else />
+      <CredentialCenter v-if="management.activeSection === 'credentials'" />
+      <PluginCenter v-else-if="management.activeSection === 'plugins'" />
+      <SkillCenter v-else-if="management.activeSection === 'skills'" />
+      <AgentRoleCenter v-else />
     </main>
   </div>
 </template>

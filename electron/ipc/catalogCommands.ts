@@ -1,4 +1,5 @@
 import type { ElectronCatalogService } from '../services/catalog'
+import type { ElectronCenterPluginService } from '../services/centerPlugins'
 import type { ElectronCredentialService } from '../services/credentials'
 import type { ElectronPluginProcessService, PluginInvocationRequest } from '../services/plugins'
 import {
@@ -10,6 +11,7 @@ import { readRecord, readString } from './commandValidation'
 
 export interface CatalogCommandServices {
   catalog: ElectronCatalogService
+  centerPlugins: ElectronCenterPluginService
   credentials: ElectronCredentialService
   pluginProcesses: ElectronPluginProcessService
 }
@@ -19,6 +21,7 @@ export function createCatalogCommandHandlers(
 ): DesktopCommandHandlerGroup {
   return defineCommandHandlers('catalog', {
     list_plugins: () => services.catalog.listPlugins(),
+    list_remote_plugins: () => services.centerPlugins.listRemotePlugins(),
     enable_plugin: (args) =>
       services.catalog.setPluginEnabled(readString(args.pluginId, 'pluginId'), true),
     disable_plugin: async (args) => {

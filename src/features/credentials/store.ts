@@ -62,5 +62,9 @@ export const useCredentialsStore = defineStore('credentials', () => {
     }
   }
 
-  return { records, loading, saving, error, configure, initialize, save, clear }
+  function clearError(): void {
+    error.value = null
+  }
+
+  return { records, loading, saving, error, configure, initialize, save, clear, clearError }
 })

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import type { CenterAuthState } from '../../src/features/auth/contracts'
+import type { PluginRecord } from '../../src/features/plugins/contracts'
 import type {
   ConversationJson,
   HostToolCall,
@@ -60,6 +61,11 @@ export class ElectronCenterPluginService implements ConversationHostToolHandler 
   private refreshPromise: Promise<void> | null = null
 
   constructor(private readonly center: CenterPluginClient | ElectronCenterAuthService) {}
+
+  async listRemotePlugins(): Promise<PluginRecord[]> {
+    const response = await this.center.listEnabledPlugins()
+    return parseRemotePluginRecords(response)
+  }
 
   synchronize(state: CenterAuthState = this.center.stateValue()): Promise<void> {
     const tenantId = state.bootstrap?.tenant.id ?? null
@@ -170,6 +176,63 @@ function parsePluginCatalog(value: unknown): Map<string, PluginTool> {
     }
   }
   return tools
+}
+
+function parseRemotePluginRecords(value: unknown): PluginRecord[] {
+  if (!Array.isArray(value) || value.length > MAX_PLUGINS)
+    throw new Error('invalid remote plugin catalog')
+  let operationCount = 0
+  return value.map((pluginValue) => {
+    if (!isRecord(pluginValue) || pluginValue.enabled !== true)
+      throw new Error('invalid remote plugin')
+    const pluginId = requiredIdentifier(pluginValue.pluginId)
+    const displayName = requiredText(pluginValue.displayName)
+    const description = optionalText(pluginValue.description)
+    const iconUrl = optionalIconURL(pluginValue.iconUrl)
+    const operationValues = pluginValue.operations
+    if (!Array.isArray(operationValues)) throw new Error('invalid remote plugin operations')
+    operationCount += operationValues.length
+    if (operationCount > MAX_TOOLS) throw new Error('remote plugin tool limit exceeded')
+    const actions = operationValues.map((operationValue) => {
+      if (!isRecord(operationValue)) throw new Error('invalid remote plugin operation')
+      return {
+        id: requiredIdentifier(operationValue.id),
+        version: 'cloud',
+        description: optionalText(operationValue.description),
+        effect: operationValue.readOnly === true ? ('read' as const) : ('write' as const),
+      }
+    })
+    const credentialConfigured = pluginValue.credentialConfigured === true
+    return {
+      id: pluginId,
+      version: 'cloud',
+      displayName,
+      ...(description ? { description } : {}),
+      enabled: true,
+      source: 'remote',
+      ...(iconUrl ? { iconUrl } : {}),
+      ...(optionalText(pluginValue.sourceFormat)
+        ? { sourceFormat: optionalText(pluginValue.sourceFormat) }
+        : {}),
+      ...(optionalText(pluginValue.baseUrl) ? { baseUrl: optionalText(pluginValue.baseUrl) } : {}),
+      ...(optionalText(pluginValue.createdAt)
+        ? { createdAt: optionalText(pluginValue.createdAt) }
+        : {}),
+      ...(optionalText(pluginValue.updatedAt)
+        ? { updatedAt: optionalText(pluginValue.updatedAt) }
+        : {}),
+      credentialConfigured,
+      connections: [
+        {
+          id: 'center',
+          displayName: 'Tea Center',
+          enabled: true,
+          configured: credentialConfigured,
+        },
+      ],
+      actions,
+    }
+  })
 }
 
 function parseOperation(value: unknown): PluginOperation {

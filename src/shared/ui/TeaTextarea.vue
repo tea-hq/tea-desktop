@@ -67,6 +67,12 @@ function handleInput(event: Event): void {
   emit('update:modelValue', element.value)
 }
 
+function focus(): void {
+  textarea.value?.focus()
+}
+
+defineExpose({ focus })
+
 onMounted(() => {
   resizeToContent()
   startObservingSize()

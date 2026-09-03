@@ -19,6 +19,7 @@ import TeaSelect from '../TeaSelect.vue'
 import TeaSlider from '../TeaSlider.vue'
 import TeaTabs from '../TeaTabs.vue'
 import TeaTextarea from '../TeaTextarea.vue'
+import TeaToggle from '../TeaToggle.vue'
 
 function mountTea(component: Component, options: MountingOptions<never> = {}) {
   return mount(component, {
@@ -58,6 +59,7 @@ describe('Tea primitives', () => {
   it('grows auto-sizing textareas with content and shrinks after controlled updates', async () => {
     const wrapper = mountTea(TeaTextarea, {
       props: { modelValue: 'One line', label: 'Message', rows: 1, autoGrow: true },
+      attachTo: document.body,
     })
     const textarea = wrapper.get('textarea')
     let scrollHeight = 72
@@ -75,6 +77,11 @@ describe('Tea primitives', () => {
     scrollHeight = 28
     await wrapper.setProps({ modelValue: '' })
     expect((textarea.element as HTMLTextAreaElement).style.height).toBe('28px')
+
+    textarea.element.blur()
+    ;(wrapper.vm as unknown as { focus: () => void }).focus()
+    expect(document.activeElement).toBe(textarea.element)
+    wrapper.unmount()
   })
 
   it('disables loading buttons and preserves their busy state', () => {
@@ -97,6 +104,24 @@ describe('Tea primitives', () => {
     expect(choice.attributes()).toMatchObject({ role: 'checkbox', 'aria-checked': 'false' })
     await choice.trigger('click')
     expect(wrapper.emitted('select')).toHaveLength(1)
+  })
+
+  it('exposes controlled switch semantics and preserves disabled state', async () => {
+    const wrapper = mountTea(TeaToggle, {
+      props: { modelValue: false, label: 'Enable GitHub' },
+    })
+    const toggle = wrapper.get('[role="switch"]')
+
+    expect(toggle.attributes()).toMatchObject({
+      'aria-label': 'Enable GitHub',
+      'aria-checked': 'false',
+    })
+    await toggle.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[true]])
+
+    await wrapper.setProps({ modelValue: true, disabled: true })
+    expect(toggle.attributes()).toMatchObject({ 'aria-checked': 'true', disabled: '' })
+    wrapper.unmount()
   })
 
   it('requires icon-button labels at the type boundary and forwards them', () => {
