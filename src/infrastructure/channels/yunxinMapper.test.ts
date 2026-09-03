@@ -19,12 +19,13 @@ describe('Yunxin DTO mapping', () => {
       updateTime: 2,
       lastReadTime: 1,
     } as V2NIMConversation
-    const result = mapYunxinConversation(source)
+    const result = mapYunxinConversation(source, 'b')
     expect(result).toEqual(
       expect.objectContaining({
         ref: 'p2p|a|b',
         kind: 'direct',
         name: 'Alice',
+        participantAccountId: 'b',
         avatarUrl: 'https://yx-web-nosdn.netease.im/alice.png',
         unreadCount: 2,
       }),

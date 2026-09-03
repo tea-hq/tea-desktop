@@ -7,6 +7,7 @@ import type {
   ChannelPage,
   ChannelRef,
   ChannelSelfProfile,
+  ChannelUserProfile,
   ChannelStatus,
   ChannelTransport,
   ChannelTransportDescriptor,
@@ -59,6 +60,7 @@ const seedChannels: Channel[] = [
     ref: 'lin-direct',
     kind: 'direct',
     name: '林晓',
+    participantAccountId: 'lin',
     description: '产品设计',
     unreadCount: 1,
     updatedAt: now - minute * 120,
@@ -169,8 +171,24 @@ export class MockChannelTransport implements ChannelTransport {
   }
 
   async getSelfProfile(): Promise<ChannelSelfProfile> {
+    const profiles = await this.getUserProfiles(['preview'])
+    return profiles[0]!
+  }
+
+  async getUserProfiles(accountIds: string[]): Promise<ChannelUserProfile[]> {
     this.assertConnected()
-    return { accountId: 'preview', name: 'Tea Preview', email: 'preview@example.test' }
+    const known: Record<string, ChannelUserProfile> = {
+      preview: { accountId: 'preview', name: 'Tea Preview', email: 'preview@example.test' },
+      meng: { accountId: 'meng', name: '孟凡' },
+      lin: { accountId: 'lin', name: '林晓' },
+      yu: { accountId: 'yu', name: '余舟' },
+      chen: { accountId: 'chen', name: '陈嘉' },
+      me: { accountId: 'me', name: '我' },
+    }
+    return accountIds
+      .map((accountId) => known[accountId.trim()])
+      .filter((profile): profile is ChannelUserProfile => Boolean(profile))
+      .map((profile) => structuredClone(profile))
   }
 
   async listChannels(request: ListChannelsRequest): Promise<ChannelPage> {

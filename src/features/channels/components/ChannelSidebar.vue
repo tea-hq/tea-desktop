@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TeaButton, TeaInput } from '@/shared/ui'
 
-import type { Channel, ChannelRef, ChannelStatus } from '../contracts'
+import type { Channel, ChannelRef, ChannelStatus, ChannelUserProfile } from '../contracts'
 import ChannelAvatar from './ChannelAvatar.vue'
 
 const props = defineProps<{
@@ -12,6 +12,7 @@ const props = defineProps<{
   status: ChannelStatus
   loading: boolean
   searchQuery?: string
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +38,11 @@ const filteredChannels = computed(() => {
 
 function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
+}
+
+function profileFor(channel: Channel): ChannelUserProfile | null {
+  const accountId = channel.participantAccountId?.trim()
+  return accountId ? (props.userProfiles?.get(accountId) ?? null) : null
 }
 </script>
 
@@ -132,6 +138,8 @@ function formatTime(value: number): string {
             :channel-ref="channel.ref"
             :name="channel.name"
             :avatar-url="channel.avatarUrl"
+            :account-id="channel.participantAccountId"
+            :user-profile="profileFor(channel)"
           />
           <span class="channel-row__details min-w-0">
             <span

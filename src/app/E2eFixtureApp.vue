@@ -57,6 +57,9 @@ const fixtureModelOptions: ModelOption[] = [
   { value: 'gpt-5.2', label: '5.2', source: 'runtime' },
 ]
 const binding = { transportId: 'fixture.im', accountRef: 'e2e-account', channelRef: 'product' }
+const fixtureUserProfiles = new Map([
+  ['fixture-account', { accountId: 'fixture-account', name: 'Jing Deng' }],
+])
 const channel: Channel = {
   ref: binding.channelRef,
   kind: 'group',
@@ -414,6 +417,7 @@ function deliverDraft(): void {
         :pending-tasks="1"
         :logout-pending="false"
         :user="{ displayName: 'Jing Deng', preferredUsername: 'jing', avatarUrl: '' }"
+        :im-profile="fixtureUserProfiles.get('fixture-account')"
         @select="
           (mode) => {
             if (mode === 'agent' || mode === 'channels' || mode === 'directory' || mode === 'tasks')

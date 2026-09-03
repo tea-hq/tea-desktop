@@ -6,7 +6,16 @@ import type { TeaDesktopStores } from './desktopAppDependencies'
 import type { WorkspaceUiState } from './desktopAppState'
 
 export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiState) {
-  const { conversation, channels, collaboration, agentDrawer, agentRoles, managedRuntime } = stores
+  const {
+    conversation,
+    channels,
+    collaboration,
+    agentDrawer,
+    agentRoles,
+    managedRuntime,
+    directory,
+    userProfiles,
+  } = stores
   const { t } = useI18n()
 
   const roleOptions = computed<AgentRoleOption[]>(() =>
@@ -129,6 +138,27 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
   watch(collaborationModelOptions, (options) => collaboration.setAvailableModelOptions(options), {
     immediate: true,
   })
+
+  if (userProfiles) {
+    const visibleProfileAccountIds = computed(() => [
+      ...new Set([
+        ...directory.users
+          .map((user) => user.im?.account)
+          .filter((value): value is string => Boolean(value)),
+        ...channels.activeMessages.map((message) => message.sender.id),
+      ]),
+    ])
+    watch(
+      visibleProfileAccountIds,
+      (accountIds) => void userProfiles.ensureProfiles(accountIds).catch(() => undefined),
+      { immediate: true },
+    )
+    watch(
+      () => channels.status.phase,
+      () => void userProfiles.ensureProfiles(visibleProfileAccountIds.value).catch(() => undefined),
+      { immediate: true },
+    )
+  }
 
   return {
     roleOptions,

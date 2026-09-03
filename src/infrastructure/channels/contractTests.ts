@@ -19,6 +19,8 @@ export async function verifyTransportContract(transport: ChannelTransport): Prom
     const profile = await transport.getSelfProfile()
     expect(profile.accountId).toBeTruthy()
     expect(JSON.parse(JSON.stringify(profile))).toEqual(profile)
+    const profiles = await transport.getUserProfiles([profile.accountId])
+    expect(profiles).toEqual([profile])
   }
   const channels = await transport.listChannels({ offset: 0, limit: 2 })
   expect(channels.items.length).toBeGreaterThan(0)

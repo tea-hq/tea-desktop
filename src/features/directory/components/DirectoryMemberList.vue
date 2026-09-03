@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import TeaEmptyState from '@/shared/ui/TeaEmptyState.vue'
+import { createDefaultAvatarDataUri } from '@/shared/avatar/defaultAvatar'
+import { TeaAvatar, TeaEmptyState } from '@/shared/ui'
 import type { DirectoryPhase, DirectoryUser } from '../contracts'
+import type { ChannelUserProfile } from '@/features/channels/contracts'
 import { directoryUserInitials, isDirectoryMessagingReady } from '../directoryPresentation'
 
-defineProps<{
+const props = defineProps<{
   users: DirectoryUser[]
   phase: DirectoryPhase
   selectedUserId: string | null
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +24,11 @@ function selectWithKeyboard(event: KeyboardEvent, user: DirectoryUser): void {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
   emit('select', user)
+}
+
+function profileFor(user: DirectoryUser): ChannelUserProfile | null {
+  const account = user.im?.account
+  return account ? (props.userProfiles?.get(account) ?? null) : null
 }
 </script>
 
@@ -89,24 +97,19 @@ function selectWithKeyboard(event: KeyboardEvent, user: DirectoryUser): void {
           @keydown="selectWithKeyboard($event, user)"
         >
           <div class="flex min-w-0 items-center gap-3" role="cell">
-            <span
-              class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border text-sm font-semibold"
-              :class="
-                selectedUserId === user.center.userId
-                  ? 'border-line-strong bg-canvas text-fg'
-                  : 'border-transparent bg-panel text-dim'
+            <TeaAvatar
+              size="medium"
+              :src="profileFor(user)?.avatarUrl || user.oidc.avatarUrl"
+              :fallback-src="
+                user.im?.account ? createDefaultAvatarDataUri(`tea:account:${user.im.account}`) : ''
               "
-              aria-hidden="true"
-            >
-              <img
-                v-if="user.oidc.avatarUrl"
-                :src="user.oidc.avatarUrl"
-                alt=""
-                class="size-full object-cover"
-                referrerpolicy="no-referrer"
-              />
-              <span v-else>{{ directoryUserInitials(user.center.displayName) }}</span>
-            </span>
+              :fallback-text="directoryUserInitials(user.center.displayName)"
+              :fallback-class="
+                selectedUserId === user.center.userId
+                  ? 'border border-line-strong bg-canvas text-fg'
+                  : 'border border-transparent bg-panel text-dim'
+              "
+            />
             <span class="min-w-0">
               <span class="block truncate text-sm font-semibold text-fg">
                 {{ user.center.displayName }}

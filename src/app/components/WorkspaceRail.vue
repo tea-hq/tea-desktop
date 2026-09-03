@@ -1,40 +1,44 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TeaIconButton } from '@/shared/ui'
+import { createDefaultAvatarDataUri } from '@/shared/avatar/defaultAvatar'
+import { TeaAvatar, TeaIconButton } from '@/shared/ui'
+import type { ChannelUserProfile } from '@/features/channels/contracts'
 
 export type WorkspaceMode =
   'channels' | 'agent' | 'tasks' | 'directory' | 'management' | 'profile' | 'settings'
 
-const props = defineProps<{
-  activeMode: WorkspaceMode
-  pendingTasks: number
-  logoutPending: boolean
-  user: {
-    displayName: string
-    preferredUsername: string
-    avatarUrl: string
-  } | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    activeMode: WorkspaceMode
+    pendingTasks: number
+    logoutPending: boolean
+    user: {
+      id?: string
+      displayName: string
+      preferredUsername: string
+      avatarUrl: string
+    } | null
+    imProfile?: ChannelUserProfile | null
+  }>(),
+  { imProfile: null },
+)
 
 const emit = defineEmits<{
   select: [mode: WorkspaceMode]
   logout: []
 }>()
 const { t } = useI18n()
-const avatarFailed = ref(false)
 const initials = computed(() =>
   Array.from(props.user?.displayName || props.user?.preferredUsername || 'T')
     .slice(0, 2)
     .join('')
     .toLocaleUpperCase(),
 )
-
-watch(
-  () => props.user?.avatarUrl,
-  () => {
-    avatarFailed.value = false
-  },
+const generatedAvatarUrl = computed(() =>
+  props.imProfile?.accountId?.trim()
+    ? createDefaultAvatarDataUri(`tea:account:${props.imProfile.accountId}`)
+    : '',
 )
 
 const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
@@ -57,20 +61,13 @@ const entries: Array<{ mode: WorkspaceMode; icon: string; key: string }> = [
       :aria-pressed="activeMode === 'profile'"
       @click="emit('select', 'profile')"
     >
-      <img
-        v-if="user?.avatarUrl && !avatarFailed"
-        :src="user.avatarUrl"
-        :alt="user.displayName"
-        class="size-full object-cover"
-        referrerpolicy="no-referrer"
-        @error="avatarFailed = true"
+      <TeaAvatar
+        size="fill"
+        :src="imProfile?.avatarUrl"
+        :fallback-src="generatedAvatarUrl"
+        :fallback-text="initials"
+        fallback-class="bg-muted text-xs text-fg"
       />
-      <span
-        v-else
-        class="flex size-full items-center justify-center rounded-full bg-muted text-xs font-semibold text-fg"
-      >
-        {{ initials }}
-      </span>
     </TeaIconButton>
 
     <div class="workspace-rail__group flex flex-1 flex-col gap-2">

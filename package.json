@@ -24,6 +24,8 @@
     "@agentclientprotocol/claude-agent-acp": "0.70.0",
     "@agentclientprotocol/codex-acp": "1.7.0",
     "@agentclientprotocol/sdk": "1.4.0",
+    "@dicebear/core": "10.7.0",
+    "@dicebear/styles": "10.6.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "dompurify": "^3.4.14",

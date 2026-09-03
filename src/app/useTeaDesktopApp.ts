@@ -5,6 +5,7 @@ import { useCollaborationStore } from '@/features/collaboration/store'
 import { useConversationStore } from '@/features/conversation/store'
 import { useChannelsStore } from '@/features/channels/store'
 import { useDirectoryStore } from '@/features/directory/store'
+import { useChannelUserProfileStore } from '@/features/channels/userProfileStore'
 import { useProfileStore } from '@/features/profile/store'
 import { useAgentRolesStore } from '@/features/agent-roles/store'
 import { useSettingsStore } from '@/features/settings/store'
@@ -36,6 +37,7 @@ export function useTeaDesktopApp() {
     managedRuntime: useManagedRuntimeStore(),
     profile: useProfileStore(),
     directory: useDirectoryStore(),
+    userProfiles: useChannelUserProfileStore(),
   }
   const settings = stores.settings
   settings.configure(new ElectronSettingsClient())

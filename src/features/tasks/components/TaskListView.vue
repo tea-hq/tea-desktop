@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 
 import type { TaskItem, TaskPriority, TaskStatus } from '../contracts'
 import { TASK_STATUSES } from '../useTaskDemo'
-import TaskCollaboratorSummary from './TaskCollaboratorSummary.vue'
 import TaskSourceBadge from './TaskSourceBadge.vue'
 
 const props = defineProps<{ tasks: TaskItem[] }>()
@@ -41,7 +40,7 @@ function priorityClass(priority: TaskPriority): string {
 
 <template>
   <div class="space-y-5 pb-8" data-testid="task-list-view">
-    <section v-for="group in groups" :key="group.status" class="min-w-0 sm:min-w-[900px]">
+    <section v-for="group in groups" :key="group.status" class="min-w-0 sm:min-w-[700px]">
       <button
         type="button"
         class="flex h-11 w-full items-center gap-2 rounded-control bg-panel px-3 text-left text-sm font-semibold text-fg transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus motion-reduce:transition-none"
@@ -69,10 +68,11 @@ function priorityClass(priority: TaskPriority): string {
           role="row"
         >
           <span role="columnheader">{{ t('tasks.columns.task') }}</span>
+          <span role="columnheader">{{ t('tasks.columns.source') }}</span>
           <span role="columnheader">{{ t('tasks.columns.priority') }}</span>
           <span role="columnheader">{{ t('tasks.columns.progress') }}</span>
           <span role="columnheader">{{ t('tasks.columns.due') }}</span>
-          <span role="columnheader" class="text-right">{{ t('tasks.columns.collaborators') }}</span>
+          <span role="columnheader" class="text-right">{{ t('tasks.columns.assignee') }}</span>
         </div>
 
         <button
@@ -84,24 +84,16 @@ function priorityClass(priority: TaskPriority): string {
           :data-task-id="task.id"
           @click="emit('select', task.id)"
         >
-          <span class="min-w-0">
-            <span class="flex min-w-0 items-center gap-3">
-              <span class="flex w-[94px] shrink-0 items-center gap-2">
-                <TaskSourceBadge :source="task.source" compact />
-                <span class="font-mono text-xs text-subtle">{{ task.id }}</span>
-              </span>
-              <span class="min-w-0">
-                <span class="block truncate text-sm font-medium text-fg">{{ task.title }}</span>
-              </span>
-            </span>
-            <span class="mt-2 flex min-w-0 items-center justify-between gap-3 sm:hidden">
-              <TaskCollaboratorSummary :collaborators="task.collaborators" mode="board" />
-              <span class="flex shrink-0 items-center gap-1 text-[11px] text-subtle">
-                <span class="i-mdi-calendar-blank-outline size-3.5" aria-hidden="true" />
-                {{ task.dueLabel }}
+          <span class="flex min-w-0 items-center gap-3">
+            <span class="w-[72px] shrink-0 font-mono text-xs text-subtle">{{ task.id }}</span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-medium text-fg">{{ task.title }}</span>
+              <span class="mt-0.5 block truncate text-xs text-subtle sm:hidden">
+                {{ task.source.name }} · {{ task.dueLabel }}
               </span>
             </span>
           </span>
+          <span class="hidden sm:block"><TaskSourceBadge :source="task.source" /></span>
           <span class="hidden sm:block">
             <span
               :class="[
@@ -124,8 +116,14 @@ function priorityClass(priority: TaskPriority): string {
             </span>
           </span>
           <span class="hidden truncate text-xs text-dim sm:block">{{ task.dueLabel }}</span>
-          <span class="hidden min-w-0 sm:block">
-            <TaskCollaboratorSummary :collaborators="task.collaborators" />
+          <span class="hidden min-w-0 items-center justify-end gap-2 sm:flex">
+            <span
+              class="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-dim"
+              aria-hidden="true"
+            >
+              {{ Array.from(task.assignee).slice(0, 1).join('').toLocaleUpperCase() }}
+            </span>
+            <span class="truncate text-xs text-dim">{{ task.assignee }}</span>
           </span>
         </button>
       </template>
@@ -136,8 +134,8 @@ function priorityClass(priority: TaskPriority): string {
 <style scoped>
 .task-list__grid {
   grid-template-columns:
-    minmax(280px, 2fr) 88px minmax(120px, 0.8fr) 96px
-    minmax(220px, 1.2fr);
+    minmax(260px, 2.1fr) minmax(132px, 0.9fr) 88px minmax(120px, 0.9fr)
+    96px 104px;
   gap: 16px;
   align-items: center;
 }

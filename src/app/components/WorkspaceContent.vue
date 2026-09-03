@@ -18,6 +18,7 @@ const {
   conversation,
   conversationModelOptions,
   profile,
+  userProfiles,
   directory,
   directoryActionError,
   selectWorkspace,
@@ -38,6 +39,7 @@ const {
     :error-key="directory.errorKey"
     :query="directory.query"
     :action-error="directoryActionError"
+    :user-profiles="userProfiles.profiles"
     @update:query="directory.query = $event"
     @retry="directory.refresh()"
     @refresh="directory.refresh()"

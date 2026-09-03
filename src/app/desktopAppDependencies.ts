@@ -2,6 +2,7 @@ import type { useAgentDrawerStore } from '@/features/collaboration/agentDrawerSt
 import type { useCollaborationStore } from '@/features/collaboration/store'
 import type { useConversationStore } from '@/features/conversation/store'
 import type { useDirectoryStore } from '@/features/directory/store'
+import type { useChannelUserProfileStore } from '@/features/channels/userProfileStore'
 import type { useProfileStore } from '@/features/profile/store'
 import type { useAgentRolesStore } from '@/features/agent-roles/store'
 import type { useSettingsStore } from '@/features/settings/store'
@@ -21,4 +22,5 @@ export interface TeaDesktopStores {
   managedRuntime: ReturnType<typeof useManagedRuntimeStore>
   profile: ReturnType<typeof useProfileStore>
   directory: ReturnType<typeof useDirectoryStore>
+  userProfiles: ReturnType<typeof useChannelUserProfileStore>
 }

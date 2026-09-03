@@ -4,7 +4,7 @@ import {
   type DesktopCommandHandlerGroup,
   type DesktopCommandHandlers,
 } from './commandRouter'
-import { readRecord, readString } from './commandValidation'
+import { readArray, readRecord, readString } from './commandValidation'
 
 export interface ChannelCommandServices {
   channel: ElectronChannelService
@@ -19,6 +19,7 @@ export function createChannelCommandHandlers(
     get_channel_descriptor: () => channel.descriptor(),
     get_channel_status: () => channel.status(),
     get_channel_self_profile: () => channel.selfProfile(),
+    get_channel_user_profiles: (args) => channel.userProfiles(readAccountIds(args.accountIds)),
     open_direct_conversation: (args) =>
       channel.openDirectConversation(readString(args.accountId, 'accountId')),
     reconnect_channel: () => channel.connect(),
@@ -28,4 +29,16 @@ export function createChannelCommandHandlers(
     send_channel_message: (args) => channel.sendMessage(readRecord(args.request) as never),
     mark_channel_read: (args) => channel.markRead(readString(args.channelRef, 'channelRef')),
   } satisfies Partial<DesktopCommandHandlers>)
+}
+
+function readAccountIds(value: unknown): string[] {
+  const values = readArray(value, 'accountIds')
+  if (
+    values.length === 0 ||
+    values.length > 100 ||
+    values.some((item) => typeof item !== 'string' || !item.trim() || item.length > 128)
+  ) {
+    throw { code: 'invalidRequest', retryable: false }
+  }
+  return values.map((item) => (item as string).trim())
 }

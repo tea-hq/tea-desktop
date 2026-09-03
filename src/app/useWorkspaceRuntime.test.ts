@@ -207,8 +207,14 @@ function createStores(
     profile: {
       configure: vi.fn(),
       setCenterProfile: vi.fn(),
+      refresh: vi.fn(async () => undefined),
       dispose: vi.fn(),
     } as never,
     directory: { configure: vi.fn() } as never,
+    userProfiles: {
+      configure: vi.fn(),
+      ensureProfiles: vi.fn(async () => undefined),
+      clear: vi.fn(),
+    } as never,
   }
 }
