@@ -53,6 +53,8 @@ const filteredConversations = computed(() => {
   )
 })
 const hasSearchQuery = computed(() => Boolean(props.searchQuery?.trim()))
+const projectsEffectivelyExpanded = computed(() => hasSearchQuery.value || projectsExpanded.value)
+const recentEffectivelyExpanded = computed(() => hasSearchQuery.value || recentExpanded.value)
 
 const groupedConversations = computed(() => {
   const projects = new Map<string, ConversationSummary[]>()
@@ -89,7 +91,7 @@ function projectName(workingDirectory: string): string {
 }
 
 function isProjectExpanded(workingDirectory: string): boolean {
-  return !collapsedProjects.value.has(workingDirectory)
+  return hasSearchQuery.value || !collapsedProjects.value.has(workingDirectory)
 }
 
 function toggleProject(workingDirectory: string): void {
@@ -204,18 +206,20 @@ function confirmAction(): void {
       <section v-if="groupedConversations.projects.length" class="workspace-group">
         <button
           type="button"
-          class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
-          :aria-expanded="projectsExpanded"
+          class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
+          :aria-expanded="projectsEffectivelyExpanded"
+          :disabled="hasSearchQuery"
           @click="projectsExpanded = !projectsExpanded"
         >
           <span class="workspace-group__label truncate">{{ t('sidebar.projects') }}</span>
           <span
+            v-if="!hasSearchQuery"
             class="workspace-group__chevron i-mdi-chevron-down size-3.5 shrink-0 transition-transform motion-reduce:transition-none"
-            :class="{ '-rotate-90': !projectsExpanded }"
+            :class="{ '-rotate-90': !projectsEffectivelyExpanded }"
             aria-hidden="true"
           />
         </button>
-        <div v-if="projectsExpanded" class="workspace-projects">
+        <div v-if="projectsEffectivelyExpanded" class="workspace-projects">
           <section
             v-for="(project, projectIndex) in groupedConversations.projects"
             :key="project.workingDirectory"
@@ -229,6 +233,7 @@ function confirmAction(): void {
                 :title="project.workingDirectory"
                 :aria-expanded="isProjectExpanded(project.workingDirectory)"
                 :aria-controls="`conversation-project-items-${projectIndex}`"
+                :disabled="hasSearchQuery"
                 @click="toggleProject(project.workingDirectory)"
               >
                 <span class="i-mdi-folder-outline size-3.5" aria-hidden="true" />
@@ -280,15 +285,17 @@ function confirmAction(): void {
           <button
             type="button"
             class="workspace-group__header w-full cursor-pointer text-left outline-none transition-colors focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-focus"
-            :aria-expanded="recentExpanded"
+            :aria-expanded="recentEffectivelyExpanded"
+            :disabled="hasSearchQuery"
             @click="recentExpanded = !recentExpanded"
           >
             <span class="workspace-group__label truncate">
               {{ t('sidebar.recentConversations') }}
             </span>
             <span
+              v-if="!hasSearchQuery"
               class="workspace-group__chevron i-mdi-chevron-down size-3.5 shrink-0 transition-transform motion-reduce:transition-none"
-              :class="{ '-rotate-90': !recentExpanded }"
+              :class="{ '-rotate-90': !recentEffectivelyExpanded }"
               aria-hidden="true"
             />
           </button>
@@ -301,7 +308,7 @@ function confirmAction(): void {
             @click="emit('quickCreate', null)"
           />
         </div>
-        <div v-if="recentExpanded" class="workspace-group__items">
+        <div v-if="recentEffectivelyExpanded" class="workspace-group__items">
           <ConversationSidebarItem
             v-for="(conv, conversationIndex) in groupedConversations.recent"
             :key="conv.conversationId"
@@ -407,9 +414,15 @@ function confirmAction(): void {
   line-height: 1.4;
 }
 
-.workspace-group__header:hover,
+.workspace-group__header:not(:disabled):hover,
 .workspace-group__header:focus-visible {
+  background: var(--tea-hover);
   color: var(--tea-subtle);
+}
+
+.workspace-group__header:disabled,
+.workspace-project__header:disabled {
+  cursor: default;
 }
 
 .workspace-group__heading,

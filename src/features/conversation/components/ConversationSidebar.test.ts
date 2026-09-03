@@ -293,4 +293,32 @@ describe('ConversationSidebar', () => {
     expect(wrapper.get('.conversation-row').text()).toContain('Beta review')
     expect(wrapper.find('.conversation-sidebar__title').exists()).toBe(false)
   })
+
+  it('reveals matches from collapsed groups and restores their state after search', async () => {
+    const wrapper = mountSidebar([
+      summary('Alpha review', 'workspace-alpha'),
+      summary('Alpha build', 'workspace-alpha', '/projects/alpha'),
+    ])
+
+    await wrapper.get('.workspace-project__header').trigger('click')
+    const groupHeaders = wrapper.findAll('.workspace-group__header')
+    await groupHeaders[0]!.trigger('click')
+    await groupHeaders[1]!.trigger('click')
+    expect(wrapper.findAll('.conversation-row')).toHaveLength(0)
+
+    await wrapper.setProps({ searchQuery: 'Alpha build' })
+    expect(wrapper.get('.workspace-group__header').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.workspace-group__header').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.workspace-project__header').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.workspace-project__header').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.conversation-row').text()).toContain('Alpha build')
+
+    await wrapper.setProps({ searchQuery: 'Alpha review' })
+    expect(wrapper.get('.workspace-group__header').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.workspace-group__header').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.conversation-row').text()).toContain('Alpha review')
+
+    await wrapper.setProps({ searchQuery: '' })
+    expect(wrapper.findAll('.conversation-row')).toHaveLength(0)
+  })
 })
