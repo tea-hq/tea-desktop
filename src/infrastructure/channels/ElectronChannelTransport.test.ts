@@ -53,4 +53,17 @@ describe('ElectronChannelTransport', () => {
     expect(JSON.stringify(mocks.invoke.mock.calls)).not.toMatch(/token|appKey|apiKey/i)
     await transport.dispose()
   })
+
+  it('loads provider-neutral user profiles through an allowlisted command', async () => {
+    mocks.invoke.mockResolvedValueOnce([{ accountId: 'other', name: 'Other' }])
+    const transport = new ElectronChannelTransport()
+
+    await expect(transport.getUserProfiles(['other'])).resolves.toEqual([
+      { accountId: 'other', name: 'Other' },
+    ])
+    expect(mocks.invoke).toHaveBeenCalledWith('get_channel_user_profiles', {
+      accountIds: ['other'],
+    })
+    await transport.dispose()
+  })
 })

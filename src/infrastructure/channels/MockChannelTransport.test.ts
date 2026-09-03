@@ -29,6 +29,16 @@ describe('MockChannelTransport', () => {
     })
   })
 
+  it('loads multiple provider-neutral user profiles in one request', async () => {
+    const transport = new MockChannelTransport()
+    await transport.connect()
+
+    await expect(transport.getUserProfiles(['meng', 'lin'])).resolves.toEqual([
+      { accountId: 'meng', name: '孟凡' },
+      { accountId: 'lin', name: '林晓' },
+    ])
+  })
+
   it('pages before and after an anchor without returning the anchor', async () => {
     const transport = new MockChannelTransport()
     await transport.connect()

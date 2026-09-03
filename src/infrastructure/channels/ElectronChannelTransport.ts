@@ -7,6 +7,7 @@ import type {
   ChannelPage,
   ChannelRef,
   ChannelSelfProfile,
+  ChannelUserProfile,
   ChannelStatus,
   ChannelTransport,
   ChannelTransportDescriptor,
@@ -59,6 +60,11 @@ export class ElectronChannelTransport implements ChannelTransport {
   async getSelfProfile(): Promise<ChannelSelfProfile> {
     this.assertUsable()
     return this.command('get_channel_self_profile', {})
+  }
+
+  async getUserProfiles(accountIds: string[]): Promise<ChannelUserProfile[]> {
+    this.assertUsable()
+    return this.command('get_channel_user_profiles', { accountIds })
   }
 
   async connect(): Promise<void> {

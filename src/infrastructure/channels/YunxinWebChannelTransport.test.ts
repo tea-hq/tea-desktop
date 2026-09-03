@@ -224,6 +224,22 @@ describe('YunxinWebChannelTransport', () => {
     expect(transport.capabilities()).toContainEqual({ id: 'profile.self', available: true })
   })
 
+  it('loads requested provider-neutral profiles as a batch', async () => {
+    const { sdk, user } = createFakeSdk()
+    user.getUserListFromCloud.mockResolvedValueOnce([
+      { accountId: 'account-a', name: 'A', email: '', avatar: '', createTime: 1 },
+      { accountId: 'account-b', name: 'B', email: '', avatar: '', createTime: 1 },
+    ])
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.getUserProfiles(['account-a', 'account-b'])).resolves.toEqual([
+      { accountId: 'account-a', name: 'A' },
+      { accountId: 'account-b', name: 'B' },
+    ])
+    expect(user.getUserListFromCloud).toHaveBeenCalledWith(['account-a', 'account-b'])
+  })
+
   it('rejects a cloud profile for a different account', async () => {
     const { sdk, user } = createFakeSdk()
     user.getUserListFromCloud.mockResolvedValueOnce([

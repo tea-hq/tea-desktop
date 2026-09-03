@@ -39,6 +39,7 @@ export function useWorkspaceRuntime(
     managedRuntime,
     profile,
     directory,
+    userProfiles,
   } = stores
   const channelEnvironment = shallowRef<ChannelEnvironment | null>(null)
   let channelConnectPending = false
@@ -141,6 +142,21 @@ export function useWorkspaceRuntime(
     },
   )
 
+  watch(
+    () =>
+      channels.channels
+        .map((channel) => channel.participantAccountId?.trim())
+        .filter((accountId): accountId is string => Boolean(accountId))
+        .sort()
+        .join('\0'),
+    (accountIds) => {
+      void userProfiles
+        .ensureProfiles(accountIds ? accountIds.split('\0') : [])
+        .catch(() => undefined)
+    },
+    { immediate: true },
+  )
+
   function createWorkspaceSession(workspaceProfile: CenterSelfProfile): WorkspaceSession {
     const environment = createChannelEnvironment()
     let disposed = false
@@ -148,7 +164,8 @@ export function useWorkspaceRuntime(
       async initialize(isCurrent) {
         if (!isCurrent()) return
         channelEnvironment.value = environment
-        profile.configure(environment.transport)
+        userProfiles.configure(environment.transport)
+        profile.configure(environment.transport, userProfiles)
         profile.setCenterProfile(workspaceProfile)
         channels.configure(environment.transport)
         collaboration.configure(conversationClient, environment.transport)
@@ -169,6 +186,7 @@ export function useWorkspaceRuntime(
         ui.selectedRoleId.value = null
         ui.globalSearchQuery.value = ''
         profile.dispose()
+        userProfiles.clear()
         managedConfig.clear()
         const conversationDisposal = conversation.dispose()
         collaboration.dispose()
@@ -206,9 +224,13 @@ export function useWorkspaceRuntime(
   async function initializeChannels(environment: ChannelEnvironment): Promise<void> {
     if (environment.preview) {
       await channels.connect()
+      await refreshProfileAfterConnect()
       return
     }
-    if (managedRuntime.imReady) await channels.connect().catch(() => undefined)
+    if (managedRuntime.imReady) {
+      await channels.connect().catch(() => undefined)
+      await refreshProfileAfterConnect()
+    }
   }
 
   onUnmounted(() => {
@@ -224,9 +246,15 @@ export function useWorkspaceRuntime(
     channelConnectPending = true
     try {
       await channels.connect()
+      await refreshProfileAfterConnect()
     } finally {
       channelConnectPending = false
     }
+  }
+
+  async function refreshProfileAfterConnect(): Promise<void> {
+    if (profile.phase === 'ready' || profile.phase === 'loading') return
+    await profile.refresh()
   }
 
   async function disconnectChannel(): Promise<void> {

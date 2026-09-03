@@ -5,8 +5,15 @@ import WorkspaceContent from './WorkspaceContent.vue'
 import WorkspaceOverlays from './WorkspaceOverlays.vue'
 import WorkspaceRail from './WorkspaceRail.vue'
 
-const { centerAuth, activeMode, globalSearchQuery, logoutPending, selectWorkspace, logout } =
-  useTeaDesktopAppContext()
+const {
+  centerAuth,
+  profile,
+  activeMode,
+  globalSearchQuery,
+  logoutPending,
+  selectWorkspace,
+  logout,
+} = useTeaDesktopAppContext()
 </script>
 
 <template>
@@ -24,6 +31,7 @@ const { centerAuth, activeMode, globalSearchQuery, logoutPending, selectWorkspac
         :pending-tasks="5"
         :logout-pending="logoutPending"
         :user="centerAuth.state.bootstrap?.user ?? null"
+        :im-profile="profile.channelProfile"
         @select="selectWorkspace"
         @logout="logout"
       />

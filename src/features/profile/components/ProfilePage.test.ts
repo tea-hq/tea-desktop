@@ -75,6 +75,16 @@ describe('ProfilePage', () => {
     )
     expect(wrapper.get('[data-testid="profile-alignment"]').text()).toContain('Matched')
     expect(wrapper.findAll('[data-comparison-status="aligned"]')).toHaveLength(3)
+    expect(wrapper.get('img').attributes('src')).toBe('https://id.example.test/avatar.png')
+  })
+
+  it('renders a deterministic Avataaars fallback when the Center avatar is empty', () => {
+    const wrapper = mountPage({
+      centerProfile: { ...centerProfile, avatarUrl: '' },
+      channelProfile: { ...channelProfile, avatarUrl: '' },
+    })
+
+    expect(wrapper.get('img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
   })
 
   it('makes mismatched fields visually explicit', () => {

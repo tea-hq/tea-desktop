@@ -13,6 +13,7 @@ const {
   centerAuth,
   channels,
   collaboration,
+  userProfiles,
   agentDrawer,
   settings,
   managedRuntime,
@@ -55,6 +56,7 @@ function handleLoadMoreChannels(): void {
     :active-ref="channels.activeChannelRef"
     :status="channels.status"
     :loading="channels.loadingChannels"
+    :user-profiles="userProfiles.profiles"
     @select="handleChannelSelect"
   />
   <ChannelTimeline
@@ -70,6 +72,7 @@ function handleLoadMoreChannels(): void {
     :current-session-available="currentChannelSessionAvailable"
     :runtimes="collaboration.runtimes"
     :default-runtime-id="settings.defaultRuntimeId"
+    :user-profiles="userProfiles.profiles"
     @forward-to-agent="forwardToAgent"
     @send="handleChannelSend"
     @load-more="handleLoadMoreChannels"

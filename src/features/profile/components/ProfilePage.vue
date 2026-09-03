@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { TeaButton } from '@/shared/ui'
-import { computed, ref, watch } from 'vue'
+import { createDefaultAvatarDataUri } from '@/shared/avatar/defaultAvatar'
+import { TeaAvatar, TeaButton } from '@/shared/ui'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ChannelSelfProfile } from '@/features/channels/contracts'
@@ -41,12 +42,16 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const avatarFailed = ref(false)
 const initials = computed(() =>
   Array.from(props.centerProfile.displayName || props.centerProfile.preferredUsername || 'T')
     .slice(0, 2)
     .join('')
     .toLocaleUpperCase(),
+)
+const generatedAvatarUrl = computed(() =>
+  props.channelProfile?.accountId?.trim()
+    ? createDefaultAvatarDataUri(`tea:account:${props.channelProfile.accountId}`)
+    : '',
 )
 
 const alignmentIcon = computed(
@@ -72,13 +77,6 @@ const comparisonStatusClass: Record<ProfileComparison['status'], string> = {
   mismatched: 'bg-danger-subtle text-danger',
   notAvailable: 'bg-panel text-dim',
 }
-
-watch(
-  () => props.centerProfile.avatarUrl,
-  () => {
-    avatarFailed.value = false
-  },
-)
 
 function displayValue(value: string | undefined): string {
   return value || t('profile.notProvided')
@@ -128,19 +126,13 @@ function displayValue(value: string | undefined): string {
         class="mt-8 flex flex-col gap-5 rounded-card bg-muted px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
       >
         <div class="flex min-w-0 items-center gap-4">
-          <div
-            class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-overlay bg-inverse text-xl font-semibold text-on-inverse"
-          >
-            <img
-              v-if="centerProfile.avatarUrl && !avatarFailed"
-              :src="centerProfile.avatarUrl"
-              :alt="centerProfile.displayName"
-              class="size-full object-cover"
-              referrerpolicy="no-referrer"
-              @error="avatarFailed = true"
-            />
-            <span v-else>{{ initials }}</span>
-          </div>
+          <TeaAvatar
+            size="large"
+            :src="channelProfile?.avatarUrl || centerProfile.avatarUrl"
+            :fallback-src="generatedAvatarUrl"
+            :fallback-text="initials"
+            fallback-class="bg-inverse text-on-inverse"
+          />
           <div class="min-w-0">
             <p class="truncate text-xl font-semibold text-fg">
               {{ centerProfile.displayName }}

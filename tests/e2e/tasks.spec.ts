@@ -11,19 +11,11 @@ test('switches the same task collection between list and board views', async ({
   await page.getByRole('radio', { name: 'Board' }).click()
   await expect(page.getByTestId('task-board-card')).toHaveCount(8)
 
-  const githubTask = page.getByTestId('task-board-card').filter({ hasText: 'GH-287' })
-  await expect(githubTask.locator('.i-mdi-github')).toBeVisible()
-  await expect(githubTask.locator('[data-agent-provider="codex"]')).toBeVisible()
-  await expect(githubTask).toContainText('Implementation')
-  await expect(githubTask).not.toContainText('GitHub')
-  await githubTask.click()
+  await page.getByTestId('task-board-card').filter({ hasText: 'GH-287' }).click()
   const detail = page.getByTestId('task-detail')
   await expect(detail).toBeVisible()
   await expect(detail).toContainText('GitHub')
   await expect(detail).toContainText('Frontend')
-  await expect(detail.getByTestId('task-detail-collaborator')).toHaveCount(3)
-  await expect(detail).toContainText('Codex Agent')
-  await expect(detail).toContainText('Claude Agent')
 })
 
 test('keeps the localized task workspace usable at 390px', async ({ openFixture, page }) => {

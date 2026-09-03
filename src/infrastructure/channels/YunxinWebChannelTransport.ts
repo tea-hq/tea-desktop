@@ -6,6 +6,7 @@ import type {
   ChannelPage,
   ChannelRef,
   ChannelSelfProfile,
+  ChannelUserProfile,
   ChannelStatus,
   ChannelTransport,
   ChannelTransportDescriptor,
@@ -242,19 +243,34 @@ export class YunxinWebChannelTransport implements ChannelTransport {
   }
 
   async getSelfProfile(): Promise<ChannelSelfProfile> {
-    const sdk = this.connectedSdk()
     const expectedAccount = this.selfAccount
     if (!expectedAccount) throw new ChannelTransportError('protocolFailure', false)
-    let profiles: unknown
+    const profiles = await this.getUserProfiles([expectedAccount])
+    if (profiles.length !== 1) throw new ChannelTransportError('protocolFailure', false)
+    return profiles[0]!
+  }
+
+  async getUserProfiles(accountIds: string[]): Promise<ChannelUserProfile[]> {
+    const sdk = this.connectedSdk()
+    const requested = normalizeAccountIds(accountIds)
+    let values: unknown
     try {
-      profiles = await sdk.V2NIMUserService.getUserListFromCloud([expectedAccount])
+      values = await sdk.V2NIMUserService.getUserListFromCloud(requested)
     } catch {
       throw new ChannelTransportError('transport', true)
     }
-    if (!Array.isArray(profiles) || profiles.length !== 1) {
-      throw new ChannelTransportError('protocolFailure', false)
+    if (!Array.isArray(values)) throw new ChannelTransportError('protocolFailure', false)
+    const requestedSet = new Set(requested)
+    const seen = new Set<string>()
+    const result: ChannelUserProfile[] = []
+    for (const value of values) {
+      const profile = mapUserProfile(value)
+      if (!requestedSet.has(profile.accountId) || seen.has(profile.accountId))
+        throw new ChannelTransportError('protocolFailure', false)
+      seen.add(profile.accountId)
+      result.push(profile)
     }
-    return mapSelfProfile(profiles[0], expectedAccount)
+    return result
   }
 
   async listChannels(request: ListChannelsRequest): Promise<ChannelPage> {
@@ -672,10 +688,9 @@ function errorCode(error: unknown): string {
   return 'unknown'
 }
 
-function mapSelfProfile(value: unknown, expectedAccount: string): ChannelSelfProfile {
+function mapUserProfile(value: unknown): ChannelUserProfile {
   if (!isModuleRecord(value)) throw new ChannelTransportError('protocolFailure', false)
   const accountId = requiredProfileText(value.accountId, 32)
-  if (accountId !== expectedAccount) throw new ChannelTransportError('protocolFailure', false)
   const name = optionalProfileText(value.name, 64) ?? ''
   const email = optionalProfileText(value.email, 64)
   const avatarUrl = optionalProfileURL(value.avatar, 1024)
@@ -685,6 +700,20 @@ function mapSelfProfile(value: unknown, expectedAccount: string): ChannelSelfPro
     ...(email ? { email } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
   }
+}
+
+function normalizeAccountIds(accountIds: string[]): string[] {
+  if (
+    !Array.isArray(accountIds) ||
+    accountIds.length === 0 ||
+    accountIds.length > 100 ||
+    accountIds.some((value) => typeof value !== 'string')
+  )
+    throw new ChannelTransportError('invalidRequest', false)
+  const values = accountIds.map((value) => value.trim())
+  if (values.some((value) => !value || value.length > 128))
+    throw new ChannelTransportError('invalidRequest', false)
+  return [...new Set(values)]
 }
 
 function requiredProfileText(value: unknown, maximumBytes: number): string {

@@ -16,6 +16,7 @@ export function mapYunxinConversation(value: V2NIMConversation, targetId?: strin
     ref: value.conversationId,
     kind: value.type === 1 ? 'direct' : 'group',
     name: boundedText(value.name?.trim() || targetId?.trim() || value.conversationId, 200),
+    ...(value.type === 1 && targetId?.trim() ? { participantAccountId: targetId.trim() } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
     description: preview ?? '',
     unreadCount: Math.max(0, value.unreadCount),

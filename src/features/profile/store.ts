@@ -2,6 +2,7 @@ import { computed, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { ChannelSelfProfile, ChannelTransport } from '@/features/channels/contracts'
+import type { ChannelUserProfileCache } from '@/features/channels/userProfileStore'
 import type { CenterSelfProfile, ProfilePhase } from './contracts'
 import { compareSelfProfiles, copyCenterSelfProfile, summarizeAlignment } from './contracts'
 
@@ -12,6 +13,7 @@ export const useProfileStore = defineStore('profile', () => {
   const errorKey = ref<string | null>(null)
   const providerName = ref('IM')
   const transport = shallowRef<ChannelTransport | null>(null)
+  let userProfileCache: ChannelUserProfileCache | null = null
   let unsubscribe: (() => void) | null = null
   let refreshWhenConnected = false
   let operationGeneration = 0
@@ -25,12 +27,13 @@ export const useProfileStore = defineStore('profile', () => {
     centerProfile.value = value ? copyCenterSelfProfile(value) : null
   }
 
-  function configure(value: ChannelTransport): void {
+  function configure(value: ChannelTransport, cache?: ChannelUserProfileCache): void {
     operationGeneration += 1
     unsubscribe?.()
     unsubscribe = null
     refreshWhenConnected = false
     transport.value = value
+    userProfileCache = cache ?? null
     channelProfile.value = null
     phase.value = 'idle'
     errorKey.value = null
@@ -96,7 +99,9 @@ export const useProfileStore = defineStore('profile', () => {
     try {
       const result = await configured.getSelfProfile()
       if (operation !== operationGeneration || configured !== transport.value) return
-      channelProfile.value = structuredClone(result)
+      userProfileCache?.upsertProfile(result)
+      channelProfile.value =
+        userProfileCache?.getProfile(result.accountId) ?? structuredClone(result)
       phase.value = 'ready'
     } catch (error) {
       if (operation !== operationGeneration || configured !== transport.value) return
@@ -121,6 +126,7 @@ export const useProfileStore = defineStore('profile', () => {
     unsubscribe = null
     refreshWhenConnected = false
     transport.value = null
+    userProfileCache = null
     centerProfile.value = null
     channelProfile.value = null
     phase.value = 'idle'

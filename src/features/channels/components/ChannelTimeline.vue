@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 import { TeaButton, TeaIconButton, TeaTextarea } from '@/shared/ui'
 
-import type { Channel, Message } from '../contracts'
+import type { Channel, ChannelUserProfile, Message } from '../contracts'
 import ChannelMessageItem from './ChannelMessageItem.vue'
 import {
   isTimelineNearBottom,
@@ -24,6 +24,7 @@ const props = defineProps<{
   currentSessionAvailable: boolean
   runtimes: RuntimeDescriptor[]
   defaultRuntimeId: string | null
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 const emit = defineEmits<{
   forwardToAgent: [
@@ -192,6 +193,7 @@ watch(
           :current-session-available="currentSessionAvailable"
           :runtimes="runtimes"
           :default-runtime-id="defaultRuntimeId"
+          :user-profiles="userProfiles"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
         />
       </div>

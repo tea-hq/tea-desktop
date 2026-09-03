@@ -2,6 +2,7 @@ import type {
   ChannelEvent,
   ChannelPage,
   ChannelStatus,
+  ChannelUserProfile,
   ChannelTransportDescriptor,
   ListChannelsRequest,
   LoadMessagesRequest,
@@ -69,6 +70,10 @@ export class ElectronChannelService {
 
   async selfProfile() {
     return this.transport.getSelfProfile()
+  }
+
+  async userProfiles(accountIds: string[]): Promise<ChannelUserProfile[]> {
+    return this.transport.getUserProfiles(accountIds)
   }
 
   async dispose(): Promise<void> {

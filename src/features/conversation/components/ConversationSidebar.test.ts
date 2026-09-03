@@ -58,6 +58,15 @@ function mountSidebar(conversations: ConversationSummary[], searchQuery?: string
 }
 
 describe('ConversationSidebar', () => {
+  it('does not render avatars for agent session items', () => {
+    const wrapper = mountSidebar([
+      summary('Alpha', 'workspace-alpha'),
+      summary('Beta', 'workspace-beta'),
+    ])
+
+    expect(wrapper.findAll('.conversation-row__select img')).toHaveLength(0)
+  })
+
   it('separates recent sessions from project sessions and keeps new conversation icon-only', async () => {
     const wrapper = mountSidebar([
       summary('Alpha review', 'workspace-alpha'),

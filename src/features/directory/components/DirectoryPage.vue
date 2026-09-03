@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { TeaButton, TeaDrawer, TeaIconButton, TeaInput, TeaMessageBar } from '@/shared/ui'
 import type { DirectoryPhase, DirectoryUser } from '../contracts'
+import type { ChannelUserProfile } from '@/features/channels/contracts'
 import DirectoryMemberDetail from './DirectoryMemberDetail.vue'
 import DirectoryMemberList from './DirectoryMemberList.vue'
 import DirectoryScopeNavigation from './DirectoryScopeNavigation.vue'
@@ -16,6 +17,7 @@ const props = defineProps<{
   errorKey: string | null
   query: string
   actionError?: string | null
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 
 const emit = defineEmits<{
@@ -168,6 +170,7 @@ onBeforeUnmount(() => detailMedia?.removeEventListener('change', updateDetailMod
           :users="users"
           :phase="phase"
           :selected-user-id="wideDetail || detailDrawerOpen ? selectedUserId : null"
+          :user-profiles="userProfiles"
           @select="selectUser"
         />
       </section>
@@ -176,6 +179,7 @@ onBeforeUnmount(() => detailMedia?.removeEventListener('change', updateDetailMod
         <DirectoryMemberDetail
           :user="selectedUser"
           :action-error="actionError"
+          :user-profiles="userProfiles"
           @message="messageUser"
         />
       </aside>
@@ -193,6 +197,7 @@ onBeforeUnmount(() => detailMedia?.removeEventListener('change', updateDetailMod
       <DirectoryMemberDetail
         :user="selectedUser"
         :action-error="actionError"
+        :user-profiles="userProfiles"
         @message="messageUser"
       />
     </TeaDrawer>

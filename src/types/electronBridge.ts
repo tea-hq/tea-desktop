@@ -51,6 +51,7 @@ export const DESKTOP_COMMANDS = [
   'get_channel_descriptor',
   'get_channel_status',
   'get_channel_self_profile',
+  'get_channel_user_profiles',
   'open_direct_conversation',
   'reconnect_channel',
   'disconnect_channel',

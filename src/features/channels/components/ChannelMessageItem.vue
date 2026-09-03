@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { createDefaultAvatarDataUri } from '@/shared/avatar/defaultAvatar'
 import MarkdownContent from '@/shared/ui/MarkdownContent.vue'
-import { TeaButton } from '@/shared/ui'
+import { TeaAvatar, TeaButton } from '@/shared/ui'
 import type { ConversationSummary } from '@/features/conversation/contracts'
 import type { RuntimeDescriptor } from '@/features/conversation/contracts'
-import type { Message } from '../contracts'
+import type { ChannelUserProfile, Message } from '../contracts'
 import ChannelMessageActions from './ChannelMessageActions.vue'
+import { channelAvatarInitials } from './channelAvatarPresentation'
 
-defineProps<{
+const props = defineProps<{
   message: Message
   menuOpenUp: boolean
   activeConversation: ConversationSummary | null
@@ -16,15 +19,19 @@ defineProps<{
   currentSessionAvailable: boolean
   runtimes: RuntimeDescriptor[]
   defaultRuntimeId: string | null
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 const emit = defineEmits<{
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
 }>()
 const { t } = useI18n()
-
-function initials(name: string): string {
-  return [...name].slice(0, 2).join('').toUpperCase()
-}
+const senderInitials = computed(() => channelAvatarInitials(props.message.sender.name))
+const senderProfile = computed(() => props.userProfiles?.get(props.message.sender.id) ?? null)
+const senderFallbackUrl = computed(() => {
+  const accountId = props.message.sender.id.trim()
+  return accountId ? createDefaultAvatarDataUri(`tea:account:${accountId}`) : ''
+})
+const senderName = computed(() => senderProfile.value?.name || props.message.sender.name)
 
 function formatTime(value: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value)
@@ -42,12 +49,13 @@ function formatTime(value: number): string {
       class="flex max-w-[min(84%,44rem)] items-start gap-2"
       :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
     >
-      <div
-        class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-        :class="message.sentByCurrentUser ? 'bg-hover text-fg' : 'bg-muted text-dim'"
-      >
-        {{ initials(message.sender.name) }}
-      </div>
+      <TeaAvatar
+        size="small"
+        :src="senderProfile?.avatarUrl || message.sender.avatarUrl"
+        :fallback-src="senderFallbackUrl"
+        :fallback-text="senderInitials"
+        :fallback-class="message.sentByCurrentUser ? 'bg-hover text-fg' : 'bg-muted text-dim'"
+      />
 
       <div
         class="flex min-w-0 flex-col"
@@ -57,9 +65,7 @@ function formatTime(value: number): string {
           class="flex items-baseline gap-2"
           :class="message.sentByCurrentUser ? 'flex-row-reverse' : 'flex-row'"
         >
-          <span class="max-w-52 truncate text-sm font-semibold text-fg">{{
-            message.sender.name
-          }}</span>
+          <span class="max-w-52 truncate text-sm font-semibold text-fg">{{ senderName }}</span>
           <span class="shrink-0 text-xs tabular-nums text-subtle">{{
             formatTime(message.sentAt)
           }}</span>

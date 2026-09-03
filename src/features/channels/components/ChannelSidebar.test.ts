@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelStatus } from '../contracts'
+import type { Channel, ChannelStatus, ChannelUserProfile } from '../contracts'
 import ChannelSidebar from './ChannelSidebar.vue'
 
 const connectedStatus: ChannelStatus = { phase: 'connected', retryable: true }
@@ -79,5 +79,60 @@ describe('ChannelSidebar', () => {
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.findAll('.channel-row')).toHaveLength(1)
     expect(wrapper.get('.channel-row').text()).toContain('Engineering')
+    expect(wrapper.get('.channel-row').find('img').exists()).toBe(false)
+    expect(wrapper.get('.channel-row').text()).toContain('EN')
+  })
+
+  it('renders a cached IM profile avatar for direct conversations', () => {
+    const direct: Channel = {
+      ref: 'direct-account-b',
+      kind: 'direct',
+      participantAccountId: 'account-b',
+      name: 'Account B',
+      description: 'Direct conversation',
+      unreadCount: 0,
+      updatedAt: 1,
+    }
+    const profile: ChannelUserProfile = { accountId: 'account-b', name: 'Account B' }
+    const wrapper = mount(ChannelSidebar, {
+      props: {
+        channels: [direct],
+        activeRef: direct.ref,
+        status: connectedStatus,
+        loading: false,
+        userProfiles: new Map([[profile.accountId, profile]]),
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
+  })
+
+  it('does not wait for the profile request before generating a direct avatar', () => {
+    const direct: Channel = {
+      ref: 'direct-account-c',
+      kind: 'direct',
+      participantAccountId: 'account-c',
+      name: 'Account C',
+      description: 'Direct conversation',
+      unreadCount: 0,
+      updatedAt: 1,
+    }
+    const wrapper = mount(ChannelSidebar, {
+      props: {
+        channels: [direct],
+        activeRef: direct.ref,
+        status: connectedStatus,
+        loading: false,
+        userProfiles: new Map(),
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
   })
 })

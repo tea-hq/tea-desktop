@@ -104,6 +104,27 @@ describe('DirectoryPage', () => {
     ])
     expect(wrapper.get('[data-testid="directory-detail"]').text()).toContain('Ada Lovelace')
     expect(wrapper.get('[data-testid="directory-detail"]').text()).toContain('ada@example.test')
+    const listAvatar = wrapper.get('[data-testid="directory-member-row"] img')
+    const detailAvatar = wrapper.get('[data-testid="directory-detail"] img')
+    expect(listAvatar.attributes('src')).toMatch(/^data:image\/svg\+xml/)
+    expect(detailAvatar.attributes('src')).toBe(listAvatar.attributes('src'))
+  })
+
+  it('keeps a real directory avatar ahead of the generated fallback', () => {
+    const wrapper = mountPage('en', {
+      users: users.map((user, index) =>
+        index === 0
+          ? { ...user, oidc: { ...user.oidc, avatarUrl: 'https://id.example.test/ada.png' } }
+          : user,
+      ),
+    })
+
+    expect(wrapper.get('[data-testid="directory-member-row"] img').attributes('src')).toBe(
+      'https://id.example.test/ada.png',
+    )
+    expect(wrapper.get('[data-testid="directory-detail"] img').attributes('src')).toBe(
+      'https://id.example.test/ada.png',
+    )
   })
 
   it('projects the selected member and emits the existing message intent', async () => {

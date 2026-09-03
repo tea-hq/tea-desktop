@@ -2,13 +2,16 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { TeaButton, TeaEmptyState, TeaMessageBar } from '@/shared/ui'
+import { createDefaultAvatarDataUri } from '@/shared/avatar/defaultAvatar'
+import { TeaAvatar, TeaButton, TeaEmptyState, TeaMessageBar } from '@/shared/ui'
 import type { DirectoryUser } from '../contracts'
+import type { ChannelUserProfile } from '@/features/channels/contracts'
 import { directoryUserInitials, isDirectoryMessagingReady } from '../directoryPresentation'
 
 const props = defineProps<{
   user: DirectoryUser | null
   actionError?: string | null
+  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +21,10 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const messagingReady = computed(() => Boolean(props.user && isDirectoryMessagingReady(props.user)))
+const userProfile = computed(() => {
+  const account = props.user?.im?.account
+  return account ? (props.userProfiles?.get(account) ?? null) : null
+})
 </script>
 
 <template>
@@ -36,19 +43,15 @@ const messagingReady = computed(() => Boolean(props.user && isDirectoryMessaging
     <template v-else>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <div class="flex flex-col items-center px-6 pb-7 pt-8 text-center">
-          <span
-            class="flex size-16 items-center justify-center overflow-hidden rounded-full bg-inverse text-lg font-semibold text-on-inverse"
-            aria-hidden="true"
-          >
-            <img
-              v-if="user.oidc.avatarUrl"
-              :src="user.oidc.avatarUrl"
-              alt=""
-              class="size-full object-cover"
-              referrerpolicy="no-referrer"
-            />
-            <span v-else>{{ directoryUserInitials(user.center.displayName) }}</span>
-          </span>
+          <TeaAvatar
+            size="large"
+            :src="userProfile?.avatarUrl || user.oidc.avatarUrl"
+            :fallback-src="
+              user.im?.account ? createDefaultAvatarDataUri(`tea:account:${user.im.account}`) : ''
+            "
+            :fallback-text="directoryUserInitials(user.center.displayName)"
+            fallback-class="bg-inverse text-on-inverse"
+          />
           <h3 class="mt-4 max-w-full truncate text-xl font-semibold text-fg">
             {{ user.center.displayName }}
           </h3>
