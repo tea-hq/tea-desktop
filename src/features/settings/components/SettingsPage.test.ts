@@ -14,6 +14,7 @@ function mountPage(locale: 'en' | 'zh-CN' = 'en', overrides: Record<string, unkn
     props: {
       localePreference: 'system',
       themePreference: 'dark',
+      notificationSettings: { enabled: true, sound: true, preview: 'message' },
       defaultRuntimeId: 'external.claude',
       defaultModel: 'model-a',
       runtimes: [
@@ -71,5 +72,33 @@ describe('SettingsPage appearance controls', () => {
     expect(wrapper.text()).toContain('外观')
     expect(wrapper.text()).toContain('跟随系统')
     expect(wrapper.text()).not.toContain('settings.appearance')
+  })
+
+  it('emits notification controls and keeps dependent choices available', async () => {
+    const wrapper = mountPage()
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    const previewGroup = wrapper.findAll('[role="radiogroup"]')[2]
+
+    await checkboxes[0]!.setValue(false)
+    await checkboxes[1]!.setValue(false)
+    await previewGroup.findAll('button')[1]!.trigger('click')
+
+    expect(wrapper.emitted('updateNotificationsEnabled')).toEqual([[false]])
+    expect(wrapper.emitted('updateNotificationSound')).toEqual([[false]])
+    expect(wrapper.emitted('updateNotificationPreview')).toEqual([['sender']])
+  })
+
+  it('disables notification controls while saving and dependencies while turned off', () => {
+    const saving = mountPage('en', { saving: true })
+    expect(saving.findAll('input[type="checkbox"]:disabled')).toHaveLength(2)
+    expect(saving.findAll('[role="radiogroup"]')[2]!.findAll('button:disabled')).toHaveLength(3)
+
+    const disabled = mountPage('en', {
+      notificationSettings: { enabled: false, sound: true, preview: 'message' },
+    })
+    const checkboxes = disabled.findAll('input[type="checkbox"]')
+    expect(checkboxes[0]!.attributes('disabled')).toBeUndefined()
+    expect(checkboxes[1]!.attributes('disabled')).toBeDefined()
+    expect(disabled.findAll('[role="radiogroup"]')[2]!.findAll('button:disabled')).toHaveLength(3)
   })
 })

@@ -1,3 +1,5 @@
+import type { MessageRef } from '@/features/channels/contracts'
+
 export const DESKTOP_COMMANDS = [
   'resolve_center_enterprise',
   'start_center_login',
@@ -56,9 +58,47 @@ export const DESKTOP_COMMANDS = [
   'reconnect_channel',
   'disconnect_channel',
   'list_channels',
+  'get_channel_details',
+  'list_channel_members',
+  'create_channel_group',
+  'update_channel_group',
+  'invite_channel_group_members',
+  'remove_channel_group_members',
+  'leave_channel_group',
+  'dismiss_channel_group',
+  'set_channel_group_member_role',
+  'set_channel_group_member_mute',
   'load_channel_messages',
+  'search_channel_messages',
+  'list_pinned_channel_messages',
+  'save_channel_message',
+  'list_saved_channel_messages',
+  'remove_saved_channel_message',
   'send_channel_message',
+  'reply_channel_message',
+  'forward_channel_message',
+  'load_merged_channel_messages',
+  'modify_channel_message',
+  'delete_channel_messages',
+  'revoke_channel_message',
+  'pin_channel_message',
+  'quick_comment_channel_message',
+  'transcribe_channel_voice',
+  'get_channel_message_receipt_details',
+  'load_channel_thread',
+  'cancel_channel_message_send',
+  'select_channel_attachments',
+  'release_channel_attachment',
+  'save_channel_media',
+  'cancel_channel_media_save',
   'mark_channel_read',
+  'set_channel_pinned',
+  'set_channel_muted',
+  'set_channel_presence_subscriptions',
+  'hide_channel',
+  'list_im_channel_drafts',
+  'save_im_channel_draft',
+  'remove_im_channel_draft',
 ] as const
 
 export type DesktopCommand = (typeof DESKTOP_COMMANDS)[number]
@@ -67,6 +107,8 @@ export const DESKTOP_EVENTS = [
   'center-auth-state-changed',
   'managed-workspace-state-changed',
   'channel-event',
+  'channel-notification-activated',
+  'channel-media-save-progress',
   'conversation:event',
   'conversation:host-tool-call',
   'conversation:updated',
@@ -78,6 +120,8 @@ export interface DesktopEventPayloadMap {
   'center-auth-state-changed': CenterAuthState
   'managed-workspace-state-changed': ManagedWorkspaceState
   'channel-event': ChannelEvent
+  'channel-notification-activated': MessageRef
+  'channel-media-save-progress': ChannelMediaSaveProgressEvent
   'conversation:event': ConversationEvent
   'conversation:host-tool-call': HostToolCall
   'conversation:updated': ConversationSummary
@@ -126,7 +170,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 import type { CenterAuthState } from '../features/auth/contracts'
-import type { ChannelEvent } from '../features/channels/contracts'
+import type { ChannelEvent, ChannelMediaSaveProgressEvent } from '../features/channels/contracts'
 import type {
   ConversationEvent,
   ConversationSummary,

@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { SegmentedChoice, TeaIconButton, TeaMenuSelect } from '@/shared/ui'
+import { SegmentedChoice, TeaCheckbox, TeaIconButton, TeaMenuSelect } from '@/shared/ui'
 import { useI18n } from 'vue-i18n'
 
 import type { ModelOption, RuntimeDescriptor } from '@/features/conversation/contracts'
-import type { LocalePreference, ThemePreference } from '../contracts'
+import type {
+  LocalePreference,
+  NotificationPreviewPreference,
+  NotificationSettings,
+  ThemePreference,
+} from '../contracts'
 
 const props = defineProps<{
   localePreference: LocalePreference
   themePreference: ThemePreference
+  notificationSettings: NotificationSettings
   defaultRuntimeId: string
   defaultModel: string | null
   runtimes: RuntimeDescriptor[]
@@ -21,6 +27,9 @@ const emit = defineEmits<{
   close: []
   updateLocale: [locale: LocalePreference]
   updateTheme: [theme: ThemePreference]
+  updateNotificationsEnabled: [enabled: boolean]
+  updateNotificationSound: [sound: boolean]
+  updateNotificationPreview: [preview: NotificationPreviewPreference]
   updateDefaultRuntime: [runtimeId: string]
   updateDefaultModel: [model: string]
 }>()
@@ -35,6 +44,23 @@ const themeOptions = computed(() => [
   { value: 'system', label: t('settings.appearance.system'), disabled: props.saving },
   { value: 'light', label: t('settings.appearance.light'), disabled: props.saving },
   { value: 'dark', label: t('settings.appearance.dark'), disabled: props.saving },
+])
+const notificationPreviewOptions = computed(() => [
+  {
+    value: 'message',
+    label: t('settings.notifications.preview.message'),
+    disabled: props.saving || !props.notificationSettings.enabled,
+  },
+  {
+    value: 'sender',
+    label: t('settings.notifications.preview.sender'),
+    disabled: props.saving || !props.notificationSettings.enabled,
+  },
+  {
+    value: 'hidden',
+    label: t('settings.notifications.preview.hidden'),
+    disabled: props.saving || !props.notificationSettings.enabled,
+  },
 ])
 const runtimeOptions = (runtimes: RuntimeDescriptor[]) =>
   runtimes.map((runtime) => ({
@@ -114,6 +140,53 @@ const effectiveDefaultModel = computed(
             :label="t('settings.appearance.title')"
             @update:model-value="emit('updateTheme', $event as ThemePreference)"
           />
+        </div>
+      </section>
+
+      <section class="mt-12">
+        <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(280px,1fr)] sm:items-start">
+          <div>
+            <h2 class="text-base font-semibold text-fg">
+              {{ t('settings.notifications.title') }}
+            </h2>
+            <p class="mt-1 text-sm leading-5 text-dim">
+              {{ t('settings.notifications.description') }}
+            </p>
+          </div>
+          <div class="space-y-4">
+            <TeaCheckbox
+              class="w-full"
+              :model-value="notificationSettings.enabled"
+              :label="t('settings.notifications.enabled')"
+              :disabled="saving"
+              @update:model-value="emit('updateNotificationsEnabled', $event)"
+            >
+              <span class="min-w-0">{{ t('settings.notifications.enabled') }}</span>
+            </TeaCheckbox>
+            <TeaCheckbox
+              class="w-full"
+              :model-value="notificationSettings.sound"
+              :label="t('settings.notifications.sound')"
+              :disabled="saving || !notificationSettings.enabled"
+              @update:model-value="emit('updateNotificationSound', $event)"
+            >
+              <span class="min-w-0">{{ t('settings.notifications.sound') }}</span>
+            </TeaCheckbox>
+            <div class="min-w-0">
+              <p class="mb-2 text-sm font-medium text-fg">
+                {{ t('settings.notifications.preview.title') }}
+              </p>
+              <SegmentedChoice
+                class="settings-segmented w-full"
+                :model-value="notificationSettings.preview"
+                :options="notificationPreviewOptions"
+                :label="t('settings.notifications.preview.title')"
+                @update:model-value="
+                  emit('updateNotificationPreview', $event as NotificationPreviewPreference)
+                "
+              />
+            </div>
+          </div>
         </div>
       </section>
 

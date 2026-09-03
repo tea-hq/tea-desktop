@@ -6,6 +6,7 @@ import {
   DEFAULT_SETTINGS,
   type AppSettings,
   type LocalePreference,
+  type NotificationPreviewPreference,
   type SettingsClient,
   type ThemePreference,
 } from './contracts'
@@ -67,6 +68,27 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function setThemePreference(theme: ThemePreference): Promise<void> {
     await updateSettings((current) => ({ ...current, theme }))
+  }
+
+  async function setNotificationsEnabled(enabled: boolean): Promise<void> {
+    await updateSettings((current) => ({
+      ...current,
+      notifications: { ...current.notifications, enabled },
+    }))
+  }
+
+  async function setNotificationSound(sound: boolean): Promise<void> {
+    await updateSettings((current) => ({
+      ...current,
+      notifications: { ...current.notifications, sound },
+    }))
+  }
+
+  async function setNotificationPreview(preview: NotificationPreviewPreference): Promise<void> {
+    await updateSettings((current) => ({
+      ...current,
+      notifications: { ...current.notifications, preview },
+    }))
   }
 
   async function setDefaultRuntime(runtimeId: string): Promise<void> {
@@ -171,6 +193,9 @@ export const useSettingsStore = defineStore('settings', () => {
     initialize,
     setLocalePreference,
     setThemePreference,
+    setNotificationsEnabled,
+    setNotificationSound,
+    setNotificationPreview,
     setDefaultRuntime,
     setDefaultModel,
     toggleLeftSidebar,
@@ -184,6 +209,7 @@ function cloneSettings(settings: AppSettings): AppSettings {
   return {
     locale: settings.locale,
     theme: settings.theme,
+    notifications: { ...settings.notifications },
     conversationDefaults: { ...settings.conversationDefaults },
     layout: { ...settings.layout },
   }

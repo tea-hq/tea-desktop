@@ -6,7 +6,7 @@ import {
   type DesktopCommandHandlerGroup,
   type DesktopCommandHandlers,
 } from './commandRouter'
-import { readString } from './commandValidation'
+import { readOptionalBoolean, readString } from './commandValidation'
 
 export interface WorkspaceCommandServices {
   centerAuth: ElectronCenterAuthService
@@ -47,7 +47,10 @@ export function createWorkspaceCommandHandlers(
       await refreshManagedWorkspace()
       return state
     },
-    list_center_directory_users: () => services.centerAuth.listDirectoryUsers(),
+    list_center_directory_users: (args) =>
+      services.centerAuth.listDirectoryUsers({
+        forceRefresh: readOptionalBoolean(args.forceRefresh, 'forceRefresh') ?? false,
+      }),
     get_managed_workspace_state: () => services.managedWorkspace.stateValue(),
     refresh_managed_workspace: () => services.managedWorkspace.refresh(),
     get_managed_im_credentials: () => services.managedWorkspace.getImCredentials(),

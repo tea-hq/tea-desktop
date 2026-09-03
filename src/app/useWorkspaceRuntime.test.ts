@@ -9,15 +9,32 @@ import { useWorkspaceRuntime } from './useWorkspaceRuntime'
 import type { CenterAuthState } from '@/features/auth/contracts'
 import type { ManagedWorkspacePhase } from '@/features/managed-runtime/contracts'
 
+const notificationClient = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  dispose: vi.fn(async () => undefined),
+}))
+
 vi.mock('@/infrastructure/channels/channelComposition', () => ({
   createChannelEnvironment: vi.fn(() => ({
     preview: false,
     transport: {},
+    attachmentPicker: {},
+    draftClient: {},
+    voicePlaybackClient: {},
+    mediaClient: {},
+    notificationActivationClient: notificationClient,
   })),
 }))
 
 describe('useWorkspaceRuntime', () => {
-  it('recovers managed IM and clears session search state when the workspace exits', async () => {
+  it('recovers managed IM, activates notifications, and clears session search state', async () => {
+    notificationClient.subscribe.mockReset()
+    notificationClient.dispose.mockClear()
+    let notify!: (messageRef: { channelRef: string; messageClientId: string }) => void
+    notificationClient.subscribe.mockImplementation((listener) => {
+      notify = listener
+      return vi.fn()
+    })
     const order: string[] = []
     const connectChannel = vi.fn(async () => {
       order.push('im-connect')
@@ -58,8 +75,8 @@ describe('useWorkspaceRuntime', () => {
       status: { phase: 'disconnected', retryable: false },
       loadingChannels: false,
       loadingMessages: false,
-      sendingMessage: false,
       configure: vi.fn(),
+      jumpToMessage: vi.fn().mockResolvedValue(undefined),
       connect: connectChannel,
       disconnect: vi.fn(async () => undefined),
       dispose: vi.fn(async () => undefined),
@@ -69,6 +86,7 @@ describe('useWorkspaceRuntime', () => {
       initialize: (isCurrent: () => boolean) => Promise<void>
       dispose: () => Promise<void>
     } | null = null
+    let current = true
     const workspaceLifecycle = {
       enter: vi.fn(
         async (
@@ -80,7 +98,7 @@ describe('useWorkspaceRuntime', () => {
         ) => {
           order.push('workspace-enter')
           activeSession = create()
-          await activeSession.initialize(() => true)
+          await activeSession.initialize(() => current)
           order.push('workspace-ready')
         },
       ),
@@ -140,7 +158,21 @@ describe('useWorkspaceRuntime', () => {
     expect(workspaceLifecycle.enter).toHaveBeenCalledOnce()
     expect(managedRuntime.refresh).toHaveBeenCalledOnce()
     expect(connectChannel).toHaveBeenCalledOnce()
+    expect(channels.configure).toHaveBeenCalledWith({}, {}, {}, {}, {})
+    expect(notificationClient.subscribe).toHaveBeenCalledOnce()
     expect(order).toEqual(['workspace-enter', 'workspace-ready', 'managed-refresh', 'im-connect'])
+
+    notify({ channelRef: 'product', messageClientId: 'message-1' })
+    await flushPromises()
+    expect(channels.jumpToMessage).toHaveBeenCalledWith({
+      channelRef: 'product',
+      messageClientId: 'message-1',
+    })
+
+    current = false
+    notify({ channelRef: 'stale', messageClientId: 'message-2' })
+    await flushPromises()
+    expect(channels.jumpToMessage).toHaveBeenCalledOnce()
 
     centerAuth.state = { ...centerAuth.state, errorCode: 'centerUnavailable' }
     await flushPromises()

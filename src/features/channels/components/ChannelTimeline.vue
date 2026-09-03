@@ -2,30 +2,105 @@
 import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
-import { TeaButton, TeaIconButton, TeaTextarea } from '@/shared/ui'
+import { TeaButton, TeaIconButton } from '@/shared/ui'
 
-import type { Channel, ChannelUserProfile, Message } from '../contracts'
+import type {
+  Channel,
+  ChannelAttachment,
+  ChannelMember,
+  ChannelMediaSaveState,
+  ChannelPresence,
+  ChannelVoicePlaybackRate,
+  ChannelVoicePlaybackState,
+  ChannelVoiceTranscript,
+  Message,
+  MessageMention,
+  OutgoingMessageAttempt,
+} from '../contracts'
+import type { ForwardMessageMode } from '../contracts'
+import { FORWARD_MESSAGE_LIMIT } from '../messageForwarding'
+import { messageSelectionKey } from '../useChannelMessageSelection'
+import { sameMessage } from '../projection'
+import ChannelComposer from './ChannelComposer.vue'
 import ChannelMessageItem from './ChannelMessageItem.vue'
+import ChannelOutgoingMessageItem from './ChannelOutgoingMessageItem.vue'
+import ChannelPresenceIndicator from './ChannelPresenceIndicator.vue'
+import type { MessageAction } from './ChannelMessageActions.vue'
 import {
   isTimelineNearBottom,
   restorePrependScrollTop,
   type TimelineScrollSnapshot,
 } from './channelTimelineScroll'
+import { debugQuickComment } from '../quickCommentDebug'
 
-const props = defineProps<{
-  channel: Channel
-  messages: Message[]
-  panelOpen: boolean
-  loading: boolean
-  hasMore: boolean
-  sending: boolean
-  activeConversation: ConversationSummary | null
-  recentConversations: ConversationSummary[]
-  currentSessionAvailable: boolean
-  runtimes: RuntimeDescriptor[]
-  defaultRuntimeId: string | null
-  userProfiles?: ReadonlyMap<string, ChannelUserProfile>
-}>()
+const props = withDefaults(
+  defineProps<{
+    channel: Channel
+    messages: Message[]
+    outgoingAttempts?: OutgoingMessageAttempt[]
+    panelOpen: boolean
+    threadAvailable?: boolean
+    loading: boolean
+    hasMore: boolean
+    hasMoreNewer?: boolean
+    highlightedMessageKey?: string | null
+    activeConversation: ConversationSummary | null
+    recentConversations: ConversationSummary[]
+    currentSessionAvailable: boolean
+    runtimes: RuntimeDescriptor[]
+    defaultRuntimeId: string | null
+    replyTo?: Message | null
+    attachments?: ChannelAttachment[]
+    selectionMode?: boolean
+    selectedMessageKeys?: string[]
+    selectedCount?: number
+    canForwardIndividual?: boolean
+    canForwardMerged?: boolean
+    mentionMembers?: ChannelMember[]
+    mentionMembersLoading?: boolean
+    draft?: string
+    draftMentions?: MessageMention[]
+    draftSaving?: boolean
+    draftErrorCode?: string | null
+    draftHasUnresolvedDelivery?: boolean
+    presence?: ChannelPresence | null
+    voicePlaybacks?: ChannelVoicePlaybackState[]
+    voicePlaybackRate?: ChannelVoicePlaybackRate
+    voicePlaybackAvailable?: boolean
+    voiceTranscripts?: ChannelVoiceTranscript[]
+    voiceTranscriptionAvailable?: boolean
+    mediaSaves?: ChannelMediaSaveState[]
+    mediaSavingAvailable?: boolean
+  }>(),
+  {
+    replyTo: null,
+    hasMoreNewer: false,
+    highlightedMessageKey: null,
+    attachments: () => [],
+    selectionMode: false,
+    selectedMessageKeys: () => [],
+    selectedCount: 0,
+    canForwardIndividual: false,
+    canForwardMerged: false,
+    mentionMembers: () => [],
+    mentionMembersLoading: false,
+    draft: '',
+    draftMentions: () => [],
+    draftSaving: false,
+    draftErrorCode: null,
+    draftHasUnresolvedDelivery: false,
+    outgoingAttempts: () => [],
+    presence: null,
+    voicePlaybacks: () => [],
+    voicePlaybackRate: 1,
+    voicePlaybackAvailable: false,
+    voiceTranscripts: () => [],
+    voiceTranscriptionAvailable: false,
+    mediaSaves: () => [],
+    mediaSavingAvailable: false,
+    threadAvailable: false,
+  },
+)
 const emit = defineEmits<{
   forwardToAgent: [
     payload: {
@@ -34,20 +109,81 @@ const emit = defineEmits<{
       id?: string
     },
   ]
+  messageAction: [payload: { message: Message; action: MessageAction }]
+  quickComment: [payload: { message: Message; type: number; active: boolean }]
   togglePanel: []
-  send: [text: string]
+  send: [
+    payload: {
+      text: string
+      replyTo: Message | null
+      attachments: ChannelAttachment[]
+      mentions: MessageMention[]
+    },
+  ]
+  pickAttachments: []
+  removeAttachment: [token: string]
+  cancelReply: []
+  showDetails: []
   loadMore: []
+  loadNewer: []
+  refreshMessages: []
+  openSearch: []
+  openPinned: []
+  toggleMessageSelection: [message: Message]
+  selectAllVisible: []
+  cancelSelection: []
+  forwardSelection: [mode: ForwardMessageMode]
+  openMerged: [message: Message]
+  requestMentionMembers: []
+  openReceiptDetails: [message: Message]
+  updateDraft: [payload: { text: string; mentions: MessageMention[] }]
+  retryOutgoing: [attemptId: string]
+  cancelOutgoing: [attemptId: string]
+  dismissOutgoing: [attemptId: string]
+  transcribeVoice: [message: Message]
+  toggleVoicePlayback: [message: Message]
+  retryVoicePlayback: [message: Message]
+  seekVoicePlayback: [payload: { message: Message; positionMs: number }]
+  setVoicePlaybackRate: [rate: ChannelVoicePlaybackRate]
+  openMedia: [message: Message]
+  saveMedia: [message: Message]
+  cancelMediaSave: [message: Message]
+  retryMediaSave: [message: Message]
 }>()
 const { t } = useI18n()
-const draft = ref('')
 const container = ref<HTMLElement | null>(null)
 const initialScrollPending = ref(true)
 const prependSnapshot = ref<(TimelineScrollSnapshot & { messageCount: number }) | null>(null)
 
-function submitMessage(): void {
-  if (!draft.value.trim()) return
-  emit('send', draft.value.trim())
-  draft.value = ''
+function voiceTranscript(message: Message): ChannelVoiceTranscript | null {
+  return (
+    props.voiceTranscripts.find((transcript) => sameMessage(transcript.messageRef, message.ref)) ??
+    null
+  )
+}
+
+function voicePlayback(message: Message): ChannelVoicePlaybackState | null {
+  return (
+    props.voicePlaybacks.find((playback) => sameMessage(playback.messageRef, message.ref)) ?? null
+  )
+}
+
+function mediaSave(message: Message): ChannelMediaSaveState | null {
+  return props.mediaSaves.find((state) => sameMessage(state.messageRef, message.ref)) ?? null
+}
+
+function isMessageSelected(message: Message): boolean {
+  return props.selectedMessageKeys.includes(messageSelectionKey(message))
+}
+
+function handleQuickComment(message: Message, type: number, active: boolean): void {
+  debugQuickComment('timeline.emit', {
+    ref: message.ref,
+    type,
+    active,
+    reactions: message.reactions,
+  })
+  emit('quickComment', { message, type, active })
 }
 
 function requestOlderMessages(): void {
@@ -74,6 +210,20 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () =>
+    props.outgoingAttempts
+      .map((attempt) => `${attempt.attemptId}:${attempt.status}:${attempt.progress}`)
+      .join('|'),
+  async () => {
+    const element = container.value
+    if (!element) return
+    const nearBottom = isTimelineNearBottom(element)
+    await nextTick()
+    if (nearBottom) element.scrollTop = element.scrollHeight
+  },
 )
 
 watch(
@@ -111,12 +261,28 @@ watch(
     prependSnapshot.value = null
   },
 )
+
+watch(
+  () => props.highlightedMessageKey,
+  async (value) => {
+    if (!value) return
+    await nextTick()
+    const element = container.value
+    const target = element
+      ? [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find(
+          (candidate) => candidate.dataset.messageKey === value,
+        )
+      : undefined
+    if (target && typeof target.scrollIntoView === 'function')
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  },
+)
 </script>
 
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-canvas px-4 sm:px-6"
+      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
     >
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -126,6 +292,11 @@ watch(
             aria-hidden="true"
           />
           <h2 class="truncate text-base font-semibold text-fg">{{ channel.name }}</h2>
+          <ChannelPresenceIndicator
+            v-if="channel.kind === 'direct' && channel.directAccountId"
+            :availability="presence?.availability ?? 'unknown'"
+            size="inline"
+          />
           <span v-if="channel.memberCount" class="text-sm text-subtle">
             {{ t('channels.members', { count: channel.memberCount }) }}
           </span>
@@ -133,11 +304,30 @@ watch(
         <p class="mt-0.5 truncate text-sm text-subtle">{{ channel.description }}</p>
       </div>
       <div class="flex items-center gap-1">
-        <TeaIconButton size="small" :label="t('channels.searchInChannel')" icon="i-mdi-magnify" />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.searchInChannel')"
+          icon="i-mdi-magnify"
+          @click="emit('openSearch')"
+        />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.pinned.open')"
+          icon="i-mdi-pin-outline"
+          @click="emit('openPinned')"
+        />
+        <TeaIconButton
+          size="small"
+          :label="t('channels.refreshMessages')"
+          icon="i-mdi-refresh"
+          :disabled="loading"
+          @click="emit('refreshMessages')"
+        />
         <TeaIconButton
           size="small"
           :label="t('channels.channelDetails')"
           icon="i-mdi-information-outline"
+          @click="emit('showDetails')"
         />
         <TeaIconButton
           size="small"
@@ -152,13 +342,13 @@ watch(
 
     <div ref="container" class="channel-scroll-area flex-1 overflow-y-auto py-2">
       <div
-        v-if="loading && messages.length === 0"
+        v-if="loading && messages.length === 0 && outgoingAttempts.length === 0"
         class="flex h-full items-center justify-center text-subtle"
       >
         <span class="i-mdi-loading size-5 animate-spin" aria-hidden="true" />
       </div>
       <div
-        v-else-if="messages.length === 0"
+        v-else-if="messages.length === 0 && outgoingAttempts.length === 0"
         class="flex h-full flex-col items-center justify-center px-8 text-center"
       >
         <span class="i-mdi-message-outline size-6 text-disabled" aria-hidden="true" />
@@ -187,39 +377,117 @@ watch(
           v-for="(message, index) in messages"
           :key="message.ref.messageServerId || message.ref.messageClientId"
           :message="message"
+          :thread-available="threadAvailable"
+          :highlighted="
+            highlightedMessageKey ===
+            `${message.ref.channelRef}:${message.ref.messageServerId || message.ref.messageClientId}`
+          "
           :menu-open-up="index >= messages.length - 2"
           :active-conversation="activeConversation"
           :recent-conversations="recentConversations"
           :current-session-available="currentSessionAvailable"
           :runtimes="runtimes"
           :default-runtime-id="defaultRuntimeId"
-          :user-profiles="userProfiles"
+          :selection-mode="selectionMode"
+          :selected="isMessageSelected(message)"
+          :voice-transcript="voiceTranscript(message)"
+          :voice-transcription-available="voiceTranscriptionAvailable"
+          :voice-playback="voicePlayback(message)"
+          :voice-playback-rate="voicePlaybackRate"
+          :voice-playback-available="voicePlaybackAvailable"
+          :media-save="mediaSave(message)"
+          :media-saving-available="mediaSavingAvailable"
           @forward-to-agent="(action, id) => emit('forwardToAgent', { message, action, id })"
+          @action="(action) => emit('messageAction', { message, action })"
+          @quick-comment="(type, active) => handleQuickComment(message, type, active)"
+          @toggle-selection="emit('toggleMessageSelection', message)"
+          @open-merged="emit('openMerged', message)"
+          @open-receipt-details="emit('openReceiptDetails', message)"
+          @transcribe-voice="emit('transcribeVoice', message)"
+          @toggle-voice-playback="emit('toggleVoicePlayback', message)"
+          @retry-voice-playback="emit('retryVoicePlayback', message)"
+          @seek-voice-playback="(positionMs) => emit('seekVoicePlayback', { message, positionMs })"
+          @set-voice-playback-rate="emit('setVoicePlaybackRate', $event)"
+          @open-media="emit('openMedia', message)"
+          @save-media="emit('saveMedia', message)"
+          @cancel-media-save="emit('cancelMediaSave', message)"
+          @retry-media-save="emit('retryMediaSave', message)"
         />
+        <ChannelOutgoingMessageItem
+          v-for="attempt in outgoingAttempts"
+          :key="attempt.attemptId"
+          :attempt="attempt"
+          @retry="emit('retryOutgoing', attempt.attemptId)"
+          @cancel="emit('cancelOutgoing', attempt.attemptId)"
+          @dismiss="emit('dismissOutgoing', attempt.attemptId)"
+        />
+        <div v-if="hasMoreNewer" class="flex justify-center pt-2">
+          <TeaButton appearance="ghost" size="small" :disabled="loading" @click="emit('loadNewer')">
+            {{ loading ? t('channels.history.loadingNewer') : t('channels.history.loadNewer') }}
+          </TeaButton>
+        </div>
       </div>
     </div>
 
-    <div class="channel-composer-bar shrink-0 px-3 py-2.5 sm:px-4">
-      <div class="channel-composer-shell mx-auto flex w-full max-w-4xl items-end gap-2">
-        <TeaTextarea
-          v-model="draft"
-          class="channel-composer-input min-w-0 flex-1"
-          size="compact"
-          auto-grow
-          :rows="1"
-          :label="t('channels.composer.placeholder', { channel: channel.name })"
-          :placeholder="t('channels.composer.placeholder', { channel: channel.name })"
-          @keydown.meta.enter.prevent="submitMessage"
-          @keydown.ctrl.enter.prevent="submitMessage"
-        />
-        <TeaIconButton
-          class="channel-composer-send"
-          size="small"
-          :label="t('channels.composer.send')"
-          icon="i-mdi-arrow-up"
-          appearance="primary"
-          :disabled="!draft.trim() || sending"
-          @click="submitMessage"
+    <div v-if="selectionMode" class="channel-selection-bar shrink-0 px-3 py-2.5 sm:px-4">
+      <div class="channel-selection-shell mx-auto w-full max-w-4xl">
+        <div class="flex min-w-0 items-center gap-2">
+          <TeaIconButton
+            size="small"
+            :label="t('channels.selection.cancel')"
+            icon="i-mdi-close"
+            @click="emit('cancelSelection')"
+          />
+          <span class="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
+            {{
+              t('channels.selection.count', { count: selectedCount, limit: FORWARD_MESSAGE_LIMIT })
+            }}
+          </span>
+          <TeaButton appearance="ghost" size="small" @click="emit('selectAllVisible')">
+            {{ t('channels.selection.selectAll') }}
+          </TeaButton>
+        </div>
+        <div class="channel-selection-actions flex items-center justify-end gap-2">
+          <TeaButton
+            size="small"
+            :disabled="!canForwardIndividual"
+            @click="emit('forwardSelection', 'individual')"
+          >
+            <span class="i-mdi-forward size-4" aria-hidden="true" />
+            {{ t('channels.selection.individual') }}
+          </TeaButton>
+          <TeaButton
+            appearance="primary"
+            size="small"
+            :disabled="!canForwardMerged"
+            @click="emit('forwardSelection', 'merged')"
+          >
+            <span class="i-mdi-file-multiple-outline size-4" aria-hidden="true" />
+            {{ t('channels.selection.merged') }}
+          </TeaButton>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="channel-composer-bar shrink-0 px-3 py-2.5 sm:px-4">
+      <div class="mx-auto w-full max-w-4xl">
+        <ChannelComposer
+          :channel="channel"
+          :draft="draft"
+          :draft-mentions="draftMentions"
+          :reply-to="replyTo"
+          :attachments="attachments"
+          :mention-members="mentionMembers"
+          :mention-members-loading="mentionMembersLoading"
+          :draft-saving="draftSaving"
+          :draft-error-code="draftErrorCode"
+          :draft-has-unresolved-delivery="draftHasUnresolvedDelivery"
+          @send="emit('send', $event)"
+          @pick-attachments="emit('pickAttachments')"
+          @remove-attachment="emit('removeAttachment', $event)"
+          @cancel-reply="emit('cancelReply')"
+          @request-mention-members="emit('requestMentionMembers')"
+          @update-draft="emit('updateDraft', $event)"
         />
       </div>
     </div>
@@ -229,30 +497,27 @@ watch(
 <style scoped>
 .channel-composer-bar {
   border-top: 1px solid var(--tea-line-soft);
-  background: var(--tea-canvas);
+  background: var(--tea-panel);
 }
-.channel-composer-shell {
-  border: 1px solid var(--tea-line-soft);
-  border-radius: var(--tea-radius-card);
-  background: var(--tea-canvas);
-  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+.channel-selection-bar {
+  min-height: 6.5rem;
+  border-top: 1px solid var(--tea-line-soft);
+  background: var(--tea-panel);
 }
-.channel-composer-input {
-  min-height: 2.25rem;
-  max-height: 8rem;
-  resize: none;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0.375rem 0.25rem;
-  box-shadow: none;
+.channel-selection-shell {
+  display: grid;
+  gap: 0.5rem;
 }
-.channel-composer-input:focus {
-  border-color: transparent;
-  box-shadow: none;
-  outline: none;
+.channel-selection-actions {
+  min-width: 0;
 }
-.channel-composer-send {
-  margin-bottom: 0.125rem;
+@media (min-width: 640px) {
+  .channel-selection-bar {
+    min-height: 3.75rem;
+  }
+  .channel-selection-shell {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
 }
 </style>

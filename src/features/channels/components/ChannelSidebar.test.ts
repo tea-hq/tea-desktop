@@ -2,21 +2,29 @@
 
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
-import type { Channel, ChannelStatus, ChannelUserProfile } from '../contracts'
+import type { Channel, ChannelDraft, ChannelPresence, ChannelStatus } from '../contracts'
 import ChannelSidebar from './ChannelSidebar.vue'
 
 const connectedStatus: ChannelStatus = { phase: 'connected', retryable: true }
 
-function mountSidebar(channels: Channel[], loading: boolean) {
+function mountSidebar(
+  channels: Channel[],
+  loading: boolean,
+  drafts: ChannelDraft[] = [],
+  presences: ChannelPresence[] = [],
+) {
   return mount(ChannelSidebar, {
     props: {
       channels,
       activeRef: null,
       status: connectedStatus,
       loading,
+      drafts,
+      presences,
     },
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
@@ -24,33 +32,13 @@ function mountSidebar(channels: Channel[], loading: boolean) {
   })
 }
 
-const channelFixtures: Channel[] = [
-  {
-    ref: 'product',
-    kind: 'group',
-    name: 'Product design',
-    description: 'Desktop Agent experience',
-    unreadCount: 0,
-    updatedAt: 1,
-  },
-  {
-    ref: 'engineering',
-    kind: 'group',
-    name: 'Engineering',
-    description: 'Implementation coordination',
-    unreadCount: 0,
-    updatedAt: 1,
-  },
-]
-
 describe('ChannelSidebar', () => {
   it('shows a loading transition instead of the empty state while the catalog is pending', () => {
     const wrapper = mountSidebar([], true)
 
     expect(wrapper.get('[role="status"]').text()).toBe('Syncing conversations')
-    expect(wrapper.get('aside').attributes('aria-label')).toBe('Channels')
-    expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.findAll('.channel-row')).toHaveLength(6)
+    expect(wrapper.findAll('.channel-row--skeleton')).toHaveLength(6)
     expect(wrapper.get('input').attributes('disabled')).toBeDefined()
     expect(wrapper.find('p').exists()).toBe(false)
   })
@@ -62,77 +50,113 @@ describe('ChannelSidebar', () => {
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 
-  it('uses the shell query without rendering a second sidebar search field', () => {
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: channelFixtures,
-        activeRef: null,
-        status: connectedStatus,
-        loading: false,
-        searchQuery: 'engineering',
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
+  it('opens conversation controls from the row context menu without a trailing action slot', async () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: true,
+      muted: true,
+      unreadCount: 3,
+      updatedAt: 2,
+    }
+    const wrapper = mountSidebar([channel], false)
 
-    expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.findAll('.channel-row')).toHaveLength(1)
-    expect(wrapper.get('.channel-row').text()).toContain('Engineering')
-    expect(wrapper.get('.channel-row').find('img').exists()).toBe(false)
-    expect(wrapper.get('.channel-row').text()).toContain('EN')
+    expect(wrapper.find('[data-channel-status="pinned"]').exists()).toBe(true)
+    expect(wrapper.find('[data-channel-status="muted"]').exists()).toBe(true)
+    expect(wrapper.find('.channel-row__action-slot').exists()).toBe(false)
+    expect(wrapper.get('.channel-row__status').attributes('aria-label')).toBe(
+      'Pinned conversation, Notifications muted',
+    )
+    await wrapper.get('.channel-row').trigger('contextmenu', { clientX: 420, clientY: 180 })
+    await nextTick()
+
+    expect(wrapper.get('[role="menu"]').text()).toContain('Unpin conversation')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Unmute notifications')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Mark as read')
+    expect(wrapper.get('[role="menu"]').text()).toContain('Hide conversation')
+
+    const hide = wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text().includes('Hide conversation'))!
+    await hide.trigger('click')
+    expect(wrapper.emitted('hide')).toEqual([['product']])
   })
 
-  it('renders a cached IM profile avatar for direct conversations', () => {
-    const direct: Channel = {
-      ref: 'direct-account-b',
-      kind: 'direct',
-      participantAccountId: 'account-b',
-      name: 'Account B',
-      description: 'Direct conversation',
+  it('opens conversation controls from the keyboard context-menu command', async () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: false,
+      muted: false,
       unreadCount: 0,
-      updatedAt: 1,
+      updatedAt: 2,
     }
-    const profile: ChannelUserProfile = { accountId: 'account-b', name: 'Account B' }
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: [direct],
-        activeRef: direct.ref,
-        status: connectedStatus,
-        loading: false,
-        userProfiles: new Map([[profile.accountId, profile]]),
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
+    const wrapper = mountSidebar([channel], false)
 
-    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
+    await wrapper.get('.channel-row__select').trigger('keydown', { key: 'ContextMenu' })
+    await nextTick()
+
+    expect(wrapper.get('[role="menu"]').text()).toContain('Pin conversation')
   })
 
-  it('does not wait for the profile request before generating a direct avatar', () => {
-    const direct: Channel = {
-      ref: 'direct-account-c',
-      kind: 'direct',
-      participantAccountId: 'account-c',
-      name: 'Account C',
-      description: 'Direct conversation',
+  it('replaces the message preview with a localized draft projection', () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: false,
+      muted: false,
       unreadCount: 0,
-      updatedAt: 1,
+      updatedAt: 2,
+      lastMessagePreview: 'Last delivered message',
     }
-    const wrapper = mount(ChannelSidebar, {
-      props: {
-        channels: [direct],
-        activeRef: direct.ref,
-        status: connectedStatus,
-        loading: false,
-        userProfiles: new Map(),
-      },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
-      },
-    })
+    const draft: ChannelDraft = {
+      accountRef: 'account',
+      channelRef: channel.ref,
+      text: '  Review the release notes  ',
+      mentions: [],
+      updatedAt: 3,
+    }
+    const wrapper = mountSidebar([channel], false, [draft])
 
-    expect(wrapper.get('.channel-row img').attributes('src')).toMatch(/^data:image\/svg\+xml/)
+    expect(wrapper.get('.channel-row__preview').text()).toContain('Draft')
+    expect(wrapper.get('.channel-row__preview').text()).toContain('Review the release notes')
+    expect(wrapper.text()).not.toContain('Last delivered message')
+  })
+
+  it('overlays availability on direct avatars without marking groups', () => {
+    const direct: Channel = {
+      ref: 'lin-direct',
+      kind: 'direct',
+      directAccountId: 'lin',
+      name: 'Lin',
+      description: 'Product design',
+      pinned: false,
+      muted: false,
+      unreadCount: 0,
+      updatedAt: 2,
+    }
+    const group: Channel = {
+      ...direct,
+      ref: 'product',
+      kind: 'group',
+      directAccountId: undefined,
+      name: 'Product',
+    }
+    const wrapper = mountSidebar(
+      [direct, group],
+      false,
+      [],
+      [{ accountId: 'lin', availability: 'online', updatedAt: 3 }],
+    )
+    const rows = wrapper.findAll('.channel-row')
+
+    expect(rows[0]!.get('[data-channel-presence="online"]').attributes('aria-label')).toBe('Online')
+    expect(rows[1]!.find('[data-channel-presence]').exists()).toBe(false)
   })
 })

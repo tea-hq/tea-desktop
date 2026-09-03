@@ -24,16 +24,38 @@ export async function verifyTransportContract(transport: ChannelTransport): Prom
   }
   const channels = await transport.listChannels({ offset: 0, limit: 2 })
   expect(channels.items.length).toBeGreaterThan(0)
+  const presenceCapability = transport
+    .capabilities()
+    .find((value) => value.id === 'presence.subscribe')
+  if (presenceCapability?.available) {
+    const directAccountId = channels.items.find(
+      (channel) => channel.directAccountId,
+    )?.directAccountId
+    const accountIds = directAccountId ? [directAccountId] : []
+    const inputSnapshot = [...accountIds]
+    await transport.setPresenceSubscriptions(accountIds)
+    expect(accountIds).toEqual(inputSnapshot)
+    await transport.setPresenceSubscriptions([])
+  }
   const channelRef = channels.items[0]!.ref
   const page = await transport.loadMessages({ channelRef, direction: 'before', limit: 20 })
   expect(page.channelRef).toBe(channelRef)
   expect(page.items).toEqual([...page.items].sort((left, right) => left.sentAt - right.sentAt))
   await transport.markRead(channelRef)
 
-  const request = { channelRef, text: 'contract message', idempotencyKey: 'contract-key' }
+  const request = {
+    channelRef,
+    content: { kind: 'text' as const, text: 'contract message' },
+    idempotencyKey: 'contract-key',
+  }
   const first = await transport.sendMessage(request)
   const duplicate = await transport.sendMessage(request)
   expect(duplicate).toEqual(first)
+  const confirmed = events
+    .filter((event) => event.type === 'message.upserted')
+    .flatMap((event) => event.messages)
+    .find((message) => message.clientReference === request.idempotencyKey)
+  expect(confirmed?.ref).toEqual(first.ref)
   expect(events.some((event) => event.type === 'status.changed')).toBe(true)
   expect(events.every((event) => Number.isInteger(event.sequence))).toBe(true)
 

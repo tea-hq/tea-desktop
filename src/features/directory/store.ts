@@ -31,7 +31,7 @@ export const useDirectoryStore = defineStore('directory', () => {
     phase.value = 'idle'
     errorKey.value = null
   }
-  async function refresh(): Promise<void> {
+  async function refresh(forceRefresh = false): Promise<void> {
     const configured = client.value
     const operation = ++generation
     if (!configured) {
@@ -42,7 +42,7 @@ export const useDirectoryStore = defineStore('directory', () => {
     phase.value = 'loading'
     errorKey.value = null
     try {
-      const result = await configured.listUsers()
+      const result = await configured.listUsers(forceRefresh ? { forceRefresh: true } : undefined)
       if (operation !== generation || configured !== client.value) return
       users.value = structuredClone(result.users)
       phase.value = 'ready'

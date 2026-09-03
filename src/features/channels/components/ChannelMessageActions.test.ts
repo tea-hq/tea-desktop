@@ -30,6 +30,7 @@ function mountActions(
     openUp?: boolean
     sentByCurrentUser?: boolean
     messageState?: 'active' | 'revoked'
+    threadAvailable?: boolean
   } = {},
 ) {
   return mount(ChannelMessageActions, {
@@ -37,6 +38,7 @@ function mountActions(
       openUp: options.openUp ?? false,
       sentByCurrentUser: options.sentByCurrentUser ?? true,
       messageState: options.messageState ?? 'active',
+      threadAvailable: options.threadAvailable ?? false,
       activeConversation,
       recentConversations: [],
       currentSessionAvailable: true,
@@ -62,15 +64,23 @@ describe('ChannelMessageActions', () => {
 
     expect(wrapper.get('[role="toolbar"]').attributes('aria-label')).toBe('Message actions')
     expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Quick reaction',
       'Reply',
       'Forward',
-      'Quick reaction',
       'Work with Agent',
       'More message actions',
     ])
 
     await wrapper.get('button[aria-label="Reply"]').trigger('click')
     expect(wrapper.emitted('action')).toEqual([['reply']])
+  })
+
+  it('routes quick reaction through the hover action bar', async () => {
+    wrapper = mountActions()
+
+    await wrapper.get('button[aria-label="Quick reaction"]').trigger('click')
+
+    expect(wrapper.emitted('action')).toEqual([['reaction']])
   })
 
   it('forwards the selected message action and closes its menu', async () => {
@@ -90,6 +100,16 @@ describe('ChannelMessageActions', () => {
     expect(trigger.attributes('aria-expanded')).toBe('false')
   })
 
+  it('exposes the thread action only when the channel advertises threads', async () => {
+    wrapper = mountActions({ threadAvailable: true })
+
+    expect(wrapper.findAll('button').map((button) => button.attributes('aria-label'))).toContain(
+      'Open thread',
+    )
+    await wrapper.get('button[aria-label="Open thread"]').trigger('click')
+    expect(wrapper.emitted('action')).toEqual([['thread']])
+  })
+
   it('groups destructive actions in the overflow menu for sent messages', async () => {
     wrapper = mountActions({ sentByCurrentUser: true })
 
@@ -98,17 +118,29 @@ describe('ChannelMessageActions', () => {
 
     const menu = wrapper.get('[role="menu"]')
     expect(menu.findAll('[role="menuitem"]').map((item) => item.text())).toEqual([
-      'Reply',
-      'Forward',
-      'Quick reaction',
+      'Select messages',
+      'Edit message',
+      'Pin message',
+      'Save message',
       'Revoke message',
       'Delete message',
     ])
-    expect(menu.findAll('[role="menuitem"]')[4]?.classes()).toContain('text-danger')
+    expect(menu.findAll('[role="menuitem"]')[5]?.classes()).toContain('text-danger')
 
-    await menu.findAll('[role="menuitem"]')[4]!.trigger('click')
+    await menu.findAll('[role="menuitem"]')[5]!.trigger('click')
     expect(wrapper.emitted('action')).toEqual([['delete']])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+  })
+
+  it('keeps hover actions out of the overflow menu', async () => {
+    wrapper = mountActions()
+    await wrapper.get('button[aria-label="More message actions"]').trigger('click')
+
+    const menu = wrapper.get('[role="menu"]')
+    expect(menu.text()).not.toContain('Quick reaction')
+    expect(menu.text()).not.toContain('Reply')
+    expect(menu.text()).not.toContain('Forward')
+    expect(menu.text()).not.toContain('Open thread')
   })
 
   it('omits revoke for received messages and leaves only delete after revocation', async () => {

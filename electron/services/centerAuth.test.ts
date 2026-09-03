@@ -93,6 +93,91 @@ describe('ElectronCenterAuthService', () => {
     expect(stored.encryptedRefresh).toBeUndefined()
     expect(stored.cachedState).toBeUndefined()
   })
+
+  it('caches directory users within the TTL and honors force refresh', async () => {
+    const fixture = await authFixture()
+    let clock = 1_000
+    let directoryCalls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const endpoint = new URL(String(input)).pathname
+        if (endpoint === '/v1/endpoint-sessions/refresh')
+          return jsonResponse(200, sessionResponse(refreshCredential(fixture.publicKey, 2)))
+        if (endpoint === '/v1/endpoint/bootstrap') return jsonResponse(200, fixture.bootstrap)
+        if (endpoint === '/v1/endpoint/directory/users') {
+          directoryCalls += 1
+          return jsonResponse(200, { schemaVersion: 1, users: [directoryUser()] })
+        }
+        throw new Error(`unexpected Center endpoint: ${endpoint}`)
+      }),
+    )
+    const service = new ElectronCenterAuthService(
+      fixture.filePath,
+      () => undefined,
+      () => clock,
+    )
+    await service.initialize()
+
+    await service.listDirectoryUsers()
+    await service.listDirectoryUsers()
+    expect(directoryCalls).toBe(1)
+
+    clock += 30_000
+    await service.listDirectoryUsers()
+    expect(directoryCalls).toBe(2)
+
+    await service.listDirectoryUsers({ forceRefresh: true })
+    expect(directoryCalls).toBe(3)
+  })
+
+  it('merges concurrent directory requests and does not leak a failed response into cache', async () => {
+    const fixture = await authFixture()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let directoryCalls = 0
+    let fail = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const endpoint = new URL(String(input)).pathname
+        if (endpoint === '/v1/endpoint-sessions/refresh')
+          return jsonResponse(200, sessionResponse(refreshCredential(fixture.publicKey, 2)))
+        if (endpoint === '/v1/endpoint/bootstrap') return jsonResponse(200, fixture.bootstrap)
+        if (endpoint === '/v1/endpoint/directory/users') {
+          directoryCalls += 1
+          await gate
+          if (fail) return jsonResponse(503, { code: 'centerUnavailable' })
+          return jsonResponse(200, { schemaVersion: 1, users: [directoryUser()] })
+        }
+        throw new Error(`unexpected Center endpoint: ${endpoint}`)
+      }),
+    )
+    const service = new ElectronCenterAuthService(fixture.filePath, () => undefined)
+    await service.initialize()
+
+    const first = service.listDirectoryUsers({ forceRefresh: true })
+    const second = service.listDirectoryUsers({ forceRefresh: true })
+    release()
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { schemaVersion: 1, users: [directoryUser()] },
+      { schemaVersion: 1, users: [directoryUser()] },
+    ])
+    expect(directoryCalls).toBe(1)
+
+    fail = true
+    await expect(service.listDirectoryUsers({ forceRefresh: true })).rejects.toMatchObject({
+      code: 'centerUnavailable',
+    })
+    expect(directoryCalls).toBe(2)
+    await expect(service.listDirectoryUsers()).resolves.toEqual({
+      schemaVersion: 1,
+      users: [directoryUser()],
+    })
+    expect(directoryCalls).toBe(2)
+  })
 })
 
 interface RefreshRequest {
@@ -184,6 +269,20 @@ function sessionResponse(refresh: string) {
     deviceId: 'device-1',
     endpointSessionId: 'endpoint-session-1',
     capabilities: ['tasks.read', 'tasks.command'],
+  }
+}
+
+function directoryUser() {
+  return {
+    tenant: { id: 'tenant-1', domain: 'example.test', displayName: 'Example' },
+    center: { userId: 'user-2', displayName: 'Directory User' },
+    oidc: {
+      subject: 'oidc-user-2',
+      preferredUsername: 'directory-user',
+      email: 'directory@example.test',
+      emailVerified: true,
+    },
+    im: { provider: 'yunxin', account: 'yunxin-user-2', status: 'ready' },
   }
 }
 

@@ -80,6 +80,7 @@ const {
     <SettingsPage
       :locale-preference="settings.settings.locale"
       :theme-preference="settings.settings.theme"
+      :notification-settings="settings.settings.notifications"
       :default-runtime-id="settings.defaultRuntimeId"
       :default-model="settings.defaultModel"
       :model-options="conversationModelOptions"
@@ -89,6 +90,9 @@ const {
       @close="selectWorkspace(previousMode)"
       @update-locale="settings.setLocalePreference($event)"
       @update-theme="settings.setThemePreference($event)"
+      @update-notifications-enabled="settings.setNotificationsEnabled($event)"
+      @update-notification-sound="settings.setNotificationSound($event)"
+      @update-notification-preview="settings.setNotificationPreview($event)"
       @update-default-runtime="settings.setDefaultRuntime($event)"
       @update-default-model="settings.setDefaultModel($event)"
     />

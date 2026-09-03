@@ -72,6 +72,23 @@ function updatePosition(anchorElement: HTMLElement | null = anchor.value): void 
   void nextTick(positionAfterMeasure)
 }
 
+function showAt(point: { x: number; y: number }): void {
+  open.value = true
+  position.value = { top: point.y, left: point.x }
+  activeIndex.value = focusableIndices.value[0] ?? -1
+  void nextTick(() => {
+    if (!menu.value) return
+    const menuRect = menu.value.getBoundingClientRect()
+    position.value = calculateFloatingMenuPosition(
+      { left: point.x, right: point.x, top: point.y, bottom: point.y },
+      { width: menuRect.width, height: menuRect.height },
+      { width: window.innerWidth, height: window.innerHeight },
+      { alignEnd: false, preferUp: true, gap: 0 },
+    )
+    void nextTick(() => itemRefs.value[activeIndex.value]?.focus())
+  })
+}
+
 function show(event: Event): void {
   const anchor =
     event.currentTarget instanceof HTMLElement
@@ -179,7 +196,7 @@ onBeforeUnmount(() => {
   }
 })
 
-defineExpose({ toggle, show, hide })
+defineExpose({ toggle, show, showAt, hide })
 </script>
 
 <template>

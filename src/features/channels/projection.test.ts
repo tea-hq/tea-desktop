@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Channel, Message } from './contracts'
+import { createTextMessageContent } from './messageContent'
 import {
   createChannelProjection,
   mergeMessagePage,
@@ -12,6 +13,8 @@ const channel: Channel = {
   kind: 'group',
   name: 'Channel',
   description: '',
+  pinned: false,
+  muted: false,
   unreadCount: 2,
   updatedAt: 10,
 }
@@ -22,6 +25,7 @@ function message(clientId: string, sentAt: number, serverId?: string, text = cli
     sender: { id: 'u1', name: 'User', isCurrentUser: false },
     sentAt,
     text,
+    content: createTextMessageContent(text),
     state: 'active',
     sentByCurrentUser: false,
     pinned: false,
@@ -47,7 +51,7 @@ describe('channel projection', () => {
       hasMore: true,
     })
     reduceChannelEvent(projection, {
-      type: 'message.upserted',
+      type: 'message.received',
       sequence: 1,
       occurredAt: 3,
       messages: [message('other-client', 2, 's2', 'modified'), message('m3', 3, 's3')],
@@ -63,7 +67,7 @@ describe('channel projection', () => {
     const projection = createChannelProjection()
     expect(
       reduceChannelEvent(projection, {
-        type: 'message.upserted',
+        type: 'message.received',
         sequence: 2,
         occurredAt: 2,
         messages: [message('m2', 2)],

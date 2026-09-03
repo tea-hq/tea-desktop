@@ -6,23 +6,35 @@ import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversa
 import { TeaIconButton, TeaMenu, type TeaMenuItem } from '@/shared/ui'
 import ChannelAgentMenu from './ChannelAgentMenu.vue'
 
-type MessageAction = 'reply' | 'forward' | 'reaction' | 'revoke' | 'delete'
+export type MessageAction =
+  | 'reply'
+  | 'thread'
+  | 'forward'
+  | 'select'
+  | 'reaction'
+  | 'edit'
+  | 'pin'
+  | 'save'
+  | 'revoke'
+  | 'delete'
 type OpenMenu = 'agent' | 'more'
 
 const props = defineProps<{
   openUp: boolean
   sentByCurrentUser: boolean
   messageState: 'active' | 'revoked'
+  threadAvailable?: boolean
+  pinned?: boolean
   activeConversation: ConversationSummary | null
   recentConversations: ConversationSummary[]
   currentSessionAvailable: boolean
   runtimes: RuntimeDescriptor[]
   defaultRuntimeId: string | null
 }>()
-
 const emit = defineEmits<{
   action: [action: MessageAction]
   forwardToAgent: [action: 'current' | 'conversation' | 'runtime' | 'all', id?: string]
+  openMenu: [menu: OpenMenu]
 }>()
 const { t } = useI18n()
 const activeMenu = ref<OpenMenu | null>(null)
@@ -34,12 +46,23 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
   const items: TeaMenuItem[] = []
   if (props.messageState === 'active') {
     items.push(
-      { value: 'reply', label: t('channels.message.reply'), icon: 'i-mdi-reply-outline' },
-      { value: 'forward', label: t('channels.message.forward'), icon: 'i-mdi-forward' },
       {
-        value: 'reaction',
-        label: t('channels.message.quickReaction'),
-        icon: 'i-mdi-emoticon-plus-outline',
+        value: 'select',
+        label: t('channels.selection.select'),
+        icon: 'i-mdi-checkbox-multiple-marked-outline',
+      },
+      ...(props.sentByCurrentUser
+        ? [{ value: 'edit', label: t('channels.message.edit'), icon: 'i-mdi-pencil-outline' }]
+        : []),
+      {
+        value: 'pin',
+        label: props.pinned ? t('channels.message.unpin') : t('channels.message.pin'),
+        icon: props.pinned ? 'i-mdi-pin-off-outline' : 'i-mdi-pin-outline',
+      },
+      {
+        value: 'save',
+        label: t('channels.message.save'),
+        icon: 'i-mdi-bookmark-plus-outline',
       },
       { value: 'separator:destructive', label: '', separator: true },
     )
@@ -61,6 +84,7 @@ const moreMenuItems = computed<TeaMenuItem[]>(() => {
 })
 
 function toggleAgentMenu(): void {
+  if (activeMenu.value !== 'agent') emit('openMenu', 'agent')
   activeMenu.value = activeMenu.value === 'agent' ? null : 'agent'
 }
 
@@ -69,6 +93,7 @@ function toggleMoreMenu(): void {
     moreMenu.value?.hide()
     return
   }
+  emit('openMenu', 'more')
   activeMenu.value = 'more'
   void nextTick(() => {
     const target = moreMenuAnchor.value
@@ -93,9 +118,10 @@ function closeMoreMenu(): void {
 
 function selectMessageAction(value: string): void {
   if (
-    value === 'reply' ||
-    value === 'forward' ||
-    value === 'reaction' ||
+    value === 'select' ||
+    value === 'edit' ||
+    value === 'pin' ||
+    value === 'save' ||
     value === 'revoke' ||
     value === 'delete'
   ) {
@@ -114,11 +140,27 @@ function selectMessageAction(value: string): void {
   >
     <TeaIconButton
       v-if="messageState === 'active'"
+      class="channel-message-actions__button"
+      size="small"
+      :label="t('channels.message.quickReaction')"
+      icon="i-mdi-emoticon-plus-outline"
+      @click.stop="emit('action', 'reaction')"
+    />
+    <TeaIconButton
+      v-if="messageState === 'active'"
       class="channel-message-actions__button channel-message-actions__quick"
       size="small"
       :label="t('channels.message.reply')"
       icon="i-mdi-reply-outline"
       @click.stop="emit('action', 'reply')"
+    />
+    <TeaIconButton
+      v-if="messageState === 'active' && threadAvailable"
+      class="channel-message-actions__button channel-message-actions__quick"
+      size="small"
+      :label="t('channels.message.openThread')"
+      icon="i-mdi-message-reply-text-outline"
+      @click.stop="emit('action', 'thread')"
     />
     <TeaIconButton
       v-if="messageState === 'active'"
@@ -127,14 +169,6 @@ function selectMessageAction(value: string): void {
       :label="t('channels.message.forward')"
       icon="i-mdi-forward"
       @click.stop="emit('action', 'forward')"
-    />
-    <TeaIconButton
-      v-if="messageState === 'active'"
-      class="channel-message-actions__button channel-message-actions__quick"
-      size="small"
-      :label="t('channels.message.quickReaction')"
-      icon="i-mdi-emoticon-plus-outline"
-      @click.stop="emit('action', 'reaction')"
     />
     <span v-if="messageState === 'active'" ref="agentMenuAnchor" class="inline-flex">
       <TeaIconButton

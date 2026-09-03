@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import TeaButton from '../TeaButton.vue'
 import TeaChoiceButton from '../TeaChoiceButton.vue'
+import TeaCheckbox from '../TeaCheckbox.vue'
 import TeaDialog from '../TeaDialog.vue'
 import TeaDrawer from '../TeaDrawer.vue'
 import TeaEmptyState from '../TeaEmptyState.vue'
@@ -15,6 +16,7 @@ import TeaInput from '../TeaInput.vue'
 import TeaMenu from '../TeaMenu.vue'
 import TeaMenuSelect from '../TeaMenuSelect.vue'
 import TeaSelect from '../TeaSelect.vue'
+import TeaSlider from '../TeaSlider.vue'
 import TeaTabs from '../TeaTabs.vue'
 import TeaTextarea from '../TeaTextarea.vue'
 
@@ -26,6 +28,21 @@ function mountTea(component: Component, options: MountingOptions<never> = {}) {
 }
 
 describe('Tea primitives', () => {
+  it('keeps checkboxes controlled with accessible and disabled states', async () => {
+    const wrapper = mountTea(TeaCheckbox, {
+      props: { modelValue: false, label: 'Select Product' },
+    })
+    const input = wrapper.get<HTMLInputElement>('input[type="checkbox"]')
+
+    expect(input.attributes('aria-label')).toBe('Select Product')
+    await input.setValue(true)
+    expect(wrapper.emitted('update:modelValue')).toEqual([[true]])
+    expect(input.element.checked).toBe(true)
+
+    await wrapper.setProps({ disabled: true })
+    expect(input.attributes('disabled')).toBeDefined()
+  })
+
   it('keeps inputs controlled and forwards invalid and accessible states', async () => {
     const wrapper = mountTea(TeaInput, {
       props: { modelValue: 'before', label: 'Workspace name', invalid: true },
@@ -85,6 +102,33 @@ describe('Tea primitives', () => {
   it('requires icon-button labels at the type boundary and forwards them', () => {
     const wrapper = mountTea(TeaIconButton, { props: { label: 'Close', icon: 'i-mdi-close' } })
     expect(wrapper.get('button').attributes('aria-label')).toBe('Close')
+  })
+
+  it('keeps sliders controlled with bounded accessible values', async () => {
+    const wrapper = mountTea(TeaSlider, {
+      props: {
+        modelValue: 25,
+        min: 0,
+        max: 100,
+        step: 1,
+        label: 'Voice position',
+        valueText: '0:03 of 0:12',
+      },
+    })
+    const input = wrapper.get<HTMLInputElement>('input[type="range"]')
+
+    expect(input.attributes()).toMatchObject({
+      'aria-label': 'Voice position',
+      'aria-valuetext': '0:03 of 0:12',
+      min: '0',
+      max: '100',
+      step: '1',
+    })
+    await input.setValue(50)
+    expect(wrapper.emitted('update:modelValue')).toEqual([[50]])
+
+    await wrapper.setProps({ disabled: true })
+    expect(input.attributes('disabled')).toBeDefined()
   })
 
   it('keeps the select compatibility entry point on the application menu', async () => {

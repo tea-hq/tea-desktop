@@ -78,7 +78,7 @@ export class ConversationCollaborationClient {
     try {
       const result = await this.transport.sendMessage({
         channelRef: delivery.channelBinding.channelRef,
-        text: draft.content,
+        content: { kind: 'text', text: draft.content },
         idempotencyKey: delivery.idempotencyKey,
         serverExtension: {
           version: 1,

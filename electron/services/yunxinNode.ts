@@ -5,13 +5,19 @@ import type {
   YunxinSdkFactory,
 } from '../../src/infrastructure/channels/YunxinWebChannelTransport'
 
-let configured = false
+import {
+  NodeYunxinUploadAdapter,
+  type NodeYunxinUploadFileOptions,
+  type NodeYunxinUploadPort,
+} from './yunxinUpload'
 
-export function createNodeYunxinSdkFactory(): YunxinSdkFactory {
+export function createNodeYunxinSdkFactory(
+  uploadAdapter: NodeYunxinUploadPort = new NodeYunxinUploadAdapter(),
+): YunxinSdkFactory {
   return {
     create: async (appKey) => {
       const runtime = await loadRuntime()
-      configureAdapters(runtime)
+      configureAdapters(runtime, uploadAdapter)
       registerServices(runtime)
       const sdk = runtime.NIM.getInstance(
         {
@@ -46,8 +52,7 @@ async function loadRuntime(): Promise<YunxinRuntime> {
   return import('nim-web-sdk-ng/dist/esm/nim.js')
 }
 
-function configureAdapters(runtime: YunxinRuntime): void {
-  if (configured) return
+function configureAdapters(runtime: YunxinRuntime, uploadAdapter: NodeYunxinUploadPort): void {
   const storage = new Map<string, string>()
   runtime.setAdapters(() => ({
     setLogger: () => undefined,
@@ -60,9 +65,7 @@ function configureAdapters(runtime: YunxinRuntime): void {
       setItem: (key: string, value: string) => storage.set(key, value),
     },
     request: requestWithFetch,
-    uploadFile: async () => {
-      throw new Error('Yunxin file upload is not available in Tea yet')
-    },
+    uploadFile: (options: NodeYunxinUploadFileOptions) => uploadAdapter.upload(options),
     getFileUploadInformation: () => null,
     getSystemInfo: () => ({
       libEnv: 'NodeJs' as const,
@@ -107,12 +110,16 @@ function configureAdapters(runtime: YunxinRuntime): void {
       }
     },
   }))
-  configured = true
 }
 
 function registerServices(runtime: YunxinRuntime): void {
   runtime.NIM.registerService(runtime.V2NIMConversationService, 'V2NIMConversationService')
   runtime.NIM.registerService(runtime.V2NIMMessageService, 'V2NIMMessageService')
+  // The ESM bundle keeps message log and extension APIs as separately
+  // registered services. V2NIMMessageService delegates quick comments,
+  // pins, and history queries to these utilities at runtime.
+  runtime.NIM.registerService(runtime.V2NIMMessageLogUtil, 'V2NIMMessageLogUtil')
+  runtime.NIM.registerService(runtime.V2NIMMessageExtendUtil, 'V2NIMMessageExtendUtil')
   runtime.NIM.registerService(runtime.V2NIMUserService, 'V2NIMUserService')
   runtime.NIM.registerService(runtime.V2NIMTeamService, 'V2NIMTeamService')
   runtime.NIM.registerService(runtime.V2NIMNotificationService, 'V2NIMNotificationService')

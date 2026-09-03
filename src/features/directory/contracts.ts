@@ -13,6 +13,13 @@ export interface DirectoryUser {
   im?: { provider: string; account?: string; status: string }
 }
 
+export interface DirectoryListOptions {
+  forceRefresh?: boolean
+}
+
 export interface DirectoryClient {
-  listUsers(): Promise<{ schemaVersion: number; users: DirectoryUser[] }>
+  listUsers(options?: DirectoryListOptions): Promise<{
+    schemaVersion: number
+    users: DirectoryUser[]
+  }>
 }

@@ -30,6 +30,7 @@ describe('useSettingsStore', () => {
     client.saved = {
       locale: 'zh-CN',
       theme: 'dark',
+      notifications: { enabled: false, sound: false, preview: 'hidden' },
       conversationDefaults: { runtimeId: 'external.claude', model: null },
       layout: { leftSidebarOpen: false, agentDrawerOpen: true },
     }
@@ -114,6 +115,24 @@ describe('useSettingsStore', () => {
     },
   )
 
+  it('persists desktop notification preferences without changing unrelated settings', async () => {
+    const client = new FakeSettingsClient()
+    const store = useSettingsStore()
+    store.configure(client)
+    await store.initialize()
+
+    await store.setNotificationsEnabled(false)
+    await store.setNotificationSound(false)
+    await store.setNotificationPreview('sender')
+
+    expect(client.saved.notifications).toEqual({
+      enabled: false,
+      sound: false,
+      preview: 'sender',
+    })
+    expect(client.saved.theme).toBe('system')
+  })
+
   it('rolls back a theme preference when persistence fails', async () => {
     const client = new FakeSettingsClient()
     const store = useSettingsStore()
@@ -124,6 +143,19 @@ describe('useSettingsStore', () => {
     await store.setThemePreference('dark')
 
     expect(store.settings.theme).toBe('system')
+    expect(store.error).toBe('settings.saveFailed')
+  })
+
+  it('rolls back notification preferences when persistence fails', async () => {
+    const client = new FakeSettingsClient()
+    const store = useSettingsStore()
+    store.configure(client)
+    await store.initialize()
+    client.updateError = new Error('disk full')
+
+    await store.setNotificationPreview('hidden')
+
+    expect(store.settings.notifications.preview).toBe('message')
     expect(store.error).toBe('settings.saveFailed')
   })
 

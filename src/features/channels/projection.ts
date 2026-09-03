@@ -6,6 +6,8 @@ import type {
   MessagePage,
   MessageRef,
 } from './contracts'
+import { redactMessageContent } from './messageContent'
+import { debugQuickComment } from './quickCommentDebug'
 
 export const DEFAULT_MESSAGE_LIMIT = 500
 
@@ -46,7 +48,16 @@ export function reduceChannelEvent(
   event: ChannelEvent,
   limit = DEFAULT_MESSAGE_LIMIT,
 ): boolean {
-  if (event.sequence <= projection.lastEventSequence) return false
+  if (event.sequence <= projection.lastEventSequence) {
+    if (event.type === 'message.reactionsChanged')
+      debugQuickComment('projection.rejected-sequence', {
+        ref: event.ref,
+        sequence: event.sequence,
+        lastEventSequence: projection.lastEventSequence,
+        reactions: event.reactions,
+      })
+    return false
+  }
   projection.lastEventSequence = event.sequence
 
   switch (event.type) {
@@ -62,6 +73,7 @@ export function reduceChannelEvent(
     case 'channel.totalUnreadChanged':
       projection.totalUnreadCount = event.total
       break
+    case 'message.received':
     case 'message.upserted':
       for (const messages of groupByChannel(event.messages).values()) {
         const channelRef = messages[0]!.ref.channelRef
@@ -77,6 +89,7 @@ export function reduceChannelEvent(
         ...message,
         state: 'revoked',
         text: '',
+        content: redactMessageContent(),
       }))
       break
     case 'message.historyCleared': {
@@ -93,6 +106,14 @@ export function reduceChannelEvent(
       updateMessages(projection, [event.ref], (message) => ({ ...message, pinned: event.pinned }))
       break
     case 'message.reactionsChanged':
+      debugQuickComment('projection.reduce', {
+        ref: event.ref,
+        sequence: event.sequence,
+        matchingMessages: (projection.messagesByChannel.get(event.ref.channelRef) ?? []).filter(
+          (message) => sameMessage(message.ref, event.ref),
+        ).length,
+        reactions: event.reactions,
+      })
       updateMessages(projection, [event.ref], (message) => ({
         ...message,
         reactions: event.reactions,
