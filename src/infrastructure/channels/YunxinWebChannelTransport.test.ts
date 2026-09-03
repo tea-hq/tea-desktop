@@ -128,6 +128,7 @@ function createFakeSdk() {
       const value = rawMessage()
       return { messages: [value], anchorMessage: value, hasMore: false }
     }),
+    getQuickCommentList: vi.fn(async () => ({})),
     getThreadMessageList: vi.fn(
       async (): Promise<{
         message: ReturnType<typeof rawMessage>
@@ -785,6 +786,90 @@ describe('YunxinWebChannelTransport', () => {
     expect(message.removeQuickComment).toHaveBeenCalledWith(expect.anything(), 1)
     expect(message.revokeMessage).toHaveBeenCalledWith(expect.anything(), { postscript: 'updated' })
     expect(message.deleteMessages).toHaveBeenCalledWith([expect.anything()])
+  })
+
+  it('hydrates loaded quick comments and projects successful writes immediately', async () => {
+    const { sdk, message } = createFakeSdk()
+    message.getQuickCommentList.mockResolvedValueOnce({
+      m1: [
+        {
+          messageRefer: {
+            conversationId: 'c1',
+            messageClientId: 'm1',
+            messageServerId: 's1',
+          },
+          operatorId: 'account-a',
+          index: 45,
+          serverExtension: '',
+          createTime: 1,
+        },
+      ],
+    })
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+
+    const page = await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    await vi.waitFor(() => {
+      expect(
+        events.filter((event) => event.type === 'message.reactionsChanged').at(-1),
+      ).toMatchObject({
+        type: 'message.reactionsChanged',
+        reactions: [{ type: 45, count: 1, active: true }],
+      })
+    })
+
+    await transport.quickComment({ messageRef: page.items[0]!.ref, type: 46, active: true })
+    expect(
+      events.filter((event) => event.type === 'message.reactionsChanged').at(-1),
+    ).toMatchObject({
+      reactions: [
+        { type: 45, count: 1, active: true },
+        { type: 46, count: 1, active: true },
+      ],
+    })
+
+    await transport.quickComment({ messageRef: page.items[0]!.ref, type: 46, active: false })
+    expect(
+      events.filter((event) => event.type === 'message.reactionsChanged').at(-1),
+    ).toMatchObject({ reactions: [{ type: 45, count: 1, active: true }] })
+    expect(message.getQuickCommentList).toHaveBeenCalled()
+  })
+
+  it('accepts map-shaped quick comment results from node-compatible adapters', async () => {
+    const { sdk, message } = createFakeSdk()
+    message.getQuickCommentList.mockResolvedValueOnce(
+      new Map([
+        [
+          'm1',
+          [
+            {
+              messageRefer: {
+                conversationId: 'c1',
+                messageClientId: 'm1',
+                messageServerId: 's1',
+              },
+              operatorId: 'account-a',
+              index: 1,
+              serverExtension: '',
+              createTime: 1,
+            },
+          ],
+        ],
+      ]) as never,
+    )
+    const transport = createTransport({ create: () => sdk as never })
+    const events: ChannelEvent[] = []
+    transport.subscribe((event) => events.push(event))
+    await transport.connect()
+
+    await transport.loadMessages({ channelRef: 'c1', direction: 'before', limit: 2 })
+    await vi.waitFor(() => {
+      expect(
+        events.filter((event) => event.type === 'message.reactionsChanged').at(-1),
+      ).toMatchObject({ reactions: [{ type: 1, count: 1, active: true }] })
+    })
   })
 
   it('translates cached voice messages without exposing provider attachment fields', async () => {

@@ -62,6 +62,7 @@ import type {
   V2NIMMessageDeletedNotification,
   V2NIMMessagePinNotification,
   V2NIMMessagePin,
+  V2NIMMessageQuickComment,
   V2NIMMessageRefer,
   V2NIMMessageQuickCommentNotification,
   V2NIMMessageRevokeNotification,
@@ -232,6 +233,7 @@ export class YunxinWebChannelTransport
   private listeners = new Set<ChannelEventListener>()
   private rawMessages = new Map<string, V2NIMMessage>()
   private reactions = new Map<string, Map<number, Set<string>>>()
+  private reactionRevisions = new Map<string, number>()
   private sentByKey = new Map<string, SendMessageResult>()
   private forwardedByKey = new Map<string, ForwardMessageResult>()
   private savedCollections = new Map<string, V2NIMCollection>()
@@ -642,6 +644,7 @@ export class YunxinWebChannelTransport
         left.sentAt - right.sentAt ||
         left.ref.messageClientId.localeCompare(right.ref.messageClientId),
     )
+    void this.refreshMessageReactions(values)
     return {
       channelRef: request.channelRef,
       items,
@@ -1130,6 +1133,12 @@ export class YunxinWebChannelTransport
     } else {
       await sdk.V2NIMMessageService.removeQuickComment(toYunxinRefer(message), request.type)
     }
+    this.applyReactionChange(
+      mapYunxinMessageRef(message),
+      request.type,
+      this.selfAccount,
+      request.active,
+    )
   }
 
   async transcribeVoice(messageRef: MessageRef): Promise<string> {
@@ -1555,21 +1564,15 @@ export class YunxinWebChannelTransport
   private readonly onMessageQuickCommentNotification = (
     value: V2NIMMessageQuickCommentNotification,
   ) => {
-    const ref = mapYunxinRefer(value.quickComment.messageRefer)
-    const key = messageKey(ref)
-    const byType = this.reactions.get(key) ?? new Map<number, Set<string>>()
-    const operators = byType.get(value.quickComment.index) ?? new Set<string>()
-    if (value.operationType === 1) operators.add(value.quickComment.operatorId)
-    else operators.delete(value.quickComment.operatorId)
-    if (operators.size) byType.set(value.quickComment.index, operators)
-    else byType.delete(value.quickComment.index)
-    this.reactions.set(key, byType)
-    const reactions: MessageReaction[] = [...byType].map(([type, ids]) => ({
-      type,
-      count: ids.size,
-      active: ids.has(this.selfAccount ?? ''),
-    }))
-    this.emit({ type: 'message.reactionsChanged', ref, reactions })
+    const quickComment = value?.quickComment
+    if (!quickComment?.messageRefer?.conversationId || !quickComment.messageRefer.messageClientId)
+      return
+    this.applyReactionChange(
+      mapYunxinRefer(quickComment.messageRefer),
+      quickComment.index,
+      quickComment.operatorId,
+      value.operationType === 1,
+    )
   }
   private readonly onReceiveP2PMessageReadReceipts = (values: V2NIMP2PMessageReadReceipt[]) => {
     for (const value of values) {
@@ -1714,7 +1717,73 @@ export class YunxinWebChannelTransport
     const messages = values
       .map((value) => mapYunxinMessage(value, this.selfAccount ?? ''))
       .filter((value) => value !== null)
-    if (messages.length) this.emit({ type, messages })
+    if (messages.length) {
+      this.emit({ type, messages })
+      void this.refreshMessageReactions(values)
+    }
+  }
+
+  private async refreshMessageReactions(values: V2NIMMessage[]): Promise<void> {
+    const sdk = this.sdk
+    const generation = this.lifecycleGeneration
+    if (!sdk || this.currentStatus.phase !== 'connected') return
+    const messages = values.filter((value) => value.conversationId && value.messageClientId)
+    if (!messages.length) return
+
+    const revisions = new Map(
+      messages.map((value) => {
+        const key = messageKey(mapYunxinMessageRef(value))
+        return [key, this.reactionRevisions.get(key) ?? 0] as const
+      }),
+    )
+    let result: unknown
+    try {
+      result = await sdk.V2NIMMessageService.getQuickCommentList(messages)
+    } catch {
+      return
+    }
+    if (!this.isCurrent(generation) || this.sdk !== sdk || this.currentStatus.phase !== 'connected')
+      return
+
+    for (const value of messages) {
+      const ref = mapYunxinMessageRef(value)
+      const key = messageKey(ref)
+      if ((this.reactionRevisions.get(key) ?? 0) !== (revisions.get(key) ?? 0)) continue
+      const comments = quickCommentListForMessage(result, value.messageClientId)
+      this.reactions.set(key, reactionOperators(comments))
+      this.emitReactionState(ref)
+    }
+  }
+
+  private applyReactionChange(
+    ref: MessageRef,
+    type: number,
+    operatorId: string | null | undefined,
+    active: boolean,
+  ): void {
+    if (!Number.isInteger(type) || type < 0 || type > 1_000 || !operatorId) return
+    const key = messageKey(ref)
+    const byType = this.reactions.get(key) ?? new Map<number, Set<string>>()
+    const operators = byType.get(type) ?? new Set<string>()
+    if (active) operators.add(operatorId)
+    else operators.delete(operatorId)
+    if (operators.size) byType.set(type, operators)
+    else byType.delete(type)
+    this.reactions.set(key, byType)
+    this.reactionRevisions.set(key, (this.reactionRevisions.get(key) ?? 0) + 1)
+    this.emitReactionState(ref)
+  }
+
+  private emitReactionState(ref: MessageRef): void {
+    const byType = this.reactions.get(messageKey(ref)) ?? new Map<number, Set<string>>()
+    const reactions: MessageReaction[] = [...byType.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([type, ids]) => ({
+        type,
+        count: ids.size,
+        active: ids.has(this.selfAccount ?? ''),
+      }))
+    this.emit({ type: 'message.reactionsChanged', ref, reactions })
   }
 
   private rememberMessage(value: V2NIMMessage): void {
@@ -1821,6 +1890,7 @@ export class YunxinWebChannelTransport
   private resetMemory(): void {
     this.rawMessages.clear()
     this.reactions.clear()
+    this.reactionRevisions.clear()
     this.sentByKey.clear()
     this.forwardedByKey.clear()
     this.savedCollections.clear()
@@ -2394,7 +2464,42 @@ function optionalProfileURL(value: unknown, maximumBytes: number): string | unde
 }
 
 function messageKey(ref: MessageRef): string {
-  return `${ref.channelRef}\u0000${ref.messageServerId || ref.messageClientId}`
+  return `${ref.channelRef}\u0000${ref.messageClientId || ref.messageServerId || ''}`
+}
+
+function reactionOperators(comments: V2NIMMessageQuickComment[]): Map<number, Set<string>> {
+  const byType = new Map<number, Set<string>>()
+  for (const comment of comments) {
+    if (
+      !Number.isInteger(comment.index) ||
+      comment.index < 0 ||
+      comment.index > 1_000 ||
+      typeof comment.operatorId !== 'string' ||
+      !comment.operatorId
+    )
+      continue
+    const operators = byType.get(comment.index) ?? new Set<string>()
+    operators.add(comment.operatorId)
+    byType.set(comment.index, operators)
+  }
+  return byType
+}
+
+function quickCommentListForMessage(
+  value: unknown,
+  messageClientId: string,
+): V2NIMMessageQuickComment[] {
+  let candidate: unknown
+  if (value instanceof Map) {
+    candidate = value.get(messageClientId)
+  } else if (typeof value === 'object' && value !== null) {
+    candidate = (value as Record<string, unknown>)[messageClientId]
+  }
+  return Array.isArray(candidate)
+    ? candidate.filter(
+        (item): item is V2NIMMessageQuickComment => typeof item === 'object' && item !== null,
+      )
+    : []
 }
 
 function sameYunxinMessageRef(left: MessageRef, right: MessageRef): boolean {
