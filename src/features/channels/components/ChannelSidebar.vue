@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TeaButton, TeaIconButton, TeaIconMenu, TeaInput, type TeaMenuItem } from '@/shared/ui'
+import { TeaButton, TeaIconButton, TeaInput, TeaMenu, type TeaMenuItem } from '@/shared/ui'
 
 import type {
   Channel,
@@ -57,6 +57,14 @@ const draftsByChannel = computed(
         .map((draft) => [draft.channelRef, draft] as const),
     ),
 )
+const contextMenu = ref<InstanceType<typeof TeaMenu> | null>(null)
+const contextChannelRef = ref<ChannelRef | null>(null)
+const contextChannel = computed(
+  () => props.channels.find((channel) => channel.ref === contextChannelRef.value) ?? null,
+)
+const contextMenuItems = computed(() =>
+  contextChannel.value ? conversationMenuItems(contextChannel.value) : [],
+)
 
 function conversationMenuItems(channel: Channel): TeaMenuItem[] {
   const disabled = pendingRefs.value.has(channel.ref)
@@ -98,6 +106,46 @@ function selectConversationAction(channel: Channel, action: string): void {
   else if (action === 'mute') emit('mute', channel.ref, !channel.muted)
   else if (action === 'markRead') emit('markRead', channel.ref)
   else if (action === 'hide') emit('hide', channel.ref)
+}
+
+function openConversationMenu(
+  channel: Channel,
+  point: Pick<MouseEvent, 'clientX' | 'clientY'>,
+): void {
+  if (pendingRefs.value.has(channel.ref)) return
+  contextChannelRef.value = channel.ref
+  void nextTick(() => contextMenu.value?.showAt({ x: point.clientX, y: point.clientY }))
+}
+
+function handleRowKeydown(event: KeyboardEvent, channel: Channel): void {
+  if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return
+  event.preventDefault()
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+  const rect = target.getBoundingClientRect()
+  openConversationMenu(channel, {
+    clientX: rect.left + Math.min(24, rect.width / 2),
+    clientY: rect.top + Math.min(24, rect.height / 2),
+  })
+}
+
+function closeConversationMenu(): void {
+  contextChannelRef.value = null
+}
+
+function selectContextAction(action: string): void {
+  const channel = contextChannel.value
+  if (!channel) return
+  selectConversationAction(channel, action)
+}
+
+function channelStatusLabel(channel: Channel): string {
+  return [
+    channel.pinned ? t('channels.controls.pinned') : '',
+    channel.muted ? t('channels.controls.muted') : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
 }
 
 function formatTime(value: number): string {
@@ -177,7 +225,7 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
           <div
             v-for="index in 6"
             :key="index"
-            class="channel-row mb-1 min-h-12 w-full animate-pulse items-center gap-2 px-3.5 py-1.5 motion-reduce:animate-none"
+            class="channel-row channel-row--skeleton mb-1 min-h-12 w-full animate-pulse items-center gap-2 px-3.5 py-1.5 motion-reduce:animate-none"
             :style="{ animationDelay: `${(index - 1) * 80}ms` }"
           >
             <span class="size-8 shrink-0 rounded-full bg-muted" />
@@ -203,6 +251,8 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
           :class="channel.ref === activeRef ? 'channel-row--active' : 'hover:bg-hover'"
           :aria-current="channel.ref === activeRef ? 'page' : undefined"
           :style="{ animationDelay: `${index * 35}ms` }"
+          @contextmenu.prevent.stop="openConversationMenu(channel, $event)"
+          @keydown="handleRowKeydown($event, channel)"
         >
           <TeaButton
             appearance="ghost"
@@ -225,11 +275,32 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
               />
             </span>
             <span class="channel-row__details min-w-0">
-              <span
-                class="block truncate text-sm leading-5 text-fg"
-                :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
-                >{{ channel.name }}</span
-              >
+              <span class="channel-row__name flex min-w-0 items-center gap-1 text-sm leading-5">
+                <span
+                  class="min-w-0 truncate text-fg"
+                  :class="channel.unreadCount ? 'font-semibold' : 'font-medium'"
+                  >{{ channel.name }}</span
+                >
+                <span
+                  v-if="channel.pinned || channel.muted"
+                  class="channel-row__status inline-flex shrink-0 items-center gap-0.5 text-subtle"
+                  role="img"
+                  :aria-label="channelStatusLabel(channel)"
+                >
+                  <span
+                    v-if="channel.pinned"
+                    data-channel-status="pinned"
+                    class="i-mdi-pin-outline size-3.5"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="channel.muted"
+                    data-channel-status="muted"
+                    class="i-mdi-bell-off-outline size-3.5"
+                    aria-hidden="true"
+                  />
+                </span>
+              </span>
               <span
                 class="channel-row__preview mt-0.5 flex min-w-0 items-center gap-1 text-xs leading-4"
               >
@@ -257,32 +328,6 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
               </span>
             </span>
           </TeaButton>
-          <span class="channel-row__action-slot">
-            <span class="channel-row__states text-subtle" aria-hidden="true">
-              <span
-                v-if="channel.pinned"
-                data-channel-status="pinned"
-                class="i-mdi-pin-outline size-3.5"
-                :title="t('channels.controls.pinned')"
-              />
-              <span
-                v-if="channel.muted"
-                data-channel-status="muted"
-                class="i-mdi-bell-off-outline size-3.5"
-                :title="t('channels.controls.muted')"
-              />
-            </span>
-            <TeaIconMenu
-              class="channel-row__menu"
-              size="small"
-              :items="conversationMenuItems(channel)"
-              :label="t('channels.controls.actions', { name: channel.name })"
-              :menu-label="channel.name"
-              :disabled="pendingRefs.has(channel.ref)"
-              @select="selectConversationAction(channel, $event)"
-            >
-            </TeaIconMenu>
-          </span>
         </div>
 
         <p
@@ -293,6 +338,16 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
         </p>
       </template>
     </div>
+    <TeaMenu
+      v-if="contextChannel"
+      ref="contextMenu"
+      popup
+      :items="contextMenuItems"
+      :label="t('channels.controls.actions', { name: contextChannel.name })"
+      :menu-label="contextChannel.name"
+      @select="selectContextAction"
+      @hide="closeConversationMenu"
+    />
   </aside>
 </template>
 
@@ -300,10 +355,15 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
 .channel-row {
   display: grid;
   block-size: 3.25rem;
-  grid-template-columns: minmax(0, 1fr) 2rem;
+  grid-template-columns: minmax(0, 1fr);
   min-block-size: 3.25rem;
   border-radius: var(--tea-radius-inline);
   padding: 0;
+}
+
+.channel-row--skeleton {
+  grid-template-columns: 2rem minmax(0, 1fr) 3.75rem;
+  padding: 0.375rem 0.875rem;
 }
 
 .channel-row__select {
@@ -313,7 +373,7 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
   border-color: transparent;
   border-radius: var(--tea-radius-inline);
   background: transparent;
-  padding: 0.375rem 0.25rem 0.375rem 0.875rem;
+  padding: 0.375rem 0.875rem;
 }
 
 .channel-row__select:hover,
@@ -339,47 +399,7 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
   color: var(--tea-fg);
 }
 
-.channel-row__action-slot {
-  position: relative;
-  width: 2rem;
-  height: 2rem;
-}
-
-.channel-row__states,
-.channel-row__menu {
-  position: absolute;
-  inset: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 150ms ease;
-}
-
-.channel-row__states {
-  gap: 0.125rem;
-  pointer-events: none;
-}
-
-.channel-row__menu {
-  opacity: 0;
-}
-
-.channel-row:hover .channel-row__states,
-.channel-row:has(:focus-visible) .channel-row__states,
-.channel-row:has(.channel-row__menu [aria-expanded='true']) .channel-row__states {
-  opacity: 0;
-}
-
-.channel-row:hover .channel-row__menu,
-.channel-row:has(:focus-visible) .channel-row__menu,
-.channel-row:has(.channel-row__menu [aria-expanded='true']) .channel-row__menu {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .channel-row__states,
-  .channel-row__menu {
-    transition: none;
-  }
+.channel-row__status {
+  line-height: 1;
 }
 </style>

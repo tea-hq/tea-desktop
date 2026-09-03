@@ -2,6 +2,7 @@
 
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import en from '@/locales/en'
@@ -37,6 +38,7 @@ describe('ChannelSidebar', () => {
 
     expect(wrapper.get('[role="status"]').text()).toBe('Syncing conversations')
     expect(wrapper.findAll('.channel-row')).toHaveLength(6)
+    expect(wrapper.findAll('.channel-row--skeleton')).toHaveLength(6)
     expect(wrapper.get('input').attributes('disabled')).toBeDefined()
     expect(wrapper.find('p').exists()).toBe(false)
   })
@@ -48,7 +50,7 @@ describe('ChannelSidebar', () => {
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 
-  it('exposes accessible Slack-style conversation controls and status indicators', async () => {
+  it('opens conversation controls from the row context menu without a trailing action slot', async () => {
     const channel: Channel = {
       ref: 'product',
       kind: 'group',
@@ -63,7 +65,12 @@ describe('ChannelSidebar', () => {
 
     expect(wrapper.find('[data-channel-status="pinned"]').exists()).toBe(true)
     expect(wrapper.find('[data-channel-status="muted"]').exists()).toBe(true)
-    await wrapper.get('[aria-label="Channel actions for Product"]').trigger('click')
+    expect(wrapper.find('.channel-row__action-slot').exists()).toBe(false)
+    expect(wrapper.get('.channel-row__status').attributes('aria-label')).toBe(
+      'Pinned conversation, Notifications muted',
+    )
+    await wrapper.get('.channel-row').trigger('contextmenu', { clientX: 420, clientY: 180 })
+    await nextTick()
 
     expect(wrapper.get('[role="menu"]').text()).toContain('Unpin conversation')
     expect(wrapper.get('[role="menu"]').text()).toContain('Unmute notifications')
@@ -75,6 +82,25 @@ describe('ChannelSidebar', () => {
       .find((item) => item.text().includes('Hide conversation'))!
     await hide.trigger('click')
     expect(wrapper.emitted('hide')).toEqual([['product']])
+  })
+
+  it('opens conversation controls from the keyboard context-menu command', async () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: false,
+      muted: false,
+      unreadCount: 0,
+      updatedAt: 2,
+    }
+    const wrapper = mountSidebar([channel], false)
+
+    await wrapper.get('.channel-row__select').trigger('keydown', { key: 'ContextMenu' })
+    await nextTick()
+
+    expect(wrapper.get('[role="menu"]').text()).toContain('Pin conversation')
   })
 
   it('replaces the message preview with a localized draft projection', () => {

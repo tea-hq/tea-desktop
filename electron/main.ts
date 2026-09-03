@@ -8,6 +8,7 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from 'electron'
+import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { isEffectiveTheme, type EffectiveTheme } from '../src/types/theme'
@@ -35,13 +36,24 @@ import {
   ChannelNotificationService,
   type ChannelNotificationHandle,
 } from './services/channelNotifications'
+import { resolveDevelopmentUserDataPath } from './developmentProfile'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-process.env.APP_ROOT = path.join(__dirname, '..')
+const appRoot = path.join(__dirname, '..')
+process.env.APP_ROOT = appRoot
 
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+const developmentUserDataPath = resolveDevelopmentUserDataPath({
+  appDataPath: app.getPath('appData'),
+  appRoot,
+  devServerUrl: VITE_DEV_SERVER_URL,
+})
+if (developmentUserDataPath) {
+  mkdirSync(developmentUserDataPath, { recursive: true })
+  app.setPath('userData', developmentUserDataPath)
+}
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
   : RENDERER_DIST
@@ -52,6 +64,7 @@ let conversationHost: ElectronConversationHost | null = null
 let cloudConversationCommands: CloudConversationCommandService | null = null
 let channelNotifications: ChannelNotificationService | null = null
 let quitting = false
+let exitCode = 0
 const events = new DesktopEventPublisher(() => win?.webContents ?? null)
 
 function createWindow(): void {
@@ -249,7 +262,11 @@ async function bootstrap(): Promise<void> {
 
 app.whenReady().then(() => {
   registerWindowThemeIpc()
-  void bootstrap().catch(() => app.quit())
+  void bootstrap().catch((error: unknown) => {
+    console.error('Tea failed to start', error)
+    exitCode = 1
+    app.quit()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -276,5 +293,8 @@ app.on('before-quit', (event) => {
           await services.channel.dispose()
         })()
       : undefined,
-  ]).finally(() => app.quit())
+  ]).finally(() => {
+    if (exitCode === 0) app.quit()
+    else app.exit(exitCode)
+  })
 })
