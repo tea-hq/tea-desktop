@@ -51,6 +51,7 @@ const {
   recentCollaborationConversations,
   currentChannelSessionAvailable,
   collaborationErrorText,
+  userProfiles,
   selectCollaborationConversation,
   createCollaborationConversation,
   expandCollaboration,
@@ -883,6 +884,7 @@ async function toggleGroupMemberRole(member: ChannelMember): Promise<void> {
     :voice-playback-available="channels.voicePlaybackAvailable"
     :media-saves="channels.activeMediaSaves"
     :media-saving-available="channels.mediaSavingAvailable"
+    :user-profiles="userProfiles.profiles"
     :highlighted-message-key="channels.highlightedMessageKey"
     :panel-open="settings.agentDrawerOpen"
     :loading="channels.loadingMessages"

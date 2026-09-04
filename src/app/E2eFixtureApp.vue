@@ -114,7 +114,10 @@ const channel: Channel = {
   ref: binding.channelRef,
   kind: 'group',
   name: 'Product design',
-  description: 'Desktop Agent experience',
+  description:
+    fixture.value === 'channel-overflow'
+      ? 'A deliberately long group introduction that must stay inside the conversation header and end with an ellipsis instead of widening the desktop workspace beyond the viewport.'
+      : 'Desktop Agent experience',
   memberCount: 18,
   pinned: true,
   muted: false,

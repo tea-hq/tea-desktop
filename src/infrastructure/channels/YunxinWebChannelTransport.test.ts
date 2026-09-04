@@ -280,6 +280,9 @@ function createFakeSdk() {
     addFriend: vi.fn(async () => undefined),
   })
   const team = Object.assign(new FakeService(), {
+    getTeamInfoByIds: vi.fn(async (teamIds: string[]) =>
+      teamIds.map((teamId) => ({ teamId, intro: `${teamId} introduction` })),
+    ),
     getTeamInfo: vi.fn(async () => ({
       teamId: 'design',
       teamType: 1,
@@ -435,6 +438,51 @@ describe('YunxinWebChannelTransport', () => {
     expect(projection).not.toContain(credentials.account)
     expect(projection).not.toContain(credentials.token)
     expect(transport.status().accountRef).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('loads user signs and team intros without confusing them with message previews', async () => {
+    const { sdk, conversation, user, team } = createFakeSdk()
+    user.getUserListFromCloud.mockResolvedValueOnce([
+      { accountId: 'account-b', name: 'B', sign: 'Building reliable desktop software' },
+    ] as never)
+    conversation.getConversationList.mockResolvedValueOnce({
+      offset: 0,
+      finished: true,
+      conversationList: [
+        {
+          conversationId: 'team|app|team-1',
+          type: 2,
+          name: 'Design team',
+          stickTop: false,
+          localExtension: '',
+          serverExtension: '',
+          unreadCount: 0,
+          sortOrder: 3,
+          createTime: 1,
+          updateTime: 2,
+          lastReadTime: 0,
+          lastMessage: { text: 'Latest message' },
+        },
+      ],
+    } as never)
+    team.getTeamInfoByIds.mockResolvedValueOnce([
+      { teamId: 'team-1', intro: 'Design and desktop collaboration' },
+    ])
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.getUserProfiles(['account-b'])).resolves.toEqual([
+      { accountId: 'account-b', name: 'B', sign: 'Building reliable desktop software' },
+    ])
+    await expect(transport.listChannels({ offset: 0, limit: 20 })).resolves.toMatchObject({
+      items: [
+        {
+          description: 'Design and desktop collaboration',
+          lastMessagePreview: 'Latest message',
+        },
+      ],
+    })
+    expect(team.getTeamInfoByIds).toHaveBeenCalledWith(['team-1'], 1)
   })
 
   it('validates the complete presence replace set against Tea Center before SDK calls', async () => {
@@ -1700,11 +1748,18 @@ describe('YunxinWebChannelTransport', () => {
     await vi.waitFor(() =>
       expect(conversation.getConversation).toHaveBeenCalledWith('team|app|team-1'),
     )
-    const event = events.find((value) => value.type === 'channel.upserted')
-    expect(event).toMatchObject({
-      type: 'channel.upserted',
-      channels: [{ name: 'Design team', avatarUrl: 'https://yx-web-nosdn.netease.im/team.png' }],
-    })
+    await vi.waitFor(() =>
+      expect(events.find((value) => value.type === 'channel.upserted')).toMatchObject({
+        type: 'channel.upserted',
+        channels: [
+          {
+            name: 'Design team',
+            avatarUrl: 'https://yx-web-nosdn.netease.im/team.png',
+            description: 'team-1 introduction',
+          },
+        ],
+      }),
+    )
   })
 
   it('maps bidirectional pagination through getMessageListEx', async () => {

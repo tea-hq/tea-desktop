@@ -32,7 +32,7 @@ export function mapYunxinConversation(value: V2NIMConversation, targetId?: strin
     ...(directAccountId ? { directAccountId } : {}),
     name: boundedText(value.name?.trim() || targetId?.trim() || value.conversationId, 200),
     ...(avatarUrl ? { avatarUrl } : {}),
-    description: preview ?? '',
+    description: '',
     pinned: value.stickTop,
     muted: value.mute === true,
     unreadCount: Math.max(0, value.unreadCount),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ConversationSummary, RuntimeDescriptor } from '@/features/conversation/contracts'
 import { TeaButton, TeaIconButton } from '@/shared/ui'
@@ -13,6 +13,7 @@ import type {
   ChannelVoicePlaybackRate,
   ChannelVoicePlaybackState,
   ChannelVoiceTranscript,
+  ChannelUserProfile,
   Message,
   MessageMention,
   OutgoingMessageAttempt,
@@ -71,6 +72,7 @@ const props = withDefaults(
     voiceTranscriptionAvailable?: boolean
     mediaSaves?: ChannelMediaSaveState[]
     mediaSavingAvailable?: boolean
+    userProfiles?: ReadonlyMap<string, ChannelUserProfile>
   }>(),
   {
     replyTo: null,
@@ -98,6 +100,7 @@ const props = withDefaults(
     voiceTranscriptionAvailable: false,
     mediaSaves: () => [],
     mediaSavingAvailable: false,
+    userProfiles: undefined,
     threadAvailable: false,
   },
 )
@@ -154,6 +157,11 @@ const { t } = useI18n()
 const container = ref<HTMLElement | null>(null)
 const initialScrollPending = ref(true)
 const prependSnapshot = ref<(TimelineScrollSnapshot & { messageCount: number }) | null>(null)
+const channelDescription = computed(() => {
+  if (props.channel.kind === 'group') return props.channel.description
+  const accountId = props.channel.directAccountId?.trim()
+  return accountId ? (props.userProfiles?.get(accountId)?.sign ?? '') : ''
+})
 
 function voiceTranscript(message: Message): ChannelVoiceTranscript | null {
   return (
@@ -282,28 +290,33 @@ watch(
 <template>
   <section class="flex min-w-0 flex-1 flex-col bg-canvas">
     <header
-      class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
+      class="flex h-14 min-w-0 shrink-0 items-center justify-between border-b border-line-soft bg-panel px-4 sm:px-5"
     >
-      <div class="min-w-0">
-        <div class="flex items-center gap-2">
+      <div class="channel-header__summary min-w-0 flex-1 overflow-hidden">
+        <div class="flex min-w-0 items-center gap-2">
           <span
             v-if="channel.kind === 'group'"
             class="i-mdi-pound size-4 text-subtle"
             aria-hidden="true"
           />
-          <h2 class="truncate text-base font-semibold text-fg">{{ channel.name }}</h2>
+          <h2 class="min-w-0 truncate text-base font-semibold text-fg">{{ channel.name }}</h2>
           <ChannelPresenceIndicator
             v-if="channel.kind === 'direct' && channel.directAccountId"
             :availability="presence?.availability ?? 'unknown'"
             size="inline"
           />
-          <span v-if="channel.memberCount" class="text-sm text-subtle">
+          <span v-if="channel.memberCount" class="shrink-0 whitespace-nowrap text-sm text-subtle">
             {{ t('channels.members', { count: channel.memberCount }) }}
           </span>
         </div>
-        <p class="mt-0.5 truncate text-sm text-subtle">{{ channel.description }}</p>
+        <p
+          v-if="channelDescription"
+          class="channel-header__description mt-0.5 truncate text-sm text-subtle"
+        >
+          {{ channelDescription }}
+        </p>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="channel-header__actions flex shrink-0 items-center gap-1">
         <TeaIconButton
           size="small"
           :label="t('channels.searchInChannel')"

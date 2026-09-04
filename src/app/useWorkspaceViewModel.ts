@@ -145,6 +145,9 @@ export function useWorkspaceViewModel(stores: TeaDesktopStores, ui: WorkspaceUiS
         ...directory.users
           .map((user) => user.im?.account)
           .filter((value): value is string => Boolean(value)),
+        ...channels.channels
+          .map((channel) => channel.directAccountId)
+          .filter((value): value is string => Boolean(value)),
         ...channels.activeMessages.map((message) => message.sender.id),
       ]),
     ])
