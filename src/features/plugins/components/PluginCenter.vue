@@ -11,6 +11,7 @@ const { t } = useI18n()
 const query = ref('')
 const filter = ref<'all' | PluginSource>('all')
 const selectedKey = ref<string | null>(null)
+const failedIconKeys = ref(new Set<string>())
 
 const filteredPlugins = computed(() => {
   const normalized = query.value.trim().toLocaleLowerCase()
@@ -62,6 +63,20 @@ function pluginSource(plugin: PluginRecord): PluginSource {
 
 function pluginKey(plugin: PluginRecord): string {
   return `${pluginSource(plugin)}:${plugin.id}`
+}
+
+function pluginIconKey(plugin: PluginRecord): string {
+  return `${pluginKey(plugin)}:${plugin.iconUrl ?? ''}`
+}
+
+function hasIcon(plugin: PluginRecord): boolean {
+  return Boolean(plugin.iconUrl && !failedIconKeys.value.has(pluginIconKey(plugin)))
+}
+
+function handleIconError(plugin: PluginRecord): void {
+  const key = pluginIconKey(plugin)
+  if (failedIconKeys.value.has(key)) return
+  failedIconKeys.value = new Set(failedIconKeys.value).add(key)
 }
 
 function sourceLabel(source: PluginSource): string {
@@ -289,14 +304,23 @@ function selectPlugin(plugin: PluginRecord): void {
                 @click="selectPlugin(plugin)"
               >
                 <span
-                  class="flex size-10 shrink-0 items-center justify-center rounded-control text-sm font-semibold"
+                  class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-control text-sm font-semibold"
                   :class="
                     pluginSource(plugin) === 'remote'
                       ? 'bg-brand-accent text-on-accent'
                       : 'bg-accent text-on-accent'
                   "
                 >
-                  {{ initials(plugin.displayName) }}
+                  <img
+                    v-if="hasIcon(plugin)"
+                    data-plugin-icon
+                    class="size-full object-contain p-1"
+                    :src="plugin.iconUrl"
+                    :alt="plugin.displayName"
+                    loading="lazy"
+                    @error="handleIconError(plugin)"
+                  />
+                  <span v-else data-plugin-icon-fallback>{{ initials(plugin.displayName) }}</span>
                 </span>
                 <span class="min-w-0 flex-1">
                   <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -340,14 +364,25 @@ function selectPlugin(plugin: PluginRecord): void {
           <template v-if="selectedPlugin">
             <div class="flex items-start gap-3">
               <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-control text-sm font-semibold"
+                class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-control text-sm font-semibold"
                 :class="
                   pluginSource(selectedPlugin) === 'remote'
                     ? 'bg-brand-accent text-on-accent'
                     : 'bg-accent text-on-accent'
                 "
               >
-                {{ initials(selectedPlugin.displayName) }}
+                <img
+                  v-if="hasIcon(selectedPlugin)"
+                  data-plugin-icon
+                  class="size-full object-contain p-1"
+                  :src="selectedPlugin.iconUrl"
+                  :alt="selectedPlugin.displayName"
+                  loading="lazy"
+                  @error="handleIconError(selectedPlugin)"
+                />
+                <span v-else data-plugin-icon-fallback>{{
+                  initials(selectedPlugin.displayName)
+                }}</span>
               </span>
               <div class="min-w-0">
                 <p class="truncate text-base font-semibold text-fg">
