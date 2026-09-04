@@ -24,6 +24,7 @@ describe('Yunxin DTO mapping', () => {
       createTime: 1,
       updateTime: 2,
       lastReadTime: 1,
+      lastMessage: { text: 'Latest message' },
     } as V2NIMConversation
     const result = mapYunxinConversation(source, 'account-b')
     expect(result).toEqual(
@@ -35,6 +36,8 @@ describe('Yunxin DTO mapping', () => {
         avatarUrl: 'https://yx-web-nosdn.netease.im/alice.png',
         muted: true,
         pinned: true,
+        description: '',
+        lastMessagePreview: 'Latest message',
         unreadCount: 2,
       }),
     )

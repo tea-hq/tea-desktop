@@ -94,4 +94,54 @@ describe('useWorkspaceViewModel', () => {
     expect(viewModel.workspaceRecoveryAvailable.value).toBe(true)
     scope.stop()
   })
+
+  it('preloads profiles for direct conversation participants', () => {
+    const ensureProfiles = vi.fn(async () => undefined)
+    const stores = {
+      conversation: {
+        activeRuntime: codexRuntime,
+        modelOptions: [],
+        conversations: [],
+        error: null,
+        historyError: null,
+        setAvailableModelOptions: vi.fn(),
+      },
+      collaboration: {
+        activeRuntime: codexRuntime,
+        activeBinding: null,
+        activeConversation: null,
+        conversations: [],
+        collaboration: { drafts: [], deliveries: [], turnContexts: [] },
+        error: null,
+        setAvailableModelOptions: vi.fn(),
+      },
+      channels: {
+        activeChannel: null,
+        channels: [
+          {
+            ref: 'p2p|app|account-b',
+            kind: 'direct',
+            directAccountId: 'account-b',
+            name: 'Account B',
+            description: '',
+            unreadCount: 0,
+            updatedAt: 1,
+          },
+        ],
+        activeMessages: [],
+        status: { phase: 'connected', retryable: false },
+      },
+      directory: { users: [] },
+      userProfiles: { ensureProfiles },
+      agentDrawer: { ensureState: vi.fn() },
+      agentRoles: { roles: [] },
+      managedRuntime: { modelOptions: [] },
+    } as unknown as TeaDesktopStores
+
+    const scope = effectScope()
+    scope.run(() => useWorkspaceViewModel(stores, createWorkspaceUiState()))
+
+    expect(ensureProfiles).toHaveBeenCalledWith(['account-b'])
+    scope.stop()
+  })
 })

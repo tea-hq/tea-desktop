@@ -22,6 +22,26 @@ test('captures the wide Channel workspace', async ({ openFixture, page }, testIn
   await expect(page).toHaveScreenshot('channel-1440x900.png', { animations: 'disabled' })
 })
 
+test('truncates a long channel introduction without widening the viewport', async ({
+  openFixture,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 760 })
+  await openFixture('channel-overflow')
+
+  const description = page.locator('.channel-header__description')
+  await expect(description).toBeVisible()
+  const dimensions = await description.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+    documentWidth: document.documentElement.scrollWidth,
+  }))
+
+  expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth)
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(dimensions.viewportWidth)
+})
+
 test('keeps message selection and forwarding usable at 390px in Chinese', async ({
   openFixture,
   page,

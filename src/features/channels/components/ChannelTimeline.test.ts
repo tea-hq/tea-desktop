@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import en from '@/locales/en'
 import type {
   Channel,
+  ChannelUserProfile,
   ChannelMediaSaveState,
   Message,
   MessageMention,
@@ -81,6 +82,105 @@ afterEach(() => {
 })
 
 describe('ChannelTimeline selection mode', () => {
+  it('renders a constrained group introduction and keeps header actions fixed', () => {
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel: { ...channel, description: 'Design and desktop collaboration' },
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('.channel-header__description').text()).toBe(
+      'Design and desktop collaboration',
+    )
+    expect(wrapper.get('.channel-header__description').classes()).toContain('truncate')
+    expect(wrapper.get('.channel-header__summary').classes()).toEqual(
+      expect.arrayContaining(['min-w-0', 'flex-1', 'overflow-hidden']),
+    )
+    expect(wrapper.get('.channel-header__actions').classes()).toContain('shrink-0')
+    wrapper.unmount()
+  })
+
+  it('renders the other participant sign for a direct conversation', () => {
+    const direct: Channel = {
+      ...channel,
+      ref: 'lin-direct',
+      kind: 'direct',
+      directAccountId: 'lin',
+      name: 'Lin',
+      description: 'Conversation preview must not be shown',
+    }
+    const profiles = new Map<string, ChannelUserProfile>([
+      ['lin', { accountId: 'lin', name: 'Lin', sign: 'Building reliable desktop software' }],
+    ])
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel: direct,
+        userProfiles: profiles,
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.get('.channel-header__description').text()).toBe(
+      'Building reliable desktop software',
+    )
+    wrapper.unmount()
+  })
+
+  it('omits the direct description row when the participant has no sign', () => {
+    const direct: Channel = {
+      ...channel,
+      ref: 'lin-direct',
+      kind: 'direct',
+      directAccountId: 'lin',
+      name: 'Lin',
+      description: 'Conversation preview must not be shown',
+    }
+    const wrapper = mount(ChannelTimeline, {
+      props: {
+        channel: direct,
+        userProfiles: new Map(),
+        messages: [],
+        panelOpen: false,
+        loading: false,
+        hasMore: false,
+        activeConversation: null,
+        recentConversations: [],
+        currentSessionAvailable: false,
+        runtimes: [],
+        defaultRuntimeId: null,
+      },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+      },
+    })
+
+    expect(wrapper.find('.channel-header__description').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('routes message-scoped media save state and typed intents', async () => {
     const wrapper = mount(ChannelTimeline, {
       props: {

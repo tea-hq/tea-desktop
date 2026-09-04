@@ -544,6 +544,7 @@ export interface ChannelTransportDescriptor {
 export interface ChannelUserProfile {
   accountId: string
   name: string
+  sign?: string
   email?: string
   avatarUrl?: string
 }

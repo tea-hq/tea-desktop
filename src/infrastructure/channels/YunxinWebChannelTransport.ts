@@ -210,6 +210,8 @@ const capabilities: ChannelCapability[] = [
   'message.thread',
 ].map((id) => ({ id: id as ChannelCapability['id'], available: true }))
 
+const ADVANCED_TEAM_TYPE = 1
+
 export interface ResolvedMessageAttachment {
   path: string
   name: string
@@ -239,6 +241,7 @@ export class YunxinWebChannelTransport
   private forwardedByKey = new Map<string, ForwardMessageResult>()
   private savedCollections = new Map<string, V2NIMCollection>()
   private savedCursorOffsets = new Map<string, number>()
+  private teamDescriptions = new Map<ChannelRef, string>()
   private sequence = 0
   private listenersAttached = false
   private disposed = false
@@ -420,10 +423,12 @@ export class YunxinWebChannelTransport
       Math.max(0, request.offset),
       limit,
     )
+    const items = result.conversationList
+      .map((value) => this.mapConversation(value))
+      .filter((value) => value !== null)
+    await this.enrichTeamDescriptions(items)
     return {
-      items: result.conversationList
-        .map((value) => this.mapConversation(value))
-        .filter((value) => value !== null),
+      items,
       nextOffset: result.offset,
       hasMore: !result.finished,
     }
@@ -1699,7 +1704,12 @@ export class YunxinWebChannelTransport
     const channels = values
       .map((value) => this.mapConversation(value))
       .filter((value) => value !== null)
-    if (channels.length) this.emit({ type: 'channel.upserted', channels })
+    if (!channels.length) return
+    const sdk = this.sdk
+    void this.enrichTeamDescriptions(channels).then(() => {
+      if (this.sdk === sdk && this.currentStatus.phase === 'connected')
+        this.emit({ type: 'channel.upserted', channels })
+    })
   }
 
   private async emitControlledConversation(
@@ -1710,6 +1720,9 @@ export class YunxinWebChannelTransport
     const value = await sdk.V2NIMConversationService.getConversation(channelRef)
     const channel = this.mapConversation(value)
     if (!channel) throw new ChannelTransportError('protocolFailure', false)
+    await this.enrichTeamDescriptions([channel])
+    if (this.sdk !== sdk || this.currentStatus.phase !== 'connected')
+      throw new ChannelTransportError('notConnected', true)
     this.emit({ type: 'channel.upserted', channels: [{ ...channel, ...preferences }] })
   }
 
@@ -1720,21 +1733,65 @@ export class YunxinWebChannelTransport
     } catch {
       targetId = undefined
     }
-    return mapYunxinConversation(value, targetId)
+    const channel = mapYunxinConversation(value, targetId)
+    const description = this.teamDescriptions.get(value.conversationId)
+    if (channel?.kind === 'group' && description !== undefined) channel.description = description
+    return channel
   }
 
   private async refreshCreatedGroup(fallback: V2NIMConversation): Promise<void> {
     const sdk = this.sdk
     if (!sdk) return
+    let conversation = fallback
+    if (!fallback.name || !fallback.avatar) {
+      try {
+        conversation = await sdk.V2NIMConversationService.getConversation(fallback.conversationId)
+      } catch {
+        /* the fallback conversation can still be published */
+      }
+    }
+    const channel = this.mapConversation(conversation)
+    if (!channel) return
+    await this.enrichTeamDescriptions([channel])
+    if (this.sdk === sdk && this.currentStatus.phase === 'connected')
+      this.emit({ type: 'channel.upserted', channels: [channel] })
+  }
+
+  private async enrichTeamDescriptions(channels: Channel[]): Promise<void> {
+    const sdk = this.sdk
+    if (!sdk) return
+    const channelsByTeamId = new Map<string, Channel[]>()
+    for (const channel of channels) {
+      if (channel.kind !== 'group') continue
+      let teamId: string
+      try {
+        teamId = sdk.V2NIMConversationIdUtil.parseConversationTargetId(channel.ref).trim()
+      } catch {
+        continue
+      }
+      if (!teamId) continue
+      const values = channelsByTeamId.get(teamId) ?? []
+      values.push(channel)
+      channelsByTeamId.set(teamId, values)
+    }
+    if (channelsByTeamId.size === 0) return
+    let values: unknown
     try {
-      const conversation = await sdk.V2NIMConversationService.getConversation(
-        fallback.conversationId,
+      values = await sdk.V2NIMTeamService.getTeamInfoByIds(
+        [...channelsByTeamId.keys()],
+        ADVANCED_TEAM_TYPE,
       )
-      if (this.sdk === sdk && this.currentStatus.phase === 'connected')
-        this.emitChannels([conversation])
     } catch {
-      if (this.sdk === sdk && this.currentStatus.phase === 'connected')
-        this.emitChannels([fallback])
+      return
+    }
+    if (!Array.isArray(values) || this.sdk !== sdk) return
+    for (const value of values) {
+      const team = mapTeamDescription(value)
+      if (!team) continue
+      for (const channel of channelsByTeamId.get(team.teamId) ?? []) {
+        channel.description = team.description
+        this.teamDescriptions.set(channel.ref, team.description)
+      }
     }
   }
 
@@ -1952,6 +2009,7 @@ export class YunxinWebChannelTransport
     this.forwardedByKey.clear()
     this.savedCollections.clear()
     this.savedCursorOffsets.clear()
+    this.teamDescriptions.clear()
   }
 
   private attachPresenceListener(): void {
@@ -2452,14 +2510,30 @@ function mapUserProfile(value: unknown): ChannelUserProfile {
   if (!isModuleRecord(value)) throw new ChannelTransportError('protocolFailure', false)
   const accountId = requiredProfileText(value.accountId, 32)
   const name = optionalProfileText(value.name, 64) ?? ''
+  const sign = optionalDescription(value.sign)
   const email = optionalProfileText(value.email, 64)
   const avatarUrl = optionalProfileURL(value.avatar, 1024)
   return {
     accountId,
     name,
+    ...(sign ? { sign } : {}),
     ...(email ? { email } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
   }
+}
+
+function mapTeamDescription(value: unknown): { teamId: string; description: string } | null {
+  if (!isModuleRecord(value) || typeof value.teamId !== 'string' || typeof value.intro !== 'string')
+    return null
+  const teamId = value.teamId.trim()
+  if (!teamId || teamId.length > 128) return null
+  return { teamId, description: optionalDescription(value.intro) ?? '' }
+}
+
+function optionalDescription(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim()
+  return normalized ? normalized.slice(0, 500) : undefined
 }
 
 function normalizeAccountIds(accountIds: string[]): string[] {
