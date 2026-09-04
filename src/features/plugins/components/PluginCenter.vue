@@ -301,14 +301,16 @@ function selectPlugin(plugin: PluginRecord): void {
             <article
               v-for="plugin in filteredPlugins"
               :key="pluginKey(plugin)"
-              class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-panel"
+              class="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-panel"
               :class="selectedKey === pluginKey(plugin) ? 'bg-panel' : ''"
+              data-plugin-row
+              @click="selectPlugin(plugin)"
             >
               <TeaButton
                 appearance="ghost"
-                class="flex min-w-0 flex-1 !justify-start !rounded-none !border-transparent !px-0 !py-0 text-left"
+                class="flex min-w-0 flex-1 !justify-start !rounded-none !border-transparent !bg-transparent !px-0 !py-0 text-left !hover:bg-transparent !active:bg-transparent"
                 :aria-pressed="selectedKey === pluginKey(plugin)"
-                @click="selectPlugin(plugin)"
+                @click.stop="selectPlugin(plugin)"
               >
                 <span
                   class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-control text-sm font-semibold"
@@ -353,6 +355,7 @@ function selectPlugin(plugin: PluginRecord): void {
                 :label="t('management.plugins.toggle', { name: plugin.displayName })"
                 :model-value="plugin.enabled"
                 :disabled="store.busyId === plugin.id"
+                @click.stop
                 @update:model-value="store.setEnabled(plugin, $event)"
               />
               <span
