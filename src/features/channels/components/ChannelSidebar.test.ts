@@ -103,6 +103,25 @@ describe('ChannelSidebar', () => {
     expect(wrapper.get('[role="menu"]').text()).toContain('Pin conversation')
   })
 
+  it('shows unread presence without exposing a numeric count', () => {
+    const channel: Channel = {
+      ref: 'product',
+      kind: 'group',
+      name: 'Product',
+      description: 'Product decisions',
+      pinned: false,
+      muted: false,
+      unreadCount: 4,
+      updatedAt: 2,
+    }
+    const wrapper = mountSidebar([channel], false)
+
+    expect(wrapper.get('.channel-row__unread-rail').attributes('aria-label')).toBe(
+      'Unread messages',
+    )
+    expect(wrapper.find('.channel-row__select .bg-inverse').exists()).toBe(false)
+  })
+
   it('replaces the message preview with a localized draft projection', () => {
     const channel: Channel = {
       ref: 'product',

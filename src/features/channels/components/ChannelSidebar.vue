@@ -261,6 +261,13 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
             :aria-pressed="channel.ref === activeRef"
             @click="emit('select', channel.ref)"
           >
+            <span
+              v-if="channel.unreadCount"
+              class="channel-row__unread-rail"
+              role="img"
+              :aria-label="t('channels.unread')"
+              :title="t('channels.unread')"
+            />
             <span class="relative size-8 shrink-0">
               <ChannelAvatar
                 :channel-ref="channel.ref"
@@ -320,12 +327,6 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
               <span class="whitespace-nowrap text-xs tabular-nums text-subtle">{{
                 formatTime(channel.updatedAt)
               }}</span>
-              <span
-                v-if="channel.unreadCount"
-                class="flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-xs font-semibold tabular-nums text-on-inverse"
-              >
-                {{ channel.unreadCount > 99 ? '99+' : channel.unreadCount }}
-              </span>
             </span>
           </TeaButton>
         </div>
@@ -353,6 +354,7 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
 
 <style scoped>
 .channel-row {
+  position: relative;
   display: grid;
   block-size: 3.25rem;
   grid-template-columns: minmax(0, 1fr);
@@ -381,6 +383,17 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
 .channel-row__select:focus-visible {
   border-color: transparent;
   background: transparent;
+}
+
+.channel-row__unread-rail {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  block-size: 0.625rem;
+  inline-size: 0.1875rem;
+  transform: translateY(-50%);
+  border-radius: 0 var(--tea-radius-pill) var(--tea-radius-pill) 0;
+  background: var(--tea-inverse);
 }
 
 .channel-row__details {
