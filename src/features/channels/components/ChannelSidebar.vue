@@ -327,6 +327,7 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
               <span class="whitespace-nowrap text-xs tabular-nums text-subtle">{{
                 formatTime(channel.updatedAt)
               }}</span>
+              <span v-if="channel.unreadCount" class="channel-row__unread-dot" aria-hidden="true" />
             </span>
           </TeaButton>
         </div>
@@ -393,6 +394,13 @@ function presenceAvailability(channel: Channel): ChannelPresenceAvailability {
   inline-size: 0.1875rem;
   transform: translateY(-50%);
   border-radius: 0 var(--tea-radius-pill) var(--tea-radius-pill) 0;
+  background: var(--tea-inverse);
+}
+
+.channel-row__unread-dot {
+  block-size: 0.375rem;
+  inline-size: 0.375rem;
+  border-radius: var(--tea-radius-pill);
   background: var(--tea-inverse);
 }
 

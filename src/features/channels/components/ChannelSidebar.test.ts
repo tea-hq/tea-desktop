@@ -103,7 +103,7 @@ describe('ChannelSidebar', () => {
     expect(wrapper.get('[role="menu"]').text()).toContain('Pin conversation')
   })
 
-  it('shows unread presence without exposing a numeric count', () => {
+  it('shows both unread signals without exposing a numeric count or duplicate label', () => {
     const channel: Channel = {
       ref: 'product',
       kind: 'group',
@@ -119,7 +119,9 @@ describe('ChannelSidebar', () => {
     expect(wrapper.get('.channel-row__unread-rail').attributes('aria-label')).toBe(
       'Unread messages',
     )
-    expect(wrapper.find('.channel-row__select .bg-inverse').exists()).toBe(false)
+    expect(wrapper.get('.channel-row__unread-dot').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.findAll('[aria-label="Unread messages"]')).toHaveLength(1)
+    expect(wrapper.get('.channel-row__select').text()).not.toContain('4')
   })
 
   it('replaces the message preview with a localized draft projection', () => {

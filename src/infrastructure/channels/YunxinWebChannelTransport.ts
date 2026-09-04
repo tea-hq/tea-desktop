@@ -1255,7 +1255,15 @@ export class YunxinWebChannelTransport
 
   async markRead(channelRef: ChannelRef): Promise<void> {
     const sdk = this.connectedSdk()
-    await sdk.V2NIMConversationService.markConversationRead(channelRef)
+    let failures: unknown
+    try {
+      failures = await sdk.V2NIMConversationService.clearUnreadCountByIds([channelRef])
+    } catch {
+      throw new ChannelTransportError('transport', true)
+    }
+    if (!Array.isArray(failures)) throw new ChannelTransportError('protocolFailure', false)
+    if (failures.length) throw new ChannelTransportError('transport', true)
+
     const incoming = [...this.rawMessages.values()]
       .filter(
         (message) =>
@@ -1266,11 +1274,15 @@ export class YunxinWebChannelTransport
       )
       .sort((left, right) => left.createTime - right.createTime)
     if (!incoming.length) return
-    const type = sdk.V2NIMConversationIdUtil.parseConversationType(channelRef)
-    if (type === 1) {
-      await sdk.V2NIMMessageService.sendP2PMessageReceipt(incoming.at(-1)!)
-    } else if (type === 2) {
-      await sdk.V2NIMMessageService.sendTeamMessageReceipts(incoming.slice(-50))
+    try {
+      const type = sdk.V2NIMConversationIdUtil.parseConversationType(channelRef)
+      if (type === 1) {
+        await sdk.V2NIMMessageService.sendP2PMessageReceipt(incoming.at(-1)!)
+      } else if (type === 2) {
+        await sdk.V2NIMMessageService.sendTeamMessageReceipts(incoming.slice(-50))
+      }
+    } catch {
+      // Message receipts are independent from the authoritative conversation unread state.
     }
   }
 

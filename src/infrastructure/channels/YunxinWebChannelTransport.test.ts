@@ -93,6 +93,7 @@ function createFakeSdk() {
       updateTime: 1,
       lastReadTime: 0,
     })),
+    clearUnreadCountByIds: vi.fn(async (_conversationIds: string[]): Promise<unknown[]> => []),
     markConversationRead: vi.fn(async () => Date.now()),
     stickTopConversation: vi.fn(async () => undefined),
     deleteConversation: vi.fn(async () => undefined),
@@ -1263,7 +1264,7 @@ describe('YunxinWebChannelTransport', () => {
     expect(user.getUserListFromCloud).toHaveBeenCalledWith(['reader-a', 'reader-b', 'reader-c'])
   })
 
-  it('marks conversations read and sends the matching provider receipt batch', async () => {
+  it('clears the provider unread count and sends the matching receipt batch', async () => {
     const { sdk, message, conversation } = createFakeSdk()
     const transport = createTransport({ create: () => sdk as never })
     await transport.connect()
@@ -1282,12 +1283,61 @@ describe('YunxinWebChannelTransport', () => {
 
     await transport.markRead('team|design')
 
-    expect(conversation.markConversationRead).toHaveBeenCalledWith('team|design')
+    expect(conversation.clearUnreadCountByIds).toHaveBeenCalledWith(['team|design'])
+    expect(conversation.markConversationRead).not.toHaveBeenCalled()
     expect(message.sendTeamMessageReceipts).toHaveBeenCalledOnce()
     expect(message.sendTeamMessageReceipts.mock.calls[0]![0]).toHaveLength(50)
     expect(message.sendTeamMessageReceipts.mock.calls[0]![0][0]).toMatchObject({
       messageClientId: 'incoming-5',
     })
+  })
+
+  it('clears the provider unread count without requiring cached messages', async () => {
+    const { sdk, message, conversation } = createFakeSdk()
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await transport.markRead('team|design')
+
+    expect(conversation.clearUnreadCountByIds).toHaveBeenCalledWith(['team|design'])
+    expect(message.sendTeamMessageReceipts).not.toHaveBeenCalled()
+  })
+
+  it('keeps a successful unread clear successful when the optional receipt fails', async () => {
+    const { sdk, message, conversation } = createFakeSdk()
+    message.sendP2PMessageReceipt.mockRejectedValueOnce(new Error('receipt unavailable'))
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+    message.emit('onReceiveMessages', [
+      {
+        ...(await message.getMessageListEx()).messages[0],
+        conversationId: 'p2p|alice',
+        conversationType: 1,
+        senderId: 'alice',
+        isSelf: false,
+      },
+    ])
+
+    await expect(transport.markRead('p2p|alice')).resolves.toBeUndefined()
+
+    expect(conversation.clearUnreadCountByIds).toHaveBeenCalledWith(['p2p|alice'])
+    expect(message.sendP2PMessageReceipt).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an unread clear reported as a per-conversation failure', async () => {
+    const { sdk, message, conversation } = createFakeSdk()
+    conversation.clearUnreadCountByIds.mockResolvedValueOnce([
+      { conversationId: 'team|design', error: { code: 500 } },
+    ])
+    const transport = createTransport({ create: () => sdk as never })
+    await transport.connect()
+
+    await expect(transport.markRead('team|design')).rejects.toMatchObject({
+      code: 'transport',
+      retryable: true,
+    })
+
+    expect(message.sendTeamMessageReceipts).not.toHaveBeenCalled()
   })
 
   it('translates provider-neutral conversation controls into exact SDK operations', async () => {
