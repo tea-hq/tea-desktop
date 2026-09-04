@@ -57,6 +57,25 @@ function mountCenter(value: PluginRecord): ReturnType<typeof mount> {
 }
 
 describe('PluginCenter', () => {
+  it('selects a plugin when clicking the row metadata outside the title button', async () => {
+    const first = plugin({ displayName: 'Alpha' })
+    const second = plugin({ id: 'github', displayName: 'GitHub' })
+    mockStore.plugins = [first, second]
+    mockStore.remotePlugins = [first, second]
+
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+    const wrapper = mount(PluginCenter, { global: { plugins: [i18n] } })
+    const rows = wrapper.findAll('[data-plugin-row]')
+
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.find('button[aria-pressed]').attributes('aria-pressed')).toBe('true')
+
+    await rows[1]!.find('.i-mdi-cloud-check-outline').trigger('click')
+
+    expect(rows[0]?.find('button[aria-pressed]').attributes('aria-pressed')).toBe('false')
+    expect(rows[1]?.find('button[aria-pressed]').attributes('aria-pressed')).toBe('true')
+  })
+
   it('renders a configured plugin icon in the inventory and detail view', async () => {
     const wrapper = mountCenter(plugin())
 
