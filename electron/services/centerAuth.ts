@@ -742,9 +742,10 @@ function readDirectoryOidc(value: unknown): DirectoryUser['oidc'] {
     throw serviceError('protocolFailure', false)
   const avatarUrl = optionalDirectoryAvatar(value.avatarUrl)
   const email = optionalDirectoryText(value.email, 320)
+  const preferredUsername = optionalDirectoryText(value.preferredUsername, 320)
   return {
     subject: requiredDirectoryText(value.subject, 512),
-    preferredUsername: requiredDirectoryText(value.preferredUsername, 320),
+    ...(preferredUsername ? { preferredUsername } : {}),
     ...(email ? { email } : {}),
     emailVerified: value.emailVerified,
     ...(avatarUrl ? { avatarUrl } : {}),

@@ -5,7 +5,7 @@ export interface DirectoryUser {
   center: { userId: string; displayName: string }
   oidc: {
     subject: string
-    preferredUsername: string
+    preferredUsername?: string
     email?: string
     emailVerified: boolean
     avatarUrl?: string

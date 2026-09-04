@@ -27,6 +27,28 @@ describe('normalizeDirectoryUsersResponse', () => {
     })
   })
 
+  it('accepts identities without the optional preferred username claim', () => {
+    const candidate = user()
+    candidate.oidc.preferredUsername = ''
+    const { preferredUsername: _preferredUsername, ...oidc } = candidate.oidc
+
+    expect(
+      normalizeDirectoryUsersResponse({ schemaVersion: 1, users: [candidate] }, tenant),
+    ).toEqual({
+      schemaVersion: 1,
+      users: [{ ...candidate, oidc }],
+    })
+    expect(
+      normalizeDirectoryUsersResponse(
+        { schemaVersion: 1, users: [{ ...candidate, oidc }] },
+        tenant,
+      ),
+    ).toEqual({
+      schemaVersion: 1,
+      users: [{ ...candidate, oidc }],
+    })
+  })
+
   it('rejects contacts without the Tea/Yunxin synchronization invariant', () => {
     expect(() =>
       normalizeDirectoryUsersResponse(
