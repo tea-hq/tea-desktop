@@ -73,6 +73,13 @@ function hasIcon(plugin: PluginRecord): boolean {
   return Boolean(plugin.iconUrl && !failedIconKeys.value.has(pluginIconKey(plugin)))
 }
 
+function iconFrameClass(plugin: PluginRecord): string {
+  if (hasIcon(plugin)) return 'bg-canvas text-fg'
+  return pluginSource(plugin) === 'remote'
+    ? 'bg-brand-accent text-on-accent'
+    : 'bg-accent text-on-accent'
+}
+
 function handleIconError(plugin: PluginRecord): void {
   const key = pluginIconKey(plugin)
   if (failedIconKeys.value.has(key)) return
@@ -305,11 +312,8 @@ function selectPlugin(plugin: PluginRecord): void {
               >
                 <span
                   class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-control text-sm font-semibold"
-                  :class="
-                    pluginSource(plugin) === 'remote'
-                      ? 'bg-brand-accent text-on-accent'
-                      : 'bg-accent text-on-accent'
-                  "
+                  data-plugin-icon-frame
+                  :class="iconFrameClass(plugin)"
                 >
                   <img
                     v-if="hasIcon(plugin)"
@@ -365,11 +369,8 @@ function selectPlugin(plugin: PluginRecord): void {
             <div class="flex items-start gap-3">
               <span
                 class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-control text-sm font-semibold"
-                :class="
-                  pluginSource(selectedPlugin) === 'remote'
-                    ? 'bg-brand-accent text-on-accent'
-                    : 'bg-accent text-on-accent'
-                "
+                data-plugin-icon-frame
+                :class="iconFrameClass(selectedPlugin)"
               >
                 <img
                   v-if="hasIcon(selectedPlugin)"

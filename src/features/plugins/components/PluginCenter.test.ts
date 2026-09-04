@@ -64,6 +64,10 @@ describe('PluginCenter', () => {
     expect(icons).toHaveLength(2)
     expect(icons[0]?.attributes('src')).toBe(iconUrl)
     expect(icons[0]?.attributes('alt')).toBe('Overmind 工单')
+    expect(wrapper.findAll('[data-plugin-icon-frame]')[0]?.classes()).toContain('bg-canvas')
+    expect(wrapper.findAll('[data-plugin-icon-frame]')[0]?.classes()).not.toContain(
+      'bg-brand-accent',
+    )
   })
 
   it('falls back to initials in both views when the icon cannot load', async () => {
@@ -77,6 +81,7 @@ describe('PluginCenter', () => {
       'O工',
       'O工',
     ])
+    expect(wrapper.findAll('[data-plugin-icon-frame]')[0]?.classes()).toContain('bg-brand-accent')
   })
 
   it('uses initials immediately when a plugin has no icon URL', async () => {
