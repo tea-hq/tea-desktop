@@ -168,6 +168,7 @@ export const useChannelsStore = defineStore('channels', () => {
   let unsubscribe: (() => void) | null = null
   let refreshPromise: Promise<void> | null = null
   let lifecycleGeneration = 0
+  let channelSelectionOperationId = 0
   let loadingMessageOperationId = 0
   let messageSearchOperationId = 0
   let pinnedMessagesOperationId = 0
@@ -465,30 +466,34 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function selectChannel(channelRef: ChannelRef): Promise<void> {
     if (!projection.channels.has(channelRef)) return
-    const previousChannelRef = activeChannelRef.value
-    if (previousChannelRef && previousChannelRef !== channelRef) closeThread()
-    if (previousChannelRef && previousChannelRef !== channelRef) pauseVoicePlayback()
-    if (previousChannelRef && previousChannelRef !== channelRef) closeMediaViewer()
-    if (previousChannelRef && previousChannelRef !== channelRef)
-      await flushDraft(previousChannelRef).catch(() => undefined)
     const client = requireTransport()
     const generation = lifecycleGeneration
+    const operationId = ++channelSelectionOperationId
     errorCode.value = null
-    highlightedMessageKey.value = null
-    if (pinnedMessagesChannelRef.value !== channelRef) clearPinnedMessages()
-    activeChannelRef.value = channelRef
-    if (!projection.messagesByChannel.has(channelRef)) await loadMessages(channelRef, 'before')
-    else ensureMessageCursor(channelRef)
-    if (
-      generation !== lifecycleGeneration ||
-      transport.value !== client ||
-      activeChannelRef.value !== channelRef
-    )
-      return
+
+    // Reading history and flushing the previous draft are independent from the
+    // provider read marker, so start the durable update immediately on selection.
+    const markReadPromise = markSelectedChannelRead(client, channelRef, generation, operationId)
+    const previousChannelRef = activeChannelRef.value
     try {
-      await client.markRead(channelRef)
-    } catch (error) {
-      if (generation === lifecycleGeneration) errorCode.value = transportErrorCode(error)
+      if (previousChannelRef && previousChannelRef !== channelRef) closeThread()
+      if (previousChannelRef && previousChannelRef !== channelRef) pauseVoicePlayback()
+      if (previousChannelRef && previousChannelRef !== channelRef) closeMediaViewer()
+      if (previousChannelRef && previousChannelRef !== channelRef)
+        await flushDraft(previousChannelRef).catch(() => undefined)
+      if (
+        generation !== lifecycleGeneration ||
+        transport.value !== client ||
+        !projection.channels.has(channelRef)
+      )
+        return
+      highlightedMessageKey.value = null
+      if (pinnedMessagesChannelRef.value !== channelRef) clearPinnedMessages()
+      activeChannelRef.value = channelRef
+      if (!projection.messagesByChannel.has(channelRef)) await loadMessages(channelRef, 'before')
+      else ensureMessageCursor(channelRef)
+    } finally {
+      await markReadPromise
     }
   }
 
@@ -2858,6 +2863,28 @@ export const useChannelsStore = defineStore('channels', () => {
       throw error
     } finally {
       if (generation === lifecycleGeneration) mutatingChannelRefs.delete(channelRef)
+    }
+  }
+
+  async function markSelectedChannelRead(
+    client: ChannelTransport,
+    channelRef: ChannelRef,
+    generation: number,
+    operationId: number,
+  ): Promise<void> {
+    try {
+      await client.markRead(channelRef)
+      if (generation !== lifecycleGeneration || transport.value !== client) return
+      const channel = projection.channels.get(channelRef)
+      if (channel) projection.channels.set(channelRef, { ...channel, unreadCount: 0 })
+    } catch (error) {
+      if (
+        generation === lifecycleGeneration &&
+        operationId === channelSelectionOperationId &&
+        transport.value === client &&
+        projection.channels.has(channelRef)
+      )
+        errorCode.value = transportErrorCode(error)
     }
   }
 

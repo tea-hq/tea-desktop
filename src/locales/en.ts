@@ -665,6 +665,7 @@ export default {
     recent: 'Recent',
     loading: 'Syncing conversations',
     noResults: 'No matching channels',
+    unread: 'Unread messages',
     controls: {
       actions: 'Channel actions for {name}',
       pin: 'Pin conversation',

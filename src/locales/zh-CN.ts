@@ -622,6 +622,7 @@ export default {
     recent: '最近',
     loading: '正在同步会话',
     noResults: '没有匹配的通道',
+    unread: '有未读消息',
     controls: {
       actions: '{name} 的会话操作',
       pin: '置顶会话',

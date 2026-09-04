@@ -967,6 +967,51 @@ describe('useChannelsStore', () => {
     await store.selectChannel('product-collab')
     expect(store.activeMessages.length).toBeGreaterThan(0)
     expect(markRead).toHaveBeenCalledWith('product-collab')
+    expect(store.channels.find((channel) => channel.ref === 'product-collab')).toMatchObject({
+      unreadCount: 0,
+    })
+  })
+
+  it('marks a channel read even when history loading fails', async () => {
+    const { store, transport } = await connectedStore()
+    const order: string[] = []
+    vi.spyOn(transport, 'markRead').mockImplementation(async () => {
+      order.push('read')
+    })
+    vi.spyOn(transport, 'loadMessages').mockImplementation(async () => {
+      order.push('history')
+      throw new ChannelTransportError('transport', true)
+    })
+
+    await expect(store.selectChannel('product-collab')).rejects.toBeInstanceOf(
+      ChannelTransportError,
+    )
+
+    expect(order).toEqual(['read', 'history'])
+    expect(store.channels.find((channel) => channel.ref === 'product-collab')).toMatchObject({
+      unreadCount: 0,
+    })
+  })
+
+  it('does not surface a stale mark-read failure after switching channels', async () => {
+    const { store, transport } = await connectedStore()
+    let rejectFirst!: (reason?: unknown) => void
+    const firstRead = new Promise<void>((_resolve, reject) => {
+      rejectFirst = reject
+    })
+    const markRead = vi.spyOn(transport, 'markRead').mockImplementation(async (channelRef) => {
+      if (channelRef === 'product-collab') await firstRead
+    })
+
+    const firstSelection = store.selectChannel('product-collab')
+    await vi.waitFor(() => expect(markRead).toHaveBeenCalledWith('product-collab'))
+    await store.selectChannel('runtime-architecture')
+
+    rejectFirst(new ChannelTransportError('transport', true))
+    await firstSelection
+
+    expect(store.activeChannelRef).toBe('runtime-architecture')
+    expect(store.errorCode).toBeNull()
   })
 
   it('keeps before and after cursors independent while loading a message window', async () => {
